@@ -1,0 +1,12 @@
+{
+  "name": "triad",
+  "private": true,
+  "type": "module",
+  "description": "TRIAD 전구사령부 — 육해공 턴제 전략 워게임",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs && node --test test/game.test.mjs",
+    "balance": "node tools/balance.mjs"
+  },
+  "engines": { "node": ">=18" }
+}

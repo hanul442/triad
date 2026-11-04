@@ -1,0 +1,58 @@
+<div class="app" id="app">
+  <div class="board" id="board"><div class="stage" id="stage"><canvas id="terrain" aria-hidden="true"></canvas><svg id="map" role="img" aria-label="전술 지도"><g id="g-board"></g><g id="g-units" pointer-events="none"></g><g id="g-path" pointer-events="none"></g><g id="g-top" pointer-events="none"></g><g id="g-pops" pointer-events="none"></g></svg></div></div>
+  <div class="top">
+    <div class="tl"><button class="ib" data-act="menu" id="b-menu" aria-label="작전 메뉴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="pill" id="hud-clock"></div></div>
+    <div class="plate" id="hud-region" aria-hidden="true"></div>
+    <div class="pill res" id="hud-res"></div>
+  </div>
+  <div class="mapctl">
+    <button class="ib" data-act="zoom:1" id="z-in" aria-label="확대">+</button>
+    <button class="ib" data-act="zoom:-1" id="z-out" aria-label="축소">−</button>
+    <button class="ib" data-act="home" id="b-home" aria-label="수도로 이동"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8H4z"/><path d="M10 19v-5h4v5"/></svg></button>
+    <button class="ib" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3l5 3v6l-5 3-5-3V6zM17 9l5 3v6l-5 3-5-3v-6z"/></svg></button>
+    <button class="ib" data-act="snd" id="b-snd" aria-label="효과음" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+    <button class="ib" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <div class="dock"><div class="obj" id="obj" role="status" hidden></div><div class="actbar" id="actbar" hidden></div></div>
+  <aside class="sheet" id="sheet" aria-label="작전 메뉴" hidden>
+    <div class="sheet-h">
+      <div class="tabs" role="tablist" id="tabs">
+        <button class="tab" role="tab" data-tab="cmd" id="t-cmd">명령</button>
+        <button class="tab" role="tab" data-tab="staff" id="t-staff">참모부</button>
+        <button class="tab" role="tab" data-tab="world" id="t-world">정세</button>
+        <button class="tab" role="tab" data-tab="tech" id="t-tech">연구</button>
+        <button class="tab" role="tab" data-tab="rules" id="t-rules">교범</button>
+      </div>
+      <button class="ib" data-act="sheet-close" id="b-sclose" aria-label="메뉴 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <section class="panel" id="panel"></section>
+  </aside>
+</div>
+
+<div class="overlay" id="setup" hidden>
+  <div class="card">
+    <h2>작전 설정</h2>
+    <h3 class="sec">훈련과 시나리오</h3>
+    <div class="grid" id="scn-list"></div>
+    <h3 class="sec">자유 전쟁</h3>
+    <p>세력마다 사람 또는 AI를 정하세요. 사람이 둘 이상이면 한 기기를 번갈아 쓰고, 모두 AI로 두면 관전 모드가 됩니다.</p>
+    <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="slot"><span></span><label for="opt-size">전구 크기</label><select id="opt-size"><option value="m">중형 26×18 (최대 4세력)</option><option value="l" selected>대형 36×26</option><option value="xl">초대형 48×34</option></select></div>
+    <div class="slot"><span></span><label for="opt-mt">지형</label><select id="opt-mt"><option value="cont">대륙 (육로 연결)</option><option value="arch">군도 (해전 중심)</option></select></div>
+    <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
+    <div class="slot"><span></span><label for="opt-vic">승리 조건</label><select id="opt-vic"><option value="0">정복 (마지막 세력)</option><option value="40">점수전 40라운드</option><option value="25">점수전 25라운드</option></select></div>
+    <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
+    <div class="slot"><span></span><label for="opt-speed">AI 진행 속도</label><select id="opt-speed"><option value="140">보통 (기동 표시)</option><option value="0">빠름</option></select></div>
+    <div class="err" id="setup-err"></div>
+    <button class="btn primary" data-act="start" id="b-start">작전 개시</button>
+    <button class="btn" data-act="resume" id="b-resume" hidden>저장된 작전 이어하기</button>
+  </div>
+</div>
+<div class="overlay" id="handoff" hidden>
+  <div class="card">
+    <h2 id="ho-title">차례</h2>
+    <p>기기를 넘겨주세요. 준비되면 시작합니다.</p>
+    <button class="btn primary" data-act="handoff" id="b-ho">작전 시작</button>
+  </div>
+</div>
