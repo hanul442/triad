@@ -154,6 +154,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 @media (prefers-reduced-motion: reduce){.pop{animation:fade .9s linear forwards}@keyframes fade{to{opacity:0}}}
 /* 3D 시점 */
 .v3d{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#121920;outline:none}
+.v3d-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 70% at 50% 45%,transparent 55%,rgba(8,10,12,.5) 100%)}
 .v3d-lab{position:absolute;inset:0;pointer-events:none;overflow:hidden;contain:strict}
 .app.v3 .board{visibility:hidden;pointer-events:none}
 .v3only{display:none}
@@ -182,6 +183,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 <body>
 <div class="app" id="app">
   <canvas class="v3d" id="v3d" aria-label="시가지 전장 (3D)"></canvas>
+  <div class="v3d-vig" aria-hidden="true"></div>
   <div class="v3d-lab" id="v3d-lab" aria-hidden="true"></div>
   <div class="v3d-err" id="v3d-err" role="alert" hidden></div>
   <div class="top">
@@ -614,7 +616,7 @@ function v3Fail(m){const el=$('#v3d-err');if(el){el.textContent=m;el.hidden=fals
 /* ---------- 기본 도구 ---------- */
 const v3x=(r,c)=>[c+.5,r+.5];
 function v3Hash(k,s){let h=(k*2654435761^(s||0)*40503)>>>0;h=Math.imul(h^h>>>15,2246822507)>>>0;h=Math.imul(h^h>>>13,3266489909)>>>0;return ((h^h>>>16)>>>0)/4294967296;}
-const GH={road:0,plaza:.025,park:.04,rubble:.03,bldg:.06,water:-.12};
+const GH={road:0,plaza:0,park:0,rubble:0,bldg:.06,water:0};
 const v3G=(r,c)=>GH[G.map[r][c].t]??0;
 function v3Top(r,c){const x=G.map[r][c];return x.t==='bldg'?.06+x.f*FLOOR_H:v3G(r,c);}
 const V3COL={road:'#3b3c3d',plaza:'#7f7d77',park:'#5a6247',rubble:'#5e5952',bldg:'#6d6b66',water:'#3a5560'};
@@ -626,20 +628,35 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');
   ren.setPixelRatio(Math.min(2,window.devicePixelRatio||1));ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;
   ren.toneMapping=T.ACESFilmicToneMapping;ren.toneMappingExposure=1.05;ren.outputColorSpace=T.SRGBColorSpace;
   const scene=new T.Scene();const cam=new T.PerspectiveCamera(38,1,.1,400);
-  const hemi=new T.HemisphereLight('#c9d6e2','#4d4334',.9);scene.add(hemi);
-  const sun=new T.DirectionalLight('#fff0d8',2.2);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0006;sun.shadow.normalBias=.02;
+  const hemi=new T.HemisphereLight('#c9d6e2','#5a5248',1.35);scene.add(hemi);
+  const sun=new T.DirectionalLight('#fff0d8',2.2);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;sun.shadow.radius=3;
   const sc=sun.shadow.camera;sc.near=1;sc.far=90;scene.add(sun);scene.add(sun.target);scene.fog=new T.Fog('#8f8a80',30,90);
   const flash=new T.PointLight('#ffaa55',0,10,1.6);scene.add(flash);
-  const facade=v3Tex(256,256,(g,w,h)=>{g.fillStyle='#a49e93';g.fillRect(0,0,w,h);for(let i=0;i<900;i++){g.fillStyle=`rgba(${Math.random()<.5?0:255},${Math.random()<.5?0:255},${Math.random()<.5?0:255},.05)`;g.fillRect(Math.random()*w,Math.random()*h,3,3);}
-    for(let y=0;y<8;y++){g.fillStyle='rgba(60,55,50,.35)';g.fillRect(0,y*32+29,w,3);for(let x=0;x<8;x++){g.fillStyle=Math.random()<.12?'#5b5650':'#2b3036';g.fillRect(x*32+8,y*32+9,16,14);}}});
+  // 판상형 아파트 외벽: 8열×8층, 칸마다 창 하나
+  const WIN=[];const fr=mulberry(7);
+  const facade=v3Tex(512,512,(g,w,h)=>{g.fillStyle='#aaa598';g.fillRect(0,0,w,h);
+    for(let y=0;y<8;y++)for(let x=0;x<8;x++){const t=fr();g.fillStyle=`rgba(${t<.5?40:255},${t<.5?36:250},${t<.5?30:240},${.03+fr()*.07})`;g.fillRect(x*64,y*64,64,64);}
+    for(let i=0;i<5000;i++){const l=fr()<.5;g.fillStyle=l?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)';g.fillRect(fr()*w,fr()*h,2,2);}
+    g.fillStyle='rgba(50,46,40,.45)';for(let y=0;y<8;y++)g.fillRect(0,y*64+62,w,2);g.fillStyle='rgba(50,46,40,.22)';for(let x=0;x<8;x++)g.fillRect(x*64+63,0,1,h);
+    for(let y=0;y<8;y++)for(let x=0;x<8;x++){const X=x*64+15,Y=y*64+14,bal=x%4===1||x%4===2;
+      if(bal){g.fillStyle='rgba(0,0,0,.25)';g.fillRect(X-8,Y+34,50,8);g.fillStyle='#9a958a';g.fillRect(X-8,Y+30,50,6);g.fillStyle='#837e74';g.fillRect(X-8,Y+36,50,2);}
+      g.fillStyle='#d2cec4';g.fillRect(X-2,Y-2,38,34);const r=fr();
+      const gr=g.createLinearGradient(X,Y,X+34,Y+30);gr.addColorStop(0,r<.08?'#0b0c0d':'#3d4a55');gr.addColorStop(1,r<.08?'#151515':'#1a2026');g.fillStyle=gr;g.fillRect(X,Y,34,30);
+      if(r>.08){g.fillStyle='#c9c5bb';g.fillRect(X+16,Y,2,30);g.fillRect(X,Y+12,34,2);if(r>.75){g.fillStyle='rgba(150,130,105,.75)';g.fillRect(X+1,Y+1,14,11);}}
+      WIN.push([X,Y,r]);}
+    for(let i=0;i<40;i++){const x=fr()*w,y=fr()*h,len=30+fr()*120;const gr=g.createLinearGradient(0,y,0,y+len);gr.addColorStop(0,'rgba(45,40,34,.18)');gr.addColorStop(1,'rgba(45,40,34,0)');g.fillStyle=gr;g.fillRect(x,y,2+fr()*5,len);}});
   facade.wrapS=facade.wrapT=T.RepeatWrapping;
-  const lights=v3Tex(256,256,(g,w,h)=>{g.fillStyle='#000';g.fillRect(0,0,w,h);for(let y=0;y<8;y++)for(let x=0;x<8;x++){if(Math.random()<.34){g.fillStyle=Math.random()<.8?'#ffc77a':'#fff0cf';g.fillRect(x*32+8,y*32+9,16,14);}}});
+  const lights=v3Tex(512,512,(g,w,h)=>{g.fillStyle='#000';g.fillRect(0,0,w,h);for(const [X,Y,r] of WIN){if(r>.08&&fr()<.32){g.fillStyle=fr()<.8?'#ffc77a':'#fff0cf';g.fillRect(X,Y,34,30);}}});
   lights.wrapS=lights.wrapT=T.RepeatWrapping;
+  const roofT=v3Tex(256,256,(g,w,h)=>{g.fillStyle='#8f8d89';g.fillRect(0,0,w,h);for(let i=0;i<9000;i++){const v=90+fr()*90|0;g.fillStyle=`rgba(${v},${v},${v-6},.3)`;g.fillRect(fr()*w,fr()*h,2,2);}
+    for(let i=0;i<5;i++){const x=fr()*w,y=fr()*h,rr=20+fr()*40;const gr=g.createRadialGradient(x,y,0,x,y,rr);gr.addColorStop(0,'rgba(40,38,34,.12)');gr.addColorStop(1,'rgba(40,38,34,0)');g.fillStyle=gr;g.fillRect(x-rr,y-rr,rr*2,rr*2);}g.strokeStyle='rgba(60,58,54,.35)';g.lineWidth=2;for(let i=0;i<=w;i+=64){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke();}});
+  roofT.wrapS=roofT.wrapT=T.RepeatWrapping;
+  for(const t of [facade,lights,roofT])t.anisotropy=ren.capabilities.getMaxAnisotropy();
   const puff=v3Tex(64,64,(g)=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.5,'rgba(255,255,255,.45)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);});
   const M={
     terr:new T.MeshStandardMaterial({roughness:.95,metalness:0}),
     wall:new T.MeshStandardMaterial({map:facade,emissiveMap:lights,emissive:'#ffffff',emissiveIntensity:0,vertexColors:true,roughness:.92}),
-    roof:new T.MeshStandardMaterial({vertexColors:true,roughness:.95,flatShading:true}),
+    roof:new T.MeshStandardMaterial({map:roofT,vertexColors:true,roughness:.95,flatShading:true,side:T.DoubleSide}),
     rubble:new T.MeshStandardMaterial({color:'#5a534b',roughness:1,flatShading:true}),
     mark:new T.MeshStandardMaterial({color:'#d9d4c4',roughness:.8}),
     tree:new T.MeshStandardMaterial({color:'#3c4a2b',roughness:1,flatShading:true}),
@@ -652,11 +669,19 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');
     smoke:new T.SpriteMaterial({map:puff,color:'#3e3a35',transparent:true,depthWrite:false,opacity:.55}),
     fire:new T.SpriteMaterial({map:puff,color:'#ff8a3a',transparent:true,depthWrite:false,blending:T.AdditiveBlending}),
   };
+  V3.fowU={map:{value:null},n:{value:N}};
+  for(const k of ['terr','wall','roof','rubble','tree','trunk','conc'])v3FowMat(M[k]);
   const G3={world:new T.Group(),city:new T.Group(),sites:new T.Group(),units:new T.Group(),hl:new T.Group(),fx:new T.Group(),amb:new T.Group()};
   for(const k in G3)scene.add(G3[k]);
-  Object.assign(V3,{ren,scene,cam,cv,hemi,sun,flash,M,puff,G:G3,cs:{x:12,z:12,yaw:0,pitch:1.08,d:15,gx:12,gz:12,gyaw:0,gd:15},
+  Object.assign(V3,{ren,scene,cam,cv,hemi,sun,flash,M,puff,G:G3,cs:{x:12,z:12,yaw:0,pitch:.92,d:13,gx:12,gz:12,gyaw:0,gd:13},
     uo:new Map(),fx:[],smoke:[],labels:new Map(),tag:null,last:0,shake:0,matc:new Map()});
   v3Controls(cv);window.addEventListener('resize',v3Size);}
+// 전장의 안개: 안 보이는 칸을 지면·건물 모두 어둡게 (칸 경계는 부드럽게)
+function v3FowMat(mat){mat.onBeforeCompile=sh=>{sh.uniforms.fowMap=V3.fowU.map;sh.uniforms.fowN=V3.fowU.n;
+    sh.vertexShader='varying vec2 vFowW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 fowP=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nfowP=instanceMatrix*fowP;\n#endif\nvFowW=(modelMatrix*fowP).xz;');
+    sh.fragmentShader='uniform sampler2D fowMap;uniform float fowN;varying vec2 vFowW;\n'+sh.fragmentShader.replace('#include <fog_fragment>','{float fv=texture2D(fowMap,vFowW/fowN).r;vec3 gy=vec3(dot(gl_FragColor.rgb,vec3(.3,.59,.11)));gl_FragColor.rgb=mix(gy*vec3(.5,.54,.6),gl_FragColor.rgb,fv);}\n#include <fog_fragment>');};
+  mat.customProgramCacheKey=()=>'fow';}
+function v3FowUpd(vs){if(!V3.fowD)return;const d=V3.fowD;for(let r=0;r<N;r++)for(let c=0;c<N;c++)d[(r*N+c)*4]=!vs||vs.has(key(r,c))?255:0;V3.fowT.needsUpdate=true;}
 function v3Size(){if(!V3.ren)return;const a=$('#app');const w=a.clientWidth,h=a.clientHeight;V3.ren.setSize(w,h,false);V3.cam.aspect=w/Math.max(1,h);V3.cam.fov=V3.cam.aspect<1?Math.min(62,38/Math.sqrt(V3.cam.aspect)):38;V3.cam.updateProjectionMatrix();}
 
 /* ---------- 카메라 ---------- */
@@ -664,7 +689,7 @@ function v3Focus(r,c){const [x,z]=v3x(r,c);V3.cs.gx=x;V3.cs.gz=z;}
 function camFollow(r,c){if(!V3.on)return;const s=V3.cs;const [x,z]=v3x(r,c);if(Math.hypot(x-s.gx,z-s.gz)>s.d*.35)v3Focus(r,c);}
 function v3HomeCam(now){if(!G)return;const n=G.viewer;const sp=zoneSpots(n);const s=V3.cs;const m=(N-1)/2;
   const [r,c]=sp.length?sp[0]:[m,m];const [x,z]=v3x(r,c);const [mx,mz]=v3x(m,m);
-  s.gx=x+(mx-x)*.35;s.gz=z+(mz-z)*.35;s.gyaw=[ -Math.PI/2, Math.PI/2, Math.PI, 0 ][n]??0;
+  s.gx=x+(mx-x)*.22;s.gz=z+(mz-z)*.22;s.gyaw=[ -Math.PI/2, Math.PI/2, Math.PI, 0 ][n]??0;
   if(now){s.x=s.gx;s.z=s.gz;s.yaw=s.gyaw;}}
 function v3Zoom(f){const s=V3.cs;s.gd=Math.min(48,Math.max(4,s.gd*f));}
 function v3Rot(dir){V3.cs.gyaw+=dir*Math.PI/4;}
@@ -702,19 +727,43 @@ function v3Hover(e){if(v3HovRaf)return;const x=e.clientX,y=e.clientY;v3HovRaf=re
 function v3Clear(g){for(const o of [...g.children]){g.remove(o);o.traverse(x=>{if(x.geometry)x.geometry.dispose();});}}
 
 /* ---------- 지면 ---------- */
+function v3GroundTex(){const P=32,W=N*P;const cv=document.createElement('canvas');cv.width=cv.height=W;const g=cv.getContext('2d');const R=mulberry((G.seed|0)^0x5151);
+  const t=(r,c)=>inb(r,c)?G.map[r][c].t:'void';const rd=(r,c)=>t(r,c)==='road';const open=(r,c)=>{const q=t(r,c);return q==='road'||q==='plaza'||q==='void';};
+  const BASE={road:'#3b3c3e',plaza:'#8a867d',park:'#56603f',rubble:'#5f5a51',bldg:'#5a5751',water:'#2d4550'};
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const q=t(r,c),X=c*P,Y=r*P;g.fillStyle=BASE[q]||'#555';g.fillRect(X,Y,P,P);
+    if(q==='plaza'){g.fillStyle='rgba(0,0,0,.13)';for(let i=0;i<=P;i+=8){g.fillRect(X+i,Y,1,P);g.fillRect(X,Y+i,P,1);}}
+    if(q==='water'){g.fillStyle='#8a867d';g.fillRect(X,Y,P,3);g.fillRect(X,Y+P-3,P,3);g.fillRect(X,Y,3,P);g.fillRect(X+P-3,Y,3,P);g.fillStyle='rgba(160,190,200,.18)';g.fillRect(X+6,Y+8,P-12,2);g.fillRect(X+10,Y+18,P-18,2);}
+    if(q==='park')for(let i=0;i<10;i++){g.fillStyle=R()<.5?'rgba(30,40,20,.25)':'rgba(140,150,90,.14)';g.beginPath();g.arc(X+R()*P,Y+R()*P,2+R()*5,0,7);g.fill();}}
+  // 얼룩·잡티
+  for(let i=0;i<N*N*30;i++){g.fillStyle=R()<.5?'rgba(255,255,255,.035)':'rgba(0,0,0,.05)';g.fillRect(R()*W,R()*W,1+R()*2,1+R()*2);}
+  for(let i=0;i<N*N*.4;i++){const x=R()*W,y=R()*W,rr=6+R()*26;const gr=g.createRadialGradient(x,y,0,x,y,rr);gr.addColorStop(0,'rgba(20,18,15,.16)');gr.addColorStop(1,'rgba(20,18,15,0)');g.fillStyle=gr;g.fillRect(x-rr,y-rr,rr*2,rr*2);}
+  // 도로: 균열, 차선, 횡단보도, 인도
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!rd(r,c))continue;const X=c*P,Y=r*P;
+    g.strokeStyle='rgba(15,15,15,.35)';g.lineWidth=1;if(R()<.35){g.beginPath();let x=X+R()*P,y=Y+R()*P;g.moveTo(x,y);for(let i=0;i<4;i++){x+=(R()-.5)*14;y+=(R()-.5)*14;g.lineTo(x,y);}g.stroke();}
+    const h=rd(r,c-1)&&rd(r,c+1),v=rd(r-1,c)&&rd(r+1,c),cross=(rd(r,c-1)||rd(r,c+1))&&(rd(r-1,c)||rd(r+1,c));
+    g.fillStyle='rgba(225,220,200,.75)';
+    if(!cross&&h){for(const o of [3,19])g.fillRect(X+o,Y+P/2-1,10,2);}
+    else if(!cross&&v){for(const o of [3,19])g.fillRect(X+P/2-1,Y+o,2,10);}
+    if(!cross){const zc=(a,b)=>{const q=(rd(a,b-1)||rd(a,b+1))&&(rd(a-1,b)||rd(a+1,b));return rd(a,b)&&q;};
+      g.fillStyle='rgba(225,220,200,.6)';
+      if(h){if(zc(r,c-1))for(let i=4;i<P-4;i+=5)g.fillRect(X+2,Y+i,7,3);if(zc(r,c+1))for(let i=4;i<P-4;i+=5)g.fillRect(X+P-9,Y+i,7,3);}
+      if(v){if(zc(r-1,c))for(let i=4;i<P-4;i+=5)g.fillRect(X+i,Y+2,3,7);if(zc(r+1,c))for(let i=4;i<P-4;i+=5)g.fillRect(X+i,Y+P-9,3,7);}}
+    const sw=6;for(const [a,b,x,y,w,hh] of [[r-1,c,X,Y,P,sw],[r+1,c,X,Y+P-sw,P,sw],[r,c-1,X,Y,sw,P],[r,c+1,X+P-sw,Y,sw,P]]){if(open(a,b))continue;
+      g.fillStyle='#77736a';g.fillRect(x,y,w,hh);g.fillStyle='rgba(0,0,0,.12)';for(let i=0;i<Math.max(w,hh);i+=6)w>hh?g.fillRect(x+i,y,1,hh):g.fillRect(x,y+i,w,1);
+      g.fillStyle='#a19c90';w>hh?g.fillRect(x,a<r?y+hh-1:y,w,1):g.fillRect(b<c?x+w-1:x,y,1,hh);}}
+  // 배치 구역은 아주 옅게 물들인다
+  for(const n of G.order){g.fillStyle=MAPCOL[n]+'1c';for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(inZone(n,r,c))g.fillRect(c*P,r*P,P,P);}
+  const tx=new V3.T.CanvasTexture(cv);tx.colorSpace=V3.T.SRGBColorSpace;tx.anisotropy=V3.ren.capabilities.getMaxAnisotropy();return tx;}
 function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
-  const box=new T.BoxGeometry(1,1,1);box.translate(0,-.5,0);const im=new T.InstancedMesh(box,M.terr,N*N);im.receiveShadow=true;const keys=[];
-  const m4=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(),ps=new T.Vector3();let i=0;const trees=[],dash=[];
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const [px0,pz]=v3x(r,c);const e=GH[x.t]??0;ps.set(px0,e,pz);sc.set(1,e+.8,1);m4.compose(ps,q,sc);im.setMatrixAt(i++,m4);keys.push(key(r,c));
-    if(x.t==='park')for(let s=0;s<3;s++)if(v3Hash(key(r,c),50+s)<.75)trees.push([px0+(v3Hash(key(r,c),60+s)-.5)*.7,e,pz+(v3Hash(key(r,c),70+s)-.5)*.7,.7+v3Hash(key(r,c),80+s)*.6,key(r,c)]);
-    if(x.t==='road'){const rd=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const h=rd(r,c-1)&&rd(r,c+1),v=rd(r-1,c)&&rd(r+1,c);
-      if(h&&!v&&!(rd(r-1,c)||rd(r+1,c)))dash.push([px0,pz,0]);else if(v&&!h&&!(rd(r,c-1)||rd(r,c+1)))dash.push([px0,pz,1]);}}
-  im.userData.keys=keys;g.add(im);V3.terr=im;
-  if(trees.length){const tg=new T.IcosahedronGeometry(.2,0);tg.translate(0,.42,0);const tm=new T.InstancedMesh(tg,M.tree,trees.length);tm.castShadow=true;
-    const trg=new T.CylinderGeometry(.03,.04,.3,5);trg.translate(0,.15,0);const trm=new T.InstancedMesh(trg,M.trunk,trees.length);
-    trees.forEach(([x,y,z,s],j)=>{ps.set(x,y,z);sc.set(s,s,s);m4.compose(ps,q,sc);tm.setMatrixAt(j,m4);trm.setMatrixAt(j,m4);});tm.userData.keys=trees.map(t=>t[4]);g.add(tm);g.add(trm);}
-  if(dash.length){const dg=new T.BoxGeometry(.28,.01,.04);const dm=new T.InstancedMesh(dg,M.mark,dash.length*2);let j=0;
-    for(const [x,z,v] of dash)for(const o of [-.25,.25]){ps.set(v?x:x+o,.006,v?z+o:z);q.setFromAxisAngle(new T.Vector3(0,1,0),v?Math.PI/2:0);sc.set(1,1,1);m4.compose(ps,q,sc);dm.setMatrixAt(j++,m4);}q.identity();g.add(dm);}
+  if(!V3.fowT||V3.fowT.image.width!==N){if(V3.fowT)V3.fowT.dispose();V3.fowD=new Uint8Array(N*N*4).fill(255);V3.fowT=new T.DataTexture(V3.fowD,N,N);V3.fowT.magFilter=V3.fowT.minFilter=T.LinearFilter;V3.fowT.needsUpdate=true;V3.fowU.map.value=V3.fowT;V3.fowU.n.value=N;}
+  if(M.terr.map)M.terr.map.dispose();M.terr.map=v3GroundTex();M.terr.needsUpdate=true;
+  const gp=new T.Mesh(new T.PlaneGeometry(N,N),M.terr);gp.rotation.x=-Math.PI/2;gp.position.set(N/2,0,N/2);gp.receiveShadow=true;g.add(gp);
+  const m4=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(),ps=new T.Vector3();const trees=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const [px0,pz]=v3x(r,c);const e=0;
+    if(x.t==='park')for(let s=0;s<3;s++)if(v3Hash(key(r,c),50+s)<.75)trees.push([px0+(v3Hash(key(r,c),60+s)-.5)*.7,e,pz+(v3Hash(key(r,c),70+s)-.5)*.7,.7+v3Hash(key(r,c),80+s)*.6,key(r,c)]);}
+  if(trees.length){const tg=new T.IcosahedronGeometry(.2,1);tg.translate(0,.42,0);const tm=new T.InstancedMesh(tg,M.tree,trees.length);tm.castShadow=true;tm.receiveShadow=true;
+    const trg=new T.CylinderGeometry(.03,.04,.3,5);trg.translate(0,.15,0);const trm=new T.InstancedMesh(trg,M.trunk,trees.length);const tc=new T.Color();
+    trees.forEach(([x,y,z,s,k],j)=>{ps.set(x,y,z);sc.set(s,s*(.85+v3Hash(k,90+j)*.4),s);m4.compose(ps,q,sc);tm.setMatrixAt(j,m4);trm.setMatrixAt(j,m4);tm.setColorAt(j,tc.set('#ffffff').offsetHSL(0,0,(v3Hash(k,91+j)-.5)*.25));});tm.userData.keys=trees.map(t=>t[4]);g.add(tm);g.add(trm);}
   // 버려진 차량
   {const cars=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);if(x.t==='road'&&v3Hash(k,700)<.07)cars.push([...v3x(r,c),k]);}
     if(cars.length){const cg=new T.BoxGeometry(.36,.14,.18);cg.translate(0,.09,0);const cm=new T.InstancedMesh(cg,new T.MeshStandardMaterial({color:'#4b4a46',roughness:.7,metalness:.2}),cars.length);cm.castShadow=true;
@@ -729,38 +778,40 @@ function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
   // 격자선
   const L=[];for(let i2=0;i2<=N;i2++){L.push(0,.07,i2,N,.07,i2,i2,.07,0,i2,.07,N);}
   const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));V3.grid=new T.LineSegments(lg,new T.LineBasicMaterial({color:'#ffffff',transparent:true,opacity:.12}));g.add(V3.grid);}
-function v3TerrColors(vs){const T=V3.T,im=V3.terr;if(!im)return;const col=new T.Color(),tint=new T.Color();let i=0;
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c],k=key(r,c);col.set(V3COL[x.t]||'#777');col.offsetHSL(0,0,(v3Hash(k,1)-.5)*.05);
-    for(const n of G.order)if(inZone(n,r,c)){tint.set(MAPCOL[n]);col.lerp(tint,.13);}
-    if(vs&&!vs.has(k))col.multiplyScalar(.42);im.setColorAt(i++,col);}
-  if(im.instanceColor)im.instanceColor.needsUpdate=true;}
-
 /* ---------- 건물 ---------- */
-function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=[],R1=[],RC=[],wt=[],rt=[],rub=[],ac=[];const col=new T.Color();
-  const box=(cx,cz,y0,w,d,h,k,shade,u0,v0)=>{const c4=[[cx-w/2,cz-d/2],[cx+w/2,cz-d/2],[cx+w/2,cz+d/2],[cx-w/2,cz+d/2]];const y1=y0+h;const lens=[w,d,w,d];
-    for(let s=0;s<4;s++){const [ax,az]=c4[s],[bx,bz]=c4[(s+1)%4];const U=lens[s]/.21/8,V=h/FLOOR_H/8;
-      W1.push(ax,y0,az,bx,y0,bz,bx,y1,bz, ax,y0,az,bx,y1,bz,ax,y1,az);U1.push(u0,v0,u0+U,v0,u0+U,v0+V, u0,v0,u0+U,v0+V,u0,v0+V);
+function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=[],R1=[],RU=[],RC=[],wt=[],rt=[],rub=[],ac=[];const col=new T.Color();
+  // 위가 트인 상자: 네 벽(외벽 무늬) + 지붕. 경계 좌표로 받아 같은 블록 칸끼리 이어 붙인다.
+  const quad=(A,B,C2,D,cl,k)=>{for(const p of [A,B,C2,A,C2,D]){R1.push(p[0],p[1],p[2]);RU.push(p[0]+p[1]*.7,p[2]+p[1]*.7);RC.push(cl.r,cl.g,cl.b);}rt.push(k,k);};
+  const box=(x0,x1,z0,z1,y0,h,k,shade,u0,v0,rim)=>{const c4=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];const y1=y0+h;const lens=[x1-x0,z1-z0,x1-x0,z1-z0];
+    for(let s=0;s<4;s++){const [ax,az]=c4[(s+1)%4],[bx,bz]=c4[s];const U=lens[s]/.21/8,V=h/FLOOR_H/8;const uu=u0+(s%2?z0:x0)/.21/8;
+      W1.push(ax,y0,az,bx,y0,bz,bx,y1,bz, ax,y0,az,bx,y1,bz,ax,y1,az);U1.push(uu,v0,uu+U,v0,uu+U,v0+V, uu,v0,uu+U,v0+V,uu,v0+V);
       for(let v=0;v<6;v++)C1.push(shade.r,shade.g,shade.b);wt.push(k,k);}
-    R1.push(c4[0][0],y1,c4[0][1],c4[2][0],y1,c4[2][1],c4[1][0],y1,c4[1][1], c4[0][0],y1,c4[0][1],c4[3][0],y1,c4[3][1],c4[2][0],y1,c4[2][1]);
-    const rcol=shade.clone().multiplyScalar(.6);for(let v=0;v<6;v++)RC.push(rcol.r,rcol.g,rcol.b);rt.push(k,k);};
-  const TONES=['#b3b0a8','#9c9991','#c4c0b6','#8e8b85','#a8a296','#bdb7aa','#918d84'];
+    const rcol=new T.Color('#b9b7b2').lerp(shade,.35).multiplyScalar(1-(1-shade.g)*.4);quad([x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],rcol,k);
+    // 옥상 난간
+    if(rim){const pc=shade.clone().multiplyScalar(.95),t=.035,ph=.05,yt=y1+ph;
+      const wall=(xa,za,xb,zb,ox,oz)=>{quad([xa,y1,za],[xb,y1,zb],[xb,yt,zb],[xa,yt,za],pc,k);quad([xa+ox,y1,za+oz],[xb+ox,y1,zb+oz],[xb+ox,yt,zb+oz],[xa+ox,yt,za+oz],pc,k);quad([xa,yt,za],[xb,yt,zb],[xb+ox,yt,zb+oz],[xa+ox,yt,za+oz],pc,k);};
+      if(rim[0])wall(x0,z0,x1,z0,0,t);if(rim[2])wall(x0,z1,x1,z1,0,-t);if(rim[3])wall(x0,z0,x0,z1,t,0);if(rim[1])wall(x1,z0,x1,z1,-t,0);}};
+  const TONES=['#c9c4b8','#b5b0a5','#d6d0c2','#a9a59d','#c2b8a6','#cfc6b4','#aeaaa2','#bfb3a0'];const IN=.08;
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
     if(x.t==='bldg'){const dmg=1-x.bhp/x.bmax;let h=x.f*FLOOR_H;if(dmg>.5)h*=1-(dmg-.5)*.6;
-      const bt=x.blk!=null?v3Hash(x.blk,3):v3Hash(k,3);col.set(x.lm?'#d9d2c0':TONES[Math.floor(bt*TONES.length)]);col.offsetHSL(0,0,(v3Hash(k,4)-.5)*.06);col.multiplyScalar(1-dmg*.55);
-      const w=.86+v3Hash(k,5)*.06,d=.86+v3Hash(k,6)*.06;box(cx,cz,.06,w,d,h,k,col,v3Hash(k,7)*8,Math.floor(v3Hash(k,8)*8));
-      if(x.f>=3&&v3Hash(k,9)<.55&&dmg<.5){const sw=.3+v3Hash(k,10)*.2;box(cx+(v3Hash(k,11)-.5)*.3,cz+(v3Hash(k,12)-.5)*.3,.06+h,sw,sw,FLOOR_H*(1+Math.floor(v3Hash(k,13)*2)),k,col.clone().multiplyScalar(.92),0,0);}
-      for(let i=0;i<2;i++)if(v3Hash(k,20+i)<.6&&dmg<.4)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6]);
-      if(dmg>.25)for(let i=0;i<Math.round(dmg*6);i++){const a=v3Hash(k,30+i)*6.283;rub.push([cx+Math.cos(a)*.5,.03,cz+Math.sin(a)*.5,.1+v3Hash(k,40+i)*.08,v3Hash(k,50+i)*3,k]);}}
-    else if(x.t==='rubble'){for(let i=0;i<7;i++){const a=v3Hash(k,60+i)*6.283,rr=v3Hash(k,70+i)*.38;rub.push([cx+Math.cos(a)*rr,.03,cz+Math.sin(a)*rr,.12+v3Hash(k,80+i)*.16,v3Hash(k,90+i)*3,k]);}
-      if(v3Hash(k,99)<.6)box(cx+(v3Hash(k,98)-.5)*.4,cz+(v3Hash(k,97)-.5)*.4,.03,.25+v3Hash(k,96)*.2,.25,FLOOR_H*(.5+v3Hash(k,95)*1.2),k,col.set('#6d665c'),0,0);}}
+      const bt=x.blk!=null?v3Hash(x.blk,3):v3Hash(k,3);col.set(x.lm?'#e2dccb':TONES[Math.floor(bt*TONES.length)]);col.offsetHSL(0,0,(v3Hash(k,4)-.5)*.04);col.multiplyScalar(1-dmg*.55);
+      const same=(a,b)=>inb(a,b)&&G.map[a][b].t==='bldg'&&x.blk!=null&&G.map[a][b].blk===x.blk&&G.map[a][b].bhp/G.map[a][b].bmax>.5&&dmg<.5;
+      const sN=same(r-1,c),sE=same(r,c+1),sS=same(r+1,c),sW=same(r,c-1);
+      const x0=cx-.5+(sW?0:IN),x1=cx+.5-(sE?0:IN),z0=cz-.5+(sN?0:IN),z1=cz+.5-(sS?0:IN);
+      const fl=(bt*8|0);box(x0,x1,z0,z1,.06,h,k,col,fl*.37,Math.floor(v3Hash(x.blk??k,8)*8),dmg<.4?[!sN,!sE,!sS,!sW]:null);
+      if(x.f>=4&&v3Hash(k,9)<.4&&dmg<.5){const sw=.22+v3Hash(k,10)*.14,ox=cx+(v3Hash(k,11)-.5)*.3,oz=cz+(v3Hash(k,12)-.5)*.3;box(ox-sw/2,ox+sw/2,oz-sw/2,oz+sw/2,.06+h,FLOOR_H*.9,k,col.clone().multiplyScalar(.85),0,0,null);}
+      for(let i=0;i<3;i++)if(v3Hash(k,20+i)<.5&&dmg<.4)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6,v3Hash(k,26+i)]);
+      if(dmg>.25)for(let i=0;i<Math.round(dmg*8);i++){const a=v3Hash(k,30+i)*6.283;rub.push([cx+Math.cos(a)*.5,.03,cz+Math.sin(a)*.5,.08+v3Hash(k,40+i)*.08,v3Hash(k,50+i)*3,k]);}}
+    else if(x.t==='rubble'){for(let i=0;i<12;i++){const a=v3Hash(k,60+i)*6.283,rr=v3Hash(k,70+i)*.42;rub.push([cx+Math.cos(a)*rr,.02,cz+Math.sin(a)*rr,.07+v3Hash(k,80+i)*.15,v3Hash(k,90+i)*3,k]);}
+      if(v3Hash(k,99)<.7){const ox=cx+(v3Hash(k,98)-.5)*.4,oz=cz+(v3Hash(k,97)-.5)*.4,w=.12+v3Hash(k,96)*.14;box(ox-w,ox+w,oz-.1,oz+.1,.02,FLOOR_H*(.5+v3Hash(k,95)*1.4),k,col.set('#8b857a'),v3Hash(k,94)*8,0,null);}}}
   const mk=(P,UV,C,mat,tri)=>{if(!P.length)return;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));if(UV)geo.setAttribute('uv',new T.Float32BufferAttribute(UV,2));
     geo.setAttribute('color',new T.Float32BufferAttribute(C,3));geo.computeVertexNormals();const m=new T.Mesh(geo,mat);m.castShadow=m.receiveShadow=true;m.userData.tri=tri;g.add(m);};
-  mk(W1,U1,C1,V3.M.wall,wt);mk(R1,null,RC,V3.M.roof,rt);
+  mk(W1,U1,C1,V3.M.wall,wt);mk(R1,RU,RC,V3.M.roof,rt);
   const m4=new T.Matrix4(),q=new T.Quaternion(),s=new T.Vector3(),p=new T.Vector3();
   if(rub.length){const im=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),V3.M.rubble,rub.length);im.castShadow=im.receiveShadow=true;
     rub.forEach(([x,y,z,sz,rot],i)=>{p.set(x,y,z);q.setFromEuler(new T.Euler(rot,rot*2,0));s.set(sz,sz*.5,sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);});im.userData.keys=rub.map(r=>r[5]);g.add(im);}
-  if(ac.length){const im=new T.InstancedMesh(new T.BoxGeometry(.14,.08,.1),V3.M.conc,ac.length);im.castShadow=true;q.identity();s.set(1,1,1);
-    ac.forEach(([x,y,z],i)=>{p.set(x,y+.04,z);m4.compose(p,q,s);im.setMatrixAt(i,m4);});g.add(im);}}
+  if(ac.length){const im=new T.InstancedMesh(new T.BoxGeometry(.14,.08,.1),V3.M.conc,ac.length);im.castShadow=true;s.set(1,1,1);
+    ac.forEach(([x,y,z,v],i)=>{p.set(x,y+.04,z);q.setFromAxisAngle(new T.Vector3(0,1,0),v>.5?Math.PI/2:0);const sz=v<.2?[2.2,1.6,1.4]:[1,1,1];s.set(...sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);});g.add(im);}}
 
 /* ---------- 거점 표시 ---------- */
 function v3BuildSites(){const T=V3.T,g=V3.G.sites;v3Clear(g);
@@ -794,7 +845,7 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
     for(const [a,b] of [[-.14,-.14],[.14,-.14],[-.14,.14],[.14,.14]]){const rt=new T.Mesh(new T.CylinderGeometry(.08,.08,.006,12),V3.M.dark);rt.position.set(a,.04,b);rt.userData.rotor=1;g.add(rt);}}
   const ring=new T.Mesh(new T.RingGeometry(.36,.43,4,1,Math.PI/4),v3NatMat(u.nat));ring.rotation.x=-Math.PI/2;
   const sel=new T.Mesh(new T.RingGeometry(.5,.56,4,1,Math.PI/4),new T.MeshBasicMaterial({color:'#f2efe6',transparent:true,opacity:.95,depthTest:false}));sel.rotation.x=-Math.PI/2;sel.visible=false;sel.renderOrder=6;
-  const root=new T.Group();root.add(g);root.add(ring);root.add(sel);root.userData={k:null,body:g,ring,sel,figs,air:!!t.fly};
+  g.scale.setScalar(1.2);const root=new T.Group();root.add(g);root.add(ring);root.add(sel);root.userData={k:null,body:g,ring,sel,figs,air:!!t.fly};
   if(t.fly){const sh=new T.Mesh(new T.CircleGeometry(.18,16),new T.MeshBasicMaterial({color:'#000',transparent:true,opacity:.28,depthWrite:false}));sh.rotation.x=-Math.PI/2;root.add(sh);root.userData.shadow=sh;}
   return root;}
 function v3UnitY(u){if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);return v3Top(u.r,u.c)+.005;}
@@ -831,7 +882,7 @@ function v3SyncHl(){if(!V3.on||!G)return;const T=V3.T,g=V3.G.hl;v3Clear(g);const
 
 /* ---------- 시간·날씨 ---------- */
 function v3Light(){const h=hourOf(),night=isNight(),dusk=(h===6||h===18||h===20&&false);const s=V3;const wx=G.wx||'clear';
-  const P=night?{sun:'#7f95c9',si:.5,sky:'#2a3754',gr:'#141210',hi:.42,fog:'#0d131b',em:1.25}:dusk?{sun:'#ff9a5a',si:1.7,sky:'#d6a07a',gr:'#3f3226',hi:.55,fog:'#6f5a50',em:.55}:{sun:'#fff0d8',si:2.3,sky:'#c8d6e3',gr:'#54493a',hi:.85,fog:'#9a958a',em:0};
+  const P=night?{sun:'#7f95c9',si:.5,sky:'#2a3754',gr:'#141210',hi:.42,fog:'#0d131b',em:1.25}:dusk?{sun:'#ff9a5a',si:1.7,sky:'#d6a07a',gr:'#3f3226',hi:.55,fog:'#6f5a50',em:.55}:{sun:'#fff3e2',si:2.1,sky:'#c8d6e3',gr:'#5d564c',hi:1.25,fog:'#9b9a95',em:0};
   s.sun.color.set(P.sun);s.sun.intensity=P.si*(wx==='clear'?1:.55);s.hemi.color.set(P.sky);s.hemi.groundColor.set(P.gr);s.hemi.intensity=P.hi;s.M.wall.emissiveIntensity=P.em;
   const fogC=new V3.T.Color(P.fog);if(wx==='rain'||wx==='storm')fogC.lerp(new V3.T.Color('#4a525a'),.5);s.scene.fog.color.copy(fogC);s.scene.background=fogC.clone();
   s.fogK=wx==='fog'?.45:wx==='storm'?.7:1;s.sunAng=dusk?(h===6?-1:1):night?.4:(h-12)/8;s.rain=(wx==='rain'||wx==='storm')?(wx==='storm'?1.6:1):0;}
@@ -872,7 +923,7 @@ function v3Sync(){if(!V3.on||!V3.ren||!G)return;const vn=G.viewer,vs=G.fog?visSe
   const stag=tag+G.objs.map(o=>G.map[o.r][o.c].owner).join(',');if(V3.stag!==stag){V3.stag=stag;v3BuildSites();}
   const smk=ctag+'|'+G.wx+'|'+G.map.map(row=>row.map(x=>x.smoke?1:0).join('')).join('');
   v3Light();if(V3.smk!==smk){V3.smk=smk;v3SyncSmoke();}
-  v3TerrColors(vs);V3.grid.visible=!!UI.grid;v3SyncUnits(vs,vn);v3SyncHl();v3SyncLabels(vs,vn);}
+  v3FowUpd(vs);V3.grid.visible=!!UI.grid;v3SyncUnits(vs,vn);v3SyncHl();v3SyncLabels(vs,vn);}
 
 /* ---------- 연출 ---------- */
 function v3Pos(r,c,u){const [x,z]=v3x(r,c);return [x,(u?v3UnitY(u):v3Top(r,c))+.2,z];}
