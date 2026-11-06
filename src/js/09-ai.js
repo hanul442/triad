@@ -9,10 +9,10 @@ async function runAI(){G.busy=true;const n=G.cur;render();
     if(G.speed){render();await sleep(G.speed);}}
   if(!G.over)aiLaunch(n);if(!G.over)aiEconomy(n,false);G.busy=false;if(G.over){save();render();return;}
   await sleep(0);endTurn();}
-function aiLaunch(n){let g=0;while(canLaunch(n,'b')&&g++<4){let best=null;for(const k of mslTargets(n,'b',null)){const r=kr(k),c=kc(k);let v=0;
-      for(const [a,b] of [[r,c],...nbrs(r,c)]){const u=unitAt(a,b);if(!u)continue;const w=UT[u.type].cost[0]*(a===r&&b===c?1.6:1);v+=hostile(n,u.nat)?w:u.nat===n?-w*2:0;}
-      const x=cell(r,c);if(x.bld&&hostile(n,x.owner))v+=6;if(!best||v>best.v)best={r,c,v};}
-    if(!best||best.v<7)break;launch(n,'b',best.r,best.c);}
+function aiLaunch(n){let g=0;while(canLaunch(n,'b')&&g++<4){let best=null;for(const k of mslTargets(n,'b',null)){const r=kr(k),c=kc(k);
+      for(const sp of [0,1,2]){let v=0;for(const [a,b] of strikeHexes(r,c,sp)){const u=unitAt(a,b);if(!u)continue;const w=UT[u.type].cost[0]*SPREAD[sp].d[dist(a,b,r,c)]/5;v+=hostile(n,u.nat)?w:u.nat===n?-w*2:0;}
+        const x=cell(r,c);if(x.bld&&hostile(n,x.owner))v+=6;if(!best||v>best.v)best={r,c,v,sp};}}
+    if(!best||best.v<7)break;launch(n,'b',best.r,best.c,best.sp);}
   g=0;while(canLaunch(n,'c')&&g++<4){let best=null;for(const k of mslTargets(n,'c',null)){const e=unitAt(kr(k),kc(k));const v=UT[e.type].cost[0]*(e.hp<=7?2:1)+(UT[e.type].ind?2:0);if(!best||v>best.v)best={e,v};}
     if(!best||best.v<3)break;launch(n,'c',best.e.r,best.e.c);}}
 function aiLst(u,RS,go,toward){const n=u.nat;
@@ -102,6 +102,7 @@ function aiUnit(u){const n=u.nat,t=UT[u.type],RS=reach(u);const N=G.nats[n];
     if(best&&best.v>0){go(best.r,best.c);attack(u,best.e);return;}}
   const reachSet=connSet(u.r,u.c,u.type);const ok=(r,c)=>t.d==='air'||reachSet.has(key(r,c))||nbrs(r,c).some(([a,b])=>reachSet.has(key(a,b)));
   let goals=[];for(const e of G.units)if(hostile(n,e.nat)&&dmgBase(u.type,e.type)&&ok(e.r,e.c))goals.push([e.r,e.c]);
+  if(['recon','spec','heli','uav','ifv'].includes(u.type)){for(const s of routeStates())if(s.o!=null&&s.active&&hostile(n,s.o)){const k=s.rt.p[Math.floor(s.rt.p.length/2)];if(dist(u.r,u.c,kr(k),kc(k))<=7&&(t.d==='air'||reachSet.has(k)))goals.push([kr(k),kc(k)]);}}
   if(t.cap)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner!==n&&openTo(n,x.owner)&&(SITES.includes(x.t)||x.bld)&&reachSet.has(key(r,c)))goals.push([r,c]);}
   if(warship(u.type)){for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner===n||!openTo(n,x.owner))continue;
       if(x.rig&&reachSet.has(key(r,c)))goals.push([r,c]);else if(x.owner!=null&&(x.t==='city'||x.t==='hq'||(x.bld&&x.bld.type==='port'))&&ok(r,c)&&!blockaded(r,c))goals.push([r,c]);}}

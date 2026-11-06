@@ -1,6 +1,6 @@
 /* ===================== GAME FLOW ===================== */
 function newGame(cfg){const sz=SIZES[cfg.size||'m'];setDims(sz.c,sz.r);const seed=cfg.seed??Math.floor(Math.random()*1e9);const act=cfg.slots.map((s,i)=>s!=='none'?i:-1).filter(i=>i>=0);
-  const starts=startsFor(act.length);const map=genMap(seed,starts,cfg.mt);
+  const starts=startsFor(act.length);const map=genMap(seed,starts,cfg.mt,cfg.land,cfg.relief);
   const pers=['공세','균형','방어'];
   G={v:3,spectate:!cfg.slots.includes('human'),vic:cfg.vic||0,diff:cfg.diff||'normal',hist:[],mt:cfg.mt||'cont',peace:{},offers:[],wx:'clear',wxNext:rollWx(),cols:COLS,rows:ROWS,size:cfg.size||'m',turn:1,cur:act[0],map,units:[],nid:1,log:[],over:null,fog:cfg.fog&&cfg.slots.includes('human'),speed:cfg.speed,seed,hint:null,brief:[],supInfo:{},handoff:false,
     nats:NATS.map((_,i)=>({id:i,ctrl:cfg.slots[i],alive:cfg.slots[i]!=='none',f:12,s:8,o:6,staff:[],tech:[],res:null,perfidy:0,ask:{},pers:pers[Math.floor(Math.random()*3)],hq:null}))};
@@ -14,7 +14,7 @@ function newGame(cfg){const sz=SIZES[cfg.size||'m'];setDims(sz.c,sz.r);const see
         for(const u of [...G.units])if(map[u.r][u.c].t==='sea'&&UT[u.type].d!=='sea')G.units=G.units.filter(x=>x!==u);
         map[pr][pc].owner=n;map[pr][pc].bld={type:'port',left:0};const sea=nbrs(pr,pc).filter(([a,b])=>map[a][b].t==='sea');
         if(sea[0])mkUnit('lst',n,sea[0][0],sea[0][1],false);if(sea[1])mkUnit('dd',n,sea[1][0],sea[1][1],false);}}});
-  G.viewer=act.find(n=>G.nats[n].ctrl==='human')??act[0];snapHist();beginTurn();}
+  buildRoads();G.viewer=act.find(n=>G.nats[n].ctrl==='human')??act[0];snapHist();beginTurn();}
 function aliveNext(n){const K=NATS.length;for(let i=1;i<=K;i++){const j=(n+i)%K;if(G.nats[j].alive)return j;}return n;}
 function endTurn(){if(G.over)return;scnEndTurn(G.cur);if(G.over){save();render();return;}clearSel();G.offers=G.offers.filter(o=>o.to!==G.cur);const nx=aliveNext(G.cur);if(nx<=G.cur){snapHist();G.turn++;G.wx=G.wxNext;G.wxNext=rollWx();L(`${G.turn}라운드 기상: ${WX[G.wx].n}`);checkOver();if(G.over){snapHist();save();render();return;}}G.cur=nx;beginTurn();
   if(isAI(G.cur)){render();runAI();return;}

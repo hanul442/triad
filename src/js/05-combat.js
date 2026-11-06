@@ -1,6 +1,6 @@
 /* ===================== COMBAT / ACTIONS ===================== */
 function calcDmg(a,d,rand){const b=dmgBase(a.type,d.type);if(!b)return 0;let v=b*(a.hp/10);
-  if(UT[d.type].d==='land'){const x=cell(d.r,d.c);const fd=x.fort&&x.fort.o===d.nat?(x.fort.t==='bunker'?2:x.fort.t==='fence'?1:0):0;v*=1-0.08*(TR[x.t].def+(x.bld?1:0)+(d.dug?1:0)+fd);}
+  if(UT[d.type].d==='land'){const x=cell(d.r,d.c);const fd=x.fort&&x.fort.o===d.nat?(x.fort.t==='bunker'?2:x.fort.t==='fence'?1:0):0;v*=1-0.08*(TR[x.t].def+(x.bld?1:0)+(d.dug?1:0)+fd);if(x.t==='city'||x.t==='hq'){if(UT[d.type].cls==='inf')v*=0.8;if(UT[a.type].cls==='armor'&&dist(a.r,a.c,d.r,d.c)===1)v*=0.85;}}
   v*=1+0.1*(a.rank||0);if(UT[d.type].cls==='armor'&&hasTech(d.nat,'armor'))v*=0.8;
   if(!UT[a.type].ind&&dist(a.r,a.c,d.r,d.c)===1){let fl=0;for(const v2 of G.units){if(v2!==a&&v2.nat===a.nat&&UT[v2.type].atk&&dist(v2.r,v2.c,d.r,d.c)===1)fl++;}v*=1+0.1*Math.min(3,fl);}
   if(a.supNow)v*=0.7;
@@ -16,6 +16,7 @@ function attack(a,d){if(!G.units.includes(a)||!G.units.includes(d))return;{const
   let m=`${natName(a.nat)} ${UT[a.type].n} → ${natName(d.nat)} ${UT[d.type].n} −${dmg}`;
   const promo=x=>{if((x.rank||0)<3){x.rank=(x.rank||0)+1;m+=` · ${UT[x.type].n} 진급(${'★'.repeat(x.rank)})`;}};
   if(UT[a.type].splash){let sh=0;for(const [x,y] of nbrs(d.r,d.c)){const v=unitAt(x,y);if(!v||v===d||!hostile(a.nat,v.nat)||!dmgBase(a.type,v.type))continue;const sd=Math.max(1,Math.round(calcDmg(a,v,false)*0.3));v.hp-=sd;pop(x,y,'−'+sd);sh++;if(v.hp<=0){removeUnit(v);G.nats[a.nat].kills=(G.nats[a.nat].kills||0)+1;}}if(sh)m+=` · 주변 ${sh}기 피해`;}
+  if((UT[a.type].ind||a.type==='bmb'||a.type==='bb'))damageCity(d.r,d.c,0.4);
   if(d.hp>0&&(UT[a.type].ind||a.type==='bmb'||a.type==='bb')&&UT[d.type].d!=='air'){d.sup=true;m+=' · 제압';}
   if(d.hp<=0){fxKill(d);removeUnit(d);m+=' 격파'+(d.cargo?'(탑재 손실)':'');promo(a);G.nats[a.nat].kills=(G.nats[a.nat].kills||0)+1;}
   else if(!UT[d.type].ind&&canHit(d,a)){const cd=calcDmg(d,a,true);if(!UT[d.type].ua)d.ammo--;if(cd>0){a.hp-=cd;pop(a.r,a.c,'−'+cd);m+=` / 반격 −${cd}`;if(a.hp<=0){fxKill(a);removeUnit(a);m+=' 격파';promo(d);G.nats[d.nat].kills=(G.nats[d.nat].kills||0)+1;}}}

@@ -38,6 +38,8 @@ function panelCmd(){const n=G.cur;let h='';const s=UI.sel,P=UI.pane;
       h+=`<p>${yld?`매 턴 ${yld}. `:''}${(x.t==='city'||x.t==='hq')&&blockaded(P.r,P.c)?'해상 봉쇄 중이라 자금 수입이 끊겼습니다. ':''}${x.rig&&x.owner!==n?'구축함·전함·잠수함·항공모함이 올라가 점령할 수 있습니다.':x.owner!==n&&(SITES.includes(x.t)||x.bld)?'보병으로 점령할 수 있습니다.':x.t==='plain'||x.t==='forest'?'아군 도시·수도 반경 2 안의 빈 평지·숲에만 건설할 수 있습니다.':''}</p>`;}
     if(x.fort&&(x.fort.t!=='mines'||x.fort.o===n))h+=`<p>${natName(x.fort.o)} ${FORT[x.fort.t].n}: ${FORT[x.fort.t].desc}.</p>`;
     if(x.occ>0)h+=`<p>점령지 안정화 ${x.occ}턴 남음 (수입 50%).</p>`;
+    if((x.t==='city'||x.t==='hq')&&x.owner===n){const CC=connectedCities(n);const con=CC.has(key(P.r,P.c));const rts=routeStates().filter(s=>s.o===n&&(s.rt.a===key(P.r,P.c)||s.rt.b===key(P.r,P.c)));
+      h+=`<h3>교역 <span class="stats">${con?'수도와 연결됨':'수도와 끊김'}</span></h3><p>이 도시의 교역로 ${rts.filter(s=>s.active).length}/${rts.length}개 활성 (각 자금 +2). ${x.t==='city'?(con?`교역 성장 ${x.grow||0}/8 — 8이 되면 개발 단계가 무료로 1 오릅니다.`:'수도와 교역로로 이어져야 자연 성장합니다.'):''}${x.ruin?` 시가지 파괴 ${x.ruin}/3 (자금 −${x.ruin}, 3턴마다 1단계 복구).`:''}</p>`;}
     if((x.t==='city'||x.t==='hq')&&x.owner===n){const l=x.dev||0;h+=`<h3>도시 개발 <span class="stats">Lv${l}/3</span></h3><p>단계마다 자금 수입 +2, 병력 상한 +2, 점수 +5. 점령당하면 1단계 떨어집니다.</p>`+(l<3?`<div class="row"><button class="btn" data-act="dev:1" id="b-dev" ${canPay(n,devCost(l))&&x.devT!==G.turn?'':'disabled'}>Lv${l+1}로 개발 · ${fmtCost(devCost(l))}</button></div>`:'<p>최대 단계입니다.</p>');}
     if(x.bld&&x.bld.type==='airfield'&&x.owner===n){const k=key(P.r,P.c);const H=hangar(k);const cap=baseCap(k);
       h+=`<h3>격납고 <span class="stats">${H.length}/${cap}대 · 격납고 ${baseHangars(k)}동</span></h3><p>${x.bld.left?`활주로 공사·복구 중 (${x.bld.left}턴). 끝나야 출격·격납할 수 있습니다.`:'격납된 항공기는 매 턴 급유·재무장·수리되고 적 공격을 받지 않습니다. 비행장 옆에 격납고를 지으면 4대씩 늘어납니다.'}</p>`+
@@ -94,6 +96,9 @@ function panelRules(){let h=`<h3>교범</h3><ul class="rules">
   <li>한 세력이 전체 국력의 38%를 넘으면 나머지 AI들이 조약을 맺고 그 세력을 집중 견제합니다.</li>
   <li>비행장은 활주로 2칸으로 지어지고 항공기 2대를 격납합니다. 비행장에 붙여 격납고를 지으면 1동마다 4대씩 늘어납니다. 비행장에서 만든 항공기는 격납고로 들어가고, 비행장 칸을 눌러 출격시킵니다. 격납된 항공기는 매 턴 급유·재무장·수리되며 공격받지 않습니다.</li>
   <li>항공기를 활주로 칸에 세우고 하단 바의 격납을 누르면 들어갑니다. 탄도미사일이 활주로에 떨어지면 2턴 동안 복구해야 하고 격납 중 1대가 파괴됩니다. 보병으로 비행장을 점령하면 격납 항공기는 모두 파괴됩니다.</li>
+  <li>교역로: 거점 사이 도로의 양 끝을 같은 세력이 가지면 교역로가 열려 턴마다 자금 +2. 적 부대가 도로 위에 서면 차단됩니다(붉은 점선). 수도와 교역로로 이어진 도시는 8턴마다 개발 단계가 저절로 오릅니다. 지상 부대는 도로 위에서 숲도 1칸 비용으로 지나갑니다.</li>
+  <li>시가전: 도시·수도의 보병 계열은 받는 피해 −20%, 기갑이 도시를 근접 공격하면 −15%. 포병·폭격·전함·미사일은 시가지를 부수고(최대 3단계), 단계마다 그 도시 자금 −1. 3턴마다 1단계씩 복구됩니다.</li>
+  <li>탄도미사일 타격 범위: 목표를 탭한 뒤 집중(1칸 8)·표준(중심 5·주변 3)·광역(반경 2칸, 4·3·2)을 고르고 발사합니다.</li>
   <li>예약 명령: 부대를 고르고 '목표 이동'을 누른 뒤 먼 지점을 탭하면 매 턴 자동으로 그쪽으로 이동합니다. '경계'는 적이 3칸 안에 나타날 때까지 대기 목록에서 빠집니다. 적과 마주치면 명령이 풀립니다.</li>
   <li>협공: 적에게 붙어 있는 아군이 많을수록 근접 공격 피해가 늘어납니다(1기당 +10%, 최대 +30%). 포병·다연장·폭격기·전함에 맞고 살아남은 지상·해상 부대는 제압되어 다음 턴 이동 −1, 공격 −30%가 됩니다.</li>
   <li>도시 개발: 아군 도시·수도를 눌러 최대 3단계까지 개발합니다. 단계마다 자금 +2, 병력 상한 +2.</li>

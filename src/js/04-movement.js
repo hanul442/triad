@@ -3,11 +3,11 @@ function mcost(type,t){const d=UT[type].d;
   if(d==='air')return 1;if(d==='sea')return t==='sea'?1:Infinity;if(t==='sea')return Infinity;
   const foot=UT[type].foot;if(t==='forest')return foot?1:2;if(t==='mountain')return UT[type].climb?1:foot?2:Infinity;return 1;}
 function reach(u){const mv=(UT[u.type].d==='air'&&G.wx==='storm')?0:mvU(u);const lim=UT[u.type].fuel?Math.min(mv,u.fuel):mv;
-  const prev=new Map(),best=new Map([[key(u.r,u.c),0]]),q=[[u.r,u.c,0]],loads=new Set(),land=UT[u.type].d==='land',O=occ();
+  const rh=roadHex(),prev=new Map(),best=new Map([[key(u.r,u.c),0]]),q=[[u.r,u.c,0]],loads=new Set(),land=UT[u.type].d==='land',O=occ();
   while(q.length){let bi=0;for(let i=1;i<q.length;i++)if(q[i][2]<q[bi][2])bi=i;const [r,c,d]=q.splice(bi,1)[0];if(d>best.get(key(r,c)))continue;
     for(const [nr,nc] of nbrs(r,c)){const k=key(nr,nc),o=O.get(k);
       if(land&&o&&o.nat===u.nat&&canCarry(o.type,u.type)&&!o.cargo){if(d+1<=lim)loads.add(k);continue;}
-      const nd=d+mcost(u.type,G.map[nr][nc].t);if(nd>lim)continue;if(o&&o.nat!==u.nat)continue;
+      const nd=d+(rh.has(k)&&land?1:mcost(u.type,G.map[nr][nc].t));if(nd>lim)continue;if(o&&o.nat!==u.nat)continue;
       if(!best.has(k)||nd<best.get(k)){best.set(k,nd);prev.set(k,key(r,c));if(!fortStop(u,G.map[nr][nc]))q.push([nr,nc,nd]);}}}
   const res=new Map();for(const [k,v] of best){const o=O.get(k);if(!o||o===u)res.set(k,v);}res.loads=loads;res.prev=prev;return res;}
 function connSet(r,c,type){const seen=new Set([key(r,c)]);const q=[[r,c]];

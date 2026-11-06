@@ -1,5 +1,5 @@
 /* ===================== INPUT ===================== */
-function clearSel(){UI.fc=null;UI.sel=null;UI.phase=null;UI.orig=null;UI.reach=null;UI.loads=[];UI.targets=[];UI.unloads=[];UI.pane=null;}
+function clearSel(){UI.mt=null;UI.fc=null;UI.sel=null;UI.phase=null;UI.orig=null;UI.reach=null;UI.loads=[];UI.targets=[];UI.unloads=[];UI.pane=null;}
 function pathField(type,tr,tc){const F=new Map([[key(tr,tc),0]]);const q=[[tr,tc,0]];
   while(q.length){let bi=0;for(let i=1;i<q.length;i++)if(q[i][2]<q[bi][2])bi=i;const [r,c,d]=q.splice(bi,1)[0];if(d>F.get(key(r,c)))continue;const step=mcost(type,G.map[r][c].t);
     for(const [a,b] of nbrs(r,c)){if(mcost(type,G.map[a][b].t)===Infinity)continue;const nd=d+(step===Infinity?1:step);const k=key(a,b);if(!F.has(k)||nd<F.get(k)){F.set(k,nd);q.push([a,b,nd]);}}}return F;}
@@ -15,7 +15,7 @@ function select(u){sfx('click',.7);clearSel();UI.sel=u;UI.phase='select';UI.reac
 function finish(u){u.done=true;clearSel();checkOver();if(G.over)save();render();}
 function tap(k){if(!G||G.busy||G.over||G.handoff||isAI(G.cur)||!$('#setup').hidden)return;const r=kr(k),c=kc(k),n=G.cur;const vs=G.fog?visSet(n):null;
   let u=unitAt(r,c);if(u&&vs&&!seen(u,n,vs))u=null;const s=UI.sel;
-  if(UI.phase==='msl'){if(UI.targets.includes(k)){launch(n,UI.mk,r,c);clearSel();render();}return;}
+  if(UI.phase==='msl'){if(!UI.targets.includes(k))return;if(UI.mk==='b'&&UI.mt!==k){UI.mt=k;UI.sp=UI.sp??1;render();return;}launch(n,UI.mk,r,c,UI.sp??1);clearSel();render();return;}
   if(UI.phase==='goto'&&s){if(k===key(s.r,s.c))return;s.order={t:'goto',r,c};const okm=execOrder(s);if(G.units.includes(s)){if(okm||UI.reach)s.done=true;}L(`${UT[s.type].n} 목표 지정`);clearSel();checkOver();render();return;}
   if(s){
     if(UI.unloads.includes(k)){unload(s,r,c);finish(s);return;}
@@ -34,10 +34,10 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='start'){const slots=NATS.map((_,i)=>$('#slot-'+i).value);const act=slots.filter(s=>s!=='none');const size=$('#opt-size').value;
     if(act.length>SIZES[size].max){$('#setup-err').textContent=`${SIZES[size].n} 맵은 최대 ${SIZES[size].max}세력까지 가능합니다.`;return;}
     if(act.length<2){$('#setup-err').textContent='세력을 둘 이상 활성화하세요.';return;}
-    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size,vic:+$('#opt-vic').value,diff:$('#opt-diff').value,mt:$('#opt-mt').value,fog:$('#opt-fog').value==='1',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.tab='cmd';save();render();centerHQ();
+    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size,land:$('#opt-land').value,relief:$('#opt-relief').value,vic:+$('#opt-vic').value,diff:$('#opt-diff').value,mt:$('#opt-mt').value,fog:$('#opt-fog').value==='1',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.tab='cmd';save();render();centerHQ();
     if(isAI(G.cur))runAI();return;}
   if(a.startsWith('scn:')){startScn(a.slice(4));return;}
-  if(a==='resume'){const g=loadSave();if(!g)return;G=g;setDims(G.cols||26,G.rows||18);$('#setup').hidden=true;clearSel();G.busy=false;render();centerHQ();if(isAI(G.cur)&&!G.over)runAI();return;}
+  if(a==='resume'){const g=loadSave();if(!g)return;G=g;if(!G.roads)buildRoads();setDims(G.cols||26,G.rows||18);$('#setup').hidden=true;clearSel();G.busy=false;render();centerHQ();if(isAI(G.cur)&&!G.over)runAI();return;}
   if(a==='new'){showSetup();return;}
   if(!G)return;
   if(a.startsWith('zoom:')){const b2=$('#board'),st=$('#stage');const cx=(b2.scrollLeft+b2.clientWidth/2-st.offsetLeft)/UI.zoom,cy=(b2.scrollTop+b2.clientHeight/2-st.offsetTop)/UI.zoom;
@@ -64,6 +64,8 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a.startsWith('mprod:')){mprod(n,a.slice(6),UI.pane.r,UI.pane.c);render();return;}
   if(a.startsWith('msl:')){const k=a.slice(4);clearSel();UI.phase='msl';UI.mk=k;UI.targets=mslTargets(n,k,G.fog?visSet(n):null);UI.tab='cmd';render();return;}
   if(a==='msl-cancel'){clearSel();render();return;}
+  if(a.startsWith('spread:')){UI.sp=+a.slice(7);render();return;}
+  if(a==='fire-msl'&&UI.mt!=null){const k=UI.mt;launch(n,'b',kr(k),kc(k),UI.sp??1);clearSel();render();return;}
   if(a.startsWith('res:')){startResearch(n,a.slice(4));render();return;}
   if(a.startsWith('acc:')){const f=+a.slice(4);G.offers=G.offers.filter(o=>!(o.from===f&&o.to===n));sign(f,n);render();return;}
   if(a.startsWith('rej:')){const f=+a.slice(4);G.offers=G.offers.filter(o=>!(o.from===f&&o.to===n));L(`${natName(n)}, ${natName(f)}의 제안 거절`);render();return;}

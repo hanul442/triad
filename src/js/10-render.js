@@ -42,11 +42,8 @@ function buildTerrain(){if(typeof document==='undefined')return false;const S=2,
       const q=Math.floor(E[i]*11);if(x<tw-1&&y<th-1&&(Math.floor(E[i+1]*11)!==q||Math.floor(E[i+tw]*11)!==q)){r*=.82;g*=.82;b*=.82;}}
     D[4*i]=r<0?0:r>255?255:r;D[4*i+1]=g<0?0:g>255?255:g;D[4*i+2]=b<0?0:b>255?255:b;D[4*i+3]=255;}
   ctx.putImageData(img,0,0);
-  const sites=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(['city','hq','oil','mine'].includes(G.map[r][c].t))sites.push([r,c]);
-  ctx.strokeStyle='#8a8476';ctx.lineWidth=1.5;ctx.lineCap='round';const done=new Set();
-  for(const a of sites){const near=sites.filter(b=>b!==a).map(b=>[b,dist(a[0],a[1],b[0],b[1])]).filter(p=>p[1]<=7).sort((p,q)=>p[1]-q[1]).slice(0,2);
-    for(const [b] of near){const id=[key(...a),key(...b)].sort().join('-');if(done.has(id))continue;done.add(id);if(hexLine(a,b).some(([r,c])=>G.map[r][c].t==='sea'||G.map[r][c].t==='mountain'))continue;
-      const [x1,y1]=px(...a),[x2,y2]=px(...b);ctx.beginPath();ctx.moveTo(x1/S,y1/S);ctx.lineTo(x2/S,y2/S);ctx.stroke();}}
+  if(!G.roads)buildRoads();ctx.strokeStyle='#8a8476';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.lineJoin='round';
+  for(const rt of G.roads){ctx.beginPath();rt.p.forEach((k,i)=>{const [x,y]=px(kr(k),kc(k));if(i)ctx.lineTo(x/S,y/S);else ctx.moveTo(x/S,y/S);});ctx.stroke();}
   const rnd=mulberry((G.seed^0x3c6ef372)>>>0);const lights=[],glows=[];const BC=['#ddd4c1','#c9bfa9','#ebe4d4','#bdb29c'];
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];const [X,Y]=px(r,c);const cx=X/S,cy=Y/S;
     if(x.t==='city'||x.t==='hq'){const rr=x.t==='hq'?12:9;glows.push([cx,cy,rr]);ctx.strokeStyle='#958f81';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(cx,cy,rr*.55,0,Math.PI*2);ctx.stroke();
@@ -141,6 +138,7 @@ function renderBoard(){const vn=G.viewer,vs=G.fog?visSet(vn):null;ensureTerrain(
     else if(x.bld&&x.bld.type==='arsenal'){const b=x.bld;sitesH+=`<g transform="translate(${cx},${cy})" opacity="${b.left?.55:1}"><rect x="-12" y="-8" width="24" height="16" rx="1.5" fill="#6e6a62" stroke="${oc}" stroke-width="1.6" ${b.left?'stroke-dasharray="2.5 2"':''}/><path d="M-12 -2l4 -6v6l4 -6v6l4 -6v6l4 -6v6l4 -6v6" fill="none" stroke="#4a4740" stroke-width="1.2"/><rect x="-5" y="2" width="10" height="5" fill="#2a2d30"/></g>`;}
     else if(x.bld&&x.bld.type==='hangar'){const b=x.bld;sitesH+=`<g transform="translate(${cx},${cy})" opacity="${b.left?.55:1}"><rect x="-11" y="-8" width="22" height="16" rx="7" fill="#7d8184" stroke="${oc}" stroke-width="1.6" ${b.left?'stroke-dasharray="2.5 2"':''}/>${[-5,-1.5,2,5.5].map(v=>`<path d="M${v} -7.5V7.5" stroke="#5c6063" stroke-width="1"/>`).join('')}<rect x="-4" y="5" width="8" height="3" fill="#2a2d30"/></g>`;}
     else if(x.bld){const b=x.bld;sitesH+=`<g transform="translate(${cx},${cy})" opacity="${b.left?.6:1}"><rect x="-8" y="-8" width="16" height="16" rx="2.5" fill="rgba(9,13,18,.88)" stroke="${oc}" stroke-width="1.6" ${b.left?'stroke-dasharray="2.5 2"':''}/><text y="3.6" text-anchor="middle" font-size="9.5" font-weight="700" fill="#e9e6dc">${b.left?b.left:BT[b.type].s}</text></g>`;}
+    if(x.ruin>0){for(let i=0;i<x.ruin*3;i++){const ox=((i*37)%17)-8,oy=((i*53)%13)-6;sitesH+=`<rect x="${(cx+ox).toFixed(1)}" y="${(cy+oy).toFixed(1)}" width="3" height="2.4" fill="${i%2?'#4a4540':'#2c2926'}"/>`;}for(let i=0;i<x.ruin;i++)sitesH+=`<circle cx="${cx-5+i*5}" cy="${cy-4}" r="3.2" class="rise" style="animation-delay:${i*0.9}s"/>`;}
     if(x.occ>0&&x.owner!=null)sitesH+=`<circle cx="${cx-10}" cy="${cy-9}" r="3.4" fill="rgba(9,13,18,.86)" stroke="${oc}" stroke-width="1.4" stroke-dasharray="1.6 1.4"/>`;
     if((x.t==='city'||x.t==='hq'||(x.bld&&x.bld.type==='port'))&&blockaded(r,c))sitesH+=`<path d="M${cx-13} ${cy-11}q2 -3 4 0t4 0t4 0" fill="none" stroke="${FX.hit}" stroke-width="2"/>`;}
   {const T=terr();let tint='',bord='',front='';
@@ -152,6 +150,9 @@ function renderBoard(){const vn=G.viewer,vs=G.fog?visSet(vn):null;ensureTerrain(
         if(p==null)bord+=`<path d="${seg}" stroke="${mapCol(o)}" stroke-width="1.6" opacity=".75"/>`;
         else front+=`<path d="${seg}" stroke="${hostile(o,p)?FX.hit:FX.ok}" stroke-width="${hostile(o,p)?3:2}" stroke-linecap="round" ${hostile(o,p)?'':'stroke-dasharray="3 3"'}/>`;}}
     var terrH=`<g pointer-events="none" opacity=".12">${tint}</g><g pointer-events="none" fill="#04070c" opacity=".55">${fog}</g><g pointer-events="none" fill="none">${bord}${front}</g>`;}
+  let trH='';for(const s of routeStates()){if(s.o==null)continue;const mine=s.o===vn||(G.peace&&atPeace(s.o,vn));if(!mine&&!s.active)continue;const pts=s.rt.p.map(k=>px(kr(k),kc(k)).map(v=>v.toFixed(1)).join(',')).join(' ');
+    if(s.active)trH+=`<polyline points="${pts}" fill="none" stroke="${mapCol(s.o)}" stroke-width="${mine?2:1.4}" opacity="${mine?.9:.45}" class="trade"/>`;
+    else{trH+=`<polyline points="${pts}" fill="none" stroke="${FX.hit}" stroke-width="1.8" stroke-dasharray="3 4" opacity=".85"/>`;if(s.at!=null){const [x,y]=px(kr(s.at),kc(s.at));trH+=`<path d="M${x-5} ${y-5}l10 10M${x+5} ${y-5}l-10 10" stroke="${FX.hit}" stroke-width="2.4"/>`;}}}
   let scH='';for(const sc of (G.scorch||[])){const age=G.turn-sc.t;if(age>6)continue;const [x,y]=px(sc.r,sc.c);const op=(.5*(1-age/7)).toFixed(2);scH+=sc.s?`<circle cx="${x}" cy="${y}" r="9" fill="#1a1d1f" opacity="${op}"/><circle cx="${x+5}" cy="${y-3}" r="4" fill="#2a2e30" opacity="${op}"/>`:`<circle cx="${x}" cy="${y}" r="10" fill="#1c1611" opacity="${op}"/><circle cx="${x-4}" cy="${y+3}" r="5" fill="#2b2219" opacity="${op}"/>`;}
   let fortH='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const f=G.map[r][c].fort;if(!f)continue;if(f.t==='mines'&&f.o!==vn)continue;const [cx,cy]=px(r,c);const col=mapCol(f.o);
     if(f.t==='fence')fortH+=`<path d="M${cx-12} ${cy+9}l4 -5l4 5l4 -5l4 5l4 -5l4 5" fill="none" stroke="${col}" stroke-width="1.6"/><path d="M${cx-12} ${cy+6.5}h24" stroke="${col}" stroke-width=".8"/>`;
@@ -167,9 +168,10 @@ function renderBoard(){const vn=G.viewer,vs=G.fog?visSet(vn):null;ensureTerrain(
   if(UI.reach)hl(UI.reach.keys(),`fill="#2f6bff" fill-opacity=".22" stroke="${FX.move}" stroke-opacity=".5" stroke-width=".8"`);
   hl(UI.loads,`fill="none" stroke="${FX.move}" stroke-width="2" stroke-dasharray="3 2"`);
   hl(UI.unloads,`fill="${FX.ok}" fill-opacity=".35" stroke="${FX.ok}" stroke-width="2"`);
+  if(UI.phase==='msl'&&UI.mt!=null){const sp=UI.sp??1;for(const [a,b] of strikeHexes(kr(UI.mt),kc(UI.mt),sp)){const dd=dist(a,b,kr(UI.mt),kc(UI.mt));const [cx,cy]=px(a,b);hlH+=`<polygon points="${hexPts(cx,cy,R-1.4)}" fill="${FX.hit}" fill-opacity="${(.55-dd*.15).toFixed(2)}" stroke="${FX.hit}" stroke-width="1.2"/>`;}const [mx,my]=px(kr(UI.mt),kc(UI.mt));hlH+=`<circle cx="${mx}" cy="${my}" r="${((sp+.5)*S3*R).toFixed(0)}" fill="none" stroke="${FX.hit}" stroke-width="2" stroke-dasharray="6 4"/>`;}
   hl(UI.targets,`fill="${FX.hit}" fill-opacity=".18" stroke="${FX.hit}" stroke-width="2.4"`);if(UI.fc!=null)hl([UI.fc],`fill="${FX.hit}" fill-opacity=".42" stroke="${FX.hit}" stroke-width="3.5"`);
   if(UI.pane)hl([key(UI.pane.r,UI.pane.c)],`fill="none" stroke="${FX.ink}" stroke-width="2" stroke-dasharray="3 2"`);
-  $('#g-board').innerHTML=grid+terrH+`<g pointer-events="none">${scH}${rng}${sitesH}${fortH}${hlH}</g>`;
+  $('#g-board').innerHTML=grid+terrH+`<g pointer-events="none">${trH}${scH}${rng}${sitesH}${fortH}${hlH}</g>`;
   renderUnits(vs,vn);
   let top='';for(const u of G.units){if(u.nat!==vn||!u.order||u.order.t!=='goto')continue;const [x1,y1]=px(u.r,u.c),[x2,y2]=px(u.order.r,u.order.c);top+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${mapCol(vn)}" stroke-width="1.4" stroke-dasharray="2 4" opacity=".8"/><path d="M${x2} ${y2}v-12l8 3-8 3" fill="${mapCol(vn)}" stroke="#0b0f14" stroke-width=".6"/>`;}
   if(G.hint&&G.cur===vn){const a=G.units.find(u=>u.id===G.hint.u);if(a){const [x1,y1]=px(a.r,a.c),[x2,y2]=px(kr(G.hint.t),kc(G.hint.t));
@@ -187,6 +189,7 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.cur;if(G.h
   if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'작전 실패':NATS[w].full+' 승리'}</b><span>${G.turn}라운드</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">보고서</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
   if(isAI(n)||G.busy){el.innerHTML=`<b style="color:${mapCol(n)}">${NATS[n].full}</b><span>AI 작전 중…</span>`;return;}
   if(UI.phase==='goto'&&s){h=`<b>${UT[s.type].n} 목표 지정</b><span>지도에서 목표 지점을 탭하세요. 매 턴 자동으로 이동합니다.</span><div class="ab"><button class="btn sm" data-act="goto-cancel" id="ab-gc">취소</button></div>`;}
+  else if(UI.phase==='msl'&&UI.mk==='b'&&UI.mt!=null){h=`<b>탄도미사일 타격 범위</b><span>${SPREAD[UI.sp??1].desc} · 같은 칸을 다시 탭하거나 발사</span><div class="ab">${[0,1,2].map(sp=>`<button class="btn sm${(UI.sp??1)===sp?' primary':''}" data-act="spread:${sp}" id="ab-sp${sp}">${SPREAD[sp].n}</button>`).join('')}<button class="btn sm primary" data-act="fire-msl" id="ab-fire-msl">발사</button><button class="btn sm" data-act="msl-cancel" id="ab-mslc2">취소</button></div>`;}
   else if(UI.phase==='msl'){h=`<b>${MSL[UI.mk].n} 발사</b><span>${UI.targets.length?'붉은 칸 목표를 탭하세요':'사정권 안에 보이는 목표 없음'}</span><div class="ab"><button class="btn sm" data-act="msl-cancel" id="ab-mslc">취소</button></div>`;}
   else if(s&&UI.fc!=null){const d=unitAt(kr(UI.fc),kc(UI.fc));const ev=d?calcDmg(s,d,false):0;const lo=Math.round(ev*.85),hi=d?Math.min(d.hp,Math.round(ev*1.15)):0;
     h=`<b>${UT[s.type].n} → ${d?UT[d.type].n:''}</b><span>예상 −${lo}~${hi}${d&&lo>=d.hp?' · 격파 확실':d&&hi>=d.hp?' · 격파 가능':''}</span><div class="ab"><button class="btn sm primary" data-act="confirm" id="ab-fire">공격</button><button class="btn sm" data-act="fc-cancel" id="ab-fcc">취소</button></div>`;}

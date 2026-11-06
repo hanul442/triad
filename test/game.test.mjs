@@ -95,3 +95,47 @@ for (const id of ['tut', 'island', 'sead', 'blockade']) {
     }
   });
 }
+
+test('교역로: 양 끝을 가지면 자금 +2, 적 부대가 서면 차단된다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai', 'ai'], size: 'm', speed: 0, seed: 7 });
+  assert.ok(T.G.roads.length > 0, '도로가 하나도 없음');
+  const rt = T.G.roads[0];
+  for (const k of [rt.a, rt.b]) T.G.map[T.kr(k)][T.kc(k)].owner = 0;
+  for (const k of rt.p) { const u = T.unitAt(T.kr(k), T.kc(k)); if (u) T.removeUnit(u); }
+  const st = () => T.routeStates().find(s => s.rt === rt);
+  assert.equal(st().active, true);
+  const base = T.income(0)[0];
+  const mid = rt.p[Math.floor(rt.p.length / 2)];
+  T.mkUnit('inf', 1, T.kr(mid), T.kc(mid), false);
+  assert.equal(st().active, false, '적 부대가 길 위에 있는데 차단되지 않음');
+  assert.ok(T.income(0)[0] <= base - 2, '차단 후 수입이 줄지 않음');
+});
+
+test('탄도미사일 타격 범위: 집중 1칸, 표준 7칸, 광역 19칸', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai'], size: 'm', speed: 0, seed: 3 });
+  assert.deepEqual([0, 1, 2].map(sp => T.strikeHexes(10, 10, sp).length), [1, 7, 19]);
+});
+
+test('시가전: 도시 보병은 평지보다 피해를 덜 받는다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai'], size: 'm', speed: 0, seed: 5 });
+  let city = null, plain = null;
+  for (let r = 1; r < T.ROWS() - 1 && !(city && plain); r++) for (let c = 1; c < T.COLS() - 1; c++) {
+    const x = T.G.map[r][c];
+    if (!city && x.t === 'city' && !T.unitAt(r, c)) city = [r, c];
+    if (!plain && x.t === 'plain' && !x.bld && !T.unitAt(r, c)) plain = [r, c];
+  }
+  const a = T.mkUnit('art', 0, 0, 0, false);
+  const d1 = T.mkUnit('inf', 1, ...city, false), d2 = T.mkUnit('inf', 1, ...plain, false);
+  const r0 = Math.random; Math.random = () => 0.5;
+  try { const dc = T.calcDmg(a, d1), dp = T.calcDmg(a, d2); assert.ok(dc < dp, `도시 ${dc} / 평지 ${dp}`); }
+  finally { Math.random = r0; }
+});
+
+test('지형 옵션: 육지 넓게는 좁게보다 바다가 적다', () => {
+  const T = loadGame();
+  const sea = land => { T.newGame({ slots: ['ai', 'ai'], size: 'm', speed: 0, seed: 11, land }); return T.G.map.flat().filter(x => x.t === 'sea').length; };
+  assert.ok(sea('many') < sea('few'));
+});

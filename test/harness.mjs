@@ -12,7 +12,7 @@ export function loadGame() {
   baseCap, hangar, storeAir, sortie, launch, mkUnit, unitAt, cell, key, kr, kc, nbrs, dist, mcost,
   UT, BT, TYPES, TECH, ROWS: () => ROWS, COLS: () => COLS, power, income, armySize, armyCap,
   checkOver, beginTurn, aiUnit, removeUnit, startResearch, develop, execOrder, runOrders,
-  SCN, scnEndTurn, scnCheck, blockaded, names,
+  SCN, scnEndTurn, scnCheck, blockaded, names, routeStates, strikeHexes, connectedCities, buildRoads, TR,
 };`;
   vm.runInContext(code, ctx, { filename: 'triad-bundle.js' });
   // 전역 함수 교체(계측용): 스크립트 최상위 function 선언은 전역 객체 속성이라 바꿔 끼울 수 있다.

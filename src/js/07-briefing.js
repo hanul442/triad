@@ -1,5 +1,6 @@
 /* ===================== STAFF BRIEFING ===================== */
 function makeBrief(n,inc){const B=[];const N=G.nats[n];const vs=visSet(n);
+  {const RS=routeStates().filter(s=>s.o===n);const act=RS.filter(s=>s.active).length,cut=RS.length-act;if(RS.length)B.push(['교역',`교역로 ${act}개 활성 (자금 +${act*2})${cut?`, ${cut}개가 적 부대에 차단됨`:''}${G.grew?` · 도시 ${G.grew}곳 성장`:''}.`]);}
   B.push(['부관',`이번 턴 수입 자금 ${inc[0]>=0?'+':''}${inc[0]} · 철강 +${inc[1]} · 석유 +${inc[2]}${N.staff.length?` (참모 급여 −${N.staff.length} 포함)`:''}.`]);
   if(G.event)B.push(['속보',`${G.event[0]} — ${G.event[1]}.`]);
   if(G.done)B.push(['연구',`${TECH[G.done].n} 개발 완료: ${TECH[G.done].desc}.`]);

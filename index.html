@@ -87,6 +87,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-d);fo
 .streak{fill:none;stroke:#f4f1ea;stroke-width:1.8;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;opacity:.95;animation:fly .55s ease-in forwards,fade 1.6s ease-in .6s forwards}
 @keyframes fade{to{opacity:0}}
 .flash.big{fill:#ff8a3d}
+.trade{stroke-dasharray:3 5;animation:flow 1.8s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-16}}
+.rise{fill:#8f8a80;opacity:0;transform-box:fill-box;transform-origin:center;animation:rise2 3.2s ease-out infinite}
+@keyframes rise2{0%{opacity:.75;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-16px) scale(2.2)}}
+.shock{fill:none;stroke:#ffb36b;stroke-width:3;opacity:.9;transform-box:fill-box;transform-origin:center;animation:shock 1.2s ease-out forwards}
+@keyframes shock{0%{transform:scale(.2);opacity:.95}100%{transform:scale(1.1);opacity:0}}
+@media (prefers-reduced-motion: reduce){.trade,.rise,.shock{animation:none}.rise{opacity:.4}}
 .flash{fill:#ffb347;opacity:0;transform-box:fill-box;transform-origin:center;animation:flash .45s ease-out forwards}
 @keyframes flash{0%{opacity:1;transform:scale(.3)}100%{opacity:0;transform:scale(2)}}
 .smoke{fill:#a19c90;opacity:0;transform-box:fill-box;transform-origin:center;animation:smoke 2.2s ease-out forwards}
@@ -191,6 +198,8 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
     <div class="slot"><span></span><label for="opt-size">전구 크기</label><select id="opt-size"><option value="m">중형 26×18 (최대 4세력)</option><option value="l" selected>대형 36×26</option><option value="xl">초대형 48×34</option></select></div>
     <div class="slot"><span></span><label for="opt-mt">지형</label><select id="opt-mt"><option value="cont">대륙 (육로 연결)</option><option value="arch">군도 (해전 중심)</option></select></div>
+    <div class="slot"><span></span><label for="opt-land">육지 크기</label><select id="opt-land"><option value="normal">보통</option><option value="few">좁게 (바다 많음)</option><option value="many">넓게 (육지 많음)</option></select></div>
+    <div class="slot"><span></span><label for="opt-relief">지형 기복</label><select id="opt-relief"><option value="normal">보통</option><option value="low">완만</option><option value="high">험준 (산악 많음)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
     <div class="slot"><span></span><label for="opt-vic">승리 조건</label><select id="opt-vic"><option value="0">정복 (마지막 세력)</option><option value="40">점수전 40라운드</option><option value="25">점수전 25라운드</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
@@ -384,11 +393,11 @@ function toggleSound(){SFX.on=!SFX.on;try{localStorage.setItem('triad-sound',SFX
 
 /* ---- 03-mapgen.js ---- */
 /* ===================== MAP GEN ===================== */
-function genMap(seed,starts,mt){const arch=mt==='arch';const rnd=mulberry(seed);let v=[];
+function genMap(seed,starts,mt,land,relief){const arch=mt==='arch';const seaQ=(arch?0.64:0.42)+({few:.1,many:-.12}[land]||0),hiQ={low:.975,high:.86}[relief]||.94;const rnd=mulberry(seed);let v=[];
   for(let r=0;r<ROWS;r++){v[r]=[];for(let c=0;c<COLS;c++)v[r][c]=rnd();}
   for(let it=0;it<4;it++){const nv=v.map(x=>x.slice());for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){let s=v[r][c],n=1;for(const [a,b] of nbrs(r,c)){s+=v[a][b];n++;}nv[r][c]=s/n;}v=nv;}
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const e=Math.min(r,c,ROWS-1-r,COLS-1-c);if(e<2)v[r][c]-=0.05*(2-e);}
-  const flat=v.flat().sort((a,b)=>a-b);const th=flat[Math.floor(flat.length*(arch?0.64:0.42))],hi=flat[Math.floor(flat.length*0.94)];
+  const flat=v.flat().sort((a,b)=>a-b);const th=flat[Math.floor(flat.length*seaQ)],hi=flat[Math.floor(flat.length*hiQ)];
   const m=[];for(let r=0;r<ROWS;r++){m[r]=[];for(let c=0;c<COLS;c++)m[r][c]={t:v[r][c]>th?'plain':'sea',owner:null,bld:null};}
   const setLand=(r,c)=>{if(m[r][c].t==='sea')m[r][c].t='plain';};
   for(const s of starts)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(dist(r,c,s[0],s[1])<=2)setLand(r,c);
@@ -409,6 +418,23 @@ function genMap(seed,starts,mt){const arch=mt==='arch';const rnd=mulberry(seed);
       if(x.t!=='sea'||x.rig||!far(r,c)||nbrs(r,c).filter(([a,b])=>m[a][b].t==='sea').length<5||sites.some(s=>dist(r,c,s[0],s[1])<3))continue;x.rig=true;sites.push([r,c]);rigs++;}}
   for(let i=0;i<Math.round(4*A)+1;i++)place('oil',far);for(let i=0;i<Math.round(4*A)+1;i++)place('mine',far);
   return m;}
+/* 도로·교역로: 거점(도시·수도·유전·광산)끼리 가까운 2곳까지 바다·산을 피해 잇는다. */
+function buildRoads(){const sites=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(['city','hq','oil','mine'].includes(G.map[r][c].t))sites.push([r,c]);
+  const out=[],done=new Set();
+  for(const a of sites){const near=sites.filter(b=>b!==a).map(b=>[b,dist(a[0],a[1],b[0],b[1])]).filter(p=>p[1]<=7).sort((p,q)=>p[1]-q[1]).slice(0,2);
+    for(const [b] of near){const id=[key(...a),key(...b)].sort().join('-');if(done.has(id))continue;done.add(id);const line=hexLine(a,b);
+      if(line.some(([r,c])=>G.map[r][c].t==='sea'||G.map[r][c].t==='mountain'))continue;out.push({a:key(...a),b:key(...b),p:line.map(([r,c])=>key(r,c))});}}
+  G.roads=out;}
+const RH={g:null,s:null};
+function roadHex(){if(RH.g!==G.roads){RH.g=G.roads;RH.s=new Set((G.roads||[]).flatMap(r=>r.p));}return RH.s;}
+// 교역로 상태: 양 끝을 같은 세력이 갖고 경로에 적 부대가 없으면 활성
+function routeStates(){const O=occ();return (G.roads||[]).map(rt=>{const A=G.map[kr(rt.a)][kc(rt.a)],B=G.map[kr(rt.b)][kc(rt.b)];const o=A.owner;
+  if(o==null||B.owner!==o)return {rt,o:null,active:false};let cut=null,at=null;for(const k of rt.p){const u=O.get(k);if(u&&hostile(o,u.nat)){cut=u.nat;at=k;break;}}return {rt,o,active:cut==null,cut,at};});}
+function connectedCities(n){const N=G.nats[n];if(!N||!N.hq)return new Set();const adj=new Map();
+  for(const s of routeStates()){if(s.o!==n||!s.active)continue;for(const [x,y] of [[s.rt.a,s.rt.b],[s.rt.b,s.rt.a]]){if(!adj.has(x))adj.set(x,[]);adj.get(x).push(y);}}
+  const st=key(...N.hq),seen=new Set([st]),q=[st];while(q.length){const k=q.shift();for(const y of adj.get(k)||[])if(!seen.has(y)){seen.add(y);q.push(y);}}return seen;}
+const SPREAD={0:{n:'집중',d:[8],desc:'한 칸에 강한 피해'},1:{n:'표준',d:[5,3],desc:'중심과 주변 6칸'},2:{n:'광역',d:[4,3,2],desc:'반경 2칸 넓게, 약하게'}};
+function damageCity(r,c,chance){const x=G.map[r][c];if(!(x.t==='city'||x.t==='hq'))return;if((x.ruin||0)<3&&Math.random()<chance){x.ruin=(x.ruin||0)+1;x.rep=0;L(`${names().city[key(r,c)]||'도시'} 시가지 파괴 (${x.ruin}/3)`);}}
 
 /* ---- 04-movement.js ---- */
 /* ===================== MOVEMENT / VISION / SUPPLY ===================== */
@@ -416,11 +442,11 @@ function mcost(type,t){const d=UT[type].d;
   if(d==='air')return 1;if(d==='sea')return t==='sea'?1:Infinity;if(t==='sea')return Infinity;
   const foot=UT[type].foot;if(t==='forest')return foot?1:2;if(t==='mountain')return UT[type].climb?1:foot?2:Infinity;return 1;}
 function reach(u){const mv=(UT[u.type].d==='air'&&G.wx==='storm')?0:mvU(u);const lim=UT[u.type].fuel?Math.min(mv,u.fuel):mv;
-  const prev=new Map(),best=new Map([[key(u.r,u.c),0]]),q=[[u.r,u.c,0]],loads=new Set(),land=UT[u.type].d==='land',O=occ();
+  const rh=roadHex(),prev=new Map(),best=new Map([[key(u.r,u.c),0]]),q=[[u.r,u.c,0]],loads=new Set(),land=UT[u.type].d==='land',O=occ();
   while(q.length){let bi=0;for(let i=1;i<q.length;i++)if(q[i][2]<q[bi][2])bi=i;const [r,c,d]=q.splice(bi,1)[0];if(d>best.get(key(r,c)))continue;
     for(const [nr,nc] of nbrs(r,c)){const k=key(nr,nc),o=O.get(k);
       if(land&&o&&o.nat===u.nat&&canCarry(o.type,u.type)&&!o.cargo){if(d+1<=lim)loads.add(k);continue;}
-      const nd=d+mcost(u.type,G.map[nr][nc].t);if(nd>lim)continue;if(o&&o.nat!==u.nat)continue;
+      const nd=d+(rh.has(k)&&land?1:mcost(u.type,G.map[nr][nc].t));if(nd>lim)continue;if(o&&o.nat!==u.nat)continue;
       if(!best.has(k)||nd<best.get(k)){best.set(k,nd);prev.set(k,key(r,c));if(!fortStop(u,G.map[nr][nc]))q.push([nr,nc,nd]);}}}
   const res=new Map();for(const [k,v] of best){const o=O.get(k);if(!o||o===u)res.set(k,v);}res.loads=loads;res.prev=prev;return res;}
 function connSet(r,c,type){const seen=new Set([key(r,c)]);const q=[[r,c]];
@@ -443,7 +469,7 @@ function inSupply(u,S){const d=UT[u.type].d;return S.some(s=>s[d]&&s.truck!==u.i
 /* ---- 05-combat.js ---- */
 /* ===================== COMBAT / ACTIONS ===================== */
 function calcDmg(a,d,rand){const b=dmgBase(a.type,d.type);if(!b)return 0;let v=b*(a.hp/10);
-  if(UT[d.type].d==='land'){const x=cell(d.r,d.c);const fd=x.fort&&x.fort.o===d.nat?(x.fort.t==='bunker'?2:x.fort.t==='fence'?1:0):0;v*=1-0.08*(TR[x.t].def+(x.bld?1:0)+(d.dug?1:0)+fd);}
+  if(UT[d.type].d==='land'){const x=cell(d.r,d.c);const fd=x.fort&&x.fort.o===d.nat?(x.fort.t==='bunker'?2:x.fort.t==='fence'?1:0):0;v*=1-0.08*(TR[x.t].def+(x.bld?1:0)+(d.dug?1:0)+fd);if(x.t==='city'||x.t==='hq'){if(UT[d.type].cls==='inf')v*=0.8;if(UT[a.type].cls==='armor'&&dist(a.r,a.c,d.r,d.c)===1)v*=0.85;}}
   v*=1+0.1*(a.rank||0);if(UT[d.type].cls==='armor'&&hasTech(d.nat,'armor'))v*=0.8;
   if(!UT[a.type].ind&&dist(a.r,a.c,d.r,d.c)===1){let fl=0;for(const v2 of G.units){if(v2!==a&&v2.nat===a.nat&&UT[v2.type].atk&&dist(v2.r,v2.c,d.r,d.c)===1)fl++;}v*=1+0.1*Math.min(3,fl);}
   if(a.supNow)v*=0.7;
@@ -459,6 +485,7 @@ function attack(a,d){if(!G.units.includes(a)||!G.units.includes(d))return;{const
   let m=`${natName(a.nat)} ${UT[a.type].n} → ${natName(d.nat)} ${UT[d.type].n} −${dmg}`;
   const promo=x=>{if((x.rank||0)<3){x.rank=(x.rank||0)+1;m+=` · ${UT[x.type].n} 진급(${'★'.repeat(x.rank)})`;}};
   if(UT[a.type].splash){let sh=0;for(const [x,y] of nbrs(d.r,d.c)){const v=unitAt(x,y);if(!v||v===d||!hostile(a.nat,v.nat)||!dmgBase(a.type,v.type))continue;const sd=Math.max(1,Math.round(calcDmg(a,v,false)*0.3));v.hp-=sd;pop(x,y,'−'+sd);sh++;if(v.hp<=0){removeUnit(v);G.nats[a.nat].kills=(G.nats[a.nat].kills||0)+1;}}if(sh)m+=` · 주변 ${sh}기 피해`;}
+  if((UT[a.type].ind||a.type==='bmb'||a.type==='bb'))damageCity(d.r,d.c,0.4);
   if(d.hp>0&&(UT[a.type].ind||a.type==='bmb'||a.type==='bb')&&UT[d.type].d!=='air'){d.sup=true;m+=' · 제압';}
   if(d.hp<=0){fxKill(d);removeUnit(d);m+=' 격파'+(d.cargo?'(탑재 손실)':'');promo(a);G.nats[a.nat].kills=(G.nats[a.nat].kills||0)+1;}
   else if(!UT[d.type].ind&&canHit(d,a)){const cd=calcDmg(d,a,true);if(!UT[d.type].ua)d.ammo--;if(cd>0){a.hp-=cd;pop(a.r,a.c,'−'+cd);m+=` / 반격 −${cd}`;if(a.hp<=0){fxKill(a);removeUnit(a);m+=' 격파';promo(d);G.nats[d.nat].kills=(G.nats[d.nat].kills||0)+1;}}}
@@ -530,26 +557,27 @@ function mslTargets(n,k,vs){const out=[];const S=launchers(n);const inR=(r,c)=>S
     if((u&&hostile(n,u.nat))||(x.bld&&hostile(n,x.owner)))out.push(key(r,c));}
   return out;}
 function mprod(n,k,r,c){const x=cell(r,c);if(x.used||stock(n)[k]>=MSL_CAP||!canPay(n,MSL[k].cost)||(k==='b'&&!hasTech(n,'rocketry')))return false;pay(n,MSL[k].cost);stock(n)[k]++;x.used=true;L(`${natName(n)} ${MSL[k].n} 생산`);return true;}
-function mslAnim(from,to,ok){if(typeof document==='undefined')return;sfx('launch');setTimeout(()=>sfx(ok?'boom':'flak'),700);const g=$('#g-pops');if(!g)return;const [x1,y1]=px(...from),[x2,y2]=px(...to);
+function mslAnim(from,to,ok,sp){if(typeof document==='undefined')return;if(ok&&sp)setTimeout(()=>{const g2=$('#g-pops');if(!g2)return;const [cx,cy]=px(...to);const e=document.createElementNS('http://www.w3.org/2000/svg','circle');e.setAttribute('cx',cx);e.setAttribute('cy',cy);e.setAttribute('r',String((sp+0.5)*S3*R));e.setAttribute('class','shock');g2.appendChild(e);setTimeout(()=>e.remove(),1400);},720);sfx('launch');setTimeout(()=>sfx(ok?'boom':'flak'),700);const g=$('#g-pops');if(!g)return;const [x1,y1]=px(...from),[x2,y2]=px(...to);
   const mx=(x1+x2)/2,my=Math.min(y1,y2)-Math.max(40,dist(...from,...to)*12);const ns='http://www.w3.org/2000/svg';
   const p=document.createElementNS(ns,'path');p.setAttribute('d',`M${x1} ${y1}Q${mx} ${my} ${x2} ${y2}`);p.setAttribute('pathLength','100');p.setAttribute('class','msl');g.appendChild(p);
   const b=document.createElementNS(ns,'circle');b.setAttribute('cx',x2);b.setAttribute('cy',y2);b.setAttribute('r','4');b.setAttribute('class',ok?'boom':'boom icpt');g.appendChild(b);
   setTimeout(()=>{p.remove();b.remove();},1700);}
-function launch(n,k,r,c){if(!canLaunch(n,k))return false;const N=G.nats[n];stock(n)[k]--;N.fired=(N.fired||0)+1;
+function strikeHexes(r,c,sp){const out=[];for(let a=Math.max(0,r-sp);a<=Math.min(ROWS-1,r+sp);a++)for(let b=Math.max(0,c-sp-1);b<=Math.min(COLS-1,c+sp+1);b++)if(dist(a,b,r,c)<=sp)out.push([a,b]);return out;}
+function launch(n,k,r,c,sp=1){if(!canLaunch(n,k))return false;const N=G.nats[n];stock(n)[k]--;N.fired=(N.fired||0)+1;
   const lf=launchers(n).filter(l=>dist(l.r,l.c,r,c)<=l[k+'_']).sort((a,b)=>dist(a.r,a.c,r,c)-dist(b.r,b.c,r,c))[0];if(!lf)return false;const from=[lf.r,lf.c];const x=cell(r,c);const tgt=unitAt(r,c);
   if(k==='c'){if(!tgt){mslAnim(from,[r,c],true);return true;}
     for(const e of G.units){const p=ICPT[e.type];if(!p||e.nat!==tgt.nat||dist(e.r,e.c,r,c)>2||!hasAmmo(e))continue;
       if(Math.random()<p){mslAnim(from,[r,c],false);pop(r,c,'요격');L(`${natName(n)} ${MSL.c.n} → ${natName(e.nat)} ${UT[e.type].n}에 요격됨`);return true;}}
-    mslAnim(from,[r,c],true);const def=UT[tgt.type].d==='land'?TR[x.t].def+(x.bld?1:0)+(tgt.dug?1:0):0;
+    mslAnim(from,[r,c],true);damageCity(r,c,0.3);const def=UT[tgt.type].d==='land'?TR[x.t].def+(x.bld?1:0)+(tgt.dug?1:0):0;
     const d=Math.max(1,Math.round(MSL.c.dmg*(1-0.08*def)*(0.85+Math.random()*0.3)));tgt.hp-=d;pop(r,c,'−'+d);
     let m=`${natName(n)} ${MSL.c.n} → ${natName(tgt.nat)} ${UT[tgt.type].n} −${d}`;if(tgt.hp<=0){fxKill(tgt);removeUnit(tgt);m+=' 격파';G.nats[n].kills=(G.nats[n].kills||0)+1;}L(m);}
   else{const dn=tgt?tgt.nat:x.owner;
     for(const e of G.units){if(!UT[e.type].abm||!hostile(n,e.nat)||!hasAmmo(e)||dist(e.r,e.c,r,c)>4)continue;if(Math.random()<0.45){e.ammo--;mslAnim(from,[r,c],false);pop(r,c,'요격');L(`${natName(n)} ${MSL.b.n} → ${natName(e.nat)} ${UT[e.type].n}에 요격됨`);return true;}}
     if(dn!=null&&hasTech(dn,'abm')&&Math.random()<0.5){mslAnim(from,[r,c],false);pop(r,c,'요격');L(`${natName(n)} ${MSL.b.n} → ${natName(dn)} 미사일 방어망에 요격됨`);return true;}
-    mslAnim(from,[r,c],true);let hits=0,kills=0;
-    for(const [a,b] of [[r,c],...nbrs(r,c)]){const u=unitAt(a,b);if(!u)continue;const y=cell(a,b);const def=UT[u.type].d==='land'?TR[y.t].def+(y.bld?1:0)+(u.dug?1:0):0;
-      const d=Math.max(1,Math.round((a===r&&b===c?MSL.b.dmg:3)*(1-0.08*def)*(0.85+Math.random()*0.3)));u.hp-=d;pop(a,b,'−'+d);hits++;if(u.hp<=0){fxKill(u);removeUnit(u);kills++;}}
-    let m=`${natName(n)} ${MSL.b.n} 착탄 — 부대 ${hits}기 피해${kills?`, ${kills}기 격파`:''}`;
+    const spr=SPREAD[sp]||SPREAD[1];mslAnim(from,[r,c],true,sp);let hits=0,kills=0;
+    for(const [a,b] of strikeHexes(r,c,sp)){const dd=dist(a,b,r,c);damageCity(a,b,dd?0.3:0.6);const u=unitAt(a,b);if(!u)continue;const y=cell(a,b);const def=UT[u.type].d==='land'?TR[y.t].def+(y.bld?1:0)+(u.dug?1:0):0;
+      const d=Math.max(1,Math.round(spr.d[dd]*(1-0.08*def)*(0.85+Math.random()*0.3)));u.hp-=d;pop(a,b,'−'+d);hits++;if(u.hp<=0){fxKill(u);removeUnit(u);kills++;G.nats[n].kills=(G.nats[n].kills||0)+1;}}
+    let m=`${natName(n)} ${MSL.b.n}(${spr.n}) 착탄 — 부대 ${hits}기 피해${kills?`, ${kills}기 격파`:''}`;
     const bk=baseKeyOf(r,c);
     if(bk!=null){const y=cell(kr(bk),kc(bk));y.bld.left=Math.max(y.bld.left,2);const H=hangar(bk);m+=`, ${natName(y.owner)} 활주로 피격 (2턴 복구)`;
       if(H.length){const v=H.splice(Math.floor(Math.random()*H.length),1)[0];m+=`, 격납 중 ${UT[v.type].n} 파괴`;G.nats[n].kills=(G.nats[n].kills||0)+1;}}
@@ -590,7 +618,8 @@ function construct(n,type,r,c){const cost=bCost(n,type);if(!canPay(n,cost)||!sit
 const devCost=l=>[6+6*l,4+3*l,0];
 function develop(n,r,c){const x=cell(r,c);if(x.owner!==n||!(x.t==='city'||x.t==='hq'))return false;const l=x.dev||0;if(l>=3||x.devT===G.turn||!canPay(n,devCost(l)))return false;pay(n,devCost(l));x.dev=l+1;x.devT=G.turn;L(`${natName(n)} ${names().city[key(r,c)]||'도시'} 개발 Lv${x.dev}`);return true;}
 function income(n){let f=0,s=0,o=0;const fin=hasStaff(n,'fin')?1.25:1;
-  for(let rr=0;rr<ROWS;rr++)for(let cc=0;cc<COLS;cc++){const x=G.map[rr][cc];if(x.owner!==n)continue;const k=x.occ>0?0.5:1;if(x.rig){o+=Math.floor(4*k);continue;}const bl=(x.t==='city'||x.t==='hq')&&blockaded(rr,cc);if(x.t==='hq'){f+=(bl?3:6)+2*(x.dev||0);s+=3;o+=2;}else if(x.t==='city'){f+=bl?0:(3*fin+2*(x.dev||0))*k;s+=k;}else if(x.t==='oil')o+=Math.floor(3*k);else if(x.t==='mine')s+=Math.floor(4*k);}
+  for(let rr=0;rr<ROWS;rr++)for(let cc=0;cc<COLS;cc++){const x=G.map[rr][cc];if(x.owner!==n)continue;const k=x.occ>0?0.5:1;if(x.rig){o+=Math.floor(4*k);continue;}const bl=(x.t==='city'||x.t==='hq')&&blockaded(rr,cc);if(x.t==='hq'){f+=(bl?3:6)+2*(x.dev||0);s+=3;o+=2;}else if(x.t==='city'){f+=bl?0:Math.max(0,(3*fin+2*(x.dev||0))*k-(x.ruin||0));s+=k;}else if(x.t==='oil')o+=Math.floor(3*k);else if(x.t==='mine')s+=Math.floor(4*k);}
+  for(const st of routeStates())if(st.o===n&&st.active)f+=2;
   f=Math.floor(f)-G.nats[n].staff.length;return [f,s,o];}
 function startResearch(n,k){const N=G.nats[n];if(N.res||hasTech(n,k)||!canPay(n,TECH[k].cost))return false;pay(n,TECH[k].cost);N.res={k,left:TECH[k].t};L(`${natName(n)} ${TECH[k].n} 연구 착수`);return true;}
 function sign(a,b){G.peace[pk(a,b)]=G.turn+10;L(`${natName(a)}·${natName(b)} 10턴 불가침 조약 체결`);}
@@ -618,6 +647,9 @@ function beginTurn(){const n=G.cur,N=G.nats[n];const am=N.ctrl==='ai'?({easy:.75
       if(t.fuel&&u.fuel<t.fuel){const need=Math.ceil((t.fuel-u.fuel)/10*g4);if(N.o>=need){N.o-=need;u.fuel=t.fuel;}}
       if(t.ammo&&u.ammo<t.ammo){const need=Math.ceil((t.ammo-u.ammo)/3*g4);if(N.s>=need){N.s-=need;u.ammo=t.ammo;}}
       if(u.hp<10&&N.f>=1){N.f-=1;u.hp=Math.min(10,u.hp+3);}}}
+  {const CC=connectedCities(n);G.grew=0;for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner!==n)continue;
+      if(x.ruin>0){x.rep=(x.rep||0)+1;if(x.rep>=3){x.ruin--;x.rep=0;}}
+      if(x.t==='city'&&CC.has(key(r,c))&&!(x.occ>0)&&!(x.ruin>0)&&(x.dev||0)<3){x.grow=(x.grow||0)+1;if(x.grow>=8){x.grow=0;x.dev=(x.dev||0)+1;G.grew++;L(`${natName(n)} ${names().city[key(r,c)]||'도시'} 교역으로 성장 Lv${x.dev}`);}}}}
   N.fb=0;G.partisan=0;
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner!==n||!(x.occ>0))continue;x.occ--;
     const pv=x.prev;if(pv!=null&&x.t!=='sea'&&G.nats[pv].alive&&hostile(n,pv)&&!unitAt(r,c)&&!nbrs(r,c).some(([a,b])=>{const v=unitAt(a,b);return v&&v.nat===n;})&&Math.random()<0.15){mkUnit('inf',pv,r,c,false);G.partisan++;L(`${natName(n)} 점령지 ${TR[x.t].n}에서 ${natName(pv)} 저항군 봉기`);}}
@@ -629,6 +661,7 @@ function beginTurn(){const n=G.cur,N=G.nats[n];const am=N.ctrl==='ai'?({easy:.75
 /* ---- 07-briefing.js ---- */
 /* ===================== STAFF BRIEFING ===================== */
 function makeBrief(n,inc){const B=[];const N=G.nats[n];const vs=visSet(n);
+  {const RS=routeStates().filter(s=>s.o===n);const act=RS.filter(s=>s.active).length,cut=RS.length-act;if(RS.length)B.push(['교역',`교역로 ${act}개 활성 (자금 +${act*2})${cut?`, ${cut}개가 적 부대에 차단됨`:''}${G.grew?` · 도시 ${G.grew}곳 성장`:''}.`]);}
   B.push(['부관',`이번 턴 수입 자금 ${inc[0]>=0?'+':''}${inc[0]} · 철강 +${inc[1]} · 석유 +${inc[2]}${N.staff.length?` (참모 급여 −${N.staff.length} 포함)`:''}.`]);
   if(G.event)B.push(['속보',`${G.event[0]} — ${G.event[1]}.`]);
   if(G.done)B.push(['연구',`${TECH[G.done].n} 개발 완료: ${TECH[G.done].desc}.`]);
@@ -661,7 +694,7 @@ function makeBrief(n,inc){const B=[];const N=G.nats[n];const vs=visSet(n);
 /* ---- 08-flow.js ---- */
 /* ===================== GAME FLOW ===================== */
 function newGame(cfg){const sz=SIZES[cfg.size||'m'];setDims(sz.c,sz.r);const seed=cfg.seed??Math.floor(Math.random()*1e9);const act=cfg.slots.map((s,i)=>s!=='none'?i:-1).filter(i=>i>=0);
-  const starts=startsFor(act.length);const map=genMap(seed,starts,cfg.mt);
+  const starts=startsFor(act.length);const map=genMap(seed,starts,cfg.mt,cfg.land,cfg.relief);
   const pers=['공세','균형','방어'];
   G={v:3,spectate:!cfg.slots.includes('human'),vic:cfg.vic||0,diff:cfg.diff||'normal',hist:[],mt:cfg.mt||'cont',peace:{},offers:[],wx:'clear',wxNext:rollWx(),cols:COLS,rows:ROWS,size:cfg.size||'m',turn:1,cur:act[0],map,units:[],nid:1,log:[],over:null,fog:cfg.fog&&cfg.slots.includes('human'),speed:cfg.speed,seed,hint:null,brief:[],supInfo:{},handoff:false,
     nats:NATS.map((_,i)=>({id:i,ctrl:cfg.slots[i],alive:cfg.slots[i]!=='none',f:12,s:8,o:6,staff:[],tech:[],res:null,perfidy:0,ask:{},pers:pers[Math.floor(Math.random()*3)],hq:null}))};
@@ -675,7 +708,7 @@ function newGame(cfg){const sz=SIZES[cfg.size||'m'];setDims(sz.c,sz.r);const see
         for(const u of [...G.units])if(map[u.r][u.c].t==='sea'&&UT[u.type].d!=='sea')G.units=G.units.filter(x=>x!==u);
         map[pr][pc].owner=n;map[pr][pc].bld={type:'port',left:0};const sea=nbrs(pr,pc).filter(([a,b])=>map[a][b].t==='sea');
         if(sea[0])mkUnit('lst',n,sea[0][0],sea[0][1],false);if(sea[1])mkUnit('dd',n,sea[1][0],sea[1][1],false);}}});
-  G.viewer=act.find(n=>G.nats[n].ctrl==='human')??act[0];snapHist();beginTurn();}
+  buildRoads();G.viewer=act.find(n=>G.nats[n].ctrl==='human')??act[0];snapHist();beginTurn();}
 function aliveNext(n){const K=NATS.length;for(let i=1;i<=K;i++){const j=(n+i)%K;if(G.nats[j].alive)return j;}return n;}
 function endTurn(){if(G.over)return;scnEndTurn(G.cur);if(G.over){save();render();return;}clearSel();G.offers=G.offers.filter(o=>o.to!==G.cur);const nx=aliveNext(G.cur);if(nx<=G.cur){snapHist();G.turn++;G.wx=G.wxNext;G.wxNext=rollWx();L(`${G.turn}라운드 기상: ${WX[G.wx].n}`);checkOver();if(G.over){snapHist();save();render();return;}}G.cur=nx;beginTurn();
   if(isAI(G.cur)){render();runAI();return;}
@@ -696,10 +729,10 @@ async function runAI(){G.busy=true;const n=G.cur;render();
     if(G.speed){render();await sleep(G.speed);}}
   if(!G.over)aiLaunch(n);if(!G.over)aiEconomy(n,false);G.busy=false;if(G.over){save();render();return;}
   await sleep(0);endTurn();}
-function aiLaunch(n){let g=0;while(canLaunch(n,'b')&&g++<4){let best=null;for(const k of mslTargets(n,'b',null)){const r=kr(k),c=kc(k);let v=0;
-      for(const [a,b] of [[r,c],...nbrs(r,c)]){const u=unitAt(a,b);if(!u)continue;const w=UT[u.type].cost[0]*(a===r&&b===c?1.6:1);v+=hostile(n,u.nat)?w:u.nat===n?-w*2:0;}
-      const x=cell(r,c);if(x.bld&&hostile(n,x.owner))v+=6;if(!best||v>best.v)best={r,c,v};}
-    if(!best||best.v<7)break;launch(n,'b',best.r,best.c);}
+function aiLaunch(n){let g=0;while(canLaunch(n,'b')&&g++<4){let best=null;for(const k of mslTargets(n,'b',null)){const r=kr(k),c=kc(k);
+      for(const sp of [0,1,2]){let v=0;for(const [a,b] of strikeHexes(r,c,sp)){const u=unitAt(a,b);if(!u)continue;const w=UT[u.type].cost[0]*SPREAD[sp].d[dist(a,b,r,c)]/5;v+=hostile(n,u.nat)?w:u.nat===n?-w*2:0;}
+        const x=cell(r,c);if(x.bld&&hostile(n,x.owner))v+=6;if(!best||v>best.v)best={r,c,v,sp};}}
+    if(!best||best.v<7)break;launch(n,'b',best.r,best.c,best.sp);}
   g=0;while(canLaunch(n,'c')&&g++<4){let best=null;for(const k of mslTargets(n,'c',null)){const e=unitAt(kr(k),kc(k));const v=UT[e.type].cost[0]*(e.hp<=7?2:1)+(UT[e.type].ind?2:0);if(!best||v>best.v)best={e,v};}
     if(!best||best.v<3)break;launch(n,'c',best.e.r,best.e.c);}}
 function aiLst(u,RS,go,toward){const n=u.nat;
@@ -789,6 +822,7 @@ function aiUnit(u){const n=u.nat,t=UT[u.type],RS=reach(u);const N=G.nats[n];
     if(best&&best.v>0){go(best.r,best.c);attack(u,best.e);return;}}
   const reachSet=connSet(u.r,u.c,u.type);const ok=(r,c)=>t.d==='air'||reachSet.has(key(r,c))||nbrs(r,c).some(([a,b])=>reachSet.has(key(a,b)));
   let goals=[];for(const e of G.units)if(hostile(n,e.nat)&&dmgBase(u.type,e.type)&&ok(e.r,e.c))goals.push([e.r,e.c]);
+  if(['recon','spec','heli','uav','ifv'].includes(u.type)){for(const s of routeStates())if(s.o!=null&&s.active&&hostile(n,s.o)){const k=s.rt.p[Math.floor(s.rt.p.length/2)];if(dist(u.r,u.c,kr(k),kc(k))<=7&&(t.d==='air'||reachSet.has(k)))goals.push([kr(k),kc(k)]);}}
   if(t.cap)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner!==n&&openTo(n,x.owner)&&(SITES.includes(x.t)||x.bld)&&reachSet.has(key(r,c)))goals.push([r,c]);}
   if(warship(u.type)){for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner===n||!openTo(n,x.owner))continue;
       if(x.rig&&reachSet.has(key(r,c)))goals.push([r,c]);else if(x.owner!=null&&(x.t==='city'||x.t==='hq'||(x.bld&&x.bld.type==='port'))&&ok(r,c)&&!blockaded(r,c))goals.push([r,c]);}}
@@ -847,11 +881,8 @@ function buildTerrain(){if(typeof document==='undefined')return false;const S=2,
       const q=Math.floor(E[i]*11);if(x<tw-1&&y<th-1&&(Math.floor(E[i+1]*11)!==q||Math.floor(E[i+tw]*11)!==q)){r*=.82;g*=.82;b*=.82;}}
     D[4*i]=r<0?0:r>255?255:r;D[4*i+1]=g<0?0:g>255?255:g;D[4*i+2]=b<0?0:b>255?255:b;D[4*i+3]=255;}
   ctx.putImageData(img,0,0);
-  const sites=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(['city','hq','oil','mine'].includes(G.map[r][c].t))sites.push([r,c]);
-  ctx.strokeStyle='#8a8476';ctx.lineWidth=1.5;ctx.lineCap='round';const done=new Set();
-  for(const a of sites){const near=sites.filter(b=>b!==a).map(b=>[b,dist(a[0],a[1],b[0],b[1])]).filter(p=>p[1]<=7).sort((p,q)=>p[1]-q[1]).slice(0,2);
-    for(const [b] of near){const id=[key(...a),key(...b)].sort().join('-');if(done.has(id))continue;done.add(id);if(hexLine(a,b).some(([r,c])=>G.map[r][c].t==='sea'||G.map[r][c].t==='mountain'))continue;
-      const [x1,y1]=px(...a),[x2,y2]=px(...b);ctx.beginPath();ctx.moveTo(x1/S,y1/S);ctx.lineTo(x2/S,y2/S);ctx.stroke();}}
+  if(!G.roads)buildRoads();ctx.strokeStyle='#8a8476';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.lineJoin='round';
+  for(const rt of G.roads){ctx.beginPath();rt.p.forEach((k,i)=>{const [x,y]=px(kr(k),kc(k));if(i)ctx.lineTo(x/S,y/S);else ctx.moveTo(x/S,y/S);});ctx.stroke();}
   const rnd=mulberry((G.seed^0x3c6ef372)>>>0);const lights=[],glows=[];const BC=['#ddd4c1','#c9bfa9','#ebe4d4','#bdb29c'];
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];const [X,Y]=px(r,c);const cx=X/S,cy=Y/S;
     if(x.t==='city'||x.t==='hq'){const rr=x.t==='hq'?12:9;glows.push([cx,cy,rr]);ctx.strokeStyle='#958f81';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(cx,cy,rr*.55,0,Math.PI*2);ctx.stroke();
@@ -946,6 +977,7 @@ function renderBoard(){const vn=G.viewer,vs=G.fog?visSet(vn):null;ensureTerrain(
     else if(x.bld&&x.bld.type==='arsenal'){const b=x.bld;sitesH+=`<g transform="translate(${cx},${cy})" opacity="${b.left?.55:1}"><rect x="-12" y="-8" width="24" height="16" rx="1.5" fill="#6e6a62" stroke="${oc}" stroke-width="1.6" ${b.left?'stroke-dasharray="2.5 2"':''}/><path d="M-12 -2l4 -6v6l4 -6v6l4 -6v6l4 -6v6l4 -6v6" fill="none" stroke="#4a4740" stroke-width="1.2"/><rect x="-5" y="2" width="10" height="5" fill="#2a2d30"/></g>`;}
     else if(x.bld&&x.bld.type==='hangar'){const b=x.bld;sitesH+=`<g transform="translate(${cx},${cy})" opacity="${b.left?.55:1}"><rect x="-11" y="-8" width="22" height="16" rx="7" fill="#7d8184" stroke="${oc}" stroke-width="1.6" ${b.left?'stroke-dasharray="2.5 2"':''}/>${[-5,-1.5,2,5.5].map(v=>`<path d="M${v} -7.5V7.5" stroke="#5c6063" stroke-width="1"/>`).join('')}<rect x="-4" y="5" width="8" height="3" fill="#2a2d30"/></g>`;}
     else if(x.bld){const b=x.bld;sitesH+=`<g transform="translate(${cx},${cy})" opacity="${b.left?.6:1}"><rect x="-8" y="-8" width="16" height="16" rx="2.5" fill="rgba(9,13,18,.88)" stroke="${oc}" stroke-width="1.6" ${b.left?'stroke-dasharray="2.5 2"':''}/><text y="3.6" text-anchor="middle" font-size="9.5" font-weight="700" fill="#e9e6dc">${b.left?b.left:BT[b.type].s}</text></g>`;}
+    if(x.ruin>0){for(let i=0;i<x.ruin*3;i++){const ox=((i*37)%17)-8,oy=((i*53)%13)-6;sitesH+=`<rect x="${(cx+ox).toFixed(1)}" y="${(cy+oy).toFixed(1)}" width="3" height="2.4" fill="${i%2?'#4a4540':'#2c2926'}"/>`;}for(let i=0;i<x.ruin;i++)sitesH+=`<circle cx="${cx-5+i*5}" cy="${cy-4}" r="3.2" class="rise" style="animation-delay:${i*0.9}s"/>`;}
     if(x.occ>0&&x.owner!=null)sitesH+=`<circle cx="${cx-10}" cy="${cy-9}" r="3.4" fill="rgba(9,13,18,.86)" stroke="${oc}" stroke-width="1.4" stroke-dasharray="1.6 1.4"/>`;
     if((x.t==='city'||x.t==='hq'||(x.bld&&x.bld.type==='port'))&&blockaded(r,c))sitesH+=`<path d="M${cx-13} ${cy-11}q2 -3 4 0t4 0t4 0" fill="none" stroke="${FX.hit}" stroke-width="2"/>`;}
   {const T=terr();let tint='',bord='',front='';
@@ -957,6 +989,9 @@ function renderBoard(){const vn=G.viewer,vs=G.fog?visSet(vn):null;ensureTerrain(
         if(p==null)bord+=`<path d="${seg}" stroke="${mapCol(o)}" stroke-width="1.6" opacity=".75"/>`;
         else front+=`<path d="${seg}" stroke="${hostile(o,p)?FX.hit:FX.ok}" stroke-width="${hostile(o,p)?3:2}" stroke-linecap="round" ${hostile(o,p)?'':'stroke-dasharray="3 3"'}/>`;}}
     var terrH=`<g pointer-events="none" opacity=".12">${tint}</g><g pointer-events="none" fill="#04070c" opacity=".55">${fog}</g><g pointer-events="none" fill="none">${bord}${front}</g>`;}
+  let trH='';for(const s of routeStates()){if(s.o==null)continue;const mine=s.o===vn||(G.peace&&atPeace(s.o,vn));if(!mine&&!s.active)continue;const pts=s.rt.p.map(k=>px(kr(k),kc(k)).map(v=>v.toFixed(1)).join(',')).join(' ');
+    if(s.active)trH+=`<polyline points="${pts}" fill="none" stroke="${mapCol(s.o)}" stroke-width="${mine?2:1.4}" opacity="${mine?.9:.45}" class="trade"/>`;
+    else{trH+=`<polyline points="${pts}" fill="none" stroke="${FX.hit}" stroke-width="1.8" stroke-dasharray="3 4" opacity=".85"/>`;if(s.at!=null){const [x,y]=px(kr(s.at),kc(s.at));trH+=`<path d="M${x-5} ${y-5}l10 10M${x+5} ${y-5}l-10 10" stroke="${FX.hit}" stroke-width="2.4"/>`;}}}
   let scH='';for(const sc of (G.scorch||[])){const age=G.turn-sc.t;if(age>6)continue;const [x,y]=px(sc.r,sc.c);const op=(.5*(1-age/7)).toFixed(2);scH+=sc.s?`<circle cx="${x}" cy="${y}" r="9" fill="#1a1d1f" opacity="${op}"/><circle cx="${x+5}" cy="${y-3}" r="4" fill="#2a2e30" opacity="${op}"/>`:`<circle cx="${x}" cy="${y}" r="10" fill="#1c1611" opacity="${op}"/><circle cx="${x-4}" cy="${y+3}" r="5" fill="#2b2219" opacity="${op}"/>`;}
   let fortH='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const f=G.map[r][c].fort;if(!f)continue;if(f.t==='mines'&&f.o!==vn)continue;const [cx,cy]=px(r,c);const col=mapCol(f.o);
     if(f.t==='fence')fortH+=`<path d="M${cx-12} ${cy+9}l4 -5l4 5l4 -5l4 5l4 -5l4 5" fill="none" stroke="${col}" stroke-width="1.6"/><path d="M${cx-12} ${cy+6.5}h24" stroke="${col}" stroke-width=".8"/>`;
@@ -972,9 +1007,10 @@ function renderBoard(){const vn=G.viewer,vs=G.fog?visSet(vn):null;ensureTerrain(
   if(UI.reach)hl(UI.reach.keys(),`fill="#2f6bff" fill-opacity=".22" stroke="${FX.move}" stroke-opacity=".5" stroke-width=".8"`);
   hl(UI.loads,`fill="none" stroke="${FX.move}" stroke-width="2" stroke-dasharray="3 2"`);
   hl(UI.unloads,`fill="${FX.ok}" fill-opacity=".35" stroke="${FX.ok}" stroke-width="2"`);
+  if(UI.phase==='msl'&&UI.mt!=null){const sp=UI.sp??1;for(const [a,b] of strikeHexes(kr(UI.mt),kc(UI.mt),sp)){const dd=dist(a,b,kr(UI.mt),kc(UI.mt));const [cx,cy]=px(a,b);hlH+=`<polygon points="${hexPts(cx,cy,R-1.4)}" fill="${FX.hit}" fill-opacity="${(.55-dd*.15).toFixed(2)}" stroke="${FX.hit}" stroke-width="1.2"/>`;}const [mx,my]=px(kr(UI.mt),kc(UI.mt));hlH+=`<circle cx="${mx}" cy="${my}" r="${((sp+.5)*S3*R).toFixed(0)}" fill="none" stroke="${FX.hit}" stroke-width="2" stroke-dasharray="6 4"/>`;}
   hl(UI.targets,`fill="${FX.hit}" fill-opacity=".18" stroke="${FX.hit}" stroke-width="2.4"`);if(UI.fc!=null)hl([UI.fc],`fill="${FX.hit}" fill-opacity=".42" stroke="${FX.hit}" stroke-width="3.5"`);
   if(UI.pane)hl([key(UI.pane.r,UI.pane.c)],`fill="none" stroke="${FX.ink}" stroke-width="2" stroke-dasharray="3 2"`);
-  $('#g-board').innerHTML=grid+terrH+`<g pointer-events="none">${scH}${rng}${sitesH}${fortH}${hlH}</g>`;
+  $('#g-board').innerHTML=grid+terrH+`<g pointer-events="none">${trH}${scH}${rng}${sitesH}${fortH}${hlH}</g>`;
   renderUnits(vs,vn);
   let top='';for(const u of G.units){if(u.nat!==vn||!u.order||u.order.t!=='goto')continue;const [x1,y1]=px(u.r,u.c),[x2,y2]=px(u.order.r,u.order.c);top+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${mapCol(vn)}" stroke-width="1.4" stroke-dasharray="2 4" opacity=".8"/><path d="M${x2} ${y2}v-12l8 3-8 3" fill="${mapCol(vn)}" stroke="#0b0f14" stroke-width=".6"/>`;}
   if(G.hint&&G.cur===vn){const a=G.units.find(u=>u.id===G.hint.u);if(a){const [x1,y1]=px(a.r,a.c),[x2,y2]=px(kr(G.hint.t),kc(G.hint.t));
@@ -992,6 +1028,7 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.cur;if(G.h
   if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'작전 실패':NATS[w].full+' 승리'}</b><span>${G.turn}라운드</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">보고서</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
   if(isAI(n)||G.busy){el.innerHTML=`<b style="color:${mapCol(n)}">${NATS[n].full}</b><span>AI 작전 중…</span>`;return;}
   if(UI.phase==='goto'&&s){h=`<b>${UT[s.type].n} 목표 지정</b><span>지도에서 목표 지점을 탭하세요. 매 턴 자동으로 이동합니다.</span><div class="ab"><button class="btn sm" data-act="goto-cancel" id="ab-gc">취소</button></div>`;}
+  else if(UI.phase==='msl'&&UI.mk==='b'&&UI.mt!=null){h=`<b>탄도미사일 타격 범위</b><span>${SPREAD[UI.sp??1].desc} · 같은 칸을 다시 탭하거나 발사</span><div class="ab">${[0,1,2].map(sp=>`<button class="btn sm${(UI.sp??1)===sp?' primary':''}" data-act="spread:${sp}" id="ab-sp${sp}">${SPREAD[sp].n}</button>`).join('')}<button class="btn sm primary" data-act="fire-msl" id="ab-fire-msl">발사</button><button class="btn sm" data-act="msl-cancel" id="ab-mslc2">취소</button></div>`;}
   else if(UI.phase==='msl'){h=`<b>${MSL[UI.mk].n} 발사</b><span>${UI.targets.length?'붉은 칸 목표를 탭하세요':'사정권 안에 보이는 목표 없음'}</span><div class="ab"><button class="btn sm" data-act="msl-cancel" id="ab-mslc">취소</button></div>`;}
   else if(s&&UI.fc!=null){const d=unitAt(kr(UI.fc),kc(UI.fc));const ev=d?calcDmg(s,d,false):0;const lo=Math.round(ev*.85),hi=d?Math.min(d.hp,Math.round(ev*1.15)):0;
     h=`<b>${UT[s.type].n} → ${d?UT[d.type].n:''}</b><span>예상 −${lo}~${hi}${d&&lo>=d.hp?' · 격파 확실':d&&hi>=d.hp?' · 격파 가능':''}</span><div class="ab"><button class="btn sm primary" data-act="confirm" id="ab-fire">공격</button><button class="btn sm" data-act="fc-cancel" id="ab-fcc">취소</button></div>`;}
@@ -1067,6 +1104,8 @@ function panelCmd(){const n=G.cur;let h='';const s=UI.sel,P=UI.pane;
       h+=`<p>${yld?`매 턴 ${yld}. `:''}${(x.t==='city'||x.t==='hq')&&blockaded(P.r,P.c)?'해상 봉쇄 중이라 자금 수입이 끊겼습니다. ':''}${x.rig&&x.owner!==n?'구축함·전함·잠수함·항공모함이 올라가 점령할 수 있습니다.':x.owner!==n&&(SITES.includes(x.t)||x.bld)?'보병으로 점령할 수 있습니다.':x.t==='plain'||x.t==='forest'?'아군 도시·수도 반경 2 안의 빈 평지·숲에만 건설할 수 있습니다.':''}</p>`;}
     if(x.fort&&(x.fort.t!=='mines'||x.fort.o===n))h+=`<p>${natName(x.fort.o)} ${FORT[x.fort.t].n}: ${FORT[x.fort.t].desc}.</p>`;
     if(x.occ>0)h+=`<p>점령지 안정화 ${x.occ}턴 남음 (수입 50%).</p>`;
+    if((x.t==='city'||x.t==='hq')&&x.owner===n){const CC=connectedCities(n);const con=CC.has(key(P.r,P.c));const rts=routeStates().filter(s=>s.o===n&&(s.rt.a===key(P.r,P.c)||s.rt.b===key(P.r,P.c)));
+      h+=`<h3>교역 <span class="stats">${con?'수도와 연결됨':'수도와 끊김'}</span></h3><p>이 도시의 교역로 ${rts.filter(s=>s.active).length}/${rts.length}개 활성 (각 자금 +2). ${x.t==='city'?(con?`교역 성장 ${x.grow||0}/8 — 8이 되면 개발 단계가 무료로 1 오릅니다.`:'수도와 교역로로 이어져야 자연 성장합니다.'):''}${x.ruin?` 시가지 파괴 ${x.ruin}/3 (자금 −${x.ruin}, 3턴마다 1단계 복구).`:''}</p>`;}
     if((x.t==='city'||x.t==='hq')&&x.owner===n){const l=x.dev||0;h+=`<h3>도시 개발 <span class="stats">Lv${l}/3</span></h3><p>단계마다 자금 수입 +2, 병력 상한 +2, 점수 +5. 점령당하면 1단계 떨어집니다.</p>`+(l<3?`<div class="row"><button class="btn" data-act="dev:1" id="b-dev" ${canPay(n,devCost(l))&&x.devT!==G.turn?'':'disabled'}>Lv${l+1}로 개발 · ${fmtCost(devCost(l))}</button></div>`:'<p>최대 단계입니다.</p>');}
     if(x.bld&&x.bld.type==='airfield'&&x.owner===n){const k=key(P.r,P.c);const H=hangar(k);const cap=baseCap(k);
       h+=`<h3>격납고 <span class="stats">${H.length}/${cap}대 · 격납고 ${baseHangars(k)}동</span></h3><p>${x.bld.left?`활주로 공사·복구 중 (${x.bld.left}턴). 끝나야 출격·격납할 수 있습니다.`:'격납된 항공기는 매 턴 급유·재무장·수리되고 적 공격을 받지 않습니다. 비행장 옆에 격납고를 지으면 4대씩 늘어납니다.'}</p>`+
@@ -1123,6 +1162,9 @@ function panelRules(){let h=`<h3>교범</h3><ul class="rules">
   <li>한 세력이 전체 국력의 38%를 넘으면 나머지 AI들이 조약을 맺고 그 세력을 집중 견제합니다.</li>
   <li>비행장은 활주로 2칸으로 지어지고 항공기 2대를 격납합니다. 비행장에 붙여 격납고를 지으면 1동마다 4대씩 늘어납니다. 비행장에서 만든 항공기는 격납고로 들어가고, 비행장 칸을 눌러 출격시킵니다. 격납된 항공기는 매 턴 급유·재무장·수리되며 공격받지 않습니다.</li>
   <li>항공기를 활주로 칸에 세우고 하단 바의 격납을 누르면 들어갑니다. 탄도미사일이 활주로에 떨어지면 2턴 동안 복구해야 하고 격납 중 1대가 파괴됩니다. 보병으로 비행장을 점령하면 격납 항공기는 모두 파괴됩니다.</li>
+  <li>교역로: 거점 사이 도로의 양 끝을 같은 세력이 가지면 교역로가 열려 턴마다 자금 +2. 적 부대가 도로 위에 서면 차단됩니다(붉은 점선). 수도와 교역로로 이어진 도시는 8턴마다 개발 단계가 저절로 오릅니다. 지상 부대는 도로 위에서 숲도 1칸 비용으로 지나갑니다.</li>
+  <li>시가전: 도시·수도의 보병 계열은 받는 피해 −20%, 기갑이 도시를 근접 공격하면 −15%. 포병·폭격·전함·미사일은 시가지를 부수고(최대 3단계), 단계마다 그 도시 자금 −1. 3턴마다 1단계씩 복구됩니다.</li>
+  <li>탄도미사일 타격 범위: 목표를 탭한 뒤 집중(1칸 8)·표준(중심 5·주변 3)·광역(반경 2칸, 4·3·2)을 고르고 발사합니다.</li>
   <li>예약 명령: 부대를 고르고 '목표 이동'을 누른 뒤 먼 지점을 탭하면 매 턴 자동으로 그쪽으로 이동합니다. '경계'는 적이 3칸 안에 나타날 때까지 대기 목록에서 빠집니다. 적과 마주치면 명령이 풀립니다.</li>
   <li>협공: 적에게 붙어 있는 아군이 많을수록 근접 공격 피해가 늘어납니다(1기당 +10%, 최대 +30%). 포병·다연장·폭격기·전함에 맞고 살아남은 지상·해상 부대는 제압되어 다음 턴 이동 −1, 공격 −30%가 됩니다.</li>
   <li>도시 개발: 아군 도시·수도를 눌러 최대 3단계까지 개발합니다. 단계마다 자금 +2, 병력 상한 +2.</li>
@@ -1166,7 +1208,7 @@ function centerHQ(){if(typeof document==='undefined')return;const N=G.nats[G.vie
 
 /* ---- 12-input.js ---- */
 /* ===================== INPUT ===================== */
-function clearSel(){UI.fc=null;UI.sel=null;UI.phase=null;UI.orig=null;UI.reach=null;UI.loads=[];UI.targets=[];UI.unloads=[];UI.pane=null;}
+function clearSel(){UI.mt=null;UI.fc=null;UI.sel=null;UI.phase=null;UI.orig=null;UI.reach=null;UI.loads=[];UI.targets=[];UI.unloads=[];UI.pane=null;}
 function pathField(type,tr,tc){const F=new Map([[key(tr,tc),0]]);const q=[[tr,tc,0]];
   while(q.length){let bi=0;for(let i=1;i<q.length;i++)if(q[i][2]<q[bi][2])bi=i;const [r,c,d]=q.splice(bi,1)[0];if(d>F.get(key(r,c)))continue;const step=mcost(type,G.map[r][c].t);
     for(const [a,b] of nbrs(r,c)){if(mcost(type,G.map[a][b].t)===Infinity)continue;const nd=d+(step===Infinity?1:step);const k=key(a,b);if(!F.has(k)||nd<F.get(k)){F.set(k,nd);q.push([a,b,nd]);}}}return F;}
@@ -1182,7 +1224,7 @@ function select(u){sfx('click',.7);clearSel();UI.sel=u;UI.phase='select';UI.reac
 function finish(u){u.done=true;clearSel();checkOver();if(G.over)save();render();}
 function tap(k){if(!G||G.busy||G.over||G.handoff||isAI(G.cur)||!$('#setup').hidden)return;const r=kr(k),c=kc(k),n=G.cur;const vs=G.fog?visSet(n):null;
   let u=unitAt(r,c);if(u&&vs&&!seen(u,n,vs))u=null;const s=UI.sel;
-  if(UI.phase==='msl'){if(UI.targets.includes(k)){launch(n,UI.mk,r,c);clearSel();render();}return;}
+  if(UI.phase==='msl'){if(!UI.targets.includes(k))return;if(UI.mk==='b'&&UI.mt!==k){UI.mt=k;UI.sp=UI.sp??1;render();return;}launch(n,UI.mk,r,c,UI.sp??1);clearSel();render();return;}
   if(UI.phase==='goto'&&s){if(k===key(s.r,s.c))return;s.order={t:'goto',r,c};const okm=execOrder(s);if(G.units.includes(s)){if(okm||UI.reach)s.done=true;}L(`${UT[s.type].n} 목표 지정`);clearSel();checkOver();render();return;}
   if(s){
     if(UI.unloads.includes(k)){unload(s,r,c);finish(s);return;}
@@ -1201,10 +1243,10 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='start'){const slots=NATS.map((_,i)=>$('#slot-'+i).value);const act=slots.filter(s=>s!=='none');const size=$('#opt-size').value;
     if(act.length>SIZES[size].max){$('#setup-err').textContent=`${SIZES[size].n} 맵은 최대 ${SIZES[size].max}세력까지 가능합니다.`;return;}
     if(act.length<2){$('#setup-err').textContent='세력을 둘 이상 활성화하세요.';return;}
-    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size,vic:+$('#opt-vic').value,diff:$('#opt-diff').value,mt:$('#opt-mt').value,fog:$('#opt-fog').value==='1',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.tab='cmd';save();render();centerHQ();
+    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size,land:$('#opt-land').value,relief:$('#opt-relief').value,vic:+$('#opt-vic').value,diff:$('#opt-diff').value,mt:$('#opt-mt').value,fog:$('#opt-fog').value==='1',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.tab='cmd';save();render();centerHQ();
     if(isAI(G.cur))runAI();return;}
   if(a.startsWith('scn:')){startScn(a.slice(4));return;}
-  if(a==='resume'){const g=loadSave();if(!g)return;G=g;setDims(G.cols||26,G.rows||18);$('#setup').hidden=true;clearSel();G.busy=false;render();centerHQ();if(isAI(G.cur)&&!G.over)runAI();return;}
+  if(a==='resume'){const g=loadSave();if(!g)return;G=g;if(!G.roads)buildRoads();setDims(G.cols||26,G.rows||18);$('#setup').hidden=true;clearSel();G.busy=false;render();centerHQ();if(isAI(G.cur)&&!G.over)runAI();return;}
   if(a==='new'){showSetup();return;}
   if(!G)return;
   if(a.startsWith('zoom:')){const b2=$('#board'),st=$('#stage');const cx=(b2.scrollLeft+b2.clientWidth/2-st.offsetLeft)/UI.zoom,cy=(b2.scrollTop+b2.clientHeight/2-st.offsetTop)/UI.zoom;
@@ -1231,6 +1273,8 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a.startsWith('mprod:')){mprod(n,a.slice(6),UI.pane.r,UI.pane.c);render();return;}
   if(a.startsWith('msl:')){const k=a.slice(4);clearSel();UI.phase='msl';UI.mk=k;UI.targets=mslTargets(n,k,G.fog?visSet(n):null);UI.tab='cmd';render();return;}
   if(a==='msl-cancel'){clearSel();render();return;}
+  if(a.startsWith('spread:')){UI.sp=+a.slice(7);render();return;}
+  if(a==='fire-msl'&&UI.mt!=null){const k=UI.mt;launch(n,'b',kr(k),kc(k),UI.sp??1);clearSel();render();return;}
   if(a.startsWith('res:')){startResearch(n,a.slice(4));render();return;}
   if(a.startsWith('acc:')){const f=+a.slice(4);G.offers=G.offers.filter(o=>!(o.from===f&&o.to===n));sign(f,n);render();return;}
   if(a.startsWith('rej:')){const f=+a.slice(4);G.offers=G.offers.filter(o=>!(o.from===f&&o.to===n));L(`${natName(n)}, ${natName(f)}의 제안 거절`);render();return;}
