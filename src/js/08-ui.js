@@ -19,7 +19,7 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.
   if(UI.phase==='buy'){const t=UT[UI.buyT];h=`<b>${t.n} 배치</b><span>초록 칸을 탭하세요 · 지휘 ${t.cost}</span><div class="ab"><button class="btn sm" data-act="buy-cancel" id="ab-bc">취소</button></div>`;}
   else if(UI.phase==='sup'){const S=SUP[UI.supK];h=`<b>${S.n}</b><span>${UI.st!=null?'같은 칸을 다시 탭하거나 실행':'목표 지점을 탭하세요'} · ${S.desc}</span><div class="ab">${UI.st!=null?`<button class="btn sm primary" data-act="sup-fire" id="ab-sf">실행</button>`:''}<button class="btn sm" data-act="sup-cancel" id="ab-sc">취소</button></div>`;}
   else if(s){const t=UT[s.type];
-    const tip=UI.phase==='demo'?'부술 건물을 탭하세요':'땅을 탭해 이동 · 적을 탭해 공격';
+    const ng=(UI.group||[]).filter(x=>G.units.includes(x)).length;const tip=UI.phase==='demo'?'부술 건물을 탭하세요':(ng?`외 ${ng}개 부대 · `:'')+'탭: 이동 · 적 탭: 공격';
     h=`<b style="color:${mapCol(n)}">${t.n}</b><span>${uInfo(s)} · ${tip}</span><div class="ab">${t.ex?`<button class="btn sm${UI.phase==='demo'?' primary':''}" data-act="demo" id="ab-demo">건물 사격</button>`:''}<button class="btn sm${s.hold?' primary':''}" data-act="hold" id="ab-hold">고수</button><button class="btn sm" data-act="stop" id="ab-stop">정지</button><button class="btn sm" data-act="cancel" id="ab-cancel">해제</button></div>`;}
   else if(UI.pane){const {r,c}=UI.pane;const x=cell(r,c);const u=unitAt(r,c);const vis=!G.fog||visSet(n).has(key(r,c));
     const nm=x.obj!=null?G.objs[x.obj].name+' · ':'';const own=x.obj!=null?` · ${natName(x.owner)} 거점`:'';
@@ -27,7 +27,7 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.
     const uo=u&&(!G.fog||seen(u,n))?` · ${natName(u.nat)} ${UT[u.type].n} ${uInfo(u)}`:'';
     h=`<b>${nm}${x.t==='bldg'?'건물':TT[x.t].n}</b><span>${what}${own}${x.smoke?' · 연막':''}${vis?'':' · 시야 밖'}${uo}</span><div class="ab"><button class="btn sm" data-act="close" id="ab-close">닫기</button>${pz}</div>`;}
   else{const N2=G.nats[n];const cnt=G.units.filter(u=>u.nat===n).length;const cd=Math.max(0,(N2.supT||0)-(G.time||0));
-    h=`<b>${NATS[n].name} 지휘소</b><span>부대 ${cnt} · 지휘 ${N2.cp}${cd?` · 화력 지원 ${Math.ceil(cd)}초`:''} · 아군을 탭해 지휘</span><div class="ab"><button class="btn sm" data-act="reinf" id="ab-reinf">증원·지원</button><button class="btn sm" data-act="next" id="ab-next">다음 부대</button><button class="btn sm" data-act="spd" id="ab-spd">${G.spd}×</button>${pz}</div>`;}
+    h=`<b>${NATS[n].name} 지휘소</b><span>부대 ${cnt} · 지휘 ${N2.cp}${cd?` · 화력 지원 ${Math.ceil(cd)}초`:''} · 아군을 탭해 지휘</span><div class="ab"><button class="btn sm" data-act="reinf" id="ab-reinf">증원·지원</button><button class="btn sm" data-act="all" id="ab-all">전체 선택</button><button class="btn sm" data-act="spd" id="ab-spd">${G.spd}×</button>${pz}</div>`;}
   el.innerHTML=h;}
 function renderObj(){const el=$('#obj');if(!el)return;const m=typeof scnObjective==='function'?scnObjective():null;if(m&&!G.over){el.hidden=false;el.innerHTML=`<b>${m.t}</b> ${m.m}`;}else el.hidden=true;}
 function renderTip(){const el=$('#tip');if(!el||!G)return;const k=UI.hk;if(k==null||UI.sel||UI.phase){el.hidden=true;return;}const r=kr(k),c=kc(k);const x=cell(r,c);const u=unitAt(r,c);

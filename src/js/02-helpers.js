@@ -3,7 +3,7 @@ const $=s=>document.querySelector(s);
 const key=(r,c)=>r*100+c, kr=k=>Math.floor(k/100), kc=k=>k%100;
 const sleep=ms=>new Promise(res=>setTimeout(res,ms));
 let G=null;
-const UI={tab:'cmd',sel:null,phase:null,orig:null,reach:null,targets:[],spots:[],pane:null,fc:null,hk:null,setupSlots:['human','ai','none','none']};
+const UI={tab:'cmd',group:[],sel:null,phase:null,orig:null,reach:null,targets:[],spots:[],pane:null,fc:null,hk:null,setupSlots:['human','ai','none','none']};
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 const inb=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
 const dist=(a,b,c,d)=>Math.max(Math.abs(a-c),Math.abs(b-d));

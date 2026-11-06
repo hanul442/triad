@@ -1,16 +1,20 @@
 /* ===================== INPUT ===================== */
 function select(u){UI.sel=u;UI.phase='select';UI.pane=null;UI.fc=null;UI.spots=[];UI.reach=null;UI.targets=targetsOf(u,false);sfx('click',.5);render();}
-function clearSel(){UI.sel=null;UI.phase=null;UI.orig=null;UI.reach=null;UI.targets=[];UI.fc=null;UI.spots=[];UI.st=null;}
+function clearSel(){UI.group=[];UI.sel=null;UI.phase=null;UI.orig=null;UI.reach=null;UI.targets=[];UI.fc=null;UI.spots=[];UI.st=null;}
 /* 실시간 조작: 아군을 탭해 고르고, 땅을 탭하면 이동, 적을 탭하면 공격. 선택은 유지된다. */
+/* 실시간 조작: 아군을 탭해 고르고(두 번 탭하면 근처 아군 모두), 땅 아무 곳이나 탭하면 그 지점으로, 적을 탭하면 공격. */
 function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),c=kc(k),n=G.viewer;const vs=G.fog?visSet(n):null;
-  const u0=unitAt(r,c);const u=u0&&(!G.fog||seen(u0,n,vs))?u0:null;
+  const pt=(typeof V3!=='undefined'&&V3.pickPt)||[c+.5,r+.5];const pid=typeof V3!=='undefined'?V3.pickId:null;
+  const u0=pid!=null?G.units.find(z=>z.id===pid):null;const u=u0&&(!G.fog||seen(u0,n,vs))?u0:null;
   if(UI.phase==='buy'){if(UI.spots.includes(k)){const nu=buy(n,UI.buyT,r,c);if(nu){nu.face=Math.atan2((N-1)/2-r,(N-1)/2-c)*180/Math.PI;}clearSel();render();if(typeof scnAfterAct==='function')scnAfterAct();}return;}
   if(UI.phase==='sup'){if(UI.st===k){doSupport();return;}UI.st=k;if(!canSupport(n,UI.supK,r,c)){toast((G.nats[n].supT||0)>G.time?'화력 지원 재정비 중입니다':'보이는 곳에만 지원할 수 있습니다');UI.st=null;}render();return;}
-  const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;
-  if(u&&u.nat===n){if(u===s){clearSel();render();return;}select(u);return;}
+  const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;const grp=[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));
+  if(u&&u.nat===n){const now=Date.now();
+    if(u===s&&now-(UI.lastTap||0)<400){UI.group=G.units.filter(o=>o.nat===n&&o!==u&&Math.hypot(o.x-u.x,o.z-u.z)<4.5);toast(`${UI.group.length+1}개 부대 선택`);render();return;}
+    UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
   if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){orderBldg(s,r,c);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
-  if(s){if(u&&u.nat!==n){if(!UT[s.type].rng[1]){toast('공격할 수 없는 부대입니다');return;}orderAttack(s,u);sfx('click',.6);FXH.order&&FXH.order(r,c,'atk');render();return;}
-    orderMove(s,r,c);sfx('click',.4);FXH.order&&FXH.order(r,c,'move');render();return;}
+  if(grp.length){if(u&&u.nat!==n){for(const g of grp)if(UT[g.type].rng[1])orderAttack(g,u);sfx('click',.6);render();return;}
+    orderGroupMove(grp,pt[0],pt[1]);sfx('click',.4);render();return;}
   clearSel();UI.pane={r,c};render();}
 function doSupport(){const n=G.viewer;const k=UI.st;if(k==null)return;if(support(n,UI.supK,kr(k),kc(k))){clearSel();render();if(typeof scnAfterAct==='function')scnAfterAct();}}
 if(typeof document!=='undefined'){
@@ -38,6 +42,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='spd'){G.spd=G.spd===1?2:G.spd===2?.5:1;render();return;}
   if(G.boot||isAI(n)||G.over)return;
   const s=UI.sel;
+  if(a==='all'){const us=G.units.filter(u=>u.nat===n);if(us.length){select(us[0]);UI.group=us.slice(1);toast(`${us.length}개 부대 선택`);render();}return;}
   if(a==='next'){const us=G.units.filter(u=>u.nat===n&&!(u.path&&u.path.length));if(us.length){UI.ni=((UI.ni||0)+1)%us.length;select(us[UI.ni]);if(typeof camFollow==='function')v3Focus(us[UI.ni].r,us[UI.ni].c);}return;}
   if(a==='reinf'){UI.sheet=true;UI.tab='cmd';render();return;}
   if(a.startsWith('buy:')){const t=a.slice(4);if(G.nats[n].cp<UT[t].cost)return;clearSel();UI.phase='buy';UI.buyT=t;UI.spots=deploySpots(n,t);if(window.innerWidth<=760)UI.sheet=false;
@@ -47,8 +52,9 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='sup-fire'){doSupport();return;}
   if(a==='close'){UI.pane=null;render();return;}
   if(!s)return;
-  if(a==='stop'){orderStop(s);render();return;}
-  if(a==='hold'){s.hold=!s.hold;render();return;}
+  const grp=[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));
+  if(a==='stop'){grp.forEach(orderStop);render();return;}
+  if(a==='hold'){const h=!s.hold;grp.forEach(x=>x.hold=h);render();return;}
   if(a==='demo'){UI.phase=UI.phase==='demo'?'select':'demo';render();return;}
   if(a==='cancel'){clearSel();render();}});
 document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if(e.key===' '&&G&&!G.boot&&$('#setup').hidden){e.preventDefault();G.paused=!G.paused;render();return;}if(e.key==='Escape'){if(UI.sheet){UI.sheet=false;render();}else if(UI.sel||UI.phase||UI.pane){clearSel();UI.pane=null;render();}}});

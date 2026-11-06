@@ -36,8 +36,8 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
   for(const k of [...res.keys()]){const o=O.get(k);if(o&&o!==u)res.delete(k);}
   res.prev=prev;return res;}
 /* ---------- 전투 ---------- */
-function canHit(a,d,fromR,fromC,moved){const t=UT[a.type];if(!t.rng[1])return false;const r=fromR??a.r,c=fromC??a.c;const dd=dist(r,c,d.r,d.c);
-  if(dd<t.rng[0]||dd>t.rng[1])return false;if(!(t.atk[UT[d.type].cls]>0))return false;if(t.ind&&moved)return false;if(t.ind&&UT[d.type].fly)return false;
+function canHit(a,d,fromR,fromC,moved){const t=UT[a.type];if(!t.rng[1])return false;const r=fromR??a.r,c=fromC??a.c;const dd=fromR==null&&a.x!=null&&d.x!=null?Math.hypot(a.x-d.x,a.z-d.z):dist(r,c,d.r,d.c);
+  if(dd<t.rng[0]-.4||dd>t.rng[1]+.6)return false;if(!(t.atk[UT[d.type].cls]>0))return false;if(t.ind&&moved)return false;if(t.ind&&UT[d.type].fly)return false;
   if(t.ind){return visSet(a.nat).has(key(d.r,d.c));}
   return los(r,c,eyeAt(a.type,r,c),d.r,d.c,eye(d));}
 function canHitTile(a,r2,c2,fromR,fromC,moved){const t=UT[a.type];if(!t.ex||!t.rng[1])return false;const r=fromR??a.r,c=fromC??a.c;const dd=dist(r,c,r2,c2);
@@ -72,19 +72,19 @@ function afterMove(u){const x=cell(u.r,u.c);if(UT[u.type].cap&&x.obj!=null&&x.ow
     w.ow=false;L(`${natName(w.nat)} ${UT[w.type].n} 경계 사격`);const ta=UT[w.type];w.shot=G.turn;FXH.fire(w,u.r,u.c);const dmg=rollDmg(calcDmg(w,u,false)*.85);u.hp-=dmg;if(ta.sup||ta.ex)u.supp=2;
     if(u.hp<=0){kill(u,w);break;}}
   bump();}
-function moveUnit(u,r,c){u.r=r;u.c=c;u.moved=true;bump();afterMove(u);}
+function moveUnit(u,r,c){u.r=r;u.c=c;u.x=c+.5;u.z=r+.5;u.moved=true;bump();afterMove(u);}
 function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const vs=G.fog?visSet(u.nat):null;
   for(const e of G.units){if(e.nat===u.nat)continue;if(vs&&!seen(e,u.nat,vs))continue;if(canHit(u,e,null,null,moved))out.push(key(e.r,e.c));}
   if(UT[u.type].ex){const R2=UT[u.type].rng[1];for(let r=Math.max(0,u.r-R2);r<=Math.min(N-1,u.r+R2);r++)for(let c=Math.max(0,u.c-R2);c<=Math.min(N-1,u.c+R2);c++){const k=key(r,c);if(out.includes(k))continue;
     const o=unitAt(r,c);if(o&&o.nat===u.nat)continue;if(canHitTile(u,r,c,null,null,moved))out.push(k);}}
   return out;}
 /* ---------- 증원·화력 지원 ---------- */
-function deploySpots(n,type){const out=[];const O=occ();const inc=new Set(G.units.filter(o=>o.path&&o.path.length&&o.prog>0).map(o=>o.path[0]));
+function deploySpots(n,type){const out=[];const O=occ();const inc=new Set(G.units.map(o=>key(Math.floor(o.z),Math.floor(o.x))));
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(O.has(key(r,c))||inc.has(key(r,c)))continue;if(mcost(type,x)===Infinity)continue;
     let ok=inZone(n,r,c);if(!ok)for(const o of G.objs){const y=G.map[o.r][o.c];if(y.owner===n&&dist(o.r,o.c,r,c)<=1&&!G.units.some(e=>e.nat!==n&&dist(e.r,e.c,o.r,o.c)<=2)){ok=true;break;}}
     if(ok)out.push(key(r,c));}return out;}
 let UID=1;
-function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,hp:UT[type].hpMax||10,done:false,moved:false,supp:0,ow:false,kills:0,rank:0,path:[],prog:0,cd:Math.random()*1.5,tgt:null,tgtTile:null,face:n===1?180:n===2?90:n===3?270:0};G.units.push(u);bump();return u;}
+function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,x:c+.5+(Math.random()-.5)*.3,z:r+.5+(Math.random()-.5)*.3,hp:UT[type].hpMax||10,done:false,moved:false,supp:0,ow:false,kills:0,rank:0,path:[],cd:Math.random()*1.5,tgt:null,tgtTile:null,face:n===1?180:n===2?90:n===3?270:0};G.units.push(u);bump();return u;}
 function buy(n,type,r,c){const N2=G.nats[n];const t=UT[type];if(N2.cp<t.cost)return null;if(!deploySpots(n,type).includes(key(r,c)))return null;
   N2.cp-=t.cost;const u=mkUnit(n,type,r,c);u.done=true;N2.bought=(N2.bought||0)+1;L(`${natName(n)} ${t.n} 증원`);sfx('build');return u;}
 function supArea(r,c,rad){const o=[];for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))o.push([a,b]);return o;}

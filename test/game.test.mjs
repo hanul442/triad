@@ -144,16 +144,25 @@ test('증원은 집결지에만, 화력 지원은 쿨다운이 지나야 다시'
   assert.ok(T.support(0, 'smoke', mid, mid), '쿨다운 뒤에는 가능');
 });
 
-test('실시간 이동: 경로를 따라 시간이 지나며 움직이고 건물을 돌아간다', () => {
+test('자유 이동: 아무 지점으로나 시간이 지나며 걸어가고, 차량은 건물을 돌아간다', () => {
   const T = loadGame(); const G = setup(T);
   for (let r = 2; r <= 8; r++) bldg(G, r, 5, 3);
   const t = T.mkUnit(0, 'tank', 5, 2); T.bump();
-  T.orderMove(t, 5, 8);
-  assert.ok(t.path.length > 0 && !t.path.some(k => G.map[T.kr(k)][T.kc(k)].t === 'bldg'), '차량 경로는 건물을 피함');
-  T.rtTick(0.1);
-  assert.equal(t.c, 2, '한 틱에 바로 도착하지 않음');
-  for (let i = 0; i < 300 && t.path.length; i++) T.rtTick(0.1);
+  T.orderMoveTo(t, 8.3, 5.7);
+  for (const [x, z] of t.path) assert.notEqual(G.map[Math.floor(z)][Math.floor(x)].t, 'bldg', '차량 경유점이 건물 위');
+  const x0 = t.x; T.rtTick(0.1);
+  assert.ok(t.x !== x0 || t.z !== 5.5, '움직이기 시작');
+  assert.ok(Math.hypot(t.x - 8.3, t.z - 5.7) > 1, '한 틱에 도착하지 않음');
+  for (let i = 0; i < 400 && t.path.length; i++) { T.rtTick(0.1); assert.notEqual(G.map[t.r][t.c].t, 'bldg', '차량이 건물을 통과'); }
+  assert.ok(Math.hypot(t.x - 8.3, t.z - 5.7) < 0.05, `정확한 지점에 도착 (${t.x.toFixed(2)},${t.z.toFixed(2)})`);
   assert.deepEqual([t.r, t.c], [5, 8]);
+});
+
+test('트인 곳에서는 칸을 따라 꺾지 않고 곧게 간다', () => {
+  const T = loadGame(); const G = setup(T);
+  const u = T.mkUnit(0, 'rifle', 2, 2); u.x = 2.5; u.z = 2.5;
+  T.orderMoveTo(u, 9.2, 6.1);
+  assert.equal(u.path.length, 1, `경유점 ${u.path.length}개`);
 });
 
 test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, 건물 안이 더 오래 버틴다', () => {
@@ -192,12 +201,10 @@ function checkUnits(T, G, label) {
   assert.equal((G.errs || []).length, 0, `${label}: AI 실행 중 예외 ${(G.errs || [])[0]}`);
   const seen = new Set();
   for (const u of G.units) {
-    const k = T.key(u.r, u.c);
-    assert.ok(!seen.has(k), `${label}: 한 칸에 부대 둘 (${u.r},${u.c})`);
-    seen.add(k);
+    assert.equal(u.r, Math.floor(u.z), `${label}: 칸과 좌표가 어긋남`); assert.equal(u.c, Math.floor(u.x));
     const x = G.map[u.r][u.c];
     if (T.UT[u.type].cls === 'veh') assert.notEqual(x.t, 'bldg', `${label}: 차량이 건물 안에`);
-    assert.notEqual(x.t, 'water', `${label}: 부대가 물 위에`);
+    if (!T.UT[u.type].fly) assert.notEqual(x.t, 'water', `${label}: 부대가 물 위에`);
     assert.ok(u.hp > 0 && u.hp <= 10, `${label}: 체력 범위 밖 ${u.hp}`);
   }
 }

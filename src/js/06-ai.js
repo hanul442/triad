@@ -54,5 +54,5 @@ function aiThink(n){const N2=G.nats[n];const vs=G.fog?visSet(n):null;
       if(!t.ind)for(const e of E){if(dist(r,c,e.r,e.c)>t.rng[1])continue;const v=aiAtkScore(u,e,r,c,true);if(v>as)as=v;}
       else if(k!==key(u.r,u.c))s-=3;
       s+=as*.8;if(k===key(u.r,u.c))s+=1.5;if(s>bestS){bestS=s;bestT=k;}}
-    if(bestT!==key(u.r,u.c)){u.path=pathTo(u,kr(bestT),kc(bestT));u.prog=0;u.tgt=null;}}
+    if(bestT!==key(u.r,u.c)){const jx=kc(bestT)+.2+Math.random()*.6,jz=kr(bestT)+.2+Math.random()*.6;u.path=pathPts(u,jx,jz);u.tgt=null;}}
   checkOver();}
