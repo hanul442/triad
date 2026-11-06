@@ -79,17 +79,17 @@ function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const 
     const o=unitAt(r,c);if(o&&o.nat===u.nat)continue;if(canHitTile(u,r,c,null,null,moved))out.push(k);}}
   return out;}
 /* ---------- 증원·화력 지원 ---------- */
-function deploySpots(n,type){const out=[];const O=occ();
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(O.has(key(r,c)))continue;if(mcost(type,x)===Infinity)continue;
+function deploySpots(n,type){const out=[];const O=occ();const inc=new Set(G.units.filter(o=>o.path&&o.path.length&&o.prog>0).map(o=>o.path[0]));
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(O.has(key(r,c))||inc.has(key(r,c)))continue;if(mcost(type,x)===Infinity)continue;
     let ok=inZone(n,r,c);if(!ok)for(const o of G.objs){const y=G.map[o.r][o.c];if(y.owner===n&&dist(o.r,o.c,r,c)<=1&&!G.units.some(e=>e.nat!==n&&dist(e.r,e.c,o.r,o.c)<=2)){ok=true;break;}}
     if(ok)out.push(key(r,c));}return out;}
 let UID=1;
-function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,hp:UT[type].hpMax||10,done:false,moved:false,supp:0,ow:false,kills:0,rank:0,face:n===1?180:n===2?90:n===3?270:0};G.units.push(u);bump();return u;}
+function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,hp:UT[type].hpMax||10,done:false,moved:false,supp:0,ow:false,kills:0,rank:0,path:[],prog:0,cd:Math.random()*1.5,tgt:null,tgtTile:null,face:n===1?180:n===2?90:n===3?270:0};G.units.push(u);bump();return u;}
 function buy(n,type,r,c){const N2=G.nats[n];const t=UT[type];if(N2.cp<t.cost)return null;if(!deploySpots(n,type).includes(key(r,c)))return null;
   N2.cp-=t.cost;const u=mkUnit(n,type,r,c);u.done=true;N2.bought=(N2.bought||0)+1;L(`${natName(n)} ${t.n} 증원`);sfx('build');return u;}
 function supArea(r,c,rad){const o=[];for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))o.push([a,b]);return o;}
-function canSupport(n,kind,r,c){const N2=G.nats[n];if(N2.cp<SUP[kind].cost||N2.used===G.turn)return false;if(kind==='air'&&WX[G.wx].noAir)return false;return kind==='smoke'||visSet(n).has(key(r,c));}
-function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2.used=G.turn;FXH.strike(kind,r,c);
+function canSupport(n,kind,r,c){const N2=G.nats[n];if(N2.cp<SUP[kind].cost||(N2.supT||0)>(G.time||0))return false;if(kind==='air'&&WX[G.wx].noAir)return false;return kind==='smoke'||visSet(n).has(key(r,c));}
+function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2.supT=(G.time||0)+SUP_CD;FXH.strike(kind,r,c);
   if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch');L(`${natName(n)} 연막 차장`);bump();return true;}
   sfx('arty');L(`${natName(n)} ${SUP[kind].n}`);
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];

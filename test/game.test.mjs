@@ -129,7 +129,7 @@ test('거점 점령과 지휘점수 수입', () => {
   assert.equal(T.income(0), 3 + 2);
 });
 
-test('증원은 집결지에만, 화력 지원은 턴당 한 번', () => {
+test('증원은 집결지에만, 화력 지원은 쿨다운이 지나야 다시', () => {
   const T = loadGame(); T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, fog: false });
   const G = T.G; G.nats[0].cp = 30;
   const mid = Math.floor(T.N / 2);
@@ -138,11 +138,57 @@ test('증원은 집결지에만, 화력 지원은 턴당 한 번', () => {
   assert.ok(T.buy(0, 'rifle', T.kr(sp), T.kc(sp)));
   assert.equal(G.nats[0].cp, 27);
   assert.ok(T.support(0, 'smoke', mid, mid));
-  assert.equal(T.support(0, 'smoke', mid, mid), false, '두 번째 지원 거부');
+  assert.equal(T.support(0, 'smoke', mid, mid), false, '곧바로 두 번째 지원은 거부');
   assert.equal(G.map[mid][mid].smoke, 3);
+  G.time += 25;
+  assert.ok(T.support(0, 'smoke', mid, mid), '쿨다운 뒤에는 가능');
+});
+
+test('실시간 이동: 경로를 따라 시간이 지나며 움직이고 건물을 돌아간다', () => {
+  const T = loadGame(); const G = setup(T);
+  for (let r = 2; r <= 8; r++) bldg(G, r, 5, 3);
+  const t = T.mkUnit(0, 'tank', 5, 2); T.bump();
+  T.orderMove(t, 5, 8);
+  assert.ok(t.path.length > 0 && !t.path.some(k => G.map[T.kr(k)][T.kc(k)].t === 'bldg'), '차량 경로는 건물을 피함');
+  T.rtTick(0.1);
+  assert.equal(t.c, 2, '한 틱에 바로 도착하지 않음');
+  for (let i = 0; i < 300 && t.path.length; i++) T.rtTick(0.1);
+  assert.deepEqual([t.r, t.c], [5, 8]);
+});
+
+test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, 건물 안이 더 오래 버틴다', () => {
+  const ttk = (inBldg) => { const T = loadGame(); const G = setup(T); G.maxR = 999;
+    if (inBldg) bldg(G, 5, 5, 2);
+    T.mkUnit(0, 'rifle', 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); d.hp = 1000; T.bump();
+    for (let i = 0; i < 300; i++) { d.cd = 99; T.rtTick(0.1); }
+    return 1000 - d.hp; };
+  const open = ttk(false), cov = ttk(true);
+  assert.ok(open > 5, `30초 동안 피해를 줌 (${open})`);
+  assert.ok(cov < open, `건물 안은 덜 맞음 (${open} → ${cov})`);
+});
+
+test('공격 명령: 사거리 밖 적을 쫓아가 쏜다', () => {
+  const T = loadGame(); const G = setup(T); G.maxR = 999;
+  const a = T.mkUnit(0, 'rifle', 2, 2), d = T.mkUnit(1, 'mg', 12, 12); d.hp = 1000; T.bump();
+  T.orderAttack(a, d);
+  for (let i = 0; i < 400 && d.hp === 1000; i++) { d.cd = 99; T.rtTick(0.1); }
+  assert.ok(d.hp < 1000, '쫓아가서 맞힘');
+  assert.ok(T.dist(a.r, a.c, d.r, d.c) <= T.UT.rifle.rng[1]);
+});
+
+test('30초마다 수입과 승점이 들어온다', () => {
+  const T = loadGame(); T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, fog: false });
+  const G = T.G; G.units = []; const o = G.objs[0]; G.map[o.r][o.c].owner = 0; const cp0 = G.nats[0].cp;
+  T.rtRun(T.ROUND_S + 0.05);
+  assert.equal(G.nats[0].cp, cp0 + 5);
+  assert.equal(G.nats[0].vp, 1);
 });
 
 function checkInvariants(T, G, label) {
+  checkUnits(T, G, label);
+  assert.ok(G.over, `${label}: 게임이 끝나지 않음`);
+}
+function checkUnits(T, G, label) {
   assert.equal((G.errs || []).length, 0, `${label}: AI 실행 중 예외 ${(G.errs || [])[0]}`);
   const seen = new Set();
   for (const u of G.units) {
@@ -154,7 +200,6 @@ function checkInvariants(T, G, label) {
     assert.notEqual(x.t, 'water', `${label}: 부대가 물 위에`);
     assert.ok(u.hp > 0 && u.hp <= 10, `${label}: 체력 범위 밖 ${u.hp}`);
   }
-  assert.ok(G.over, `${label}: 게임이 끝나지 않음`);
 }
 
 for (const [slots, size] of [[['ai', 'ai', 'none', 'none'], 's'], [['ai', 'ai', 'none', 'none'], 'm'], [['ai', 'ai', 'ai', 'ai'], 'm']]) {
@@ -162,9 +207,9 @@ for (const [slots, size] of [[['ai', 'ai', 'none', 'none'], 's'], [['ai', 'ai', 
     const n = slots.filter(s => s !== 'none').length;
     test(`AI 관전 게임이 끝까지 진행된다 (${size}, ${n}세력, ${diff})`, async () => {
       const T = loadGame();
-      await playAI(T, { slots, size, diff, seed: 101 + n });
+      await playAI(T, { slots, size, diff, seed: 101 + n, check: G => checkUnits(T, G, `${size}/${n}/${diff}`) });
       checkInvariants(T, T.G, `${size}/${n}/${diff}`);
-      assert.ok(T.G.turn > 3, '너무 빨리 끝남');
+      assert.ok(T.G.time > 90, '너무 빨리 끝남');
     });
   }
 }

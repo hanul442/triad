@@ -13,8 +13,8 @@ for (let g = 0; g < GAMES; g++) {
   wrap('kill', o => function (u, by) { P(u.type).deaths++; if (by) P(by.type).kills++; return o(u, by); });
   const slots = ['ai', 'ai', NATS > 2 ? 'ai' : 'none', NATS > 3 ? 'ai' : 'none'];
   await playAI(T, { slots, size: 'm', seed: 1000 + g });
-  const w = T.G.over?.win; wins[w] = (wins[w] || 0) + 1; len.push(T.G.turn);
+  const w = T.G.over?.win; wins[w] = (wins[w] || 0) + 1; len.push(T.G.time);
 }
-console.log(`${GAMES}판, ${NATS}세력 · 평균 ${(len.reduce((a, b) => a + b, 0) / len.length).toFixed(1)}라운드`);
+console.log(`${GAMES}판, ${NATS}세력 · 평균 ${(len.reduce((a, b) => a + b, 0) / len.length / 60).toFixed(1)}분`);
 console.log('승리(세력 번호):', wins);
 console.table(Object.fromEntries(Object.entries(per).map(([t, v]) => [t, { ...v, 'K/D': (v.kills / Math.max(1, v.deaths)).toFixed(2) }])));

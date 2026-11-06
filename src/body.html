@@ -36,7 +36,7 @@
 <div class="overlay" id="setup" hidden>
   <div class="card">
     <h2>TRIAD 시가전</h2>
-    <p>도시 한복판의 거점을 두고 분대 단위로 싸우는 턴제 전략 게임입니다. 건물에 들어가 엄폐하고, 시야를 가리는 빌딩을 이용하고, 필요하면 건물째 무너뜨리세요.</p>
+    <p>도시 한복판의 거점을 두고 분대 단위로 싸우는 실시간 전술 게임입니다. 건물에 들어가 엄폐하고, 시야를 가리는 빌딩을 이용하고, 필요하면 건물째 무너뜨리세요.</p>
     <h3 class="sec">훈련과 시나리오</h3>
     <div class="grid" id="scn-list"></div>
     <h3 class="sec">자유 전투</h3>
@@ -44,7 +44,7 @@
     <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 20×20 (거점 4)</option><option value="m" selected>중형 26×26 (거점 8)</option><option value="l">대형 32×32 (거점 12)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
-    <div class="slot"><span></span><label for="opt-speed">AI 진행 속도</label><select id="opt-speed"><option value="260">보통 (기동 표시)</option><option value="90">빠름</option><option value="0">즉시</option></select></div>
+    <input type="hidden" id="opt-speed" value="0">
     <div class="err" id="setup-err"></div>
     <button class="btn primary" data-act="start" id="b-start">작전 개시</button>
     <button class="btn" data-act="resume" id="b-resume" hidden>저장된 작전 이어하기</button>

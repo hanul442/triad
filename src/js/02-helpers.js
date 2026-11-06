@@ -17,7 +17,7 @@ const mapCol=n=>n==null?'#8b9294':MAPCOL[n];
 const isAI=n=>G.nats[n].ctrl==='ai';
 const hostile=(a,b)=>a!==b;
 const hpMax=u=>UT[u.type].hpMax||10;
-const hourOf=()=>(8+(G.turn-1)*2)%24;
+const hourOf=()=>(7+(G.turn-1))%24;
 const isNight=()=>{const h=hourOf();return h>=20||h<5;};
 function L(m){G.log.unshift(m);G.log=G.log.slice(0,8);try{if(typeof document!=='undefined'&&(!isAI(G.cur)||m.includes(natName(G.viewer))))toast(m);}catch(e){}}
 function toast(m){if(typeof document==='undefined')return;const el=$('#toast');if(!el)return;el.textContent=m;el.hidden=false;el.classList.remove('in');void el.offsetWidth;el.classList.add('in');clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true;},2600);}
