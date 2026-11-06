@@ -1,5 +1,5 @@
 /* ===================== MAP GEN ===================== */
-function genMap(seed,starts,mt,land,relief){const arch=mt==='arch';const seaQ=(arch?0.64:0.42)+({few:.1,many:-.12}[land]||0),hiQ={low:.975,high:.86}[relief]||.94;const rnd=mulberry(seed);let v=[];
+function genMap(seed,starts,mt,land,relief){const arch=mt==='arch';const seaQ=(arch?0.64:mt==='urban'?0.24:0.42)+({few:.1,many:-.12}[land]||0),hiQ={low:.975,high:.86}[relief]||.94;const rnd=mulberry(seed);let v=[];
   for(let r=0;r<ROWS;r++){v[r]=[];for(let c=0;c<COLS;c++)v[r][c]=rnd();}
   for(let it=0;it<4;it++){const nv=v.map(x=>x.slice());for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){let s=v[r][c],n=1;for(const [a,b] of nbrs(r,c)){s+=v[a][b];n++;}nv[r][c]=s/n;}v=nv;}
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const e=Math.min(r,c,ROWS-1-r,COLS-1-c);if(e<2)v[r][c]-=0.05*(2-e);}
@@ -19,10 +19,15 @@ function genMap(seed,starts,mt,land,relief){const arch=mt==='arch';const seaQ=(a
   for(const s of starts){const near=(a,b)=>(r,c)=>{const d=dist(r,c,s[0],s[1]);return d>=a&&d<=b;};
     place('city',near(3,4));place('oil',near(3,5));place('mine',near(3,5));}
   const far=(r,c)=>starts.every(s=>dist(r,c,s[0],s[1])>=4);
-  const A=(ROWS*COLS)/(26*18);let cities=0;while(cities<Math.round(5*A)+starts.length*2&&place('city',far))cities++;
+  const A=(ROWS*COLS)/(26*18);let cities=0;while(cities<Math.round(5*A*(mt==='urban'?1.5:1))+starts.length*2&&place('city',far))cities++;
   {let rigs=0,tries=0;while(rigs<Math.round(3*A)+2&&tries++<2000){const r=Math.floor(rnd()*ROWS),c=Math.floor(rnd()*COLS);const x=m[r][c];
       if(x.t!=='sea'||x.rig||!far(r,c)||nbrs(r,c).filter(([a,b])=>m[a][b].t==='sea').length<5||sites.some(s=>dist(r,c,s[0],s[1])<3))continue;x.rig=true;sites.push([r,c]);rigs++;}}
   for(let i=0;i<Math.round(4*A)+1;i++)place('oil',far);for(let i=0;i<Math.round(4*A)+1;i++)place('mine',far);
+  // 시가지: 수도·도시 둘레를 건물 블록으로 채운다. 시가전 전장은 대도시가 2겹으로 퍼진다.
+  {const big=mt==='urban',isS=(r,c)=>starts.some(s=>s[0]===r&&s[1]===c);const U=(r,c)=>{const x=m[r][c];if((x.t==='plain'||x.t==='forest')&&!isS(r,c))x.t='urban';};
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const hq=isS(r,c);if(!hq&&m[r][c].t!=='city')continue;const nb=nbrs(r,c);
+      for(const [a,b] of nb)if(hq||big||rnd()<.45)U(a,b);
+      if(big||hq)for(const [a,b] of nb)for(const [p,q] of nbrs(a,b))if(dist(p,q,r,c)===2&&rnd()<(big?(hq?.55:.35):.12))U(p,q);}}
   return m;}
 /* 도로·교역로: 거점(도시·수도·유전·광산)끼리 가까운 2곳까지 바다·산을 피해 잇는다. */
 function buildRoads(){const sites=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(['city','hq','oil','mine'].includes(G.map[r][c].t))sites.push([r,c]);
@@ -40,4 +45,5 @@ function connectedCities(n){const N=G.nats[n];if(!N||!N.hq)return new Set();cons
   for(const s of routeStates()){if(s.o!==n||!s.active)continue;for(const [x,y] of [[s.rt.a,s.rt.b],[s.rt.b,s.rt.a]]){if(!adj.has(x))adj.set(x,[]);adj.get(x).push(y);}}
   const st=key(...N.hq),seen=new Set([st]),q=[st];while(q.length){const k=q.shift();for(const y of adj.get(k)||[])if(!seen.has(y)){seen.add(y);q.push(y);}}return seen;}
 const SPREAD={0:{n:'집중',d:[8],desc:'한 칸에 강한 피해'},1:{n:'표준',d:[5,3],desc:'중심과 주변 6칸'},2:{n:'광역',d:[4,3,2],desc:'반경 2칸 넓게, 약하게'}};
-function damageCity(r,c,chance){const x=G.map[r][c];if(!(x.t==='city'||x.t==='hq'))return;if((x.ruin||0)<3&&Math.random()<chance){x.ruin=(x.ruin||0)+1;x.rep=0;L(`${names().city[key(r,c)]||'도시'} 시가지 파괴 (${x.ruin}/3)`);}}
+function sprawl(r,c,n){for(const ring of [1,2])for(let a=Math.max(0,r-ring);a<=Math.min(ROWS-1,r+ring);a++)for(let b=Math.max(0,c-ring-1);b<=Math.min(COLS-1,c+ring+1);b++){if(dist(a,b,r,c)!==ring)continue;const y=G.map[a][b];if(!['plain','forest'].includes(y.t)||y.bld||y.rwy!=null||y.fort)continue;y.t='urban';y.owner=n;terrDirty();TV.tag=null;return [a,b];}return null;}
+function damageCity(r,c,chance){const x=G.map[r][c];if(!(x.t==='city'||x.t==='hq'||x.t==='urban'))return;if((x.ruin||0)<3&&Math.random()<chance){x.ruin=(x.ruin||0)+1;x.rep=0;if(x.t!=='urban')L(`${names().city[key(r,c)]||'도시'} 시가지 파괴 (${x.ruin}/3)`);}}

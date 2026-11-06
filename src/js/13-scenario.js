@@ -36,6 +36,20 @@ const SCN={
       const hq=B.hq;for(const cg of ['tank','inf'])scnCarrier('lst',HUMAN,cg,scnFree(hq,2,8,seaFree));scnUnit('bb',HUMAN,scnFree(hq,2,8,seaFree));},
     win:()=>cell(...G.scn.target).owner===HUMAN,
     obj:()=>`목표: 중앙 섬 도시 ${names().city[key(...G.scn.target)]||''} 탈환 · ${G.turn}/${SCN.island.limit}라운드`},
+  urban:{name:'시가 탈환',brief:'적이 틀어쥔 대도시를 블록 단위로 밀고 들어가 18라운드 안에 도심을 되찾으세요.',
+    cfg:{slots:['human','ai','none','none','none','none'],size:'m',mt:'urban',seed:9090,fog:true,vic:0},limit:18,
+    setup(){const B=G.nats[HUMAN];B.f=40;B.s=26;B.o=20;const S=G.scn;const mid=[Math.floor(ROWS/2),Math.floor(COLS/2)];
+      const t=nearestCity(mid,x=>x.owner==null)||nearestCity(mid);S.target=t;const x=cell(...t);x.owner=FOE;x.dev=2;
+      for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(dist(r,c,...t)>2)continue;const y=G.map[r][c];if((y.t==='plain'||y.t==='forest')&&!y.bld)y.t='urban';if(y.t==='urban')y.owner=FOE;}
+      S.blocks=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(G.map[r][c].t==='urban'&&dist(r,c,...t)<=2)S.blocks.push(key(r,c));
+      if(!unitAt(...t))scnUnit('inf',FOE,t,true);
+      for(const [ty,lo,hi] of [['inf',1,1],['at',1,1],['inf',1,2],['at',2,2],['inf',2,2],['art',2,3],['aa',1,2]]){const u=scnUnit(ty,FOE,scnFree(t,lo,hi,landFree),true);if(u)u.dug=true;}
+      const line=hexLine(t,B.hq);const st=line[Math.min(line.length-1,5)];
+      for(const ty of ['inf','inf','inf','eng','spec','tank','tank','art','ifv'])scnUnit(ty,HUMAN,scnFree(st,0,3,landFree));terrDirty();TV.tag=null;},
+    need:()=>Math.ceil(G.scn.blocks.length*.6),
+    held:()=>G.scn.blocks.filter(k=>G.map[kr(k)][kc(k)].owner===HUMAN).length,
+    win:()=>cell(...G.scn.target).owner===HUMAN&&SCN.urban.held()>=SCN.urban.need(),
+    obj:()=>`목표: 도심 ${names().city[key(...G.scn.target)]||''} 탈환 + 시가지 블록 ${SCN.urban.held()}/${SCN.urban.need()} 확보 · ${G.turn}/${SCN.urban.limit}라운드`},
   sead:{name:'방공망 돌파',brief:'적 수도를 지키는 방공 부대를 14라운드 안에 모두 제거하세요.',
     cfg:{slots:['human','ai','none','none','none','none'],size:'m',mt:'cont',seed:4242,fog:true,vic:0},limit:14,
     setup(){const B=G.nats[HUMAN],R=G.nats[FOE];B.f=40;B.s=30;B.o=40;B.tech=['rocketry'];const S=G.scn;const ids=[];

@@ -4,7 +4,7 @@ function setDims(c,r){COLS=c;ROWS=r;W=S3*R*(COLS+0.5);H=1.5*R*(ROWS-1)+2*R;}setD
 const SIZES={m:{n:'중형',c:26,r:18,max:4},l:{n:'대형',c:36,r:26,max:6},xl:{n:'초대형',c:48,r:34,max:6}};
 const NATS=[{name:'블루',full:'블루 연방',col:'var(--n0)'},{name:'레드',full:'레드 공화국',col:'var(--n1)'},{name:'앰버',full:'앰버 왕국',col:'var(--n2)'},{name:'바이올렛',full:'바이올렛 연합',col:'var(--n3)'},{name:'틸',full:'틸 공화국',col:'var(--n4)'},{name:'슬레이트',full:'슬레이트 동맹',col:'var(--n5)'}];
 function startsFor(k){const m=Math.floor(COLS/2);const all=[[3,3],[ROWS-4,COLS-4],[3,COLS-4],[ROWS-4,3],[3,m],[ROWS-4,m]];return all.slice(0,k);}
-const TR={sea:{n:'바다',def:0},plain:{n:'평지',def:0},forest:{n:'숲',def:1},mountain:{n:'산악',def:2},city:{n:'도시',def:2},hq:{n:'수도',def:3},oil:{n:'유전',def:1},mine:{n:'광산',def:1}};
+const TR={sea:{n:'바다',def:0},plain:{n:'평지',def:0},forest:{n:'숲',def:1},mountain:{n:'산악',def:2},city:{n:'도시',def:2},hq:{n:'수도',def:3},oil:{n:'유전',def:1},mine:{n:'광산',def:1},urban:{n:'시가지',def:2}};
 const SITES=['city','hq','oil','mine'];
 const UT={
   /* 지상 — 보병 계열 */

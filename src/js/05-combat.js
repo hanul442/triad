@@ -1,6 +1,7 @@
 /* ===================== COMBAT / ACTIONS ===================== */
 function calcDmg(a,d,rand){const b=dmgBase(a.type,d.type);if(!b)return 0;let v=b*(a.hp/10);
-  if(UT[d.type].d==='land'){const x=cell(d.r,d.c);const fd=x.fort&&x.fort.o===d.nat?(x.fort.t==='bunker'?2:x.fort.t==='fence'?1:0):0;v*=1-0.08*(TR[x.t].def+(x.bld?1:0)+(d.dug?1:0)+fd);if(x.t==='city'||x.t==='hq'){if(UT[d.type].cls==='inf')v*=0.8;if(UT[a.type].cls==='armor'&&dist(a.r,a.c,d.r,d.c)===1)v*=0.85;}}
+  if(UT[d.type].d==='land'){const x=cell(d.r,d.c);const fd=x.fort&&x.fort.o===d.nat?(x.fort.t==='bunker'?2:x.fort.t==='fence'?1:0):0;v*=1-0.08*(TR[x.t].def+(x.bld?1:0)+(d.dug?1:0)+fd);if(x.t==='city'||x.t==='hq'||x.t==='urban'){if(UT[d.type].cls==='inf')v*=x.ruin>=2?0.72:0.8;if(UT[a.type].cls==='armor'&&dist(a.r,a.c,d.r,d.c)===1)v*=0.85;}
+    if((a.type==='at'||a.type==='spec')&&UT[d.type].cls==='armor'&&['urban','city','hq'].includes(cell(a.r,a.c).t))v*=1.25;}
   v*=1+0.1*(a.rank||0);if(UT[d.type].cls==='armor'&&hasTech(d.nat,'armor'))v*=0.8;
   if(!UT[a.type].ind&&dist(a.r,a.c,d.r,d.c)===1){let fl=0;for(const v2 of G.units){if(v2!==a&&v2.nat===a.nat&&UT[v2.type].atk&&dist(v2.r,v2.c,d.r,d.c)===1)fl++;}v*=1+0.1*Math.min(3,fl);}
   if(a.supNow)v*=0.7;
@@ -16,7 +17,7 @@ function attack(a,d){if(!G.units.includes(a)||!G.units.includes(d))return;{const
   let m=`${natName(a.nat)} ${UT[a.type].n} → ${natName(d.nat)} ${UT[d.type].n} −${dmg}`;
   const promo=x=>{if((x.rank||0)<3){x.rank=(x.rank||0)+1;m+=` · ${UT[x.type].n} 진급(${'★'.repeat(x.rank)})`;}};
   if(UT[a.type].splash){let sh=0;for(const [x,y] of nbrs(d.r,d.c)){const v=unitAt(x,y);if(!v||v===d||!hostile(a.nat,v.nat)||!dmgBase(a.type,v.type))continue;const sd=Math.max(1,Math.round(calcDmg(a,v,false)*0.3));v.hp-=sd;pop(x,y,'−'+sd);sh++;if(v.hp<=0){removeUnit(v);G.nats[a.nat].kills=(G.nats[a.nat].kills||0)+1;}}if(sh)m+=` · 주변 ${sh}기 피해`;}
-  if((UT[a.type].ind||a.type==='bmb'||a.type==='bb'))damageCity(d.r,d.c,0.4);
+  if((UT[a.type].ind||a.type==='bmb'||a.type==='bb'))damageCity(d.r,d.c,0.5);else if(['armor','ship'].includes(UT[a.type].cls))damageCity(d.r,d.c,0.15);
   if(d.hp>0&&(UT[a.type].ind||a.type==='bmb'||a.type==='bb')&&UT[d.type].d!=='air'){d.sup=true;m+=' · 제압';}
   if(d.hp<=0){fxKill(d);removeUnit(d);m+=' 격파'+(d.cargo?'(탑재 손실)':'');promo(a);G.nats[a.nat].kills=(G.nats[a.nat].kills||0)+1;}
   else if(!UT[d.type].ind&&canHit(d,a)){const cd=calcDmg(d,a,true);if(!UT[d.type].ua)d.ammo--;if(cd>0){a.hp-=cd;pop(a.r,a.c,'−'+cd);m+=` / 반격 −${cd}`;if(a.hp<=0){fxKill(a);removeUnit(a);m+=' 격파';promo(d);G.nats[d.nat].kills=(G.nats[d.nat].kills||0)+1;}}}
@@ -47,7 +48,7 @@ function adReact(u){const tag=G.turn*10+G.cur;
     e.rx=tag;if(!UT[e.type].ua)e.ammo--;G.reacted=true;sfx('flak');fxFire(e,u);const d=Math.max(1,Math.round(calcDmg(e,u,true)*0.6));u.hp-=d;pop(u.r,u.c,'−'+d);
     let m=`${natName(e.nat)} ${UT[e.type].n} 대공 사격 → ${natName(u.nat)} ${UT[u.type].n} −${d}`;
     if(u.hp<=0){fxKill(u);removeUnit(u);m+=' 격추'+(u.cargo?'(탑승 부대 손실)':'');G.nats[e.nat].kills=(G.nats[e.nat].kills||0)+1;}L(m);}}
-function moveUnit(u,r,c,cost){{const [x1,y1]=px(u.r,u.c),[x2,y2]=px(r,c);if(x1!==x2||y1!==y2)u.face=Math.atan2(y2-y1,x2-x1)*180/Math.PI;}u.r=r;u.c=c;u.moved=true;u.dug=false;if(UT[u.type].fuel)u.fuel=Math.max(0,u.fuel-cost);
+function moveUnit(u,r,c,cost){{const [x1,y1]=px(u.r,u.c),[x2,y2]=px(r,c);if(x1!==x2||y1!==y2)u.face=Math.atan2(y2-y1,x2-x1)*180/Math.PI;}u.r=r;u.c=c;u.moved=true;u.dug=false;{const x=G.map[r][c];if(x.t==='urban'&&UT[u.type].d==='land'&&x.owner!==u.nat&&openTo(u.nat,x.owner)){x.owner=u.nat;terrDirty();}}if(UT[u.type].fuel)u.fuel=Math.max(0,u.fuel-cost);
   const x=cell(r,c);if(x.fort&&UT[u.type].d==='land'&&hostile(u.nat,x.fort.o)){const f=x.fort;x.fort=null;terrDirty();
     if(f.t==='mines'&&UT[u.type].mineproof){L(`${natName(u.nat)} 공병, ${natName(f.o)} 지뢰지대 제거`);}
     else if(f.t==='mines'){u.hp-=3;pop(r,c,'−3');L(`${natName(u.nat)} ${UT[u.type].n} 지뢰 피해 −3${u.hp<=0?' 격파':''}`);if(u.hp<=0)removeUnit(u);}

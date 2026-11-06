@@ -69,7 +69,7 @@ test('비행장은 활주로 2칸으로 지어지고 격납고가 수용량을 �
   assert.equal(T.hangar(k).length, 1, '생산된 항공기가 격납되지 않음');
 });
 
-for (const id of ['tut', 'island', 'sead', 'blockade']) {
+for (const id of ['tut', 'island', 'urban', 'sead', 'blockade']) {
   test(`시나리오 "${id}"가 배치되고 목표를 검사할 수 있다`, () => {
     const T = loadGame();
     const S = T.SCN[id];
@@ -138,4 +138,19 @@ test('지형 옵션: 육지 넓게는 좁게보다 바다가 적다', () => {
   const T = loadGame();
   const sea = land => { T.newGame({ slots: ['ai', 'ai'], size: 'm', speed: 0, seed: 11, land }); return T.G.map.flat().filter(x => x.t === 'sea').length; };
   assert.ok(sea('many') < sea('few'));
+});
+
+test('시가전 전장: 시가지 블록이 생기고, 지상 부대가 들어가면 블록을 장악한다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai', 'none', 'none', 'none', 'none'], size: 'm', speed: 0, seed: 21, mt: 'urban' });
+  const urb = [];
+  for (let r = 0; r < T.ROWS(); r++) for (let c = 0; c < T.COLS(); c++) if (T.G.map[r][c].t === 'urban') urb.push([r, c]);
+  assert.ok(urb.length > 30, `시가지가 너무 적음: ${urb.length}`);
+  const [r, c] = urb.find(([a, b]) => T.G.map[a][b].owner !== 0 && !T.unitAt(a, b));
+  const u = T.mkUnit('inf', 0, r, c, false);
+  T.moveUnit(u, r, c, 0);
+  assert.equal(T.G.map[r][c].owner, 0);
+  assert.equal(T.terr()[r][c], 0, '장악한 블록이 영토로 잡히지 않음');
+  assert.equal(T.mcost('tank', 'urban'), 2);
+  assert.equal(T.mcost('inf', 'urban'), 1);
 });

@@ -103,7 +103,7 @@ function aiUnit(u){const n=u.nat,t=UT[u.type],RS=reach(u);const N=G.nats[n];
   const reachSet=connSet(u.r,u.c,u.type);const ok=(r,c)=>t.d==='air'||reachSet.has(key(r,c))||nbrs(r,c).some(([a,b])=>reachSet.has(key(a,b)));
   let goals=[];for(const e of G.units)if(hostile(n,e.nat)&&dmgBase(u.type,e.type)&&ok(e.r,e.c))goals.push([e.r,e.c]);
   if(['recon','spec','heli','uav','ifv'].includes(u.type)){for(const s of routeStates())if(s.o!=null&&s.active&&hostile(n,s.o)){const k=s.rt.p[Math.floor(s.rt.p.length/2)];if(dist(u.r,u.c,kr(k),kc(k))<=7&&(t.d==='air'||reachSet.has(k)))goals.push([kr(k),kc(k)]);}}
-  if(t.cap)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner!==n&&openTo(n,x.owner)&&(SITES.includes(x.t)||x.bld)&&reachSet.has(key(r,c)))goals.push([r,c]);}
+  if(t.cap)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner!==n&&openTo(n,x.owner)&&(SITES.includes(x.t)||x.bld||(x.t==='urban'&&UT[u.type].cls==='inf'&&dist(r,c,u.r,u.c)<=4))&&reachSet.has(key(r,c)))goals.push([r,c]);}
   if(warship(u.type)){for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=G.map[r][c];if(x.owner===n||!openTo(n,x.owner))continue;
       if(x.rig&&reachSet.has(key(r,c)))goals.push([r,c]);else if(x.owner!=null&&(x.t==='city'||x.t==='hq'||(x.bld&&x.bld.type==='port'))&&ok(r,c)&&!blockaded(r,c))goals.push([r,c]);}}
   if(u.type==='aor'){const sh=G.units.filter(x=>x.nat===n&&x!==u&&warship(x.type)).sort((a,b)=>dist(b.r,b.c,...N.hq)-dist(a.r,a.c,...N.hq))[0];goals=sh?[[sh.r,sh.c]]:[];}
