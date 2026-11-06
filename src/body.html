@@ -1,11 +1,14 @@
 <div class="app" id="app">
   <div class="board" id="board"><div class="stage" id="stage"><canvas id="terrain" aria-hidden="true"></canvas><svg id="map" role="img" aria-label="전술 지도"><g id="g-board"></g><g id="g-units" pointer-events="none"></g><g id="g-path" pointer-events="none"></g><g id="g-top" pointer-events="none"></g><g id="g-pops" pointer-events="none"></g></svg></div></div>
+  <canvas class="v3d" id="v3d" hidden></canvas><div class="v3d-lab" id="v3d-lab" hidden></div>
   <div class="top">
     <div class="tl"><button class="ib" data-act="menu" id="b-menu" aria-label="작전 메뉴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="pill" id="hud-clock"></div></div>
     <div class="plate" id="hud-region" aria-hidden="true"></div>
     <div class="pill res" id="hud-res"></div>
   </div>
   <div class="mapctl">
+    <button class="ib" data-act="v3d" id="b-3d" aria-label="3D 시점" aria-pressed="false"><span class="t3">3D</span></button>
+    <button class="ib v3only" data-act="rot:1" id="b-rot" aria-label="시점 회전"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
     <button class="ib" data-act="zoom:1" id="z-in" aria-label="확대">+</button>
     <button class="ib" data-act="zoom:-1" id="z-out" aria-label="축소">−</button>
     <button class="ib" data-act="home" id="b-home" aria-label="수도로 이동"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8H4z"/><path d="M10 19v-5h4v5"/></svg></button>
