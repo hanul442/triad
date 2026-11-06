@@ -1,49 +1,37 @@
-/* ===================== MAP GEN ===================== */
-function genMap(seed,starts,mt,land,relief){const arch=mt==='arch';const seaQ=(arch?0.64:mt==='urban'?0.24:0.42)+({few:.1,many:-.12}[land]||0),hiQ={low:.975,high:.86}[relief]||.94;const rnd=mulberry(seed);let v=[];
-  for(let r=0;r<ROWS;r++){v[r]=[];for(let c=0;c<COLS;c++)v[r][c]=rnd();}
-  for(let it=0;it<4;it++){const nv=v.map(x=>x.slice());for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){let s=v[r][c],n=1;for(const [a,b] of nbrs(r,c)){s+=v[a][b];n++;}nv[r][c]=s/n;}v=nv;}
-  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const e=Math.min(r,c,ROWS-1-r,COLS-1-c);if(e<2)v[r][c]-=0.05*(2-e);}
-  const flat=v.flat().sort((a,b)=>a-b);const th=flat[Math.floor(flat.length*seaQ)],hi=flat[Math.floor(flat.length*hiQ)];
-  const m=[];for(let r=0;r<ROWS;r++){m[r]=[];for(let c=0;c<COLS;c++)m[r][c]={t:v[r][c]>th?'plain':'sea',owner:null,bld:null};}
-  const setLand=(r,c)=>{if(m[r][c].t==='sea')m[r][c].t='plain';};
-  for(const s of starts)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(dist(r,c,s[0],s[1])<=2)setLand(r,c);
-  const link=(a,b)=>{for(const [r,c] of hexLine(a,b)){setLand(r,c);if(rnd()<0.5){const nb=nbrs(r,c);const [x,y]=nb[Math.floor(rnd()*nb.length)];setLand(x,y);}}};
-  if(arch){}else if(starts.length===2)link(starts[0],starts[1]);else for(let i=0;i<starts.length;i++)link(starts[i],starts[(i+1)%starts.length]);
-  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=m[r][c];if(x.t==='sea')continue;if(v[r][c]>hi)x.t='mountain';else if(rnd()<0.2)x.t='forest';}
-  for(const s of starts)for(const [r,c] of [s,...nbrs(...s)])if(m[r][c].t!=='sea')m[r][c].t='plain';
-  for(const s of starts)for(const a of nbrs(...s))for(const [r,c] of nbrs(...a))if(m[r][c].t==='mountain')m[r][c].t='forest';
-  const sites=[...starts];
-  const place=(t,ok,tries=600)=>{for(let i=0;i<tries;i++){const r=Math.floor(rnd()*ROWS),c=Math.floor(rnd()*COLS);const x=m[r][c];
-      if(x.t==='sea'||SITES.includes(x.t))continue;if(sites.some(s=>dist(r,c,s[0],s[1])<3))continue;if(!ok(r,c))continue;
-      x.t=t;sites.push([r,c]);return true;}return false;};
-  for(const s of starts){const near=(a,b)=>(r,c)=>{const d=dist(r,c,s[0],s[1]);return d>=a&&d<=b;};
-    place('city',near(3,4));place('oil',near(3,5));place('mine',near(3,5));}
-  const far=(r,c)=>starts.every(s=>dist(r,c,s[0],s[1])>=4);
-  const A=(ROWS*COLS)/(26*18);let cities=0;while(cities<Math.round(5*A*(mt==='urban'?1.5:1))+starts.length*2&&place('city',far))cities++;
-  {let rigs=0,tries=0;while(rigs<Math.round(3*A)+2&&tries++<2000){const r=Math.floor(rnd()*ROWS),c=Math.floor(rnd()*COLS);const x=m[r][c];
-      if(x.t!=='sea'||x.rig||!far(r,c)||nbrs(r,c).filter(([a,b])=>m[a][b].t==='sea').length<5||sites.some(s=>dist(r,c,s[0],s[1])<3))continue;x.rig=true;sites.push([r,c]);rigs++;}}
-  for(let i=0;i<Math.round(4*A)+1;i++)place('oil',far);for(let i=0;i<Math.round(4*A)+1;i++)place('mine',far);
-  // 시가지: 수도·도시 둘레를 건물 블록으로 채운다. 시가전 전장은 대도시가 2겹으로 퍼진다.
-  {const big=mt==='urban',isS=(r,c)=>starts.some(s=>s[0]===r&&s[1]===c);const U=(r,c)=>{const x=m[r][c];if((x.t==='plain'||x.t==='forest')&&!isS(r,c))x.t='urban';};
-    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const hq=isS(r,c);if(!hq&&m[r][c].t!=='city')continue;const nb=nbrs(r,c);
-      for(const [a,b] of nb)if(hq||big||rnd()<.45)U(a,b);
-      if(big||hq)for(const [a,b] of nb)for(const [p,q] of nbrs(a,b))if(dist(p,q,r,c)===2&&rnd()<(big?(hq?.55:.35):.12))U(p,q);}}
-  return m;}
-/* 도로·교역로: 거점(도시·수도·유전·광산)끼리 가까운 2곳까지 바다·산을 피해 잇는다. */
-function buildRoads(){const sites=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(['city','hq','oil','mine'].includes(G.map[r][c].t))sites.push([r,c]);
-  const out=[],done=new Set();
-  for(const a of sites){const near=sites.filter(b=>b!==a).map(b=>[b,dist(a[0],a[1],b[0],b[1])]).filter(p=>p[1]<=7).sort((p,q)=>p[1]-q[1]).slice(0,2);
-    for(const [b] of near){const id=[key(...a),key(...b)].sort().join('-');if(done.has(id))continue;done.add(id);const line=hexLine(a,b);
-      if(line.some(([r,c])=>G.map[r][c].t==='sea'||G.map[r][c].t==='mountain'))continue;out.push({a:key(...a),b:key(...b),p:line.map(([r,c])=>key(r,c))});}}
-  G.roads=out;}
-const RH={g:null,s:null};
-function roadHex(){if(RH.g!==G.roads){RH.g=G.roads;RH.s=new Set((G.roads||[]).flatMap(r=>r.p));}return RH.s;}
-// 교역로 상태: 양 끝을 같은 세력이 갖고 경로에 적 부대가 없으면 활성
-function routeStates(){const O=occ();return (G.roads||[]).map(rt=>{const A=G.map[kr(rt.a)][kc(rt.a)],B=G.map[kr(rt.b)][kc(rt.b)];const o=A.owner;
-  if(o==null||B.owner!==o)return {rt,o:null,active:false};let cut=null,at=null;for(const k of rt.p){const u=O.get(k);if(u&&hostile(o,u.nat)){cut=u.nat;at=k;break;}}return {rt,o,active:cut==null,cut,at};});}
-function connectedCities(n){const N=G.nats[n];if(!N||!N.hq)return new Set();const adj=new Map();
-  for(const s of routeStates()){if(s.o!==n||!s.active)continue;for(const [x,y] of [[s.rt.a,s.rt.b],[s.rt.b,s.rt.a]]){if(!adj.has(x))adj.set(x,[]);adj.get(x).push(y);}}
-  const st=key(...N.hq),seen=new Set([st]),q=[st];while(q.length){const k=q.shift();for(const y of adj.get(k)||[])if(!seen.has(y)){seen.add(y);q.push(y);}}return seen;}
-const SPREAD={0:{n:'집중',d:[8],desc:'한 칸에 강한 피해'},1:{n:'표준',d:[5,3],desc:'중심과 주변 6칸'},2:{n:'광역',d:[4,3,2],desc:'반경 2칸 넓게, 약하게'}};
-function sprawl(r,c,n){for(const ring of [1,2])for(let a=Math.max(0,r-ring);a<=Math.min(ROWS-1,r+ring);a++)for(let b=Math.max(0,c-ring-1);b<=Math.min(COLS-1,c+ring+1);b++){if(dist(a,b,r,c)!==ring)continue;const y=G.map[a][b];if(!['plain','forest'].includes(y.t)||y.bld||y.rwy!=null||y.fort)continue;y.t='urban';y.owner=n;terrDirty();TV.tag=null;return [a,b];}return null;}
-function damageCity(r,c,chance){const x=G.map[r][c];if(!(x.t==='city'||x.t==='hq'||x.t==='urban'))return;if((x.ruin||0)<3&&Math.random()<chance){x.ruin=(x.ruin||0)+1;x.rep=0;if(x.t!=='urban')L(`${names().city[key(r,c)]||'도시'} 시가지 파괴 (${x.ruin}/3)`);}}
+/* ===================== MAP GEN =====================
+   도시는 90도 회전 대칭으로 만든다. 그래서 2세력(서·동)이든 4세력이든 출발 조건이 같다.
+   가장자리 2줄은 집결지, 그 안쪽은 도로와 건물 블록, 한가운데는 넓은 대로. */
+function inZone(n,r,c){if(n==null)return false;const e=[c<=1,c>=N-2,r<=1,r>=N-2][n];const corner=(r<=1||r>=N-2)&&(c<=1||c>=N-2);return e&&!corner;}
+function genMap(seed,objPer){const rnd=mulberry(seed);const H=N/2;
+  // 도로 줄: 대칭이 되도록 앞쪽 절반만 정하고 뒤집는다.
+  const st=new Array(N).fill(false);st[2]=true;let i=3;
+  while(i<H-1){const b=2+Math.floor(rnd()*3);i+=b;if(i<H-1){st[i]=true;i++;}}
+  st[H-1]=true;for(let j=0;j<H;j++)st[N-1-j]=st[j];
+  const bi=[];let cnt=0;for(let j=0;j<N;j++){if(st[j])cnt++;bi.push(cnt);}
+  const m=[];for(let r=0;r<N;r++){m[r]=[];for(let c=0;c<N;c++)m[r][c]=null;}
+  const blockType={};const blockBase={};
+  const mid=(N-1)/2;
+  const can=[];// 정준 사분면 칸
+  for(let r=0;r<H;r++)for(let c=0;c<H;c++){let x;
+    if(r<2||c<2){const p=rnd();x={t:p<.14?'park':p<.2?'rubble':'plaza'};}
+    else if(st[r]||st[c])x={t:'road'};
+    else{const bid=bi[r]*100+bi[c];if(!blockType[bid]){const p=rnd();blockType[bid]=p<.7?'bldg':p<.84?'park':p<.93?'plaza':'ruin';
+        const d=Math.max(Math.abs(r-mid),Math.abs(c-mid))/H;blockBase[bid]=Math.max(1,Math.round(7.2-5.6*d+(rnd()-.5)*2));}
+      const bt=blockType[bid];
+      if(bt==='bldg'){const p=rnd();x=p<.88?{t:'bldg',f:Math.max(1,Math.min(8,blockBase[bid]+Math.round((rnd()-.5)*2.4)))}:p<.95?{t:'plaza'}:{t:'rubble'};}
+      else if(bt==='park')x={t:rnd()<.08?'water':'park'};
+      else if(bt==='plaza')x={t:rnd()<.1?'park':'plaza'};
+      else{const p=rnd();x=p<.5?{t:'rubble'}:{t:'bldg',f:1+Math.floor(rnd()*3)};}
+      x.blk=bid;}
+    can.push([r,c,x]);}
+  // 거점: 정준 사분면 안쪽에서 서로 떨어진 칸을 고른다.
+  const objs=[];let tries=0;
+  while(objs.length<objPer&&tries++<400){const r=3+Math.floor(rnd()*(H-4)),c=3+Math.floor(rnd()*(H-4));const x=can[r*H+c][2];
+    if(x.t==='road'||x.t==='water')continue;if(objs.some(([a,b])=>dist(a,b,r,c)<4))continue;if(Math.min(H-1-r,H-1-c)<1&&objs.length)continue;
+    if(x.t==='bldg')x.f=Math.max(x.f,4);else x.t='plaza';x.lm=1;objs.push([r,c]);}
+  const rot=(r,c,k)=>{for(let j=0;j<k;j++){const t=r;r=c;c=N-1-t;}return [r,c];};
+  for(const [r,c,x] of can)for(let k=0;k<4;k++){const [a,b]=rot(r,c,k);const y={...x,owner:null,obj:null};if(y.blk!=null)y.blk=y.blk*4+k;m[a][b]=y;}
+  let oi=0;const names=OBJ_NAMES.slice();for(let j=names.length-1;j>0;j--){const q=Math.floor(rnd()*(j+1));[names[j],names[q]]=[names[q],names[j]];}
+  const list=[];for(const [r,c] of objs)for(let k=0;k<4;k++){const [a,b]=rot(r,c,k);m[a][b].obj=oi;list.push({r:a,c:b,name:names[oi%names.length]});oi++;}
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=m[r][c];if(x.t==='bldg'){x.bmax=8+x.f*3;x.bhp=x.bmax;}x.smoke=0;}
+  return {map:m,objs:list};}

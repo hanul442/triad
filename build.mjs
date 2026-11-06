@@ -1,4 +1,4 @@
-// TRIAD 빌드: src/를 합쳐 단일 파일 index.html(배포용)과 dist/triad.html(아티팩트용)을 만든다.
+// TRIAD 시가전 빌드: src/를 합쳐 단일 파일 index.html(배포용)과 dist/triad.html(아티팩트용)을 만든다.
 import { readFileSync, writeFileSync, readdirSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +23,7 @@ export function build() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d1217">
-<meta name="description" content="육·해·공 통합 턴제 전략 워게임. 최대 6세력, 30개 병종, 기반시설·보급·참모부·연구·외교·미사일·방공.">
+<meta name="description" content="3D 시가전 턴제 전략 게임. 건물 엄폐·시야 차단·건물 붕괴, 거점 쟁탈, 증원과 화력 지원.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
