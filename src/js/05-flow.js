@@ -6,7 +6,7 @@ function newGame(cfg){cfg=cfg||{};const size=SIZES[cfg.size||'m']?cfg.size||'m':
   const seed=cfg.seed??Math.floor(Math.random()*1e9);const slots=cfg.slots||['human','ai','none','none'];
   const {map,objs}=genMap(seed,SIZES[size].obj);UID=1;
   G={seed,size,map,objs,units:[],covers:[],turn:1,cur:0,time:0,spd:1,paused:false,fog:cfg.fog!==false,log:[],ver:1,wx:'clear',diff:cfg.diff||'normal',speed:cfg.speed??140,
-    maxR:cfg.maxR||24,h0:START_HOURS[cfg.hour]??(typeof cfg.hour==='number'?cfg.hour:7),wxLock:!!(cfg.wx&&cfg.wx!=='auto'),flares:[],vpWin:cfg.vpWin||objs.length*6+12,hist:[],errs:[],scn:cfg.scn||null,
+    maxR:cfg.maxR||24,h0:START_HOURS[cfg.hour]??(typeof cfg.hour==='number'?cfg.hour:7),wxLock:!!(cfg.wx&&cfg.wx!=='auto'),tflow:TIME_FLOW[cfg.tflow]?cfg.tflow:'normal',flares:[],vpWin:cfg.vpWin||objs.length*6+12,hist:[],errs:[],scn:cfg.scn||null,
     nats:NATS.map((_,i)=>({ctrl:slots[i]||'none',cp:6,vp:0,alive:slots[i]&&slots[i]!=='none',kills:0,losses:0,used:0,dmg:0}))};
   const act=G.nats.map((x,i)=>x.alive?i:-1).filter(i=>i>=0);G.order=act;
   for(const n of act){const sp=zoneSpots(n);const force=cfg.force||START_FORCE;let i=0;

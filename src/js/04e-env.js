@@ -19,13 +19,16 @@ const WX_FX={
 const WX_STAY={clear:.86,rain:.75,fog:.7,storm:.6};
 const WX_NEXT={clear:{rain:.55,fog:.33,storm:.12},rain:{clear:.5,storm:.32,fog:.18},fog:{clear:.7,rain:.3},storm:{rain:.8,clear:.2}};
 const START_HOURS={day:7,dusk:17,night:22,dawn:3};
+/* 시간 흐름 모드: 게임 속 1시간이 실제 몇 초인가 (0 = 시간이 멈춤). 한 판(12분)에 흐르는 시간: 실시간 12분, 느리게 3시간, 보통 6시간, 빠르게 하루 */
+const TIME_FLOW={fixed:{n:'고정',s:0},real:{n:'실시간',s:3600},slow:{n:'느리게',s:240},normal:{n:'보통',s:120},fast:{n:'빠르게',s:30}};
+const hourSec=()=>{const f=TIME_FLOW[G&&G.tflow];return f?f.s:30;};
 
 const FLARE={up:3.5,top:5.2,dur:42,rad:4.6,drift:.05};   // 터지기까지(초), 터지는 높이(칸), 타는 시간, 비추는 반경(칸)
 Object.assign(SUP,{flare:{n:'조명탄',cost:1,rad:3,any:1,cdK:'flT',cd:10,fn:(n,r,c)=>flareCall(n,c+.5,r+.5),off:()=>nightK()<.3,
   desc:'박격포 조명탄. 보이지 않는 곳에도 쏠 수 있음. 40초 동안 둘레 4칸을 낮처럼 밝힘(적에게도 보임). 밤에만'}});
 
 /* ---------- 시간 ---------- */
-function dayH(){return ((G&&G.h0!=null?G.h0:7)+((G&&G.time)||0)/30)%24;}
+function dayH(){const s=hourSec();return ((G&&G.h0!=null?G.h0:7)+(s?((G&&G.time)||0)/s:0))%24;}
 const smooth=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
 /* 0 = 낮, 1 = 한밤. 17:30~20:00 저물고, 04:00~06:30 밝아온다 */
 function nightK(){if(!G)return 0;const h=dayH();return h>=12?smooth(17.5,20,h):1-smooth(4,6.5,h);}
@@ -82,7 +85,8 @@ function flareTick(dt){if(!G.flares||!G.flares.length)return;const w=FLARE.drift
   G.flares=G.flares.filter(f=>{const t=(G.time||0)-f.t0;if(t>FLARE.up)f.x=Math.min(N-.1,Math.max(.1,f.x+w)),f.z=Math.min(N-.1,Math.max(.1,f.z+w*.4));return t<=FLARE.up+FLARE.dur;});}
 
 /* ---------- 날씨 ---------- */
-function wxRound(){if(G.wxLock)return;const cur=G.wx||'clear';if(Math.random()<WX_STAY[cur])return;
+function wxRound(){if(G.wxLock)return;const s=hourSec()||120;if(Math.random()>Math.min(1,60/s))return;   // 시간이 느리게 흐르면 날씨도 드물게 바뀐다
+  const cur=G.wx||'clear';if(Math.random()<WX_STAY[cur])return;
   const nx=WX_NEXT[cur];let r=Math.random(),k=cur;for(const w in nx){r-=nx[w];if(r<0){k=w;break;}}
   if(k===cur)return;G.wx=k;const msg={clear:'날씨가 갰습니다',rain:'비가 내리기 시작합니다 · 시야와 드론 운용 감소',fog:'짙은 안개가 깔립니다 · 드론이 땅을 거의 못 봅니다',storm:'폭우와 강풍 · 드론·헬기 비행 불가'}[k];
   L(`날씨: ${msg}`);if(k==='storm')stormGround();bump();}
@@ -123,4 +127,4 @@ function envTick(dt){flareTick(dt);
 
 /* HUD 글: 날씨와 그 효과 */
 function envTag(){const w=WX[G.wx]||WX.clear;const nk=nightK();const s=[w.n];if(w.noAir)s.push('드론 비행 불가');else if(G.wx==='fog')s.push('드론 시야 제한');else if(G.wx==='rain')s.push('드론 느림');
-  if(nk>=.5)s.push(militia(G.viewer)?'맨눈 야간':'야간투시경');return s.join(' · ');}
+  if(nk>=.5)s.push(militia(G.viewer)?'맨눈 야간':'야간투시경');if(G.tflow==='fixed')s.push('시간 고정');return s.join(' · ');}

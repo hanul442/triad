@@ -15,9 +15,19 @@ test('시작 시각을 고를 수 있고, 밤은 해질녘에 서서히 온다',
   const T = loadGame(); const nightK = F(T, 'nightK');
   setup(T, { hour: 'day' }); assert.equal(nightK(), 0);
   setup(T, { hour: 'night' }); assert.equal(nightK(), 1);
-  const G = setup(T, { hour: 17 }); G.time = 30 * 1.5; const k = nightK();
+  const G = setup(T, { hour: 17, tflow: 'fast' }); G.time = 30 * 1.5; const k = nightK();
   assert.ok(k > 0 && k < 1, `18:30은 반쯤 어두움 (${k})`);
   G.time = 30 * 4; assert.equal(nightK(), 1);
+});
+
+test('시간 흐름 모드: 고정이면 멈추고, 느리게는 한 판에 3시간, 보통은 6시간', () => {
+  const T = loadGame(); const dayH = F(T, 'dayH');
+  let G = setup(T, { hour: 'dusk', tflow: 'fixed' }); G.time = 700; assert.equal(dayH(), 17);
+  G = setup(T, { hour: 'dusk', tflow: 'slow' }); G.time = 720; assert.equal(Math.round(dayH()), 20);
+  G = setup(T, { hour: 'dusk', tflow: 'normal' }); G.time = 720; assert.equal(Math.round(dayH()), 23);
+  G = setup(T, { hour: 'dusk', tflow: 'real' }); G.time = 720; assert.ok(Math.abs(dayH() - 17.2) < .01);
+  G = setup(T, { hour: 'dusk' }); G.time = 720; assert.equal(Math.round(dayH()), 23, '기본은 보통');
+  delete G.tflow; assert.equal(Math.round(dayH()), 17, '옛 저장(모드 없음)은 예전처럼 30초에 1시간');
 });
 
 test('밤 시야: 야간투시경 정규군은 −1, 민병대 맨눈은 −2, 열상 드론은 그대로', () => {
