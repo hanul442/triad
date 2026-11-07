@@ -192,6 +192,11 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .vet-box .vet-on{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .vet-box .vet-on small,.vet-box .vet-empty,.vet-box .vet-fallen{opacity:.75}
 .vet-box .vet-fallen b{margin-right:4px}
+
+/* 무전 지연(07r-radio) */
+.v3u em.rd{background:#c9a23a;color:#11161c}.v3u em.rd.jm{background:#ff7a2a;color:#fff;animation:rdblink .6s steps(2) infinite}.v3u u.rk{border-color:#f0c45a;color:#f0c45a}
+@keyframes rdblink{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.v3u em.rd.jm{animation:none}}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -244,6 +249,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 32×32 (거점 4)</option><option value="m" selected>중형 44×44 (거점 12)</option><option value="l">대형 56×56 (거점 16)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
+    <div class="slot"><span></span><label for="opt-radio">무전 지연</label><select id="opt-radio"><option value="1">켜기 (명령이 무전으로 1~3초 늦게 닿음)</option><option value="0">끄기</option></select></div>
     <input type="hidden" id="opt-speed" value="0">
     <div class="err" id="setup-err"></div>
     <button class="btn primary" data-act="start" id="b-start">작전 개시</button>
@@ -352,6 +358,7 @@ function sfx(kind,vol=1){const a=audio();if(!a)return;const now=performance.now(
   else if(kind==='hit'){env(noise(.4,'lowpass',600),.35,.35);}
   else if(kind==='launch'){const f=noise(.9,'bandpass',500,2);f.frequency.exponentialRampToValueAtTime(2600,t+.8);env(f,.35,.85,.06);}
   else if(kind==='flak'){for(let i=0;i<3;i++){const s=a.createBufferSource();s.buffer=noiseBuf(a,.06);const f=a.createBiquadFilter();f.type='highpass';f.frequency.value=1400;const g=a.createGain();g.gain.setValueAtTime(.0001,t+i*.07);g.gain.exponentialRampToValueAtTime(.3*vol,t+i*.07+.004);g.gain.exponentialRampToValueAtTime(.0001,t+i*.07+.06);s.connect(f);f.connect(g);g.connect(SFX.master);s.start(t+i*.07);}}
+  else if(kind==='radio'){env(noise(.12,'bandpass',2300,4),.22,.11,.002);const o=tone(1250,.05,'square');env(o,.05,.05);}
   else if(kind==='click'){env(tone(880,.05),.12,.05);}
   else if(kind==='turn'){const o1=tone(660,.18);env(o1,.18,.2);const o2=a.createOscillator();o2.frequency.value=990;const g=a.createGain();g.gain.setValueAtTime(.0001,t+.14);g.gain.exponentialRampToValueAtTime(.16*vol,t+.16);g.gain.exponentialRampToValueAtTime(.0001,t+.42);o2.connect(g);g.connect(SFX.master);o2.start(t+.14);o2.stop(t+.5);}
   else if(kind==='build'){env(tone(330,.12,'triangle'),.16,.12);}
@@ -1944,6 +1951,69 @@ function breach(a,P){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face
   if(typeof ignite==='function')ignite(P.r,P.c,.28*ta.ex);
   bump();}
 
+/* ---- 05j-radio.js ---- */
+/* ===================== 무전·지휘 지연 =====================
+   플레이어 명령은 무전으로 내려간다.
+   - 지휘소(자기 출발 지역 가운데)에서 부대까지 멀수록 조금 늦게 닿는다(가까우면 1초 남짓, 멀어도 3초 안팎).
+   - 한 세력의 무전망은 한 번에 한 교신만 싣는다. 명령을 몰아 내리면 줄을 서서 차례로 나간다.
+     여러 부대를 함께 골라 내린 명령은 교신 한 번이다.
+   - 적 전자전팀 재밍 반경 안의 지상 부대는 교신이 끊긴다. 재송신을 몇 번 하다가 끝내 전령이 뛰어가 전한다.
+   - 드론은 조종기로 바로 움직이므로 거의 늦지 않는다(재밍은 05f-air가 따로 다룬다).
+   - 명령을 기다리는 동안 부대는 하던 일을 계속하고, 적이 보이면 알아서 쏜다.
+   AI도 재밍 반경 안의 부대에는 새 명령이 잘 닿지 않는다(aiThink 감싸기). */
+const RADIO={base:.6,per:.035,max:1.4,talk:.35,fly:.25,jamOk:.35,retry:1.8,tries:3,runner:2.5};
+const radioOn=()=>!!G&&G.radio!==false&&G.scn!=='tut';
+/* 지휘소: 출발 지역 칸들의 가운데 */
+function hqOf(n){G.hq=G.hq||{};if(G.hq[n])return G.hq[n];const sp=zoneSpots(n);let x=N/2,z=N/2;
+  if(sp.length){x=sp.reduce((a,p)=>a+p[1]+.5,0)/sp.length;z=sp.reduce((a,p)=>a+p[0]+.5,0)/sp.length;}return G.hq[n]={x,z};}
+/* 지상 부대가 적 재밍 반경 안에 있나 */
+function radioCut(u){return !UT[u.type].fly&&typeof jammedBy==='function'&&!!jammedBy(u);}
+function radioExec(k,a,us){us=us.filter(u=>G.units.includes(u));if(!us.length)return;
+  if(k==='move')orderGroupMove(us,a[0],a[1]);
+  else if(k==='atk'){const e=G.units.find(o=>o.id===a[0]);if(e)for(const g of us)if(UT[g.type].rng[1])orderAttack(g,e);}
+  else if(k==='bldg'){if(G.map[a[0]][a[1]].t==='bldg')for(const g of us)orderBldg(g,a[0],a[1]);}
+  else if(k==='stop')us.forEach(orderStop);
+  else if(k==='floor')us.forEach(g=>orderFloor(g,a[0]));
+  else if(k==='hold')us.forEach(g=>g.hold=a[0]);
+  for(const g of us)g._ack=G.time||0;}
+/* 명령 보내기: 바로 실행하지 않고 교신 대기열(G.rq)에 넣는다 */
+function radioSend(n,us,k,a){us=us.filter(u=>u&&G.units.includes(u));if(!us.length)return null;
+  if(!radioOn()){radioExec(k,a||[],us);return null;}
+  const now=G.time||0;G.rq=G.rq||[];G.rnet=G.rnet||{};
+  // 같은 부대에 아직 닿지 않은 명령은 새 명령으로 바뀐다
+  const ids=new Set(us.map(u=>u.id));for(const e of G.rq)e.us=e.us.filter(id=>!ids.has(id));G.rq=G.rq.filter(e=>e.us.length);
+  const fly=us.filter(u=>UT[u.type].fly),gnd=us.filter(u=>!UT[u.type].fly);let out=null;
+  if(fly.length)G.rq.push(out={id:(G.rqI=(G.rqI||0)+1),nat:n,us:fly.map(u=>u.id),k,a:a||[],t0:now,at:now+RADIO.fly,n:0});
+  if(gnd.length){const st=Math.max(now,G.rnet[n]||0);G.rnet[n]=st+RADIO.talk;const h=hqOf(n);
+    const cx=gnd.reduce((s,u)=>s+u.x,0)/gnd.length,cz=gnd.reduce((s,u)=>s+u.z,0)/gnd.length;
+    const at=st+RADIO.talk+RADIO.base+Math.min(RADIO.max,RADIO.per*Math.hypot(cx-h.x,cz-h.z));
+    G.rq.push(out={id:(G.rqI=(G.rqI||0)+1),nat:n,us:gnd.map(u=>u.id),k,a:a||[],t0:now,at,n:0});}
+  if(n===G.viewer&&typeof sfx==='function')sfx('radio',.5);bump();return out;}
+/* 이 부대에 아직 닿지 않은 명령 */
+function radioPend(u){if(!G.rq)return null;for(const e of G.rq)if(e.us.includes(u.id))return e;return null;}
+/* 매 틱: 때가 된 교신을 전한다. 재밍 반경 안이면 대개 실패하고 다시 보낸다. */
+function radioTick(){if(!G.rq||!G.rq.length)return;const now=G.time||0;const keep=[];
+  for(const e of G.rq){if(e.at>now){keep.push(e);continue;}
+    const us=e.us.map(id=>G.units.find(o=>o.id===id)).filter(Boolean);if(!us.length)continue;
+    if(e.run){radioExec(e.k,e.a,us);if(e.nat===G.viewer)L(`${UT[us[0].type].n} 전령 도착, 명령 전달`);continue;}
+    const ok=[],cut=[];for(const u of us){if(radioCut(u)&&Math.random()>RADIO.jamOk)cut.push(u);else ok.push(u);}
+    if(ok.length){radioExec(e.k,e.a,ok);if(e.nat===G.viewer&&typeof sfx==='function')sfx('radio',.3);}
+    if(cut.length){const r={...e,us:cut.map(u=>u.id),n:e.n+1,jam:1};
+      if(r.n>=RADIO.tries){r.run=1;r.at=now+RADIO.runner;}else r.at=now+RADIO.retry*(.8+Math.random()*.4);
+      if(e.nat===G.viewer&&!e.jam)L(`${UT[cut[0].type].n} 무전 두절 — 재송신 중`);keep.push(r);}
+    bump();}
+  G.rq=keep;}
+/* 원래 함수 감싸기: 새 판 설정, 매 틱 교신, AI 재밍 */
+{const _n=newGame;newGame=function(cfg){const r=_n(cfg);let on=cfg&&cfg.radio;
+   if(on==null){try{const el=typeof document!=='undefined'&&document.getElementById('opt-radio');on=el?el.value!=='0':true;}catch(e){on=true;}}
+   G.radio=!!on;G.rq=[];G.rnet={};G.hq={};return r;};}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(G&&!G.over)radioTick();};}
+{const _a=aiThink;aiThink=function(n){if(!radioOn())return _a(n);
+   const cut=[];for(const u of G.units)if(u.nat===n&&radioCut(u))cut.push([u,u.path?u.path.slice():[],u.tgt,u.tgtTile,u.dest?u.dest.slice():null,u.hold]);
+   const r=_a(n);
+   for(const [u,p,t,tt,d,h] of cut){if(!G.units.includes(u)||Math.random()<RADIO.jamOk)continue;u.path=p;u.tgt=t;u.tgtTile=tt;u.dest=d;u.hold=h;}// 새 명령이 닿지 않았다
+   return r;};}
+
 /* ---- 05j-vet.js ---- */
 /* ===================== VETERANS: 분대 경험치·계급·이름 붙은 베테랑·고참 명부 =====================
    - 분대는 싸우면서 경험치(u.xp)를 얻는다: 적을 쓰러뜨리거나(전사 8, 중상 5, 경상 2), 차량·드론·분대를 끝내거나,
@@ -2504,6 +2574,7 @@ function v3SyncHl(){if(!V3.on||!G)return;const T=V3.T,g=V3.G.hl;v3Clear(g);const
   }
   // 사격선: 공격 확인 중이면 시야선을 보여준다
   if(s&&UI.fc!=null){const r2=kr(UI.fc),c2=kc(UI.fc);const d=unitAt(r2,c2);seg(s.r,s.c,r2,c2,'#ff6a3d',v3Top(s.r,s.c)+.25,(d?v3UnitY(d):v3Top(r2,c2))+.2,UT[s.type].ind?1.5+dist(s.r,s.c,r2,c2)*.3:0);}
+  if(typeof v3RadioLines==='function')v3RadioLines(L,LC,c);// 무전으로 가는 중인 명령(07r-radio)
   if(L.length){const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));lg.setAttribute('color',new T.Float32BufferAttribute(LC,3));const ls=new T.LineSegments(lg,V3.M.line);ls.renderOrder=4;g.add(ls);}}
 
 /* ---------- 시간·날씨 ---------- */
@@ -2531,7 +2602,7 @@ function v3SyncSmoke(){const T=V3.T,g=V3.G.amb;for(const sp of V3.smoke)g.remove
 function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
   for(const o of G.objs){const x=G.map[o.r][o.c];const [px0,pz]=v3x(o.r,o.c);want.set('o'+x.obj,{html:`<span>${o.name}</span>`,cls:'v3c',col:mapCol(x.owner),p:[px0,v3Top(o.r,o.c)+1.05,pz]});}
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;const hm=hpMax(u);const hc=u.hp>hm*.6?'#5cd18a':u.hp>hm*.3?'#f0b23a':'#ff5a4e';
-    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(typeof v3MorTag==='function'?v3MorTag(u):u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(typeof v3RankTag==='function'?v3RankTag(u):u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
+    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(typeof v3MorTag==='function'?v3MorTag(u):u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(typeof v3RankTag==='function'?v3RankTag(u):u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'')+(typeof v3RadioTag==='function'?v3RadioTag(u,vn):'');
     want.set('u'+u.id,{html:`${typeof v3UnitTag==='function'?v3UnitTag(u):`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>`}${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
   if(typeof ccpOf==='function'&&G.order&&G.order.includes(vn)){const c=ccpOf(vn);want.set('ccp',{html:'<span>환자집결지</span>',cls:'v3c',col:'#e9e6dc',p:[c.x,v3TopAt(c.x,c.z)+.45,c.z]});}
   for(const [id,o] of V3.labels)if(!want.has(id)){o.el.remove();V3.labels.delete(id);}
@@ -3331,6 +3402,31 @@ function v3BuildShops(g){const T=V3.T,pm=v3PropMats(),m=MU,IN=.08,y0=.06;const g
   const box=new T.BoxGeometry(1,1,1);
   v3Inst(g,box,pm.shop,glass,{noShadow:1});v3Inst(g,box,pm.awn,awn);v3Inst(g,box,pm.sign,sign,{noShadow:1});}
 
+/* ---- 07r-radio.js ---- */
+/* ===================== 3D·화면: 무전 지연 =====================
+   05j-radio의 교신 대기열을 보여 준다(내 편만).
+   - 아직 닿지 않은 명령: 부대에서 목적지까지 노란 점선, 목적지에 작은 마름모.
+   - 재밍으로 끊긴 명령: 주황 점선. 이름표에 '무전 1.2'·'두절'·'전령', 막 받았으면 '수신'. */
+function v3RadioTag(u,vn){if(u.nat!==vn||!radioOn())return '';const now=G.time||0;const e=radioPend(u);
+  if(e){if(e.run)return '<em class="rd jm" title="재밍으로 무전이 끊겨 전령이 명령을 들고 가는 중">전령</em>';
+    if(e.jam)return '<em class="rd jm" title="적 재밍: 무전 두절, 재송신 중">두절</em>';
+    return `<em class="rd" title="무전으로 명령 전달 중">무전 ${Math.max(0,e.at-now).toFixed(1)}</em>`;}
+  if(u._ack!=null&&now-u._ack<1.2)return '<u class="rk" title="명령 수신">수신</u>';
+  if((u===UI.sel||(UI.group||[]).includes(u))&&radioCut(u))return '<em class="rd jm" title="적 재밍 반경 안: 새 명령이 잘 닿지 않음">재밍</em>';return '';}
+function v3RadioDest(e,u){if(e.k==='move')return [e.a[0],e.a[1]];if(e.k==='atk'){const t=G.units.find(o=>o.id===e.a[0]);return t?[t.x,t.z]:null;}
+  if(e.k==='bldg')return [e.a[1]+.5,e.a[0]+.5];return null;}
+function v3RadioLines(L,LC,c){if(!radioOn()||!G.rq)return;const vn=G.viewer;
+  for(const e of G.rq){if(e.nat!==vn)continue;c.set(e.jam?'#ff8a3d':'#f0c45a');
+    for(const id of e.us){const u=G.units.find(o=>o.id===id);if(!u)continue;const d=v3RadioDest(e,u);const o=V3.uo.get(u.id);const x1=o?o.position.x:u.x,z1=o?o.position.z:u.z,y=.07;
+      if(!d){for(let i=0;i<8;i++){const a1=i/8*6.283,a2=(i+.5)/8*6.283;L.push(x1+Math.cos(a1)*.2,y,z1+Math.sin(a1)*.2,x1+Math.cos(a2)*.2,y,z1+Math.sin(a2)*.2);LC.push(c.r,c.g,c.b,c.r,c.g,c.b);}continue;}
+      const [x2,z2]=d,len=Math.hypot(x2-x1,z2-z1),n=Math.max(2,Math.floor(len/.18));
+      for(let i=0;i<n;i+=2){const t1=i/n,t2=Math.min(1,(i+1)/n);L.push(x1+(x2-x1)*t1,y,z1+(z2-z1)*t1,x1+(x2-x1)*t2,y,z1+(z2-z1)*t2);LC.push(c.r,c.g,c.b,c.r,c.g,c.b);}
+      const r=.11,P=[[x2+r,z2],[x2,z2+r],[x2-r,z2],[x2,z2-r]];for(let s=0;s<4;s++){const [a,b]=P[s],[p,q]=P[(s+1)%4];L.push(a,y,b,p,y,q);LC.push(c.r,c.g,c.b,c.r,c.g,c.b);}}}}
+/* 선택 정보: 무전 상태 한 줄 */
+{const _i=uInfo;uInfo=function(u){let s=_i(u);if(!radioOn()||u.nat!==G.viewer)return s;const e=radioPend(u);
+   if(e)s+=e.run?' · 전령이 명령을 들고 가는 중':e.jam?' · 무전 두절, 재송신 중':` · 무전 전달 중 ${Math.max(0,e.at-(G.time||0)).toFixed(1)}초`;
+   else if(radioCut(u))s+=' · 적 재밍 반경 안(명령 지연)';return s;};}
+
 /* ---- 07s-men.js ---- */
 /* ===================== 3D: 병사 한 명 한 명 그리기 =====================
    05f-men.js가 정한 병사 위치(u._men)를 그대로 따라 그린다. 자세: 서기 / 무릎쏴(쏘거나 재장전·엄호 중) / 엎드림(제압·옆 사람 피격).
@@ -3668,9 +3764,9 @@ function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),
     if(u===s&&now-(UI.lastTap||0)<400){UI.group=G.units.filter(o=>o.nat===n&&o!==u&&Math.hypot(o.x-u.x,o.z-u.z)<4.5);toast(`${UI.group.length+1}개 부대 선택`);render();return;}
     UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
   if(s&&UI.phase==='fort'&&typeof fortTap==='function'){fortTap(grp,pt[0],pt[1]);render();return;}
-  if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){orderBldg(s,r,c);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
-  if(grp.length){if(u&&u.nat!==n){for(const g of grp)if(UT[g.type].rng[1])orderAttack(g,u);sfx('click',.6);render();return;}
-    orderGroupMove(grp,pt[0],pt[1]);sfx('click',.4);render();return;}
+  if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){radioSend(n,[s],'bldg',[r,c]);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
+  if(grp.length){if(u&&u.nat!==n){radioSend(n,grp.filter(g=>UT[g.type].rng[1]),'atk',[u.id]);sfx('click',.6);render();return;}
+    radioSend(n,grp,'move',[pt[0],pt[1]]);sfx('click',.4);render();return;}
   clearSel();UI.pane={r,c};render();}
 function doSupport(){const n=G.viewer;const k=UI.st;if(k==null)return;if(support(n,UI.supK,kr(k),kc(k))){clearSel();render();if(typeof scnAfterAct==='function')scnAfterAct();}}
 if(typeof document!=='undefined'){
@@ -3710,10 +3806,10 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='close'){UI.pane=null;render();return;}
   if(!s)return;
   const grp=[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));
-  if(a==='stop'){grp.forEach(orderStop);render();return;}
+  if(a==='stop'){radioSend(n,grp,'stop');render();return;}
   if(a==='dismount'){const v=dismount(s);if(v){select(v);}else toast('내릴 자리가 없거나 지휘점수가 모자랍니다');render();return;}
-  if(a==='floor'){const up=s.flT===0;grp.forEach(x=>orderFloor(x,up));render();return;}
-  if(a==='hold'){const h=!s.hold;grp.forEach(x=>x.hold=h);render();return;}
+  if(a==='floor'){const pe=radioPend(s);const up=pe&&pe.k==='floor'?!pe.a[0]:s.flT===0;radioSend(n,grp,'floor',[up]);render();return;}
+  if(a==='hold'){const pe=radioPend(s);const h=!(pe&&pe.k==='hold'?pe.a[0]:s.hold);radioSend(n,grp,'hold',[h]);render();return;}
   if(a==='fort'){UI.phase=UI.phase==='fortmenu'||UI.phase==='fort'?'select':'fortmenu';render();return;}
   if(a.startsWith('fort:')){UI.phase='fort';UI.fortK=a.slice(5);render();return;}
   if(a==='demo'){UI.phase=UI.phase==='demo'?'select':'demo';render();return;}

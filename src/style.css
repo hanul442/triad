@@ -175,3 +175,8 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .vet-box .vet-on{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .vet-box .vet-on small,.vet-box .vet-empty,.vet-box .vet-fallen{opacity:.75}
 .vet-box .vet-fallen b{margin-right:4px}
+
+/* 무전 지연(07r-radio) */
+.v3u em.rd{background:#c9a23a;color:#11161c}.v3u em.rd.jm{background:#ff7a2a;color:#fff;animation:rdblink .6s steps(2) infinite}.v3u u.rk{border-color:#f0c45a;color:#f0c45a}
+@keyframes rdblink{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.v3u em.rd.jm{animation:none}}

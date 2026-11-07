@@ -697,3 +697,43 @@ test('고참 명부: 살아남은 숙련 분대가 다음 작전 같은 병종 �
   T.G.units = T.G.units.filter(u => u !== mg2); T.G.vetLost = [mg2.rid]; T.G.over = { win: 1, why: 'test' }; T.__get('vetEnd')();
   assert.equal(JSON.parse(store['triad-vets']).roster.length, 0, '전멸한 고참 분대는 명부에서 빠짐');
 });
+
+test('무전: 명령은 몇 초 늦게 닿고, 무전망은 교신을 한 줄로 세운다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, radio: true });
+  const G = T.G; G.units.length = 0;
+  const send = T.__get('radioSend');
+  const mid = (T.N - 1) / 2;
+  const a = T.mkUnit(0, 'rifle', Math.floor(mid), Math.floor(mid)), b = T.mkUnit(0, 'rifle', Math.floor(mid) + 1, Math.floor(mid));
+  const e1 = send(0, [a], 'move', [a.x + 2, a.z]);
+  const e2 = send(0, [b], 'move', [b.x + 2, b.z]);
+  assert.ok(!a.path.length && !b.path.length, '바로 움직이지 않는다');
+  assert.ok(e1.at - G.time >= 0.9 && e1.at - G.time <= 2.6, `지연 ${e1.at - G.time}`);
+  assert.ok(e2.at > e1.at, '두 번째 교신은 첫 교신 뒤에 나간다');
+  G.units.push(...[]); // 적 없음
+  for (let i = 0; i < 30; i++) T.rtTick(0.1);
+  assert.ok(a.dest && b.dest, '3초 안에 둘 다 명령을 받았다');
+  // 같은 부대에 새 명령을 내리면 앞 명령은 버려진다
+  send(0, [a], 'stop'); send(0, [a], 'move', [a.x, a.z + 1]);
+  assert.equal(G.rq.filter(e => e.us.includes(a.id)).length, 1);
+});
+
+test('무전: 적 재밍 반경 안에서는 끊기다가 결국 전령이 전한다, 끄면 바로 실행', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, radio: true });
+  const G = T.G; G.units.length = 0;
+  const send = T.__get('radioSend');
+  const r0 = Math.floor((T.N - 1) / 2);
+  const a = T.mkUnit(0, 'rifle', r0, r0); const j = T.mkUnit(1, 'ew', r0, r0 + 2); j.nocas = 1; a.nocas = 1; G.nats[1].aiT = 1e9;
+  const rnd = Math.random; Math.random = () => 0.99; // 매번 재송신 실패
+  try {
+    send(0, [a], 'move', [a.x, a.z + 2]);
+    const t0 = G.time; let got = null;
+    for (let i = 0; i < 200 && got == null; i++) { G.units.forEach(u => { u.cd = 99; }); T.rtTick(0.1); if (a.dest) got = G.time - t0; }
+    assert.ok(got != null && got > 6 && got < 14, `재밍 아래 전달 시간 ${got}`);
+  } finally { Math.random = rnd; }
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, radio: false });
+  const b = T.mkUnit(0, 'rifle', r0, r0);
+  T.__get('radioSend')(0, [b], 'move', [b.x + 1, b.z]);
+  assert.ok(b.dest, '무전 지연을 끄면 바로 움직인다');
+});
