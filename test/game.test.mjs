@@ -63,7 +63,8 @@ test('건물은 시야를 막고, 더 높은 곳에서는 넘겨 본다', () => 
   assert.equal(T.los(5, 2, .5, 5, 8, .5), false, '지상끼리는 건물에 막힘');
   assert.equal(T.los(3, 2, .5, 3, 8, .5), true, '옆 줄은 트임');
   bldg(G, 5, 2, 6); T.bump();
-  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), true, '6층 건물에서는 3층 건물 너머가 보임');
+  assert.equal(T.los(5, 2, 6.3, 5, 8, .5), true, '6층 건물 옥상에서는 3층 건물 너머가 보임');
+  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), false, '건물 한가운데(창에서 먼 곳)에서는 밖이 안 보임');
 });
 
 test('엄폐: 건물 안 보병은 피해를 덜 받고, 폭발물은 엄폐를 절반만 받는다', () => {
@@ -162,11 +163,25 @@ test('계단을 오르내리는 동안은 쏘지 않는다', () => {
 test('1층에 막 들어온 보병은 낮게 보고, 위층에 오르면 건물 너머를 본다', () => {
   const T = loadGame(); const G = setup(T);
   bldg(G, 5, 5, 4); G.map[5][5].blk = 1; bldg(G, 5, 7, 1); G.map[5][7].blk = 2; T.bump();
-  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
+  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.8; u.z = 5.5; const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
   u.fl = 0; u.flK = T.key(5, 5); T.bump();
   assert.ok(!T.canHit(u, e), '1층에서는 앞 건물에 가린다');
   u.fl = 3; T.bump();
-  assert.ok(T.canHit(u, e), '4층에서는 넘겨 쏜다');
+  assert.ok(T.canHit(u, e), '4층 창가에서는 넘겨 쏜다');
+});
+
+test('벽 너머로는 못 쏜다: 건물 안에서는 바깥 벽 창가에서만 쏜다', () => {
+  const T = loadGame(); const G = setup(T);
+  for (const c of [4, 5, 6]) { bldg(G, 5, c, 2); G.map[5][c].blk = 1; } T.bump();
+  const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
+  const u = T.mkUnit(0, 'rifle', 5, 4); u.fl = 0; u.flK = T.key(5, 4); u.x = 4.5; u.z = 5.5;
+  assert.ok(!T.canHit(u, e), '같은 블록의 다른 칸 벽 너머는 못 쏜다');
+  u.x = 4.5; u.z = 5.2; assert.ok(!T.canHit(u, e), '건물 안쪽 칸에서는 동쪽 적을 못 본다');
+  const v = T.mkUnit(0, 'rifle', 5, 6); v.fl = 0; v.flK = T.key(5, 6); v.x = 6.5; v.z = 5.5; T.bump();
+  assert.ok(!T.canHit(v, e), '방 한가운데에서는 못 쏜다');
+  v.x = 6.8; T.bump(); assert.ok(T.canHit(v, e), '바깥 벽 창가에서는 쏜다');
+  assert.ok(T.canHit(e, v), '창가의 적은 맞출 수 있다');
+  v.x = 6.5; T.bump(); assert.ok(!T.canHit(e, v), '방 안쪽 적은 밖에서 못 맞춘다');
 });
 
 test('거점 점령과 지휘점수 수입', () => {
