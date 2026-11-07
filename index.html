@@ -4506,7 +4506,7 @@ function rcAerial(){try{if(typeof V3==='undefined'||!V3.on||!V3.ren||!G)return n
   setTimeout(()=>{if(!G||G.chron!==C)return;const u=rcAerial();if(u){C._img=Object.assign({pre:null},C._img||{},{post:u});try{chronArchive(chronRecord());}catch(e){}if(RC.rec&&RC.rec.id===C.t0){RC.rec.img=C._img;rcAerialHTML();}}},900);};}
 /* 전투가 끝나면 잠깐 뒤 기록 화면을 연다 */
 {const _r=render;render=function(){_r();if(!G||!G.over||G.boot||!G.chron||G._rc)return;G._rc=true;if(!G.chron.end)chronEnd();
-  setTimeout(()=>{if(G&&G.over&&G.chron)rcOpen(chronRecord());},2200);};}
+  setTimeout(()=>{if(G&&G.over&&G.chron&&!G.camp)rcOpen(chronRecord());},2200);};}
 
 /* ---------- 시각 t의 도시 ---------- */
 function rcState(rec,t){const end=t>=rec.time-.01;const fall=new Set(),fire=new Map();
