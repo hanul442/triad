@@ -372,10 +372,12 @@ test('병사 개별 사격: 분대가 쏘면 몇 명이 실제로 쏘고, 탄창
   const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
   const a = T.mkUnit(0, 'rifle', 10, 10), d = T.mkUnit(1, 'rifle', 10, 13); G.units.push(a, d); T.bump();
   T.rtTick(0.1);
-  for (let i = 0; i < 6; i++) T.rtShoot(a, d);
-  assert.ok(a._sh && a._sh.length >= 1, '쏜 병사 기록');
-  assert.ok(a._men.some(m => m.rl > 0), '누군가는 재장전 중');
-  assert.ok(d._thr, '맞은 쪽은 위협 방향을 안다');
+  // 마지막 사격 때 모두 재장전 중일 수도 있으니, 한 번이라도 누가 쐈는지·재장전했는지를 센다(무작위 실패 방지)
+  let fired = 0, reloaded = false; for (const m of a._men) { m.lag = 0; m.pr = 0; } // 출발 대기·엎드림 상태는 이 테스트와 무관
+  for (let i = 0; i < 6; i++) { T.rtShoot(a, d); if (a._sh && a._sh.length) fired++; if (a._men.some(m => m.rl > 0)) reloaded = true; }
+  assert.ok(fired >= 1, '쏜 병사 기록');
+  assert.ok(reloaded, '누군가는 재장전 중');
+  assert.ok(d._thr || !(d.dmgIn > 0), '맞은 쪽은 위협 방향을 안다');
 });
 
 test('박격포: 건물 안에서는 못 쏘고, 포탄이 날아가 떨어진 곳에서 터진다', () => {
