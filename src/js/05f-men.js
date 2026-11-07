@@ -31,11 +31,23 @@ const menAct=m=>!m.dead&&!m.down&&!m.gone&&!m.task;
 const menAlive=u=>(u._men||[]).filter(menAct);
 /* 분대장 발자국: 지나온 길을 점으로 남긴다(가장 최근이 앞) */
 function menTrail(u){const T=u._tr||(u._tr=[[u.x,u.z]]);const h=T[0];const d=Math.hypot(u.x-h[0],u.z-h[1]);
-  if(d>.04){T.unshift([u.x,u.z]);if(T.length>90)T.length=90;}else{h[0]=u.x;h[1]=u.z;}}
+  if(d>.04){T.unshift([u.x,u.z]);if(T.length>90)T.length=90;}}   // 머리 점을 끌고 다니면(느리게 걸을 때) 발자국이 벽을 가로지르는 직선이 된다: 새 점만 더한다
 /* 발자국을 따라 분대장에게서 L만큼 뒤의 점과 진행 방향 */
 function menTrailAt(u,L){const T=u._tr;let acc=0;for(let i=0;i<T.length-1;i++){const a=T[i],b=T[i+1];const s=Math.hypot(a[0]-b[0],a[1]-b[1]);
     if(acc+s>=L){const k=(L-acc)/(s||1);return {x:a[0]+(b[0]-a[0])*k,z:a[1]+(b[1]-a[1])*k,dx:(a[0]-b[0])/(s||1),dz:(a[1]-b[1])/(s||1),ok:1};}acc+=s;}
   const e=T[T.length-1];const f=(u.face||0)*Math.PI/180;return {x:e[0],z:e[1],dx:Math.cos(f),dz:Math.sin(f),ok:0};}
+/* 병사 m이 곧게 갈 수 있는 발자국 중 분대장에게 가장 가까운 점(0.4초마다 다시 찾는다) */
+function menVia(u,m,t,gx,gz){if(m.wp&&t-m.wpT<.4&&menClear(u,m.x,m.z,m.wp[0],m.wp[1]))return m.wp;const T=u._tr||[];m.wpT=t;m.wp=null;
+  for(let i=0;i<T.length;i++){const p=T[i];if(Math.hypot(p[0]-m.x,p[1]-m.z)>2.6)continue;if(menClear(u,m.x,m.z,p[0],p[1])){m.wp=[p[0],p[1]];break;}}
+  if(!m.wp&&typeof navPath==='function'&&gx!=null){// 발자국으로도 안 되면(따로 떨어졌던 병사) 문을 아는 길찾기로 제 길을 낸다
+    if(!m.np||t-m.npT>1.5){m.npT=t;const me={type:u.type,x:m.x,z:m.z,r:Math.floor(m.z),c:Math.floor(m.x)};m.np=navPath(me,gx,gz)||[];}
+    while(m.np.length&&Math.hypot(m.np[0][0]-m.x,m.np[0][1]-m.z)<.03)m.np.shift();
+    if(m.np.length&&menClear(u,m.x,m.z,m.np[0][0],m.np[0][1]))m.wp=m.np[0];}
+  return m.wp;}
+/* 병사와 같은 공간(같은 건물 또는 바깥)에 있는 가장 가까운 발자국 */
+function menTrailNear(u,m){const T=u._tr||[];const a=tileAt(m.x,m.z);let best=null,bd=1e9;
+  for(const p of T){const b=tileAt(p[0],p[1]);if(!b)continue;const same=a&&((a.t==='bldg')===(b.t==='bldg'))&&(a.t!=='bldg'||a.blk===b.blk);const d=Math.hypot(p[0]-m.x,p[1]-m.z)+(same?0:5);if(d<bd){bd=d;best=p;}}
+  return best;}
 /* 점 p에서 옆(nx,nz) 방향으로 몇 칸까지 비어 있는가(벽·건물 전까지, 최대 lim) */
 function menFree(u,x,z,nx,nz,lim){let d=0;for(let s=.05;s<=lim+1e-6;s+=.05){if(!menClear(u,x,z,x+nx*s,z+nz*s))break;d=s;}return d;}
 /* 이 분대가 지금 위협을 받는가: 제압, 최근 사격, 최근 피격 */
@@ -99,13 +111,14 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
       if(bound&&team!==ph&&Math.hypot(gx-m.x,gz-m.z)<.75){gx=m.x;gz=m.z;m.hold=1;}else{if(bound&&m.hold){dash=1.9;}m.hold=bound&&Math.hypot(gx-m.x,gz-m.z)>.15?m.hold:0;}}
     else{const sp=m.sp||[u.x,u.z];gx=sp[0];gz=sp[1];
       if(u.supp>0&&!m.pr)m.pr=.6+Math.random()*.6;}            // 제압: 엎드린다
+    // 곧장 못 가면(벽·건물 경계) 분대장이 지나간 발자국을 거꾸로 따라간다: 지금 자리에서 곧게 보이는 가장 앞쪽 발자국으로
+    if(Math.hypot(gx-m.x,gz-m.z)>.006&&!menClear(u,m.x,m.z,gx,gz)){const w=menVia(u,m,t,gx,gz);if(w){gx=w[0];gz=w[1];}}
     let dx=gx-m.x,dz=gz-m.z,d=Math.hypot(dx,dz);
     if(d>.3)dash=Math.max(dash,1.7);else if(d>.12)dash=Math.max(dash,1.25);
     const crawl=m.pr>0&&!moving;m.crawl=crawl;let sp=base*(crawl?.35:dash)*(m.rl>0&&!moving?.6:1);
     if(d>.006){const st=Math.min(d,sp*dt);let nx=m.x+dx/d*st,nz=m.z+dz/d*st;
-      if(!menClear(u,m.x,m.z,nx,nz)){m.stk+=dt;// 막혔으면 분대장 쪽으로 돌아간다
-        const ax=u.x-m.x,az=u.z-m.z,ad=Math.hypot(ax,az)||1;nx=m.x+ax/ad*Math.min(ad,sp*dt);nz=m.z+az/ad*Math.min(ad,sp*dt);
-        if(m.stk<1.2&&!menClear(u,m.x,m.z,nx,nz)){nx=m.x;nz=m.z;}}
+      if(!menClear(u,m.x,m.z,nx,nz)){m.stk+=dt;nx=m.x;nz=m.z;m.wp=null;// 막혔으면 서서 다음 틱에 발자국 길을 다시 찾는다(벽은 절대 통과하지 않는다)
+        if(m.stk>2.5){const P=menTrailNear(u,m);if(P){nx=P[0];nz=P[1];}m.stk=0;}}   // 오래 끼어 있으면 가장 가까운 발자국 자리로 옮긴다
       else m.stk=0;
       m.spd=Math.hypot(nx-m.x,nz-m.z)/dt;m.x=nx;m.z=nz;if(m.spd>.02)m.f=Math.atan2(dz,dx);}
     else m.spd=0;
