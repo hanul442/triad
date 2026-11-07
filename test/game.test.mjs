@@ -171,8 +171,9 @@ test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, �
     T.mkUnit(0, 'rifle', 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); d.hp = 1000; T.bump();
     for (let i = 0; i < 300; i++) { d.cd = 99; T.rtTick(0.1); }
     return 1000 - d.hp; };
-  const open = ttk(false), cov = ttk(true);
-  assert.ok(open > 5, `30초 동안 피해를 줌 (${open})`);
+  // 피해 굴림과 재장전이 무작위라 세 판씩 합산한다
+  let open = 0, cov = 0; for (let i = 0; i < 3; i++) { open += ttk(false); cov += ttk(true); }
+  assert.ok(open > 15, `30초 동안 피해를 줌 (${open})`);
   assert.ok(cov < open, `건물 안은 덜 맞음 (${open} → ${cov})`);
 });
 

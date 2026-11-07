@@ -1165,7 +1165,7 @@ function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
     if(bags.length){const bg=new T.BoxGeometry(.12,.12,.6);bg.translate(0,.06,0);const bm=new T.InstancedMesh(bg,new T.MeshStandardMaterial({color:'#8a7c62',roughness:1}),bags.length);bm.castShadow=true;
       bags.forEach(([x,z,rot],j)=>{ps.set(x,GH.plaza,z);q.setFromAxisAngle(new T.Vector3(0,1,0),rot);sc.set(1,1,1);m4.compose(ps,q,sc);bm.setMatrixAt(j,m4);});q.identity();g.add(bm);}}
   // 바깥 땅
-  const out=new T.Mesh(new T.PlaneGeometry(N+120,N+120),new T.MeshStandardMaterial({color:'#4a463f',roughness:1}));out.rotation.x=-Math.PI/2;out.position.set(N/2,-.02,N/2);out.receiveShadow=true;g.add(out);
+  const out=new T.Mesh(new T.PlaneGeometry(N+120,N+120),new T.MeshStandardMaterial({color:'#3a3936',roughness:1}));out.rotation.x=-Math.PI/2;out.position.set(N/2,-.02,N/2);out.receiveShadow=true;g.add(out);
   // 격자선
   const L=[];for(let i2=0;i2<=N;i2++){L.push(0,.07,i2,N,.07,i2,i2,.07,0,i2,.07,N);}
   const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));V3.grid=new T.LineSegments(lg,new T.LineBasicMaterial({color:'#ffffff',transparent:true,opacity:.12}));g.add(V3.grid);}
@@ -1319,7 +1319,7 @@ function v3SyncHl(){if(!V3.on||!G)return;const T=V3.T,g=V3.G.hl;v3Clear(g);const
 
 /* ---------- 시간·날씨 ---------- */
 function v3Light(){const h=hourOf(),night=isNight(),dusk=(h===6||h===18||h===20&&false);const s=V3;const wx=G.wx||'clear';
-  const P=night?{sun:'#7f95c9',si:.5,sky:'#2a3754',gr:'#141210',hi:.42,fog:'#0d131b',em:1.25}:dusk?{sun:'#ff9a5a',si:1.7,sky:'#d6a07a',gr:'#3f3226',hi:.55,fog:'#6f5a50',em:.55}:{sun:'#ffe9cc',si:2.3,sky:'#c9cccb',gr:'#6b6458',hi:1.15,fog:'#7a746a',em:0};
+  const P=night?{sun:'#7f95c9',si:.5,sky:'#2a3754',gr:'#141210',hi:.42,fog:'#0d131b',em:1.25}:dusk?{sun:'#ff9a5a',si:1.7,sky:'#d6a07a',gr:'#3f3226',hi:.55,fog:'#6f5a50',em:.55}:{sun:'#ffe9cc',si:2.3,sky:'#c9cccb',gr:'#6b6458',hi:1.15,fog:'#9a9183',em:0};
   s.sun.color.set(P.sun);s.sun.intensity=P.si*(wx==='clear'?1:.55);s.hemi.color.set(P.sky);s.hemi.groundColor.set(P.gr);s.hemi.intensity=P.hi;s.M.wall.emissiveIntensity=P.em;
   const fogC=new V3.T.Color(P.fog);if(wx==='rain'||wx==='storm')fogC.lerp(new V3.T.Color('#4a525a'),.5);s.scene.fog.color.copy(fogC);s.scene.background=fogC.clone();
   s.fogK=wx==='fog'?.45:wx==='storm'?.7:1;s.sunAng=dusk?(h===6?-1:1):night?.4:(h-12)/8;s.rain=(wx==='rain'||wx==='storm')?(wx==='storm'?1.6:1):0;}
@@ -1374,6 +1374,7 @@ function v3FxFire(a,r,c){if(typeof sfx==='function')sfx(UT[a.type].ind?'arty':UT
     else{o=new T.Mesh(V3.tracerG||(V3.tracerG=new T.BoxGeometry(.012,.012,.35)),new T.MeshBasicMaterial({color:tc,blending:T.AdditiveBlending,transparent:true,depthWrite:false}));o.userData.keepGeo=1;o.lookAt(x2-x1,y2-y1,z2-z1);}
     V3.G.fx.add(o);V3.fx.push({o,t0:performance.now()+i*70,dur:ind?650:150+dd*14,upd:(sh,k)=>{sh.position.set(x1+(x2+j-x1)*k,y1+(y2-y1)*k+(ind?Math.sin(k*Math.PI)*(1.5+dd*.35):0),z1+(z2+j-z1)*k);}});}
   v3Burst(x1+(x2-x1)*.02,y1,z1+(z2-z1)*.02,UT[a.type].cls==='inf'?.08:.22,'#ffd27a',0,UT[a.type].cls==='inf'?.15:.6);
+  if(typeof dsDust==='function'&&(UT[a.type].cls!=='inf'||a.type==='mg')&&Math.random()<.35)dsDust(x1,z1,.3,2600,1,'#8e887e',y1);// 총구 연기가 잠시 머문다
   setTimeout(()=>{if(UT[a.type].ex){v3Burst(x2,y2-.05,z2,.6,'#ff8a3d',3,1.5);dsScar(ind?'crater':'scorch',x2,z2,ind?.14:.11);dsSpray(x2,y2,z2,ind?48:26,ind?.7:.5);dsDust(x2,z2,ind?1.4:.8,ind?9000:5000,ind?6:4);if(ind)dsColumn(x2,z2,.7);}else{v3Impact(x2,y2-.05,z2);if(Math.random()<.25)dsScar('spray',x2,z2,.05);}if(UT[a.type].ex)V3.shake=Math.max(V3.shake,.05);if(typeof sfx==='function')sfx('hit',.6);},ind?650:170);}
 function v3FxKill(u){if(!V3.on||UT[u.type].cls==='inf')return;const [x,y,z]=v3Pos(u.r,u.c,u);if(UT[u.type].cls==='veh')dsWreck(u);setTimeout(()=>{v3Burst(x,y,z,1.3,'#ff7a2a',7,4);dsSpray(x,y+.1,z,50,.8);dsScar('scorch',x,z,.25);V3.shake=Math.max(V3.shake,.14);if(typeof sfx==='function')sfx('boom');},400);}
 function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const h=Math.max(1,f||3)*FLOOR_H;
@@ -1384,10 +1385,10 @@ function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);
   V3.fx.push({o:piv,t0:performance.now(),dur:1500,upd:(o,k)=>{const e=k*k;const ang=e*1.45;if(dir<2)o.rotation.z=(dir===0?-1:1)*ang;else o.rotation.x=(dir===2?1:-1)*ang;o.position.y=.06-e*h*.55;}});
   setTimeout(()=>{mat.dispose();},1600);
   // 분진 구름: 크게 퍼지며 천천히 가라앉는다
-  for(let i=0;i<44;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:i%3?'#a99a83':'#6c635a',transparent:true,depthWrite:false,opacity:0}));const a=Math.random()*6.283,sp=1.2+Math.random()*3.2,y0=.2+Math.random()*h*.6;s.position.set(x,y0,z);V3.G.fx.add(s);
-    V3.fx.push({o:s,t0:performance.now()+300+i*30,dur:12000,upd:(o,k)=>{const e=1-Math.pow(1-k,2.6);o.position.set(x+Math.cos(a)*sp*e+DS.wind[0]*k*12,y0+e*1.4,z+Math.sin(a)*sp*e);o.scale.setScalar(1+e*5);o.material.opacity=.8*(1-k)*(k<.06?k/.06:1);}});}
+  for(let i=0;i<28;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%3?'#a99a83':'#6c635a',transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*6.28}));const a=Math.random()*6.283,sp=1.2+Math.random()*3.2,y0=.2+Math.random()*h*.6;s.position.set(x,y0,z);V3.G.fx.add(s);
+    V3.fx.push({o:s,t0:performance.now()+300+i*30,dur:12000,upd:(o,k)=>{const e=1-Math.pow(1-k,2.6);o.position.set(x+Math.cos(a)*sp*e+DS.wind[0]*k*12,y0+e*1.4,z+Math.sin(a)*sp*e);o.scale.setScalar(.8+e*3.6);o.material.opacity=.6*(1-k)*(k<.06?k/.06:1);}});}
   v3Debris(x,h*.5,z,26,1.4);dsSpray(x,h*.4,z,160,1.5);dsScar('rubble',x,z,.9);
-  setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,3.4,30000,40);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sfx==='function')sfx('boom');},700);}
+  setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,2.6,26000,22);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sfx==='function')sfx('boom');},700);}
 function v3FxStrike(kind,r,c,n){if(!V3.on)return;const [x,z]=v3x(r,c);if(kind==='heli'){v3Heli(r,c,n);return;}
   if(kind==='smoke'){for(let i=0;i<9;i++)v3Burst(x+(Math.random()-.5)*2.4,.3,z+(Math.random()-.5)*2.4,1.2,'#d6d3c8',2,0);return;}
   if(kind==='air'){const T=V3.T;const jet=new T.Mesh(new T.ConeGeometry(.12,.7,6),V3.M.dark);jet.rotation.z=-Math.PI/2;V3.G.fx.add(jet);
@@ -1417,7 +1418,7 @@ function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}
-  if(G)v3AnimUnits(rdt,now);
+  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);
   for(const o of V3.G.sites.children)if(o.userData.flag)o.rotation.y=Math.sin(now/700+o.position.x)*.25;
   const tt=now/1000;for(const sp of V3.smoke){if(sp.kind==='fire'){const f=.75+Math.sin(tt*13+sp.ph*20)*.15+Math.sin(tt*7.3)*.1;sp.o.position.set(sp.x,sp.y+.15,sp.z);sp.o.scale.setScalar(.45*f);sp.o.material.opacity=.75*f;continue;}
     if(sp.kind==='screen'){const l=(tt*.08+sp.ph)%1;sp.o.position.set(sp.x+Math.sin(tt*.3+sp.ph*9)*.15,.4+l*.8,sp.z);sp.o.scale.setScalar(1.5+l*.6);sp.o.material.opacity=.75*Math.sin(l*Math.PI)+.15;continue;}
@@ -1440,7 +1441,7 @@ function dsInit(){const el=$('#v3d-grain');if(!el)return;const c=document.create
   V3.puffD=v3Tex(96,96,(g2)=>{const R2=mulberry(77);for(let i=0;i<9;i++){const x=28+R2()*40,y=28+R2()*40,r=14+R2()*18;const gr=g2.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.6,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');g2.fillStyle=gr;g2.fillRect(0,0,96,96);}});}
 /* ---------- 바닥 흔적 ---------- */
 function dsScar(kind,x,z,r,seed){if(!V3.on)return;const sc={k:kind,x,z,r,s:seed??Math.random()*1e6|0};if(!V3.scars||V3.scars.seed!==V3.seed)V3.scars={seed:V3.seed,list:[]};V3.scars.list.push(sc);if(V3.scars.list.length>900)V3.scars.list.shift();dsDraw(sc);if(V3.gtex)V3.gtex.needsUpdate=true;}
-function dsReplay(){if(!V3.scars||V3.scars.seed!==V3.seed)return;for(const sc of V3.scars.list)dsDraw(sc);}
+function dsReplay(){if(!V3.scars||V3.scars.seed!==V3.seed){V3.scars={seed:V3.seed,list:[]};dsPrewar();}for(const sc of V3.scars.list)dsDraw(sc);dsAmbientBuild();}
 function dsDraw(sc){const g=V3.gctx,P=V3.gP;if(!g)return;const R=mulberry(sc.s);const X=sc.x*P,Y=sc.z*P,rr=sc.r*P;g.save();g.translate(X,Y);
   if(sc.k==='crater'){// 구덩이: 어두운 안쪽, 밝은 흙 테두리, 둘레로 흩어진 흙
     for(let i=0;i<26;i++){const a=R()*6.283,d=rr*(1+R()*1.6);g.fillStyle=R()<.5?'rgba(20,17,13,.5)':'rgba(120,106,84,.45)';g.beginPath();g.arc(Math.cos(a)*d,Math.sin(a)*d,1+R()*3,0,7);g.fill();}
@@ -1454,7 +1455,7 @@ function dsDraw(sc){const g=V3.gctx,P=V3.gP;if(!g)return;const R=mulberry(sc.s);
     for(let i=0;i<60;i++){const a=R()*6.283,d=Math.pow(R(),.7)*rr;g.fillStyle=R()<.6?`rgba(150,144,132,${.3+R()*.4})`:`rgba(18,16,14,${.3+R()*.4})`;const s=1+R()*4;g.fillRect(Math.cos(a)*d,Math.sin(a)*d,s,s*.7);}
     g.strokeStyle='rgba(10,9,8,.55)';g.lineWidth=1.2;for(let i=0;i<5;i++){g.beginPath();let x=(R()-.5)*rr,y=(R()-.5)*rr;g.moveTo(x,y);for(let j=0;j<5;j++){x+=(R()-.5)*rr*.5;y+=(R()-.5)*rr*.5;g.lineTo(x,y);}g.stroke();}}
   else if(sc.k==='blood'){// 쓰러진 자리: 검붉은 얼룩
-    g.fillStyle=`rgba(72,16,12,${.5+R()*.3})`;for(let i=0;i<9;i++){const a=R()*6.283,d=R()*rr*1.3;g.beginPath();g.arc(Math.cos(a)*d,Math.sin(a)*d,1+R()*rr*.6,0,7);g.fill();}}
+    g.fillStyle=`rgba(52,12,9,${.35+R()*.25})`;for(let i=0;i<6;i++){const a=R()*6.283,d=R()*rr;g.beginPath();g.arc(Math.cos(a)*d,Math.sin(a)*d,.8+R()*rr*.45,0,7);g.fill();}}
   else if(sc.k==='tread'){// 차량 바퀴 자국·기름
     const gr=g.createRadialGradient(0,0,0,0,0,rr);gr.addColorStop(0,'rgba(6,6,8,.75)');gr.addColorStop(1,'rgba(6,6,8,0)');g.fillStyle=gr;g.beginPath();g.ellipse(0,0,rr,rr*.7,R()*3,0,7);g.fill();}
   g.restore();}
@@ -1502,6 +1503,40 @@ function dsShell(x,z,big){if(!V3.on)return;const T=V3.T;const y0=v3TopAt(x,z);
     V3.shake=Math.max(V3.shake,big?.2:.12);if(typeof sfx==='function')sfx('boom');},380);}
 function dsBarrage(r,c,n,spread){const [cx,cz]=v3x(r,c);for(let i=0;i<n;i++)setTimeout(()=>{const ox=(Math.random()-.5)*spread,oz=(Math.random()-.5)*spread;dsShell(cx+ox,cz+oz,i===0||Math.random()<.25);},200+i*(260+Math.random()*220));}
 function v3TopAt(x,z){const r=Math.floor(z),c=Math.floor(x);return inb(r,c)?v3Top(r,c):0;}
+/* ---------- 도시 전체의 전쟁 분위기 ----------
+   새 지도마다 한 번: 전투 전부터 이미 상처 난 도시(구덩이·그을음·잔해 자국), 멀리 솟는 연기 기둥, 타고 있는 차량과 잔해 더미.
+   매 프레임: 연기 기둥을 피워 올리고, 재가 떠다니고, 가끔 멀리서 포성이 울린다. */
+function dsPrewar(){const R=mulberry((G.seed|0)^0x77ab);const L=V3.scars.list;const push=(k,x,z,r)=>L.push({k,x,z,r,s:R()*1e6|0});
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const [cx,cz]=v3x(r,c);
+    if(x.t==='rubble'){push('rubble',cx+(R()-.5)*.3,cz+(R()-.5)*.3,.8);push('spray',cx,cz,1.1);if(R()<.5)push('scorch',cx+(R()-.5)*.5,cz+(R()-.5)*.5,.25);}
+    else if(x.t==='road'||x.t==='plaza'||x.t==='park'){const p=R();if(p<.05)push('crater',cx+(R()-.5)*.6,cz+(R()-.5)*.6,.12+R()*.1);else if(p<.11)push('scorch',cx+(R()-.5)*.6,cz+(R()-.5)*.6,.12+R()*.14);else if(p<.16)push('spray',cx+(R()-.5)*.6,cz+(R()-.5)*.6,.3+R()*.35);
+      if(x.t==='road'&&R()<.08)push('tread',cx+(R()-.5)*.5,cz+(R()-.5)*.5,.08+R()*.08);}}
+  for(const p of (G.props||[]))if(p.k==='car'&&p.burnt)push('scorch',p.x,p.z,.3);}
+function dsAmbientBuild(){if(V3.ambSeed===V3.seed)return;V3.ambSeed=V3.seed;const T=V3.T;const R=mulberry((G.seed|0)^0x5a5a);
+  for(const p of V3.plumes||[])for(const s of p.sp){V3.G.amb.remove(s);s.material.dispose();}V3.plumes=[];
+  const plume=(x,z,y0,big)=>{const sp=[];const n=big?14:9;for(let i=0;i<n;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%3?'#3d3732':'#6a625a',transparent:true,depthWrite:false,opacity:0,rotation:R()*6.28}));s.renderOrder=1;V3.G.amb.add(s);sp.push(s);}
+    V3.plumes.push({x,z,y0,big,sp,ph:R()*9,h:big?9+R()*4:5+R()*3});};
+  // 지도 안: 잔해 칸 몇 곳이 아직 타고 있다
+  const rub=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(G.map[r][c].t==='rubble')rub.push([r,c]);
+  for(let i=rub.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[rub[i],rub[j]]=[rub[j],rub[i]];}
+  rub.slice(0,3).forEach(([r,c])=>{const [x,z]=v3x(r,c);plume(x+(R()-.5)*.4,z+(R()-.5)*.4,.1,false);dsFires(x,z,4,1e12,.8,.04);});
+  for(const p of (G.props||[]))if(p.k==='car'&&p.burnt&&R()<.35)dsFires(p.x,p.z,2,1e12,.25,.12);
+  // 지도 밖: 도시의 다른 구역이 불타고 있다
+  for(let i=0;i<7;i++){const a=R()*6.283,d=N*(.62+R()*.3);plume(N/2+Math.cos(a)*d,N/2+Math.sin(a)*d,0,true);}
+  // 지도 밖으로 이어지는 도시: 멀리 안개에 잠긴 건물 실루엣
+  if(V3.outer){V3.G.amb.remove(V3.outer);V3.outer.geometry.dispose();}
+  {const boxes=[];for(let i=0;i<420;i++){const a=R()*6.283,d=N*(.56+R()*.5);const x=N/2+Math.cos(a)*d*1.15,z=N/2+Math.sin(a)*d;if(x>-1&&x<N+1&&z>-1&&z<N+1)continue;boxes.push([x,z,.4+R()*.5,.4+R()*.6,FLOOR_H*(1+Math.floor(R()*7))]);}
+    const im=new T.InstancedMesh(new T.BoxGeometry(1,1,1),new T.MeshStandardMaterial({color:'#5a5750',roughness:1,flatShading:true}),boxes.length);const m4=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(),ps=new T.Vector3();
+    boxes.forEach(([x,z,w,d,h],i)=>{ps.set(x,h/2-.02,z);sc.set(w,h,d);m4.compose(ps,q,sc);im.setMatrixAt(i,m4);});im.receiveShadow=true;V3.G.amb.add(im);V3.outer=im;}
+  // 떠다니는 재
+  if(!V3.ash){const n=360,P=new Float32Array(n*3);for(let i=0;i<n;i++)P.set([(Math.random()-.5)*26,Math.random()*7,(Math.random()-.5)*26],i*3);const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));
+    V3.ash=new T.Points(geo,new T.PointsMaterial({color:'#2a2724',size:.035,transparent:true,opacity:.7,depthWrite:false}));V3.scene.add(V3.ash);}
+  DS.nextRumble=performance.now()+6000+Math.random()*9000;}
+function dsFrame(now,dt){if(!V3.plumes)return;const tt=now/1000;const s=V3.cs;
+  for(const p of V3.plumes){const n=p.sp.length;for(let i=0;i<n;i++){const l=((tt*.045+p.ph)+i/n)%1;const o=p.sp[i];const w=l*l;
+      o.position.set(p.x+DS.wind[0]*l*60+Math.sin(tt*.25+p.ph+i)*.15*l,p.y0+l*p.h,p.z+DS.wind[1]*l*60);o.scale.setScalar((p.big?1.4:.6)*(.3+l*2.6));o.material.opacity=(p.big?.55:.5)*Math.sin(l*Math.PI)*(1-w*.4);}}
+  if(V3.ash){V3.ash.position.set(s.x,0,s.z);const a=V3.ash.geometry.attributes.position.array;for(let i=0;i<a.length;i+=3){a[i]+=DS.wind[0]*dt*4+Math.sin(tt+i)*dt*.1;a[i+1]-=dt*.12;a[i+2]+=DS.wind[1]*dt*4;if(a[i+1]<0)a[i+1]=7;if(a[i]>13)a[i]-=26;if(a[i+2]>13)a[i+2]-=26;}V3.ash.geometry.attributes.position.needsUpdate=true;}
+  if(DS.nextRumble&&now>DS.nextRumble&&G&&!G.paused){DS.nextRumble=now+8000+Math.random()*16000;if(typeof sfx==='function')sfx('boom',.22);V3.shake=Math.max(V3.shake,.02);}}
 
 /* ---- 07h-heli.js ---- */
 /* ===================== 수송 헬기 연출 =====================
@@ -1560,36 +1595,66 @@ function v3ModMats(){if(V3.mm)return V3.mm;const T=V3.T;
 function v3Prism(pts,w){const T=V3.T;const s=new T.Shape();pts.forEach(([x,y],i)=>i?s.lineTo(x,y):s.moveTo(x,y));s.closePath();
   const g=new T.ExtrudeGeometry(s,{depth:w,bevelEnabled:false});g.translate(0,0,-w/2);return g;}
 
-/* ---------- 병사 ---------- */
-function v3SoldierM(n,kind){const T=V3.T,mm=v3ModMats();
-  const sg=V3.sgm||(V3.sgm={
-    leg:new T.BoxGeometry(.016,.062,.018).translate(0,-.031,0),
-    torso:new T.BoxGeometry(.04,.056,.03),
-    plate:new T.BoxGeometry(.05,.046,.036),             // 앞뒤 판과 옆 커머번드를 한 덩어리로
-    pouch:new T.BoxGeometry(.012,.014,.03),             // 앞판 탄창 주머니 줄
-    head:new T.SphereGeometry(.014,8,6),
-    helm:new T.SphereGeometry(.018,8,5,0,Math.PI*2,0,Math.PI*.42),
-    nvg:new T.BoxGeometry(.008,.01,.012),
-    rifle:new T.BoxGeometry(.07,.009,.008),
-    optic:new T.BoxGeometry(.016,.007,.006),
-    mag:new T.BoxGeometry(.008,.014,.006),
-    pack:new T.BoxGeometry(.022,.036,.026),
-    tube:new T.CylinderGeometry(.009,.009,.1,6).rotateZ(Math.PI/2),
-    bipod:new T.BoxGeometry(.004,.016,.004),
-    tape:new T.BoxGeometry(.012,.008,.008),
-  });
-  const um=v3CamoMat(n,'inf'),dk=mm.gear,sk=V3.skin||(V3.skin=new T.MeshStandardMaterial({color:'#b89878',roughness:.9}));
-  const g=new T.Group();const mk=(geo,mat,x,y,z,sh=true)=>{const m=new T.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=sh;g.add(m);return m;};
-  const legL=mk(sg.leg,um,0,.064,-.011),legR=mk(sg.leg,um,0,.064,.011);
-  const tor=mk(sg.torso,um,0,.092,0);
-  mk(sg.plate,mm.plate,.001,.096,0);mk(sg.pouch,mm.plate,.027,.088,0,false);
-  mk(sg.tape,v3TapeMat(n),0,.108,-.026,false);mk(sg.tape,v3TapeMat(n),0,.108,.026,false);mk(sg.head,sk,.002,.134,0);mk(sg.helm,um,0,.137,0);mk(sg.nvg,dk,.016,.141,0,false);
-  if(kind!=='sniper')mk(sg.pack,mm.plate,-.034,.1,0);
-  const gun=mk(sg.rifle,dk,.032,.097,.022);mk(sg.optic,dk,.03,.105,.022,false);mk(sg.mag,dk,.03,.087,.022,false);
-  if(kind==='at')mk(sg.tube,um,-.01,.124,-.016);
-  if(kind==='sniper'){gun.scale.x=1.6;gun.position.x=.042;}
-  if(kind==='mg'){gun.scale.set(1.25,1.6,1.5);mk(sg.bipod,dk,.07,.088,.022,false);}
-  g.userData={legL,legR,tor};return g;}
+/* ---------- 병사 ----------
+   영화 Civil War(2024)처럼: 정규군(짝수 세력)은 같은 군복과 헬멧, 민병대(홀수 세력)는 청바지·후드·야구모자 위에
+   플레이트캐리어를 걸친 제각각 차림. 병사마다 머리·조끼·배낭·총이 조금씩 다르고, 분대장은 무전기 안테나를 단다.
+   다리 둘(걸음 흔들림)을 빼면 몸 전체를 정점 색을 쓴 형상 하나로 합쳐서, 인원이 많아도 그리기 부담이 작다. */
+Object.assign(SQUAD,{rifle:9,mg:6,at:4,sniper:2,eng:6,mortar:5});
+const SOL={
+  reg:{top:['#6f6a55','#726b55','#6a6650'],pants:['#69634e','#6d6651'],plate:['#7a6a50','#6c6248','#5c5a46'],head:['helm','helm','helm','helm','helm','boonie']},
+  mil:{top:['#4a4a46','#2f3a2e','#5a5040','#3a3f4a','#6f6a55','#55493b','#2c2c2b','#6b6b66'],pants:['#3c4656','#7a6e55','#2a2a2a','#69634e','#4d4a42'],
+       plate:['#2a2a28','#7a6a50','#4a5040','#3a3a36'],head:['cap','cap','cap','helm','helm','helm','beanie','boonie','bare']},
+};
+const SKIN=['#c9a184','#b08466','#8a6248','#d5b195','#6e4b36'];
+function v3PartsGeo(parts){const T=V3.T;const P=[],Nn=[],C=[];const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),v=new T.Vector3(),sc=new T.Vector3(),col=new T.Color();
+  for(const p of parts){const g=p.g.index?p.g.toNonIndexed():p.g.clone();e.set(p.rx||0,p.ry||0,p.rz||0);q.setFromEuler(e);v.set(p.x||0,p.y||0,p.z||0);sc.set(p.sx||1,p.sy||1,p.sz||1);m4.compose(v,q,sc);g.applyMatrix4(m4);
+    col.set(p.c);const pa=g.attributes.position.array,na=g.attributes.normal.array;for(let i=0;i<pa.length;i++){P.push(pa[i]);Nn.push(na[i]);}for(let i=0;i<pa.length/3;i++)C.push(col.r,col.g,col.b);g.dispose();}
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('normal',new T.Float32BufferAttribute(Nn,3));geo.setAttribute('color',new T.Float32BufferAttribute(C,3));return geo;}
+function v3SoldierM(n,kind){const T=V3.T;
+  const B=(w,h,d)=>new T.BoxGeometry(w,h,d),pick=(a)=>a[Math.floor(Math.random()*a.length)];
+  const st=n%2?SOL.mil:SOL.reg;const top=pick(st.top),pants=pick(st.pants),plate=pick(st.plate),skin=pick(SKIN);
+  let head=pick(st.head);if(kind==='sniper')head=Math.random()<.6?'boonie':head;
+  const radio=kind!=='rifle'&&kind!=='sniper'?Math.random()<.5:Math.random()<.14;
+  const pack=kind==='eng'||kind==='mortar'?'big':kind==='sniper'?'none':pick(['small','small','big','none']);
+  const gunT=kind==='mg'?'mg':kind==='sniper'?'dmr':n%2&&Math.random()<.2?'ak':'m4';
+  const vkey=[n%2,kind,top,pants,plate,skin,head,radio,pack,gunT].join('|');
+  V3.solG=V3.solG||new Map();let G1=V3.solG.get(vkey);
+  if(!G1){const tape=TAPE[n]||'#ccc',dk='#262624',hc=head==='helm'?(n%2?pick(['#6c6550','#3c3d36','#7a6e55']):'#6a6550'):head==='cap'?pick(['#2a2a2a','#7a6e55','#4a4a40','#5a2a24']):head==='beanie'?pick(['#2c2c2c','#4a4a3e']):'#6f6a55';
+    const L=[
+      {g:B(.04,.056,.034),y:.092,c:top},                                   // 몸통
+      {g:B(.05,.048,.044),y:.096,x:.001,c:plate},                          // 플레이트캐리어 (어깨가 넓어 보이게)
+      {g:B(.012,.016,.034),y:.086,x:.027,c:plate},                         // 앞 탄창 주머니
+      {g:B(.016,.012,.03),y:.071,x:0,c:pants},                             // 허리·벨트
+      {g:B(.012,.008,.009),y:.107,z:-.027,c:tape},{g:B(.012,.008,.009),y:.107,z:.027,c:tape},  // 팔의 색 테이프
+      // 팔: 어깨에서 앞으로 뻗어 총을 잡는다
+      {g:B(.034,.012,.012),x:.016,y:.102,z:-.024,ry:-.35,rz:-.35,c:top},
+      {g:B(.034,.012,.012),x:.02,y:.1,z:.024,ry:.45,rz:-.25,c:top},
+      {g:new T.SphereGeometry(.0135,7,5),x:.002,y:.133,c:skin},            // 머리
+    ];
+    if(head==='helm'){L.push({g:new T.SphereGeometry(.0175,8,5,0,Math.PI*2,0,Math.PI*.45),y:.135,c:hc});if(!(n%2)||Math.random()<.4)L.push({g:B(.007,.009,.011),x:.016,y:.14,c:dk});}
+    else if(head==='boonie'){L.push({g:new T.CylinderGeometry(.013,.015,.011,8),y:.143,c:hc},{g:new T.CylinderGeometry(.026,.026,.002,10),y:.138,c:hc});}
+    else if(head==='cap'){L.push({g:new T.SphereGeometry(.0145,8,4,0,Math.PI*2,0,Math.PI*.5),y:.136,c:hc},{g:B(.014,.002,.016),x:.016,y:.137,c:hc},{g:B(.004,.008,.03),y:.133,c:dk});}// 모자 + 귀마개 헤드셋
+    else if(head==='beanie')L.push({g:new T.SphereGeometry(.015,8,4,0,Math.PI*2,0,Math.PI*.55),y:.135,c:hc});
+    else L.push({g:B(.004,.01,.032),y:.134,c:dk});                       // 맨머리 + 헤드셋
+    if(pack==='small')L.push({g:B(.018,.03,.026),x:-.032,y:.1,c:plate});
+    if(pack==='big')L.push({g:B(.026,.046,.032),x:-.036,y:.1,c:n%2?pick(['#3a3a34','#4a5040','#5a5040']):'#5d5644'});
+    if(radio)L.push({g:B(.012,.02,.014),x:-.03,y:.118,z:.01,c:dk},{g:B(.0015,.08,.0015),x:-.032,y:.165,z:.012,rz:.12,c:dk});
+    // 총: 몸 앞에 비스듬히 든 자세
+    const gx=.034,gy=.098,gz=.008,ry=.25;
+    if(gunT==='mg')L.push({g:B(.09,.016,.012),x:gx+.006,y:gy,z:gz,ry,c:dk},{g:B(.016,.02,.016),x:gx-.004,y:gy-.014,z:gz,ry,c:'#4a4a40'});
+    else if(gunT==='dmr')L.push({g:B(.11,.009,.008),x:gx+.012,y:gy,z:gz,ry,c:dk},{g:B(.024,.008,.007),x:gx,y:gy+.008,z:gz,ry,c:dk});
+    else L.push({g:B(.07,.009,.008),x:gx,y:gy,z:gz,ry,c:gunT==='ak'?'#4a3a2a':dk},{g:B(.016,.007,.006),x:gx-.002,y:gy+.008,z:gz,ry,c:dk},{g:B(.008,.016,.006),x:gx+.004,y:gy-.011,z:gz,ry,rz:gunT==='ak'?.4:0,c:dk});
+    if(kind==='at')L.push({g:new T.CylinderGeometry(.009,.009,.1,6),x:-.03,y:.122,z:-.012,rz:Math.PI/2-.35,c:n%2?'#4a5040':'#6b6650'});
+    if(kind==='mortar'&&Math.random()<.5)L.push({g:new T.CylinderGeometry(.007,.007,.07,6),x:-.034,y:.13,rz:.3,c:'#3d4246'});
+    G1=v3PartsGeo(L);V3.solG.set(vkey,G1);}
+  const bodyM=V3.solM||(V3.solM=new T.MeshStandardMaterial({vertexColors:true,roughness:.88,flatShading:true}));
+  const lg=V3.solLeg||(V3.solLeg=B(.016,.064,.019).translate(0,-.032,0));
+  const pid='pl'+pants;if(!V3.matc.has(pid))V3.matc.set(pid,new T.MeshStandardMaterial({color:pants,roughness:.9,flatShading:true}));const pm=V3.matc.get(pid);
+  const g=new T.Group();const body=new T.Mesh(G1,bodyM);body.castShadow=true;g.add(body);
+  const legL=new T.Mesh(lg,pm),legR=new T.Mesh(lg,pm);legL.position.set(0,.066,-.011);legR.position.set(0,.066,.011);legL.castShadow=legR.castShadow=true;g.add(legL,legR);
+  const sz=.96+Math.random()*.1;g.scale.setScalar(sz);
+  body.userData.keepGeo=1;legL.userData.keepGeo=1;legR.userData.keepGeo=1;
+  g.userData={legL,legR,tor:body};return g;}
 
 /* ---------- 차량 ---------- */
 /* 실제 군 장비 색(스타일 가이드): 양쪽 모두 바랜 올리브·황토. 세력은 발밑 표식과 팔의 색 테이프로 구분 */
@@ -1598,7 +1663,9 @@ function v3TapeMat(n){const id='tp'+n;if(!V3.matc.has(id))V3.matc.set(id,new V3.
 function v3CamoMat(n,kind){const id='cm'+kind+n;if(!V3.matc.has(id)){const T=V3.T;const base=kind==='veh'?(n%2?'#8d8268':'#55584a'):(n%2?'#7c735c':'#6f6a55');
     const col=new T.Color(base).lerp(new T.Color(MAPCOL[n]),.05);V3.matc.set(id,new T.MeshStandardMaterial({color:col,roughness:.85,metalness:kind==='veh'?.15:0,flatShading:true}));}
   return V3.matc.get(id);}
-function v3VehicleM(ty,g,n){const T=V3.T;V3.vehT=V3.vehT||{};const body=v3CamoMat(n,'veh');
+function v3VehicleM(ty,g,n){const T=V3.T;V3.vehT=V3.vehT||{};let body=v3CamoMat(n,'veh');
+  // 민병대(홀수 세력)의 험비 자리는 짐칸에 기관총을 올린 민간 픽업(테크니컬)
+  if(ty==='hmv'&&n%2){ty='tech';const id='tech'+n;if(!V3.matc.has(id))V3.matc.set(id,new T.MeshStandardMaterial({color:['#b8b09c','#3a3a38','#8c8270','#d0ccc2'][n%4],roughness:.6,metalness:.25,flatShading:true}));body=V3.matc.get(id);}
   if(!V3.vehT[ty])V3.vehT[ty]=v3VehBuild(ty);
   const src=V3.vehT[ty];const c=src.clone(true);
   c.traverse(m=>{if(m.isMesh){if(m.userData.body)m.material=body;m.castShadow=true;m.receiveShadow=true;}});
@@ -1614,7 +1681,16 @@ function v3VehBuild(ty){const T=V3.T,mm=v3ModMats(),M=V3.M;const g=new T.Group()
   const tracks=(L,W,h,y)=>{for(const s of [-1,1]){B(L,h,W*.22,0,y,s*W*.39,mm.track);
       B(L*.9,h*.18,W*.24,0,y+h*.55,s*W*.39,0);}};// 궤도 위 펜더
   const m=MU;
-  if(ty==='hmv'){// 험비: 4.6×2.2×1.9m, 넓고 낮은 차체, 지붕 기관총 사수석
+  if(ty==='tech'){// 테크니컬: 픽업 차체 + 유리칸 + 짐칸 기관총(방패), 문짝에 흙먼지
+    const K=CAR_KINDS.pickup,sc=pts=>pts.map(([x,y])=>[x*m,y*m]);
+    P(sc(K.body),K.w*m,0,0,0);add(v3Prism(sc(K.cab),(K.w-.12)*m),mm.glass,0,0,0);
+    B(1.4*m,.06*m,(K.w-.3)*m,.4*m,1.88*m,0);                                                   // 지붕
+    for(const s of [-1,1])B(2.6*m,.35*m,.08*m,-1.5*m,1.3*m,s*(K.w/2-.05)*m);                  // 짐칸 옆판
+    for(const [x,z] of [[1.75,1],[1.75,-1],[-1.75,1],[-1.75,-1]])wheel(.4*m,.3*m,x*m,.4*m,z*.85*m);
+    const tur=new T.Group();tur.position.set(-1.6*m,1.15*m,0);tur.userData.turret=1;g.add(tur);
+    add(new T.CylinderGeometry(.08*m,.12*m,.9*m,6),M.steel,0,.45*m,0,tur);                     // 거치대
+    B(.06*m,.5*m,.9*m,.45*m,1.05*m,0,mm.slat,tur);gun(1.5*m,.06*m,.2*m,.95*m,0,tur);}
+  else if(ty==='hmv'){// 험비: 4.6×2.2×1.9m, 넓고 낮은 차체, 지붕 기관총 사수석
     P([[-2.3*m,.45*m],[1.7*m,.45*m],[2.3*m,.75*m],[2.3*m,1.05*m],[1.0*m,1.2*m],[-2.3*m,1.2*m]],2.15*m,0,0,0);
     P([[-1.4*m,1.2*m],[.95*m,1.2*m],[.7*m,1.85*m],[-1.4*m,1.85*m]],1.95*m,0,0,0);           // 승무원 칸
     B(.06*m,.5*m,1.7*m,.84*m,1.5*m,0,mm.glass).rotation.z=-.35;                           // 앞유리
