@@ -18,7 +18,7 @@ function v3FxBreach(a,P){if(typeof sfx==='function')sfx('launch',.8);if(!V3.on)r
     if(k-lastP>.12){lastP=k;dsDust(x,z,.18,2600,1,'#bdb5a8',y);}}});
   v3Burst(x1,y1,z1,.3,'#ffd27a',1,.6);dsDust(x1-(x2-x1)/d*.25,z1-(z2-z1)/d*.25,.5,3000,2,'#c9c1b3',y1);   // 뒤 폭풍
   setTimeout(()=>{if(!V3.on)return;const nx=P.side===1?1:P.side===3?-1:0,nz=P.side===2?1:P.side===0?-1:0;
-    v3Burst(x2+nx*.05,y2,z2+nz*.05,.9,'#ff9a40',3,1.8);v3Debris(x2+nx*.08,y2,z2+nz*.08,12,.9);dsSpray(x2+nx*.1,y2,z2+nz*.1,60,.6);dsDust(x2+nx*.2,z2+nz*.2,1,10000,6,'#a39a8c',y2);
+    v3Burst(x2+nx*.05,y2,z2+nz*.05,.9,'#ff9a40',3,1.8);v3Debris(x2+nx*.08,y2,z2+nz*.08,12,.9);dsSpray(x2+nx*.1,y2,z2+nz*.1,60,.6);dsDust(x2+nx*.2,z2+nz*.2,.6,7000,3,'#a39a8c',y2);
     dsScar('rubble',x2+nx*.18,z2+nz*.18,.16);V3.shake=Math.max(V3.shake,.08);if(typeof sfx==='function')sfx('boom',.7);},dur);}
 /* ---------- 매 화면 ---------- */
 function v3WarFrame(now,dt){if(!G)return;v3ShellsDraw();v3HolesSync();v3FiresDraw(now);}
@@ -51,12 +51,13 @@ function v3FireBuild(k){const T=V3.T;const r=kr(k),c=kc(k);const X=G.map[r][c];c
   for(let f=0;f<X.f;f++)for(const fc of faces){const o=(v3Hash(k,f*7+fc[2]*3+fc[3])-.5)*.5;const x=fc[0]!=null?fc[0]:c+.5+o,z=fc[1]!=null?fc[1]:r+.5+o;
     const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:v3Hash(k,f+40)<.4?'#ffd27a':'#ff7a24',blending:T.AdditiveBlending,transparent:true,depthWrite:false,opacity:0}));s.position.set(x,v3H(f+.45),z);g.add(s);F.push({s,f,ph:v3Hash(k,f+60)*20});}
   const S=[];const top=v3H(X.f);for(let i=0;i<10;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%3?'#26221f':'#3a332d',transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*6.28}));g.add(s);S.push({s,ph:i/10});}
-  const light=new T.PointLight('#ff7a2a',0,2.2,2);light.position.set(c+.5,top*.5,r+.5);g.add(light);
+  // 불빛: 조명을 늘리면 모든 재질이 다시 컴파일되므로 큰 가산 스프라이트로 대신한다
+  const light=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#ff7a2a',blending:T.AdditiveBlending,transparent:true,depthWrite:false,opacity:0}));light.position.set(c+.5,top*.6,r+.5);light.scale.setScalar(1.6);g.add(light);
   V3.scene.add(g);return {g,F,S,top,x:c+.5,z:r+.5,light};}
 function v3FiresDraw(now){V3.fireO=V3.fireO||new Map();const want=new Set(G.fires||[]);
   for(const [k,o] of V3.fireO){const X=G.map[kr(k)][kc(k)];if(!want.has(k)||X.t!=='bldg'||V3.fireSeed!==V3.seed){V3.scene.remove(o.g);o.g.traverse(q=>{if(q.material)q.material.dispose();});V3.fireO.delete(k);}}
   V3.fireSeed=V3.seed;const t=now/1000;
   for(const k of want){let o=V3.fireO.get(k);if(!o){o=v3FireBuild(k);V3.fireO.set(k,o);}const X=G.map[kr(k)][kc(k)];const I=X.fire||0;
-    for(const f of o.F){const on=f.f<=(X.fireFl||0)+.3;const fl=.7+Math.sin(t*15+f.ph)*.2+Math.sin(t*8.7+f.ph*2)*.1;const sz=.12+.1*I;f.s.material.opacity=on?.9*fl*Math.min(1,I*1.6):0;f.s.scale.set(sz*fl,sz*fl*1.5,1);}
+    for(const f of o.F){const on=f.f<=(X.fireFl||0)+.3;const fl=.7+Math.sin(t*15+f.ph)*.2+Math.sin(t*8.7+f.ph*2)*.1;const sz=.16+.12*I;f.s.material.opacity=on?.9*fl*Math.min(1,I*1.6):0;f.s.scale.set(sz*fl,sz*fl*1.5,1);}
     for(const p of o.S){const l=(t*.12+p.ph)%1;p.s.position.set(o.x+DS.wind[0]*l*40+Math.sin(t*.4+p.ph*9)*.1,o.top+l*3.2,o.z+DS.wind[1]*l*40);p.s.scale.setScalar(.3+l*1.6);p.s.material.opacity=.6*I*Math.sin(l*Math.PI);}
-    o.light.intensity=1.2*I*(.8+Math.sin(t*11)*.2);}}
+    o.light.material.opacity=.22*I*(.8+Math.sin(t*11)*.2);}}
