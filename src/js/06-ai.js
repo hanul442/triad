@@ -46,7 +46,7 @@ function aiThink(n){const N2=G.nats[n];
       if(!buy(n,pick,kr(sp[0]),kc(sp[0])))break;}}
   // 부대 기동: 가는 중이면 대개 그대로 두고, 멈춘 부대는 다음 자리를 고른다
   const E=vis();
-  for(const u of G.units){if(u.nat!==n)continue;const t=UT[u.type];
+  for(const u of G.units){if(u.nat!==n||u.job)continue;const t=UT[u.type];
     if(u.path&&u.path.length&&Math.random()<.75)continue;
     if(t.ind&&E.some(e=>canHit(u,e))&&Math.random()<.85)continue; // 곡사: 쏠 수 있으면 자리 지킴
     const goal=aiGoal(n,u,E);const R=reach(u);let bestT=key(u.r,u.c),bestS=-1e9;
@@ -54,5 +54,6 @@ function aiThink(n){const N2=G.nats[n];
       if(!t.ind)for(const e of E){if(dist(r,c,e.r,e.c)>t.rng[1])continue;const v=aiAtkScore(u,e,r,c,true);if(v>as)as=v;}
       else if(k!==key(u.r,u.c))s-=3;
       s+=as*.8;if(k===key(u.r,u.c))s+=1.5;if(s>bestS){bestS=s;bestT=k;}}
-    if(bestT!==key(u.r,u.c)){const [jx,jz]=coverSnap(u,kc(bestT)+.2+Math.random()*.6,kr(bestT)+.2+Math.random()*.6);u.path=pathPts(u,jx,jz);u.tgt=null;}}
+    if(bestT!==key(u.r,u.c)){const [jx,jz]=coverSnap(u,kc(bestT)+.2+Math.random()*.6,kr(bestT)+.2+Math.random()*.6);u.path=pathPts(u,jx,jz);u.tgt=null;u.dest=null;}}
+  if(typeof aiFort==='function')aiFort(n);
   checkOver();}

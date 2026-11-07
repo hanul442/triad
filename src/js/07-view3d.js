@@ -485,7 +485,7 @@ function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}
-  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);
+  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof v3FortFrame==='function')v3FortFrame();
   for(const o of V3.G.sites.children)if(o.userData.flag)o.rotation.y=Math.sin(now/700+o.position.x)*.25;
   const tt=now/1000;for(const sp of V3.smoke){if(sp.kind==='fire'){const f=.75+Math.sin(tt*13+sp.ph*20)*.15+Math.sin(tt*7.3)*.1;sp.o.position.set(sp.x,sp.y+.15,sp.z);sp.o.scale.setScalar(.45*f);sp.o.material.opacity=.75*f;continue;}
     if(sp.kind==='screen'){const l=(tt*.08+sp.ph)%1;sp.o.position.set(sp.x+Math.sin(tt*.3+sp.ph*9)*.15,.4+l*.8,sp.z);sp.o.scale.setScalar(1.5+l*.6);sp.o.material.opacity=.75*Math.sin(l*Math.PI)+.15;continue;}

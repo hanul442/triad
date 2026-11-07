@@ -19,7 +19,7 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
 /* ---------- 전투 ---------- */
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
 function damageBldg(r,c,amt){const x=G.map[r][c];if(x.t!=='bldg'||amt<=0)return;x.bhp-=amt;bump();
-  if(x.bhp<=0){const f0=x.f;x.t='rubble';x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom');L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
+  if(x.bhp<=0){const f0=x.f;x.t='rubble';G.navV=(G.navV||0)+1;x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom');L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
     const u=unitAt(r,c);if(u){u.hp-=5;u.supp=2;if(u.hp<=0)kill(u,null);}}}
 function kill(u,by){FXH.kill(u);G.units=G.units.filter(x=>x!==u);bump();const N2=G.nats[u.nat];N2.losses++;if(by){G.nats[by.nat].kills++;by.kills=(by.kills||0)+1;by.rank=Math.min(2,Math.floor(by.kills/2));}
   L(`${natName(u.nat)} ${UT[u.type].n} 격파`);if(UI.sel===u)UI.sel=null;}
@@ -62,4 +62,5 @@ function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
     const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.hp-=d;u.supp=2;if(u.hp<=0)kill(u,null);}
     if(x.t==='bldg'){damageBldg(a,b,kind==='air'?24:(ctr?9:6));if(kind==='air'&&typeof ignite==='function')ignite(a,b,ctr?.8:.35);}}
+  if(typeof fortBlast==='function')fortBlast(c+.5,r+.5,kind==='air'?.7:1.5,kind==='air'?90:24);
   bump();return true;}
