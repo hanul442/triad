@@ -266,3 +266,19 @@ test('차량과 소품도 엄폐가 되고, 이동 명령은 근처 엄폐 자�
   const [x, z] = T.__get('coverSnap')(u, 5.5, 5.75);
   assert.ok(Math.hypot(x - 5.15, z - 5.5) < Math.hypot(5.5 - 5.15, 5.75 - 5.5) + 1e-9, '엄폐물 쪽으로 붙음');
 });
+
+test('헬기 투입: 보이는 빈 도로에 요청하면 몇 초 뒤 소총분대가 생긴다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', diff: 'normal', fog: false, speed: 0, seed: 11 });
+  const G = T.G; G.nats[0].cp = 20;
+  let spot = null;
+  for (let r = 0; r < T.N && !spot; r++) for (let c = 0; c < T.N; c++) { const x = T.cell(r, c); if (x.t === 'road' && T.visSet(0).has(T.key(r, c)) && !G.units.some(u => Math.floor(u.z) === r && Math.floor(u.x) === c)) { spot = [r, c]; break; } }
+  const before = G.units.filter(u => u.nat === 0).length;
+  assert.ok(T.canSupport(0, 'heli', spot[0], spot[1]));
+  assert.ok(T.support(0, 'heli', spot[0], spot[1]));
+  assert.equal(G.units.filter(u => u.nat === 0).length, before, '착지 전에는 부대가 없다');
+  for (let i = 0; i < 70; i++) T.rtTick(0.1);
+  const landed = G.units.filter(u => u.nat === 0 && u.type === 'rifle' && u.r === spot[0] && u.c === spot[1]);
+  assert.equal(landed.length, 1);
+  assert.ok(!T.canSupport(0, 'heli', 5, 5) || T.cell(5, 5).t !== 'bldg', '건물 위에는 내릴 수 없다');
+});

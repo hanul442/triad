@@ -89,6 +89,7 @@ function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue
   G.hist.push(G.order.map(k=>G.nats[k].vp));bump();save();}
 function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   while(G.time>=G.turn*ROUND_S&&!G.over)rtRound();
+  if(typeof heliTick==='function')heliTick();
   for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
   rtSeparate(dt);
   for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;

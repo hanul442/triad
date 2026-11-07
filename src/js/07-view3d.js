@@ -8,7 +8,7 @@ function v3Supported(){try{const c=document.createElement('canvas');return !!(wi
 async function startView(){if(V3.on||V3.busy)return;if(!v3Supported()){v3Fail('이 기기나 브라우저는 3D(WebGL)를 지원하지 않습니다.');return;}
   V3.busy=true;const T=await v3Load();V3.busy=false;if(!T){v3Fail('3D 엔진을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 새로고침하세요.');return;}
   v3Init();V3.on=true;v3Size();
-  Object.assign(FXH,{fire:v3FxFire,kill:v3FxKill,collapse:v3FxCollapse,strike:v3FxStrike});
+  Object.assign(FXH,{fire:v3FxFire,kill:v3FxKill,collapse:v3FxCollapse,strike:v3FxStrike,land:v3FxLand});
   if(G){v3Sync();v3HomeCam(true);}requestAnimationFrame(v3Frame);}
 function v3Fail(m){const el=$('#v3d-err');if(el){el.textContent=m;el.hidden=false;}}
 
@@ -105,10 +105,10 @@ function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,las
     if(P.size===1){start={p:pos(e),t:performance.now()};moved=0;multi=false;}else{multi=true;last2=null;}});
   cv.addEventListener('pointermove',e=>{const q=P.get(e.pointerId);if(!q){if(e.pointerType==='mouse')v3Hover(e);return;}
     const np=pos(e),dx=np[0]-q.p[0],dy=np[1]-q.p[1];q.p=np;moved+=Math.abs(dx)+Math.abs(dy);
-    if(P.size===1){if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.3,s.pitch+dy*.005));}else v3Pan(dx,dy);}
+    if(P.size===1){if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}else v3Pan(dx,dy);}
     else if(P.size===2){const [a,b]=[...P.values()];const mx=(a.p[0]+b.p[0])/2,my=(a.p[1]+b.p[1])/2,dd=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]),an=Math.atan2(b.p[1]-a.p[1],b.p[0]-a.p[0]);
       if(last2){const s=V3.cs;const pinch=Math.abs(dd-last2.dd)>1.5;let da=an-last2.an;if(da>Math.PI)da-=2*Math.PI;if(da<-Math.PI)da+=2*Math.PI;
-        if(!pinch&&Math.abs(da)<.01)s.pitch=Math.min(1.5,Math.max(.3,s.pitch+(my-last2.my)*.005));else v3Pan(mx-last2.mx,my-last2.my);
+        if(!pinch&&Math.abs(da)<.01)s.pitch=Math.min(1.5,Math.max(.2,s.pitch+(my-last2.my)*.005));else v3Pan(mx-last2.mx,my-last2.my);
         s.gd=Math.min(48,Math.max(4,s.gd*last2.dd/Math.max(10,dd)));s.d=s.gd;s.gyaw-=da;s.yaw=s.gyaw;}
       last2={mx,my,dd,an};}});
   const up=e=>{const had=P.has(e.pointerId);P.delete(e.pointerId);if(P.size<2)last2=null;
@@ -118,7 +118,7 @@ function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,las
   cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&UI.hk!=null){UI.hk=null;v3SyncHl();}});
   cv.addEventListener('wheel',e=>{e.preventDefault();v3Zoom(Math.exp(e.deltaY*.0012));},{passive:false});
   document.addEventListener('keydown',e=>{if(!V3.on||e.target.closest('input,select,textarea'))return;const k=e.key.toLowerCase();
-    if(k==='q')v3Rot(1);else if(k==='e')v3Rot(-1);else if(k==='r')V3.cs.pitch=Math.min(1.5,V3.cs.pitch+.12);else if(k==='f')V3.cs.pitch=Math.max(.3,V3.cs.pitch-.12);
+    if(k==='q')v3Rot(1);else if(k==='e')v3Rot(-1);else if(k==='r')V3.cs.pitch=Math.min(1.5,V3.cs.pitch+.12);else if(k==='f')V3.cs.pitch=Math.max(.2,V3.cs.pitch-.12);
     else if(k==='w'||k==='arrowup')v3Pan(0,60);else if(k==='s'||k==='arrowdown')v3Pan(0,-60);else if(k==='a'||k==='arrowleft')v3Pan(60,0);else if(k==='d'||k==='arrowright')v3Pan(-60,0);});}
 function v3Ray(cx,cy){const T=V3.T,rc=V3.ray||(V3.ray=new T.Raycaster());const b=V3.cv.getBoundingClientRect();rc.setFromCamera(new T.Vector2((cx-b.left)/b.width*2-1,-(cy-b.top)/b.height*2+1),V3.cam);return rc;}
 /* 화면 지점 → 칸 키. 부가로 V3.pickPt(땅 위 정확한 지점), V3.pickId(탭한 부대)를 남긴다. 작은 병사도 잘 집히게 가까운 부대를 찾아 준다. */
@@ -252,7 +252,7 @@ function v3Soldier(n,kind){if(typeof v3SoldierM==='function')return v3SoldierM(n
   const tor=mk(sg.torso,um,0,.09,0);mk(sg.head,sk,.002,.134,0);mk(sg.helm,um,0,.137,0);mk(sg.pack,um,-.022,.094,0);
   const gun=mk(sg.gun,dk,.03,.095,.02);if(kind==='at')mk(sg.tube,um,0,.12,-.018);if(kind==='sniper'){gun.scale.x=1.5;}if(kind==='mg'){gun.scale.set(1.2,1.6,1.4);}
   g.userData={legL,legR,tor};return g;}
-const SQUAD={rifle:6,mg:4,at:4,sniper:2,eng:4,mortar:3};
+const SQUAD={rifle:8,mg:5,at:4,sniper:2,eng:5,mortar:4};
 function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v3BodyMat(u.nat,false);const M=V3.M;const ty=u.type;
   const B=(w,h,d,x,y,z,mat,par)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat||body);m.position.set(x,y,z);m.castShadow=true;(par||g).add(m);return m;};
   const Cy=(r1,r2,h,x,y,z,rz,mat,par)=>{const m=new T.Mesh(new T.CylinderGeometry(r1,r2,h,8),mat||body);m.position.set(x,y,z);if(rz)m.rotation.z=rz;m.castShadow=true;(par||g).add(m);return m;};
@@ -278,7 +278,7 @@ function v3UnitY(u){if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);retu
 function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;const c=v3Soldier(nat,'rifle');c.position.set(s.wx,o.position.y,s.wz);c.rotation.set(0,Math.random()*6.28,0);
   c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;const wrap=new T.Group();wrap.position.copy(c.position);c.position.set(0,0,0);wrap.add(c);c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;
   wrap.traverse(m=>{if(m.isMesh){m.material=V3.corpseM||(V3.corpseM=new T.MeshStandardMaterial({color:'#4a463e',roughness:1}));m.userData.keepMat=1;m.userData.keepGeo=1;}});wrap.userData.keepGeo=1;wrap.userData.keepMat=1;
-  V3.G.fx.add(wrap);V3.fx.push({o:wrap,t0:performance.now(),dur:120000,upd:()=>{}});s.m.visible=false;}
+  V3.G.fx.add(wrap);V3.fx.push({o:wrap,t0:performance.now(),dur:120000,upd:()=>{}});s.m.visible=false;if(typeof dsScar==='function')dsScar('blood',s.wx,s.wz,.07);}
 function v3SyncUnits(vs,vn){const keep=new Set();
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;keep.add(u.id);let o=V3.uo.get(u.id);
     if(!o){o=v3Model(u);o.position.set(u.x,v3UnitY(u),u.z);V3.G.units.add(o);V3.uo.set(u.id,o);}
@@ -364,7 +364,7 @@ function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
   for(const [id,o] of V3.labels)if(!want.has(id)){o.el.remove();V3.labels.delete(id);}
   for(const [id,w] of want){let o=V3.labels.get(id);if(!o){const el=document.createElement('div');el.className='v3l '+w.cls;lab.appendChild(el);o={el};V3.labels.set(id,o);}
     if(o.html!==w.html){o.el.innerHTML=w.html;o.html=w.html;}o.el.style.setProperty('--c',w.col);o.p=w.p;o.uid=w.uid;}}
-function v3PlaceLabels(){const v=V3.tmpV||(V3.tmpV=new V3.T.Vector3());const w=V3.cv.clientWidth,h=V3.cv.clientHeight;const far=V3.cs.d>30;
+function v3PlaceLabels(){const v=V3.tmpV||(V3.tmpV=new V3.T.Vector3());const w=V3.cv.clientWidth,h=V3.cv.clientHeight;const far=V3.cs.d>30||V3.cine;
   for(const o of V3.labels.values()){let p=o.p;if(o.uid!=null){const uo=V3.uo.get(o.uid);if(!uo||far){o.el.style.display='none';continue;}p=[uo.position.x,uo.position.y+(uo.userData.air?.25:.45),uo.position.z];}
     v.set(p[0],p[1],p[2]).project(V3.cam);if(v.z>1||v.x<-1.1||v.x>1.1||v.y<-1.1||v.y>1.1){o.el.style.display='none';continue;}o.el.style.display='';
     o.el.style.transform=`translate(${((v.x+1)/2*w).toFixed(1)}px,${((1-v.y)/2*h).toFixed(1)}px) translate(-50%,-50%)`;}}
@@ -405,7 +405,7 @@ function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);
     V3.fx.push({o:s,t0:performance.now()+300+i*30,dur:12000,upd:(o,k)=>{const e=1-Math.pow(1-k,2.6);o.position.set(x+Math.cos(a)*sp*e+DS.wind[0]*k*12,y0+e*1.4,z+Math.sin(a)*sp*e);o.scale.setScalar(1+e*5);o.material.opacity=.8*(1-k)*(k<.06?k/.06:1);}});}
   v3Debris(x,h*.5,z,26,1.4);dsSpray(x,h*.4,z,160,1.5);dsScar('rubble',x,z,.9);
   setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,3.4,30000,40);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sfx==='function')sfx('boom');},700);}
-function v3FxStrike(kind,r,c){if(!V3.on)return;const [x,z]=v3x(r,c);
+function v3FxStrike(kind,r,c,n){if(!V3.on)return;const [x,z]=v3x(r,c);if(kind==='heli'){v3Heli(r,c,n);return;}
   if(kind==='smoke'){for(let i=0;i<9;i++)v3Burst(x+(Math.random()-.5)*2.4,.3,z+(Math.random()-.5)*2.4,1.2,'#d6d3c8',2,0);return;}
   if(kind==='air'){const T=V3.T;const jet=new T.Mesh(new T.ConeGeometry(.12,.7,6),V3.M.dark);jet.rotation.z=-Math.PI/2;V3.G.fx.add(jet);
     V3.fx.push({o:jet,t0:performance.now(),dur:900,upd:(o,k)=>{o.position.set(x-14+k*28,5.5-Math.sin(k*Math.PI)*1.5,z-3+k*6);}});

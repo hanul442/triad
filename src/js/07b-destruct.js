@@ -22,6 +22,8 @@ function dsDraw(sc){const g=V3.gctx,P=V3.gP;if(!g)return;const R=mulberry(sc.s);
   else if(sc.k==='rubble'){// 무너진 자리: 회색 콘크리트 가루와 검은 균열
     for(let i=0;i<60;i++){const a=R()*6.283,d=Math.pow(R(),.7)*rr;g.fillStyle=R()<.6?`rgba(150,144,132,${.3+R()*.4})`:`rgba(18,16,14,${.3+R()*.4})`;const s=1+R()*4;g.fillRect(Math.cos(a)*d,Math.sin(a)*d,s,s*.7);}
     g.strokeStyle='rgba(10,9,8,.55)';g.lineWidth=1.2;for(let i=0;i<5;i++){g.beginPath();let x=(R()-.5)*rr,y=(R()-.5)*rr;g.moveTo(x,y);for(let j=0;j<5;j++){x+=(R()-.5)*rr*.5;y+=(R()-.5)*rr*.5;g.lineTo(x,y);}g.stroke();}}
+  else if(sc.k==='blood'){// 쓰러진 자리: 검붉은 얼룩
+    g.fillStyle=`rgba(72,16,12,${.5+R()*.3})`;for(let i=0;i<9;i++){const a=R()*6.283,d=R()*rr*1.3;g.beginPath();g.arc(Math.cos(a)*d,Math.sin(a)*d,1+R()*rr*.6,0,7);g.fill();}}
   else if(sc.k==='tread'){// 차량 바퀴 자국·기름
     const gr=g.createRadialGradient(0,0,0,0,0,rr);gr.addColorStop(0,'rgba(6,6,8,.75)');gr.addColorStop(1,'rgba(6,6,8,0)');g.fillStyle=gr;g.beginPath();g.ellipse(0,0,rr,rr*.7,R()*3,0,7);g.fill();}
   g.restore();}
