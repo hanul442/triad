@@ -1,7 +1,7 @@
 /* ===================== 공중전 연출 =====================
    공격헬기·FPV 드론·대공포 차량 모형, 대공미사일과 플레어, 빗나가는 대공 사격, 격추되어 떨어지는 기체,
    전투기 진입과 폭탄, 전자전팀의 방해 반경 표시. 시간은 게임 시간(G.time)으로 재서 배속·일시정지를 따른다. */
-Object.assign(FXH,{jet:j=>v3Jet(j),jetDown:(j,x,z)=>{j.down=[x,z];},bomb:(r,c)=>v3Bomb(r,c),crash:cr=>v3Crash(cr),fpvBoom:(u,e)=>v3FpvBoom(u,e),aaShot:(e,j)=>v3AaAtJet(e,j)});
+Object.assign(FXH,{jet:j=>v3Jet(j),jetDown:(j,x,z)=>{j.down=[x,z];},bomb:(r,c)=>v3Bomb(r,c),crash:cr=>v3Crash(cr),fpvBoom:(u,e)=>v3FpvBoom(u,e),aaShot:(e,j)=>v3AaAtJet(e,j),launch:(u,f)=>v3Launch(u,f)});
 const AIRC={body:'#3d4038',dark:'#22231f'};
 function v3AirMats(){if(V3.airM)return V3.airM;const T=V3.T;
   V3.airM={body:new T.MeshStandardMaterial({color:AIRC.body,roughness:.75,metalness:.2,flatShading:true}),dark:V3.M.dark,glass:new T.MeshStandardMaterial({color:'#2b3a40',roughness:.2,metalness:.6}),
@@ -128,7 +128,7 @@ function v3FpvBoom(u,e){if(!V3.on)return;const o=V3.uo.get(e.id);const x=o?o.pos
   v3Burst(x,y,z,.9,'#ff8a3d',3,2.2);dsSpray(x,y,z,40,.6);dsScar('scorch',x,z,.12);dsDust(x,z,1,6000,4);V3.shake=Math.max(V3.shake,.08);sfx('boom',.6);}
 
 /* ---------- 매 프레임: 헬기 기울기, 플레어, 전파 방해 반경, 흔들리는 드론 ---------- */
-function v3AirFrame(now,dt){if(!G)return;const T=V3.T;v3Reticles(now);
+function v3AirFrame(now,dt){if(!G)return;const T=V3.T;v3Reticles(now);v3Links();
   for(const o of V3.uo.values()){const u=o.userData.u;if(!u)continue;const t=UT[u.type];
     if(t.heli){o.userData.body.rotation.z=-.14;if(u.flareT!=null&&o.userData.flT!==u.flareT){o.userData.flT=u.flareT;v3Flares(u);}}
     if(t.kami){o.userData.body.rotation.z=u.air&&u.air.dive?-.5:-.15;if(u.jam){o.userData.body.rotation.x=Math.sin(now/40)*.4;}else o.userData.body.rotation.x=0;}
@@ -146,3 +146,9 @@ function v3Reticles(now){const T=V3.T,vn=G.viewer;const want=[];
   V3.rets=V3.rets||[];while(V3.rets.length<want.length){const s=new T.Sprite(new T.SpriteMaterial({map:v3RetTex(),transparent:true,depthTest:false,depthWrite:false}));s.renderOrder=9;V3.G.fx.add(s);V3.rets.push(s);}
   V3.rets.forEach((s,i)=>{if(!s.parent)V3.G.fx.add(s);const w=want[i];if(!w){s.visible=false;return;}const o=V3.uo.get(w[0].id);if(!o){s.visible=false;return;}s.visible=true;
     const big=UT[w[0].type].cls==='veh'||UT[w[0].type].heli;const p=1+Math.sin(now/90)*.06;s.position.set(o.position.x,o.position.y+(UT[w[0].type].fly?0:.08),o.position.z);s.scale.setScalar((big?.75:.45)*p*(V3.cs.d/14));s.material.opacity=w[1];});}
+
+/* ---------- 드론팀: 이륙 먼지와 조종 신호선(아군만) ---------- */
+function v3Launch(u,f){if(!V3.on)return;const o=V3.uo.get(u.id);const x=o?o.position.x:u.x,z=o?o.position.z:u.z;dsDust(x,z,.35,1400,2,'#9c9283');}
+function v3Links(){const T=V3.T,vn=G.viewer;const L=[];for(const f of G.units){if(f.op==null||f.nat!==vn)continue;const a=V3.uo.get(f.op),b=V3.uo.get(f.id);if(a&&b)L.push(a.position.x,a.position.y+.12,a.position.z,b.position.x,b.position.y,b.position.z);}
+  let ln=V3.linkLn;if(!ln||!ln.parent){ln=V3.linkLn=new T.LineSegments(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#8dff6e',dashSize:.08,gapSize:.06,transparent:true,opacity:.45,depthWrite:false}));ln.userData.keepGeo=1;ln.renderOrder=7;V3.G.fx.add(ln);}
+  ln.geometry.setAttribute('position',new T.Float32BufferAttribute(L,3));ln.computeLineDistances();ln.visible=L.length>0;}

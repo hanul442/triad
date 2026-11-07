@@ -532,3 +532,14 @@ test('공중전: 전투기 폭격은 몇 초 뒤에 떨어지고, 공격헬기�
   T.__get('callGunship')(0, 6, 6); const g = G.units.find(u => u.type === 'gunship'); assert.ok(g);
   T.rtRun(70); assert.ok(!G.units.includes(g), '임무 시간이 끝나면 돌아감'); assert.equal(G.nats[0].losses, 0, '복귀는 손실이 아님');
 });
+
+test('드론팀: 차량에서 내리고, 멈춰서 FPV를 띄우며, 조종수가 쓰러지면 드론이 떨어진다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const v = T.mkUnit(0, 'hmv', 5, 3); v.hold = true; G.nats[0].cp = 10;
+  const d = T.__get('dismount')(v); assert.ok(d && d.type === 'dteam'); assert.equal(G.nats[0].cp, 7);
+  assert.equal(T.__get('dismount')(v), null, '차량마다 한 번');
+  const tk = T.mkUnit(1, 'tank', 5, 11); tk.hold = true; d.hold = true;
+  T.rtRun(6); assert.ok(G.log.some(m => m.includes('FPV 이륙')), 'FPV 이륙'); assert.ok(d.dr < 4);
+  const f = T.__get('launchFpv')(d, null); f.hold = true; G.units = G.units.filter(u => u !== d); T.rtRun(0.3);
+  assert.ok(!G.units.includes(f), '조종수가 없으면 추락');
+});
