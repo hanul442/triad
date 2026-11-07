@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node build.mjs && node --test test/game.test.mjs",
-    "balance": "node tools/balance.mjs"
+    "balance": "node tools/balance.mjs",
+    "mix": "node tools/mix.mjs"
   },
   "engines": { "node": ">=18" }
 }

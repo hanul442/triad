@@ -146,7 +146,7 @@ function airTick(dt){if(!G)return;
   for(const u of G.units.slice())if(UT[u.type].dteam&&G.units.includes(u))dteamTick(u,dt);
   // AI: 적이 가까이 보이면 험비·장갑차가 드론팀을 내려놓는다
   for(const v of G.units.slice()){if(!canDismount(v)||!isAI(v.nat)||G.units.filter(o=>o.nat===v.nat).length>=unitCap())continue;if(Math.random()>dt*.15)continue;
-    if(G.units.some(e=>e.nat!==v.nat&&!UT[e.type].fly&&Math.hypot(e.x-v.x,e.z-v.z)<8&&(!G.fog||seen(e,v.nat))))dismount(v);}}
+    if(G.units.some(e=>e.nat!==v.nat&&!UT[e.type].fly&&Math.hypot(e.x-v.x,e.z-v.z)<8&&(!G.fog||seen(e,v.nat))))(typeof aiDismount==='function'?aiDismount:dismount)(v);}}
 
 /* ---------- AI ---------- */
 // 증원 가중치: 적 차량이 보이면 FPV, 적 비행체가 보이면 대공, 적 FPV가 보이면 전자전팀
