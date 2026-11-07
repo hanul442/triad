@@ -56,6 +56,7 @@ function dsWreck(u){if(!V3.on)return;const o=V3.uo.get(u.id);if(!o||!o.userData.
   const m=V3.wreckM||(V3.wreckM=new T.MeshStandardMaterial({color:'#2a2825',roughness:1,metalness:.1}));w.traverse(x=>{if(x.isMesh){x.material=m;x.userData.keepMat=1;x.userData.keepGeo=1;}});w.userData.keepMat=1;w.userData.keepGeo=1;
   w.position.set(o.position.x,o.position.y+.01,o.position.z);w.rotation.z=(Math.random()-.5)*.25;w.rotation.x=(Math.random()-.5)*.15;V3.G.fx.add(w);
   V3.fx.push({o:w,t0:performance.now(),dur:240000,upd:()=>{}});
+  if(G&&Array.isArray(G.covers))G.covers.push({x:o.position.x,z:o.position.z,r:.3,cov:.3,kind:'wreck'});// 잔해는 엄폐물이 된다(04c-cover)
   dsScar('tread',o.position.x,o.position.z,.3);dsFires(o.position.x,o.position.z,3,45000+Math.random()*30000,.35,.12);dsDust(o.position.x,o.position.z,.9,9000,5,'#55504a');}
 /* ---------- 포격: 포탄이 차례로 떨어지며 먼지 기둥을 세우고 파편을 뿌린다 ---------- */
 function dsShell(x,z,big){if(!V3.on)return;const T=V3.T;const y0=v3TopAt(x,z);
