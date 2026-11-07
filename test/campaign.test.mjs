@@ -63,7 +63,7 @@ test('다리 확보: 강은 건널 수 없고 서강교로만 건너며, 폭약�
   const rifle = G.units.find(u => u.nat === 0 && u.type === 'rifle');
   const p = T.pathPts(rifle, m + 4.5, m - .5); assert.ok(p.length && Math.hypot(p[p.length - 1][0] - (m + 4.5), p[p.length - 1][1] - (m - .5)) < .6, '다리로 동쪽 강변까지 간다');
   // 해체: 공병이 폭약 옆에서 18초
-  G.units = G.units.filter(u => u.nat === 0); const ch = G.camp.charge;
+  G.units = G.units.filter(u => u.nat === 0); G.nats[1].ctrl = 'human'; const ch = G.camp.charge;
   const eng = G.units.find(u => u.type === 'eng'); eng.x = ch.x - .3; eng.z = ch.z; eng.r = Math.floor(eng.z); eng.c = Math.floor(eng.x); eng.path = []; eng.hold = true;
   T.rtRun(19); assert.equal(G.camp.st.disarmed, 1, '해체'); assert.ok(G.camp.st.left > 240);
   // 폭파: 아무도 안 건드리면 5분 뒤 다리가 무너져 실패
@@ -78,7 +78,7 @@ test('다리 확보: 해체하고 교두보를 쥔 채 반격을 2분 버티면 
   G.units = G.units.filter(u => u.nat === 0); for (const u of G.units) u.hold = true;
   const S = G.camp.st; S.disarmed = 1; S.left = 200; const b = G.objs[0]; G.map[b.r][b.c].owner = 0;
   T.rtRun(1); assert.equal(S.counter, 1, '반격 시작');
-  for (const u of G.units) if (u.nat === 1) { u.hold = true; u.post = 1; u.x = u.c = 43; }
+  G.nats[1].ctrl = 'human'; for (const u of G.units) if (u.nat === 1) { u.hold = true; u.post = 1; u.x = u.c = 43; }
   T.rtRun(121); assert.ok(G.over && G.over.win === 0, JSON.stringify(G.over));
 });
 
@@ -88,7 +88,7 @@ test('방송국 탈환: 중계소를 쥐면 적 화력 지원이 끊기고, 방�
   const [s, y] = G.objs; G.map[y.r][y.c].owner = 0; T.rtRun(1);
   assert.equal(G.camp.st.relay, 1); G.nats[1].cp = 50;
   assert.ok(!T.canSupport(1, 'smoke', 5, 5), '적 지원 불가');
-  G.map[s.r][s.c].owner = 0; T.rtRun(30);
+  G.nats[1].ctrl = 'human'; G.map[s.r][s.c].owner = 0; T.rtRun(30);   // 적 증원이 끼지 않게: 둘레 판정만 본다
   const e = T.mkUnit(1, 'rifle', s.r, s.c + 1); e.hold = true; e.post = 1; e.cd = 999; T.rtRun(5);
   assert.ok(G.camp.st.near === 1 && G.camp.st.hold < 31, '적이 둘레에 있으면 멈춤');
   G.units = G.units.filter(u => u !== e); T.rtRun(31);
