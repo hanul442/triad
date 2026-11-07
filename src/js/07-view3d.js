@@ -23,13 +23,14 @@ function v3Tex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.he
 
 /* ---------- 초기화 ---------- */
 function v3Init(){const T=V3.T;const cv=$('#v3d');
-  const ren=new T.WebGLRenderer({canvas:cv,antialias:true,powerPreference:'high-performance'});
-  ren.setPixelRatio(Math.min(2,window.devicePixelRatio||1));ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;
-  ren.toneMapping=T.ACESFilmicToneMapping;ren.toneMappingExposure=1.05;ren.outputColorSpace=T.SRGBColorSpace;
+  const ren=new T.WebGLRenderer({canvas:cv,antialias:false,powerPreference:'high-performance'});
+  // 레퍼런스처럼 살짝 거친 픽셀 화면: 화면 픽셀보다 낮은 해상도로 그리고 확대한다
+  ren.setPixelRatio(v3PixelRatio());ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;
+  ren.toneMapping=T.ACESFilmicToneMapping;ren.toneMappingExposure=.92;ren.outputColorSpace=T.SRGBColorSpace;
   const scene=new T.Scene();const cam=new T.PerspectiveCamera(38,1,.1,400);
-  const hemi=new T.HemisphereLight('#c9d6e2','#5a5248',1.35);scene.add(hemi);
-  const sun=new T.DirectionalLight('#fff0d8',2.2);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;sun.shadow.radius=3;
-  const sc=sun.shadow.camera;sc.near=1;sc.far=90;scene.add(sun);scene.add(sun.target);scene.fog=new T.Fog('#8f8a80',30,90);
+  const hemi=new T.HemisphereLight('#c9cccb','#6b6458',1.2);scene.add(hemi);
+  const sun=new T.DirectionalLight('#f3e6d0',2.4);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;sun.shadow.radius=3;
+  const sc=sun.shadow.camera;sc.near=1;sc.far=90;scene.add(sun);scene.add(sun.target);scene.fog=new T.Fog('#6f6a62',30,90);
   const flash=new T.PointLight('#ffaa55',0,10,1.6);scene.add(flash);
   // 판상형 아파트 외벽: 8열×8층, 칸마다 창 하나
   const WIN=[];const fr=mulberry(7);
@@ -72,16 +73,17 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');
   for(const k of ['terr','wall','roof','rubble','tree','trunk','conc'])v3FowMat(M[k]);
   const G3={world:new T.Group(),city:new T.Group(),sites:new T.Group(),units:new T.Group(),hl:new T.Group(),fx:new T.Group(),amb:new T.Group()};
   for(const k in G3)scene.add(G3[k]);
-  Object.assign(V3,{ren,scene,cam,cv,hemi,sun,flash,M,puff,G:G3,cs:{x:12,z:12,yaw:0,pitch:1.2,d:14,gx:12,gz:12,gyaw:0,gd:14},
+  Object.assign(V3,{ren,scene,cam,cv,hemi,sun,flash,M,puff,G:G3,cs:{x:12,z:12,yaw:0,pitch:1.38,d:14,gx:12,gz:12,gyaw:0,gd:14},
     uo:new Map(),fx:[],smoke:[],labels:new Map(),tag:null,last:0,shake:0,matc:new Map()});
-  v3Controls(cv);window.addEventListener('resize',v3Size);}
+  v3Controls(cv);window.addEventListener('resize',v3Size);dsInit();}
 // 전장의 안개: 안 보이는 칸을 지면·건물 모두 어둡게 (칸 경계는 부드럽게)
 function v3FowMat(mat){mat.onBeforeCompile=sh=>{sh.uniforms.fowMap=V3.fowU.map;sh.uniforms.fowN=V3.fowU.n;
     sh.vertexShader='varying vec2 vFowW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 fowP=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nfowP=instanceMatrix*fowP;\n#endif\nvFowW=(modelMatrix*fowP).xz;');
     sh.fragmentShader='uniform sampler2D fowMap;uniform float fowN;varying vec2 vFowW;\n'+sh.fragmentShader.replace('#include <fog_fragment>','{float fv=texture2D(fowMap,vFowW/fowN).r;vec3 gy=vec3(dot(gl_FragColor.rgb,vec3(.3,.59,.11)));gl_FragColor.rgb=mix(gy*vec3(.5,.54,.6),gl_FragColor.rgb,fv);}\n#include <fog_fragment>');};
   mat.customProgramCacheKey=()=>'fow';}
 function v3FowUpd(vs){if(!V3.fowD)return;const d=V3.fowD;for(let r=0;r<N;r++)for(let c=0;c<N;c++)d[(r*N+c)*4]=!vs||vs.has(key(r,c))?255:0;V3.fowT.needsUpdate=true;}
-function v3Size(){if(!V3.ren)return;const a=$('#app');const w=a.clientWidth,h=a.clientHeight;V3.ren.setSize(w,h,false);V3.cam.aspect=w/Math.max(1,h);V3.cam.fov=V3.cam.aspect<1?Math.min(62,38/Math.sqrt(V3.cam.aspect)):38;V3.cam.updateProjectionMatrix();}
+function v3PixelRatio(){const d=window.devicePixelRatio||1;return Math.max(.5,Math.min(1.1,d*.55));}
+function v3Size(){if(!V3.ren)return;const a=$('#app');const w=a.clientWidth,h=a.clientHeight;V3.ren.setPixelRatio(v3PixelRatio());V3.ren.setSize(w,h,false);V3.cam.aspect=w/Math.max(1,h);V3.cam.fov=V3.cam.aspect<1?Math.min(62,38/Math.sqrt(V3.cam.aspect)):38;V3.cam.updateProjectionMatrix();}
 
 /* ---------- 카메라 ---------- */
 function v3Focus(r,c){const [x,z]=v3x(r,c);V3.cs.gx=x;V3.cs.gz=z;}
@@ -131,11 +133,12 @@ function v3Hover(e){if(v3HovRaf)return;const x=e.clientX,y=e.clientY;v3HovRaf=re
 function v3Clear(g){for(const o of [...g.children]){g.remove(o);o.traverse(x=>{if(x.geometry)x.geometry.dispose();});}}
 
 /* ---------- 지면 ---------- */
-function v3GroundTex(){const P=32,W=N*P;const cv=document.createElement('canvas');cv.width=cv.height=W;const g=cv.getContext('2d');const R=mulberry((G.seed|0)^0x5151);
+function v3GroundTex(){const P=48,W=N*P;const cv=document.createElement('canvas');cv.width=cv.height=W;const g=cv.getContext('2d');V3.gcv=cv;V3.gctx=g;V3.gP=P;const R=mulberry((G.seed|0)^0x5151);
   const t=(r,c)=>inb(r,c)?G.map[r][c].t:'void';const rd=(r,c)=>t(r,c)==='road';const open=(r,c)=>{const q=t(r,c);return q==='road'||q==='plaza'||q==='void';};
-  const BASE={road:'#2f3031',plaza:'#86837c',park:'#4b4a3d',rubble:'#5f5b54',bldg:'#55534e',water:'#22303a'};
+  const BASE={road:'#353637',plaza:'#7d7a72',park:'#4a4c38',rubble:'#5a564f',bldg:'#4f5040',water:'#22303a'};
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const q=t(r,c),X=c*P,Y=r*P;g.fillStyle=BASE[q]||'#555';g.fillRect(X,Y,P,P);
-    if(q==='plaza'){g.fillStyle='rgba(0,0,0,.13)';for(let i=0;i<=P;i+=8){g.fillRect(X+i,Y,1,P);g.fillRect(X,Y+i,P,1);}}
+    if(q==='plaza'){g.fillStyle='rgba(0,0,0,.13)';for(let i=0;i<=P;i+=12){g.fillRect(X+i,Y,1,P);g.fillRect(X,Y+i,P,1);}}
+    if(q==='bldg'||q==='park'){for(let i=0;i<22;i++){g.fillStyle=R()<.45?'rgba(30,28,20,.28)':R()<.7?'rgba(96,104,58,.26)':'rgba(118,104,78,.22)';g.beginPath();g.arc(X+R()*P,Y+R()*P,3+R()*8,0,7);g.fill();}}
     if(q==='water'){g.fillStyle='#8a867d';g.fillRect(X,Y,P,3);g.fillRect(X,Y+P-3,P,3);g.fillRect(X,Y,3,P);g.fillRect(X+P-3,Y,3,P);g.fillStyle='rgba(160,190,200,.18)';g.fillRect(X+6,Y+8,P-12,2);g.fillRect(X+10,Y+18,P-18,2);}
     if(q==='park')for(let i=0;i<14;i++){g.fillStyle=R()<.4?'rgba(25,24,18,.3)':R()<.7?'rgba(90,100,60,.22)':'rgba(120,105,80,.18)';g.beginPath();g.arc(X+R()*P,Y+R()*P,2+R()*5,0,7);g.fill();}}
   // 얼룩·잡티
@@ -143,21 +146,22 @@ function v3GroundTex(){const P=32,W=N*P;const cv=document.createElement('canvas'
   for(let i=0;i<N*N*.4;i++){const x=R()*W,y=R()*W,rr=6+R()*26;const gr=g.createRadialGradient(x,y,0,x,y,rr);gr.addColorStop(0,'rgba(20,18,15,.16)');gr.addColorStop(1,'rgba(20,18,15,0)');g.fillStyle=gr;g.fillRect(x-rr,y-rr,rr*2,rr*2);}
   // 도로: 균열, 차선, 횡단보도, 인도
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!rd(r,c))continue;const X=c*P,Y=r*P;
-    g.strokeStyle='rgba(15,15,15,.35)';g.lineWidth=1;if(R()<.35){g.beginPath();let x=X+R()*P,y=Y+R()*P;g.moveTo(x,y);for(let i=0;i<4;i++){x+=(R()-.5)*14;y+=(R()-.5)*14;g.lineTo(x,y);}g.stroke();}
+    g.strokeStyle='rgba(15,15,15,.35)';g.lineWidth=1;if(R()<.35){g.beginPath();let x=X+R()*P,y=Y+R()*P;g.moveTo(x,y);for(let i=0;i<4;i++){x+=(R()-.5)*20;y+=(R()-.5)*14;g.lineTo(x,y);}g.stroke();}
     const h=rd(r,c-1)&&rd(r,c+1),v=rd(r-1,c)&&rd(r+1,c),cross=(rd(r,c-1)||rd(r,c+1))&&(rd(r-1,c)||rd(r+1,c));
-    g.fillStyle='rgba(225,220,200,.75)';
-    if(!cross&&h){for(const o of [3,19])g.fillRect(X+o,Y+P/2-1,10,2);}
-    else if(!cross&&v){for(const o of [3,19])g.fillRect(X+P/2-1,Y+o,2,10);}
+    g.fillStyle='rgba(214,186,96,.7)';
+    if(!cross&&h){for(const o of [4,28])g.fillRect(X+o,Y+P/2-1,16,2);}
+    else if(!cross&&v){for(const o of [4,28])g.fillRect(X+P/2-1,Y+o,2,16);}
     if(!cross){const zc=(a,b)=>{const q=(rd(a,b-1)||rd(a,b+1))&&(rd(a-1,b)||rd(a+1,b));return rd(a,b)&&q;};
       g.fillStyle='rgba(225,220,200,.6)';
-      if(h){if(zc(r,c-1))for(let i=4;i<P-4;i+=5)g.fillRect(X+2,Y+i,7,3);if(zc(r,c+1))for(let i=4;i<P-4;i+=5)g.fillRect(X+P-9,Y+i,7,3);}
-      if(v){if(zc(r-1,c))for(let i=4;i<P-4;i+=5)g.fillRect(X+i,Y+2,3,7);if(zc(r+1,c))for(let i=4;i<P-4;i+=5)g.fillRect(X+i,Y+P-9,3,7);}}
-    const sw=6;for(const [a,b,x,y,w,hh] of [[r-1,c,X,Y,P,sw],[r+1,c,X,Y+P-sw,P,sw],[r,c-1,X,Y,sw,P],[r,c+1,X+P-sw,Y,sw,P]]){if(open(a,b))continue;
-      g.fillStyle='#77736a';g.fillRect(x,y,w,hh);g.fillStyle='rgba(0,0,0,.12)';for(let i=0;i<Math.max(w,hh);i+=6)w>hh?g.fillRect(x+i,y,1,hh):g.fillRect(x,y+i,w,1);
+      if(h){if(zc(r,c-1))for(let i=6;i<P-6;i+=8)g.fillRect(X+3,Y+i,10,4);if(zc(r,c+1))for(let i=6;i<P-6;i+=8)g.fillRect(X+P-13,Y+i,10,4);}
+      if(v){if(zc(r-1,c))for(let i=6;i<P-6;i+=8)g.fillRect(X+i,Y+3,4,10);if(zc(r+1,c))for(let i=6;i<P-6;i+=8)g.fillRect(X+i,Y+P-13,4,10);}}
+    const sw=8;for(const [a,b,x,y,w,hh] of [[r-1,c,X,Y,P,sw],[r+1,c,X,Y+P-sw,P,sw],[r,c-1,X,Y,sw,P],[r,c+1,X+P-sw,Y,sw,P]]){if(open(a,b))continue;
+      g.fillStyle='#86827a';g.fillRect(x,y,w,hh);g.fillStyle='rgba(0,0,0,.12)';for(let i=0;i<Math.max(w,hh);i+=8)w>hh?g.fillRect(x+i,y,1,hh):g.fillRect(x,y+i,w,1);
       g.fillStyle='#a19c90';w>hh?g.fillRect(x,a<r?y+hh-1:y,w,1):g.fillRect(b<c?x+w-1:x,y,1,hh);}}
   // 배치 구역은 아주 옅게 물들인다
   for(const n of G.order){g.fillStyle=MAPCOL[n]+'1c';for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(inZone(n,r,c))g.fillRect(c*P,r*P,P,P);}
-  const tx=new V3.T.CanvasTexture(cv);tx.colorSpace=V3.T.SRGBColorSpace;tx.anisotropy=V3.ren.capabilities.getMaxAnisotropy();return tx;}
+  if(typeof dsReplay==='function')dsReplay();
+  const tx=new V3.T.CanvasTexture(cv);tx.colorSpace=V3.T.SRGBColorSpace;tx.anisotropy=V3.ren.capabilities.getMaxAnisotropy();V3.gtex=tx;return tx;}
 // 앙상한 나무: 줄기와 가지 몇 개를 한 형상으로 합친다
 function v3DeadTree(){const T=V3.T;if(V3.treeG)return V3.treeG;const parts=[];const R=mulberry(99);
   const limb=(x,y,z,len,rad,ax,az)=>{const g=new T.CylinderGeometry(rad*.55,rad,len,4,1);g.translate(0,len/2,0);g.rotateX(ax);g.rotateZ(az);g.translate(x,y,z);parts.push(g.toNonIndexed());const e=new T.Vector3(0,len,0).applyEuler(new T.Euler(ax,0,az));return [x+e.x,y+e.y,z+e.z];};
@@ -327,7 +331,7 @@ function v3SyncHl(){if(!V3.on||!G)return;const T=V3.T,g=V3.G.hl;v3Clear(g);const
 
 /* ---------- 시간·날씨 ---------- */
 function v3Light(){const h=hourOf(),night=isNight(),dusk=(h===6||h===18||h===20&&false);const s=V3;const wx=G.wx||'clear';
-  const P=night?{sun:'#7f95c9',si:.5,sky:'#2a3754',gr:'#141210',hi:.42,fog:'#0d131b',em:1.25}:dusk?{sun:'#ff9a5a',si:1.7,sky:'#d6a07a',gr:'#3f3226',hi:.55,fog:'#6f5a50',em:.55}:{sun:'#fff1dc',si:2.0,sky:'#c9cdd0',gr:'#5d574d',hi:1.25,fog:'#8d877c',em:0};
+  const P=night?{sun:'#7f95c9',si:.5,sky:'#2a3754',gr:'#141210',hi:.42,fog:'#0d131b',em:1.25}:dusk?{sun:'#ff9a5a',si:1.7,sky:'#d6a07a',gr:'#3f3226',hi:.55,fog:'#6f5a50',em:.55}:{sun:'#ffe9cc',si:2.3,sky:'#c9cccb',gr:'#6b6458',hi:1.15,fog:'#7a746a',em:0};
   s.sun.color.set(P.sun);s.sun.intensity=P.si*(wx==='clear'?1:.55);s.hemi.color.set(P.sky);s.hemi.groundColor.set(P.gr);s.hemi.intensity=P.hi;s.M.wall.emissiveIntensity=P.em;
   const fogC=new V3.T.Color(P.fog);if(wx==='rain'||wx==='storm')fogC.lerp(new V3.T.Color('#4a525a'),.5);s.scene.fog.color.copy(fogC);s.scene.background=fogC.clone();
   s.fogK=wx==='fog'?.45:wx==='storm'?.7:1;s.sunAng=dusk?(h===6?-1:1):night?.4:(h-12)/8;s.rain=(wx==='rain'||wx==='storm')?(wx==='storm'?1.6:1):0;}
@@ -382,8 +386,8 @@ function v3FxFire(a,r,c){if(typeof sfx==='function')sfx(UT[a.type].ind?'arty':UT
     else{o=new T.Mesh(V3.tracerG||(V3.tracerG=new T.BoxGeometry(.012,.012,.35)),new T.MeshBasicMaterial({color:tc,blending:T.AdditiveBlending,transparent:true,depthWrite:false}));o.userData.keepGeo=1;o.lookAt(x2-x1,y2-y1,z2-z1);}
     V3.G.fx.add(o);V3.fx.push({o,t0:performance.now()+i*70,dur:ind?650:150+dd*14,upd:(sh,k)=>{sh.position.set(x1+(x2+j-x1)*k,y1+(y2-y1)*k+(ind?Math.sin(k*Math.PI)*(1.5+dd*.35):0),z1+(z2+j-z1)*k);}});}
   v3Burst(x1+(x2-x1)*.02,y1,z1+(z2-z1)*.02,UT[a.type].cls==='inf'?.08:.22,'#ffd27a',0,UT[a.type].cls==='inf'?.15:.6);
-  setTimeout(()=>{if(UT[a.type].ex)v3Burst(x2,y2-.05,z2,.6,'#ff8a3d',3,1.5);else v3Impact(x2,y2-.05,z2);if(UT[a.type].ex)V3.shake=Math.max(V3.shake,.05);if(typeof sfx==='function')sfx('hit',.6);},ind?650:170);}
-function v3FxKill(u){if(!V3.on||UT[u.type].cls==='inf')return;const [x,y,z]=v3Pos(u.r,u.c,u);setTimeout(()=>{v3Burst(x,y,z,1.3,'#ff7a2a',7,4);V3.shake=Math.max(V3.shake,.14);if(typeof sfx==='function')sfx('boom');},400);}
+  setTimeout(()=>{if(UT[a.type].ex){v3Burst(x2,y2-.05,z2,.6,'#ff8a3d',3,1.5);dsScar(ind?'crater':'scorch',x2,z2,ind?.14:.11);dsSpray(x2,y2,z2,ind?48:26,ind?.7:.5);dsDust(x2,z2,ind?1.4:.8,ind?9000:5000,ind?6:4);if(ind)dsColumn(x2,z2,.7);}else{v3Impact(x2,y2-.05,z2);if(Math.random()<.25)dsScar('spray',x2,z2,.05);}if(UT[a.type].ex)V3.shake=Math.max(V3.shake,.05);if(typeof sfx==='function')sfx('hit',.6);},ind?650:170);}
+function v3FxKill(u){if(!V3.on||UT[u.type].cls==='inf')return;const [x,y,z]=v3Pos(u.r,u.c,u);if(UT[u.type].cls==='veh')dsWreck(u);setTimeout(()=>{v3Burst(x,y,z,1.3,'#ff7a2a',7,4);dsSpray(x,y+.1,z,50,.8);dsScar('scorch',x,z,.25);V3.shake=Math.max(V3.shake,.14);if(typeof sfx==='function')sfx('boom');},400);}
 function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const h=Math.max(1,f||3)*FLOOR_H;
   // 기울어지며 쓰러지는 건물: 밑변 한쪽을 축으로 돌면서 가라앉는다
   const dir=Math.floor(Math.random()*4);const piv=new T.Group();const ax=[[.45,0],[-.45,0],[0,.45],[0,-.45]][dir];piv.position.set(x+ax[0],.06,z+ax[1]);
@@ -393,15 +397,15 @@ function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);
   setTimeout(()=>{mat.dispose();},1600);
   // 분진 구름: 크게 퍼지며 천천히 가라앉는다
   for(let i=0;i<44;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:i%3?'#a99a83':'#6c635a',transparent:true,depthWrite:false,opacity:0}));const a=Math.random()*6.283,sp=1.2+Math.random()*3.2,y0=.2+Math.random()*h*.6;s.position.set(x,y0,z);V3.G.fx.add(s);
-    V3.fx.push({o:s,t0:performance.now()+300+i*30,dur:9000,upd:(o,k)=>{const e=1-Math.pow(1-k,2.6);o.position.set(x+Math.cos(a)*sp*e,y0+e*1.4,z+Math.sin(a)*sp*e);o.scale.setScalar(1+e*4.2);o.material.opacity=.72*(1-k)*(k<.06?k/.06:1);}});}
-  v3Debris(x,h*.5,z,26,1.4);
-  setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);V3.shake=Math.max(V3.shake,.3);if(typeof sfx==='function')sfx('boom');},700);}
+    V3.fx.push({o:s,t0:performance.now()+300+i*30,dur:12000,upd:(o,k)=>{const e=1-Math.pow(1-k,2.6);o.position.set(x+Math.cos(a)*sp*e+DS.wind[0]*k*12,y0+e*1.4,z+Math.sin(a)*sp*e);o.scale.setScalar(1+e*5);o.material.opacity=.8*(1-k)*(k<.06?k/.06:1);}});}
+  v3Debris(x,h*.5,z,26,1.4);dsSpray(x,h*.4,z,160,1.5);dsScar('rubble',x,z,.9);
+  setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,3.4,30000,40);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sfx==='function')sfx('boom');},700);}
 function v3FxStrike(kind,r,c){if(!V3.on)return;const [x,z]=v3x(r,c);
   if(kind==='smoke'){for(let i=0;i<9;i++)v3Burst(x+(Math.random()-.5)*2.4,.3,z+(Math.random()-.5)*2.4,1.2,'#d6d3c8',2,0);return;}
   if(kind==='air'){const T=V3.T;const jet=new T.Mesh(new T.ConeGeometry(.12,.7,6),V3.M.dark);jet.rotation.z=-Math.PI/2;V3.G.fx.add(jet);
     V3.fx.push({o:jet,t0:performance.now(),dur:900,upd:(o,k)=>{o.position.set(x-14+k*28,5.5-Math.sin(k*Math.PI)*1.5,z-3+k*6);}});
-    setTimeout(()=>{v3Burst(x,v3Top(r,c)*.6+.3,z,2.4,'#ff6a1a',10,7);V3.shake=Math.max(V3.shake,.35);},520);return;}
-  for(let i=0;i<9;i++)setTimeout(()=>{const ox=(Math.random()-.5)*2.6,oz=(Math.random()-.5)*2.6;v3Burst(x+ox,.3,z+oz,1,'#ff8a3d',3,2);V3.shake=Math.max(V3.shake,.12);},350+i*130);}
+    setTimeout(()=>{v3Burst(x,v3Top(r,c)*.6+.3,z,2.4,'#ff6a1a',10,7);dsColumn(x,z,2.2);dsDust(x,z,3.6,26000,40);dsSpray(x,v3Top(r,c)*.5+.3,z,180,1.7);dsScar('crater',x,z,.45);dsFires(x,z,5,50000,1.2);V3.shake=Math.max(V3.shake,.35);},520);return;}
+  dsBarrage(r,c,9,2.8);}
 // 총탄 착탄: 작은 흙먼지
 function v3Impact(x,y,z){const T=V3.T;for(let i=0;i<2;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#9a8f80',transparent:true,depthWrite:false,opacity:0}));const ox=(Math.random()-.5)*.2,oz=(Math.random()-.5)*.2;V3.G.fx.add(s);
   V3.fx.push({o:s,t0:performance.now()+i*40,dur:700,upd:(o,k)=>{o.position.set(x+ox,y+k*.08,z+oz);o.scale.setScalar(.06+k*.14);o.material.opacity=.6*(1-k);}});}}

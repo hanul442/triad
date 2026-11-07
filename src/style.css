@@ -136,8 +136,9 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 @keyframes rise{from{transform:translateY(0);opacity:1}to{transform:translateY(-16px);opacity:0}}
 @media (prefers-reduced-motion: reduce){.pop{animation:fade .9s linear forwards}@keyframes fade{to{opacity:0}}}
 /* 3D 시점 */
-.v3d{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#121920;outline:none}
-.v3d-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 70% at 50% 45%,transparent 55%,rgba(8,10,12,.5) 100%)}
+.v3d{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#121920;outline:none;image-rendering:pixelated;image-rendering:crisp-edges}
+.v3d-grain{position:absolute;inset:0;pointer-events:none;opacity:.16;mix-blend-mode:overlay;background-repeat:repeat;background-size:128px 128px}
+.v3d-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 70% at 50% 45%,transparent 50%,rgba(8,10,12,.6) 100%)}
 .v3d-lab{position:absolute;inset:0;pointer-events:none;overflow:hidden;contain:strict}
 .app.v3 .board{visibility:hidden;pointer-events:none}
 .v3only{display:none}
