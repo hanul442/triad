@@ -6,7 +6,7 @@
    - 잔해 위 25%, 공원(나무) 15%. 연막 +15%, 제압당해 엎드린 보병 +10%
    옆이나 뒤에서 쏘면 벽·차량 엄폐는 없다. 2층 이상 높은 곳에서 내려 쏘면 낮은 엄폐는 절반.
    엄폐는 명중률을 깎는다. 피해 기댓값(calcDmg) = 기본 화력 × 명중률. */
-const COVK={bldg:{n:'건물 안',v:.4},wall:{n:'벽',v:.35},veh:{n:'차량',v:.3},wreck:{n:'잔해 차량',v:.3},prop:{n:'엄폐물',v:.25},car:{n:'차량',v:.3},barrier:{n:'방호벽',v:.35},hedge:{n:'덤불',v:.15},rubble:{n:'잔해',v:.25},park:{n:'나무',v:.15}};
+const COVK={bldg:{n:'건물 안',v:.4},roof:{n:'옥상 난간',v:.25},wall:{n:'벽',v:.35},veh:{n:'차량',v:.3},wreck:{n:'잔해 차량',v:.3},prop:{n:'엄폐물',v:.25},car:{n:'차량',v:.3},barrier:{n:'방호벽',v:.35},hedge:{n:'덤불',v:.15},rubble:{n:'잔해',v:.25},park:{n:'나무',v:.15}};
 const VOLLEY={rifle:4,mg:6,at:1,sniper:1,eng:2,mortar:1,ifv:3,tank:1,drone:1};
 /* 엄폐물 목록: 지상 차량(서 있는 것) + 도시 소품·잔해 차량(G.covers: {x,z,r,cov,kind}) */
 // 큰 도시는 소품이 수천 개라 칸별 묶음(G._cg)으로 가까운 것만 본다. 목록이 바뀌면 다시 묶는다.
@@ -29,7 +29,7 @@ function dirCoverAt(px,pz,ux,uz,cls,skip,objs){let best={cov:0,kind:null};const 
 /* 부대 d가 a의 사격에 대해 받는 엄폐 {cov, kind}. a가 없으면 어느 방향이든 가장 좋은 엄폐(표시용). */
 function coverOf(d,a){const td=UT[d.type];if(td.fly)return {cov:0,kind:null};const x=cell(d.r,d.c);
   let best={cov:0,kind:null};const put=c=>{if(c.cov>best.cov)best=c;};
-  if(x.t==='bldg')put({cov:COVK.bldg.v,kind:'bldg'});
+  if(x.t==='bldg')put(typeof onRoof==='function'&&onRoof(d)?{cov:COVK.roof.v,kind:'roof'}:{cov:COVK.bldg.v,kind:'bldg'});
   else{if(TT[x.t].cov)put({cov:TT[x.t].cov,kind:x.t});
     const ind=a&&UT[a.type].ind;const [px,pz]=posOf(d);const objs=coverObjs(d);
     if(td.cls==='inf'&&typeof trenchAt==='function'&&trenchAt(px,pz))put({cov:COVK.trench.v,kind:'trench'});// 참호 안: 사방·곡사 모두 (04d-fort)

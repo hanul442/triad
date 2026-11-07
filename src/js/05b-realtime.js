@@ -97,6 +97,7 @@ function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb)return;cons
     else if(!canHit(u,e)&&!moving&&!u.hold){u.path=pathPts(u,e.x,e.z);}}
   let tg=rtPick(u);
   if(!tg&&u.tgtTile!=null){const r=kr(u.tgtTile),c=kc(u.tgtTile);if(G.map[r][c].t!=='bldg'){u.tgtTile=null;}else if(canHitTile(u,r,c)){rtShootBldg(u,r,c);u.cd=COOL[u.type]*(.9+Math.random()*.2);return;}}
+  if(typeof breachPick==='function'){const P=breachPick(u,tg);if(P){breach(u,P);u.cd=COOL[u.type]*(.9+Math.random()*.2)*(moving?1.5:1);return;}}   // 건물 안 적: 그 층 벽을 친다(05i-breach)
   if(!tg)return;rtShoot(u,tg);u.cd=COOL[u.type]*(.85+Math.random()*.3)*(moving?1.5:1);}
 /* 30초마다: 수입·승점·날씨·연막 */
 function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue;G.nats[n].cp+=income(n);G.nats[n].vp+=objCount(n);}
@@ -106,6 +107,8 @@ function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   while(G.time>=G.turn*ROUND_S&&!G.over)rtRound();
   if(typeof heliTick==='function')heliTick();
   if(typeof fortTick==='function')fortTick(dt);
+  if(typeof shellTick==='function')shellTick();
+  if(typeof fireTick==='function')fireTick(dt);
   for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;if(!flTick(u,dt))rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
   rtSeparate(dt);
   for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;

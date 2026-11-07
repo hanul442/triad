@@ -6,11 +6,41 @@
    층에 도착하면 쏘는 쪽 창가로 흩어진다. */
 const CUT_SILL=.42;            // 잘린 벽 높이(층 높이 대비): 창턱쯤
 const STAIR_L=.18,STAIR_W=.085;
-/* 보이는 보병이 서 있는 건물 칸 → 잘라 보일 층 */
+/* 보이는 보병이 서 있는 건물 칸 → 잘라 보일 층. 옥상에 선 부대는 자를 필요가 없다(계단을 오르는 중이면 맨 위층을 보인다). */
 function v3CutMap(vs,vn){const m=new Map();if(!G)return m;
   for(const u of G.units){if(UT[u.type].cls!=='inf')continue;if(G.fog&&!seen(u,vn,vs))continue;const x=cell(u.r,u.c);if(x.t!=='bldg')continue;
-    const lv=Math.min(topFl(x),Math.max(0,Math.ceil(curFl(u)-.05)));const k=key(u.r,u.c);if(!m.has(k)||m.get(k)<lv)m.set(k,lv);}
+    const rf=roofFl(x);if(rf<=0)continue;let lv=Math.max(0,Math.ceil(curFl(u)-.05));if(lv>=rf){if(!u.climb)continue;lv=rf-1;}
+    const k=key(u.r,u.c);if(!m.has(k)||m.get(k)<lv)m.set(k,lv);}
   return m;}
+/* 도시 메시를 다시 만들지 않고 칸 단위로 자른다: 벽 사각형은 높이를 낮추고(창 무늬도 같이), 지붕·난간은 한 점으로 접는다.
+   v3BuildCity가 끝날 때 원본 좌표와 칸별 사각형 목록을 저장해 둔다. */
+function v3CutPrep(){const C=V3.cityM;if(!C)return;const by=(mesh)=>{const mp=new Map();if(!mesh)return mp;const t=mesh.userData.tri;for(let i=0;i<t.length;i+=2){const k=t[i];if(!mp.has(k))mp.set(k,[]);mp.get(k).push(i/2);}return mp;};
+  C.wq=by(C.w);C.rq=by(C.r);C.w0=C.w?C.w.geometry.attributes.position.array.slice():null;C.wu0=C.w?C.w.geometry.attributes.uv.array.slice():null;C.r0=C.r?C.r.geometry.attributes.position.array.slice():null;
+  const inst=(im)=>{if(!im)return null;const mp=new Map();im.userData.keys.forEach((k,i)=>{if(!mp.has(k))mp.set(k,[]);mp.get(k).push(i);});const m0=im.instanceMatrix.array.slice();return {im,mp,m0};};
+  C.ai=inst(C.ac);C.gi=inst(C.gab);C.cut=new Map();V3.cutTag=null;}
+function v3ApplyCut(m){const C=V3.cityM;if(!C||!C.wq)return;const tag=[...m].sort((a,b)=>a[0]-b[0]).join(';');if(tag===V3.cutTag)return;V3.cutTag=tag;
+  const T=V3.T;const wp=C.w&&C.w.geometry.attributes.position,wu=C.w&&C.w.geometry.attributes.uv,rp=C.r&&C.r.geometry.attributes.position;
+  const keys=new Set([...C.cut.keys(),...m.keys()]);let dw=false,dr=false,di=false;
+  for(const k of keys){const old=C.cut.get(k),lv=m.get(k);if(old===lv)continue;
+    // 원래대로
+    for(const q of C.wq.get(k)||[]){const o=q*18;for(let j=0;j<18;j++)wp.array[o+j]=C.w0[o+j];const ou=q*12;for(let j=0;j<12;j++)wu.array[ou+j]=C.wu0[ou+j];dw=true;}
+    for(const q of C.rq.get(k)||[]){const o=q*18;for(let j=0;j<18;j++)rp.array[o+j]=C.r0[o+j];dr=true;}
+    for(const I of [C.ai,C.gi]){if(!I)continue;for(const i of I.mp.get(k)||[]){for(let j=0;j<16;j++)I.im.instanceMatrix.array[i*16+j]=I.m0[i*16+j];I.im.instanceMatrix.needsUpdate=true;}}
+    if(lv==null)continue;
+    const cy=.06+lv*FLOOR_H+FLOOR_H*CUT_SILL;
+    for(const q of C.wq.get(k)||[]){const o=q*18,ou=q*12;let yb=1e9,yt=-1e9;for(let v=0;v<6;v++){const y=wp.array[o+v*3+1];yb=Math.min(yb,y);yt=Math.max(yt,y);}
+      if(yt<=cy)continue;const ny=Math.max(cy,yb);let vb=0,vt=0;for(let v=0;v<6;v++){const y=wp.array[o+v*3+1];if(y===yb)vb=wu.array[ou+v*2+1];else vt=wu.array[ou+v*2+1];}
+      for(let v=0;v<6;v++){if(wp.array[o+v*3+1]===yt){wp.array[o+v*3+1]=ny;wu.array[ou+v*2+1]=vb+(vt-vb)*(ny-yb)/((yt-yb)||1);}else if(wp.array[o+v*3+1]>ny)wp.array[o+v*3+1]=ny;}}
+    for(const q of C.rq.get(k)||[]){const o=q*18;for(let v=1;v<6;v++)for(let j=0;j<3;j++)rp.array[o+v*3+j]=rp.array[o+j];}
+    for(const I of [C.ai,C.gi]){if(!I)continue;for(const i of I.mp.get(k)||[]){for(let j=0;j<16;j++)I.im.instanceMatrix.array[i*16+j]=0;I.im.instanceMatrix.needsUpdate=true;}}}
+  if(dw){wp.needsUpdate=true;wu.needsUpdate=true;}if(dr)rp.needsUpdate=true;
+  C.cut=new Map(m);
+  // 잘린 칸의 속(바닥·벽 단면·칸막이·계단실)은 작은 메시 하나로 따로 만든다
+  if(V3.cutG){V3.cutG.traverse(o=>{if(o.geometry)o.geometry.dispose();});V3.scene.remove(V3.cutG);}
+  const g=new T.Group();V3.cutG=g;V3.scene.add(g);const D={P:[],C:[],K:[]},L=[];const shade=new T.Color('#b4afa6');
+  for(const [k,lv] of m){const r=kr(k),c=kc(k),x=G.map[r][c];if(x.t!=='bldg')continue;const b=bldgBox(r,c);const dmg=1-x.bhp/x.bmax;let h=x.f*FLOOR_H;if(dmg>.5)h*=1-(dmg-.5)*.6;
+    v3CutTile(D,L,r,c,x,b[0],b[1],b[2],b[3],lv,h,shade);}
+  v3FloorMesh(g,D,L);}
 /* 계단 자리와 계단 방향(칸 가운데 쪽, x축) */
 function v3Stair(r,c){const [sx,sz]=stairPos(r,c);const ax=sx>c+.5?-1:1;return {sx,sz,ax};}
 /* 사각형 한 면을 배열에 넣는다 (D: {P,C,K} 위치·색·칸 키) */
@@ -75,27 +105,18 @@ function v3FloorMesh(g,D,L){const T=V3.T;
   if(L.length){const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));
     g.add(new T.LineSegments(lg,V3.M.ghost||(V3.M.ghost=new T.LineBasicMaterial({color:'#e8e2d4',transparent:true,opacity:.28,depthWrite:false}))));}}
 /* 건물 안 보병의 높이: 지금 층 바닥 */
-function v3InY(u){const x=cell(u.r,u.c);if(UT[u.type].cls!=='inf'||x.t!=='bldg')return null;const f=u.fl!=null&&u.flK===key(u.r,u.c)?u.fl:topFl(x);return .06+f*FLOOR_H+.005;}
-/* 건물 안 병사 한 명이 갈 자리와 그 병사의 층.
-   계단을 오르내리는 중이면 계단 자리로 모여 한 명씩 계단을 타고, 멈춰 있으면 쏘는 쪽 창가에 붙는다. */
-function v3InSoldier(uu,s,i,dt){const x=cell(uu.r,uu.c);if(UT[uu.type].cls!=='inf'||x.t!=='bldg'){s.fl=null;return null;}
-  const k=key(uu.r,uu.c);const ufl=uu.fl!=null&&uu.flK===k?uu.fl:topFl(x);
-  if(s.fl==null||s.flK!==k){s.fl=ufl;s.flK=k;}
-  const st=v3Stair(uu.r,uu.c);const moving=uu.path&&uu.path.length;
-  const d=Math.hypot(s.wx-st.sx,s.wz-st.sz);
-  // 이 병사의 층: 계단 근처에 와야 따라 오르내린다
-  if(Math.abs(s.fl-ufl)>1e-3){if(d<.12||Math.abs(s.fl-ufl)<.02){const rate=dt/FLOOR_S*1.7;s.fl=s.fl<ufl?Math.min(ufl,s.fl+rate):Math.max(ufl,s.fl-rate);}}
-  const onStair=Math.abs(s.fl-ufl)>1e-3||uu.climb;
-  let gx,gz;
-  if(onStair){// 계단 위: 층의 소수 부분만큼 계단을 따라 간다(층마다 꺾어 올라감)
-    const f=s.fl-Math.floor(s.fl),even=Math.floor(s.fl)%2===0;const p=Math.abs(s.fl-ufl)>1e-3||f>1e-3?(even?f:1-f):0;
-    gx=st.sx+st.ax*STAIR_L*p+(i%2?.012:-.012);gz=st.sz+(i%3-1)*.02;
-    if(Math.abs(s.fl-ufl)<1e-3&&uu.climb){// 계단 앞에 줄을 선다(칸 가운데 쪽으로)
-      const zs=st.sz>uu.r+.5?-1:1;gx=st.sx+st.ax*(i%2?.06:.02);gz=st.sz+zs*(.05+i*.035);}}
-  else if(!moving){// 창가: 쏘는 방향 벽을 따라 늘어선다
-    const fa=(uu.face||0)*Math.PI/180,fx=Math.cos(fa),fz=Math.sin(fa);const n=(SQUAD[uu.type]||4);
-    const ax=Math.abs(fx)>Math.abs(fz);const cx=uu.c+.5,cz=uu.r+.5;const lat=(i-(n-1)/2)/Math.max(1,n-1)*.62;
-    if(ax){gx=cx+Math.sign(fx)*.31;gz=cz+lat;}else{gz=cz+Math.sign(fz)*.31;gx=cx+lat;}
-    if(i>=6){gx=cx+(v3Hash(uu.id,90+i)-.5)*.4;gz=cz+(v3Hash(uu.id,95+i)-.5)*.4;}}
-  else return {y:(s.fl-ufl)*FLOOR_H};
-  return {x:gx,z:gz,y:(s.fl-ufl)*FLOOR_H};}
+function v3InY(u){const x=cell(u.r,u.c);if(UT[u.type].cls!=='inf'||x.t!=='bldg')return null;const f=u.fl!=null&&u.flK===key(u.r,u.c)?u.fl:topFl(x);return .06+Math.min(f,bldgH(x))*FLOOR_H+.005;}
+/* 건물 안 병사 한 명이 갈 자리 {x,z,y(부대 바닥 기준 높이)}. null이면 평소 대형.
+   계단으로 가는 중: 한 줄로 뒤따른다(trail). 계단 위: 한 줄로 계단을 타고(앞사람부터) 오르내린다.
+   멈춰 있으면 쏘는 쪽 창가(옥상이면 난간)에 붙는다. */
+function v3InSoldier(uu,s,i,dt){const x=cell(uu.r,uu.c);if(UT[uu.type].cls!=='inf'||x.t!=='bldg')return null;
+  const k=key(uu.r,uu.c);const ufl=uu.fl!=null&&uu.flK===k?uu.fl:roofFl(x);const st=v3Stair(uu.r,uu.c);const moving=uu.path&&uu.path.length;
+  if(uu.climb&&!uu.onSt)return {trail:1,y:0};
+  if(uu.climb){const dir=uu.flDir||1;const sf=Math.max(0,Math.min(roofFl(x),ufl-dir*i*.16));const fr=sf-Math.floor(sf),even=Math.floor(sf)%2===0;const p=even?fr:1-fr;
+    return {x:st.sx+st.ax*STAIR_L*p,z:st.sz+(i%2?.025:-.025),y:(sf-ufl)*FLOOR_H,stair:1};}
+  if(moving)return null;
+  const fa=(uu.face||0)*Math.PI/180,fx=Math.cos(fa),fz=Math.sin(fa);const n=(SQUAD[uu.type]||4);
+  const ax=Math.abs(fx)>Math.abs(fz);const cx=uu.c+.5,cz=uu.r+.5;const lat=(i-(n-1)/2)/Math.max(1,n-1)*.62;let gx,gz;
+  if(ax){gx=cx+Math.sign(fx)*.31;gz=cz+lat;}else{gz=cz+Math.sign(fz)*.31;gx=cx+lat;}
+  if(i>=6){gx=cx+(v3Hash(uu.id,90+i)-.5)*.4;gz=cz+(v3Hash(uu.id,95+i)-.5)*.4;}
+  return {x:gx,z:gz,y:0};}
