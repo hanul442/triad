@@ -49,7 +49,7 @@ test('보병은 모든 거점에, 차량은 다른 집결지에 갈 수 있다',
 
 function setup(T) {
   T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 3, fog: false });
-  T.G.units = []; T.G.props = []; T.G.covers = [];
+  T.G.units = []; T.G.props = []; T.G.covers = []; // 빈 도로 지도라 도시 소품(엄폐·장애물)도 비운다
   const G = T.G;
   for (let r = 0; r < T.N; r++) for (let c = 0; c < T.N; c++) { G.map[r][c] = { t: 'road', owner: null, obj: null, smoke: 0 }; }
   T.bump();
@@ -166,7 +166,7 @@ test('트인 곳에서는 칸을 따라 꺾지 않고 곧게 간다', () => {
 });
 
 test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, 건물 안이 더 오래 버틴다', () => {
-  const ttk = (inBldg) => { const T = loadGame(); const G = setup(T); G.maxR = 999;
+  const ttk = (inBldg) => { const T = loadGame(); const G = setup(T); G.maxR = 999; G.nats[1].ctrl = 'human'; // AI가 표적을 건물 밖으로 빼지 않게
     if (inBldg) bldg(G, 5, 5, 2);
     T.mkUnit(0, 'rifle', 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); d.hp = 1000; T.bump();
     for (let i = 0; i < 300; i++) { d.cd = 99; T.rtTick(0.1); }
@@ -178,7 +178,7 @@ test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, �
 });
 
 test('공격 명령: 사거리 밖 적을 쫓아가 쏜다', () => {
-  const T = loadGame(); const G = setup(T); G.maxR = 999;
+  const T = loadGame(); const G = setup(T); G.maxR = 999; G.nats[1].ctrl = 'human'; // 표적이 AI로 도망다니지 않게
   const a = T.mkUnit(0, 'rifle', 2, 2), d = T.mkUnit(1, 'mg', 12, 12); d.hp = 1000; T.bump();
   T.orderAttack(a, d);
   for (let i = 0; i < 400 && d.hp === 1000; i++) { d.cd = 99; T.rtTick(0.1); }

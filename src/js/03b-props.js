@@ -12,8 +12,18 @@ function genProps(){const P=[];const t=(r,c)=>inb(r,c)?G.map[r][c].t:'void';cons
   const sd=(G.seed|0)%100000;const H=(k,s)=>propHash(k+sd*7919,s);
   const nearObj=(r,c)=>G.objs.some(o=>Math.max(Math.abs(o.r-r),Math.abs(o.c-c))<=2);
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const k=key(r,c),cx=c+.5,cz=r+.5;
-    if(rd(r,c)){const h=rd(r,c-1)||rd(r,c+1),v=rd(r-1,c)||rd(r+1,c);
-      if(h&&v){// 교차로: 막힌 길모퉁이 두 곳에 신호등
+    const me=G.map[r][c];
+    if(me.lot){// 주차장: 가운데 통로를 두고 두 줄로 세운 차
+      for(const row of [-1,1])for(let i=0;i<4;i++){const j=(row+1)*5+i;if(H(k,200+j)>.5)continue;const burnt=H(k,210+j)<.08;
+        const kind=['suv','suv','sedan','sedan','pickup'][Math.floor(H(k,220+j)*5)];
+        P.push({k:'car',lot:1,kind,x:cx-.375+i*.25+(H(k,230+j)-.5)*.03,z:cz+row*.31,ry:Math.PI/2*(row>0?1:-1)+(H(k,240+j)-.5)*(burnt?.6:.1),burnt,flip:false,col:burnt?'#2b2723':PROP_COLS[Math.floor(H(k,250+j)*PROP_COLS.length)]});}
+      continue;}
+    if(rd(r,c)&&me.al){// 뒷골목: 쓰레기 컨테이너, 가끔 버려진 차
+      const H2=me.ro==='h';if(H(k,260)<.35)P.push({k:'bin',x:H2?cx+(H(k,261)-.5)*.6:cx+(H(k,262)<.5?-.36:.36),z:H2?cz+(H(k,262)<.5?-.36:.36):cz+(H(k,261)-.5)*.6,ry:H2?0:Math.PI/2});
+      if(H(k,263)<.08){const burnt=H(k,264)<.5;P.push({k:'car',kind:'sedan',x:cx+(H2?(H(k,265)-.5)*.4:0),z:cz+(H2?0:(H(k,265)-.5)*.4),ry:(H2?0:Math.PI/2)+(H(k,266)-.5)*.3,burnt,flip:false,col:burnt?'#2b2723':PROP_COLS[Math.floor(H(k,267)*PROP_COLS.length)]});}
+      continue;}
+    if(rd(r,c)){const ro=me.ro||((rd(r,c-1)||rd(r,c+1))&&(rd(r-1,c)||rd(r+1,c))?'x':(rd(r,c-1)||rd(r,c+1))?'h':'v');const h=ro==='h';
+      if(ro==='x'){// 교차로: 막힌 길모퉁이 두 곳에 신호등
         [[-1,-1],[1,1],[-1,1],[1,-1]].filter(([a,b])=>curb(r+a,c+b)).slice(0,2).forEach(([a,b])=>P.push({k:'light',x:cx+b*.43,z:cz+a*.43,dx:-b*Math.SQRT1_2,dz:-a*Math.SQRT1_2,red:H(k,1+a+b*3)<.5}));
         continue;}
       // 거점 가까운 길에는 도로를 가로지르는 콘크리트 방벽 줄(검문소)

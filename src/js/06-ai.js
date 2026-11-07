@@ -1,6 +1,6 @@
 /* ===================== AI (실시간) ===================== */
 const AI_ORDER=['spg','mortar','sniper','mg','at','rifle','eng','hmv','ifv','tank','drone'];
-const unitCap=()=>({s:14,m:18,l:22}[G.size]||18);
+const unitCap=()=>({s:16,m:22,l:28}[G.size]||22);
 function aiGoal(n,u,vis){let best=null,bd=1e9;
   for(const o of G.objs){if(G.map[o.r][o.c].owner===n)continue;const d=dist(u.r,u.c,o.r,o.c);if(d<bd){bd=d;best=[o.r,o.c];}}
   for(const e of vis){const d=dist(u.r,u.c,e.r,e.c)+2;if(d<bd){bd=d;best=[e.r,e.c];}}
