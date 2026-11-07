@@ -12,6 +12,7 @@ function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),
   if(u&&u.nat===n){const now=Date.now();
     if(u===s&&now-(UI.lastTap||0)<400){UI.group=G.units.filter(o=>o.nat===n&&o!==u&&Math.hypot(o.x-u.x,o.z-u.z)<4.5);toast(`${UI.group.length+1}개 부대 선택`);render();return;}
     UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
+  if(s&&UI.phase==='fort'&&typeof fortTap==='function'){fortTap(grp,pt[0],pt[1]);render();return;}
   if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){orderBldg(s,r,c);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
   if(grp.length){if(u&&u.nat!==n){for(const g of grp)if(UT[g.type].rng[1])orderAttack(g,u);sfx('click',.6);render();return;}
     orderGroupMove(grp,pt[0],pt[1]);sfx('click',.4);render();return;}
@@ -56,6 +57,8 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   const grp=[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));
   if(a==='stop'){grp.forEach(orderStop);render();return;}
   if(a==='hold'){const h=!s.hold;grp.forEach(x=>x.hold=h);render();return;}
+  if(a==='fort'){UI.phase=UI.phase==='fortmenu'||UI.phase==='fort'?'select':'fortmenu';render();return;}
+  if(a.startsWith('fort:')){UI.phase='fort';UI.fortK=a.slice(5);render();return;}
   if(a==='demo'){UI.phase=UI.phase==='demo'?'select':'demo';render();return;}
   if(a==='cancel'){clearSel();render();}});
 document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if(e.key===' '&&G&&!G.boot&&$('#setup').hidden){e.preventDefault();G.paused=!G.paused;render();return;}if((e.key==='c'||e.key==='C')&&G&&typeof v3Cine==='function'){v3Cine();return;}if(e.key==='Escape'){if(UI.sheet){UI.sheet=false;render();}else if(UI.sel||UI.phase||UI.pane){clearSel();UI.pane=null;render();}}});

@@ -49,7 +49,7 @@ test('보병은 모든 거점에, 차량은 다른 집결지에 갈 수 있다',
 
 function setup(T) {
   T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 3, fog: false });
-  T.G.units = [];
+  T.G.units = []; T.G.props = []; T.G.covers = [];
   const G = T.G;
   for (let r = 0; r < T.N; r++) for (let c = 0; c < T.N; c++) { G.map[r][c] = { t: 'road', owner: null, obj: null, smoke: 0 }; }
   T.bump();
@@ -282,4 +282,82 @@ test('헬기 투입: 보이는 빈 도로에 요청하면 몇 초 뒤 소총분�
   const landed = G.units.filter(u => u.nat === 0 && u.type === 'rifle' && u.r === spot[0] && u.c === spot[1]);
   assert.equal(landed.length, 1);
   assert.ok(!T.canSupport(0, 'heli', 5, 5) || T.cell(5, 5).t !== 'bldg', '건물 위에는 내릴 수 없다');
+});
+
+/* ---------- 설치형 방어물·장애물 (04d-fort) ---------- */
+// 건물 사이 한 줄짜리 도로(5행)를 만든다
+function alley(T) { const G = setup(T); for (let c = 0; c < T.N; c++) { bldg(G, 4, c, 2); bldg(G, 6, c, 2); } T.bump(); return G; }
+const done = (G, k, x, z, ry = Math.PI / 2) => { const T2 = G; const f = { id: 900 + (G.forts || []).length, k, nat: 1, x, z, ry, hp: 50, prog: 1 }; (G.forts = G.forts || []).push(f); return f; };
+
+test('차량은 방벽을 넘어가지 않는다: 골목이 막히면 앞에서 멈추고, 보병은 넘어간다', () => {
+  const T = loadGame(); const G = alley(T);
+  for (const z of [5.2, 5.5, 5.8]) done(G, 'jersey', 8.5, z);
+  T.__get('fortCovers')(); G.navV = 1;
+  const t = T.mkUnit(0, 'tank', 5, 2); t.x = 2.5; t.z = 5.5;
+  T.orderMoveTo(t, 12.5, 5.5);
+  for (let i = 0; i < 600; i++) T.rtTick(0.1);
+  assert.ok(t.x < 8.4, `전차가 방벽 앞에서 멈춤 (x=${t.x.toFixed(2)})`);
+  const u = T.mkUnit(0, 'rifle', 5, 3); u.x = 3.5; u.z = 5.5;
+  T.orderMoveTo(u, 12.5, 5.5);
+  for (let i = 0; i < 600 && u.path.length; i++) T.rtTick(0.1);
+  assert.ok(u.x > 12, `보병은 넘어감 (x=${u.x.toFixed(2)})`);
+});
+
+test('차량은 주차된 차를 돌아가고 차 위를 지나지 않는다', () => {
+  const T = loadGame(); const G = setup(T);
+  G.props = [{ k: 'car', kind: 'suv', x: 6.5, z: 5.5, ry: Math.PI / 2, col: '#fff' }]; G.navV = 2;
+  const box = { x: 6.5, z: 5.5, ry: Math.PI / 2, hl: .205, hw: .085 };
+  const t = T.mkUnit(0, 'ifv', 5, 2); t.x = 2.5; t.z = 5.5;
+  T.orderMoveTo(t, 10.5, 5.5);
+  for (let i = 0; i < 400 && t.path.length; i++) { T.rtTick(0.1); assert.ok(!T.__get('inBox')(box, t.x, t.z, 0.05), `차를 넘어감 (${t.x.toFixed(2)},${t.z.toFixed(2)})`); }
+  assert.ok(Math.hypot(t.x - 10.5, t.z - 5.5) < .1, '돌아서 도착');
+});
+
+test('전차는 모래주머니·철조망을 짓밟고, 바퀴 차량은 모래주머니에 막힌다', () => {
+  const T = loadGame(); const G = alley(T);
+  for (const z of [5.2, 5.5, 5.8]) done(G, 'sandbag', 8.5, z);
+  G.navV = 3;
+  const h = T.mkUnit(0, 'hmv', 5, 2); h.x = 2.5; h.z = 5.5;
+  T.orderMoveTo(h, 12.5, 5.5);
+  for (let i = 0; i < 400; i++) T.rtTick(0.1);
+  assert.ok(h.x < 8.4, `험비는 막힘 (x=${h.x.toFixed(2)})`);
+  const t = T.mkUnit(0, 'tank', 5, 3); t.x = 3.5; t.z = 5.5;
+  G.units = G.units.filter(u => u !== h);
+  T.orderMoveTo(t, 12.5, 5.5);
+  for (let i = 0; i < 600 && t.path.length; i++) T.rtTick(0.1);
+  assert.ok(t.x > 12, `전차는 통과 (x=${t.x.toFixed(2)})`);
+  assert.ok(G.forts.length < 3, '짓밟힌 모래주머니가 사라짐');
+});
+
+test('공병이 지휘점수를 써서 모래주머니를 쌓으면 엄폐가 되고, 포격에 부서진다', () => {
+  const T = loadGame(); const G = setup(T); G.maxR = 999;
+  const e = T.mkUnit(0, 'eng', 5, 3); e.x = 3.5; e.z = 5.5;
+  const cp0 = G.nats[0].cp;
+  const f = T.__get('orderFort')(e, 'sandbag', 6.5, 5.5);
+  assert.equal(typeof f, 'object', String(f));
+  assert.equal(G.nats[0].cp, cp0 - 1);
+  for (let i = 0; i < 200 && f.prog < 1; i++) T.rtTick(0.1);
+  assert.equal(f.prog, 1, '다 지음');
+  assert.ok(G.covers.some(c => c.fort === f.id), '엄폐 목록에 들어감');
+  // 방어물 뒤 보병은 앞에서 오는 사격에 엄폐를 받는다
+  const enemy = T.mkUnit(1, 'rifle', 5, 10); enemy.x = 10.5; enemy.z = 5.5;
+  const [fx] = [f.x]; const d = T.mkUnit(0, 'rifle', 5, 6); d.x = fx - .12; d.z = 5.5;
+  const cv = T.__get('coverOf')(d, enemy);
+  assert.ok(cv.cov >= .35, `모래주머니 엄폐 ${cv.cov} ${cv.kind}`);
+  G.nats[0].cp = 50; G.time = 999;
+  T.__get('fortBlast')(6.5, 5.5, 1.5, 40);
+  assert.ok(!G.forts.includes(f), '포격에 부서짐');
+  assert.ok(!G.covers.some(c => c.fort === f.id), '엄폐도 사라짐');
+});
+
+test('소총분대는 콘크리트 방벽을 못 짓고, 짓던 중 다른 명령을 받으면 취소된다', () => {
+  const T = loadGame(); const G = setup(T);
+  const u = T.mkUnit(0, 'rifle', 5, 3);
+  assert.equal(typeof T.__get('orderFort')(u, 'jersey', 6.5, 5.5), 'string');
+  const cp0 = G.nats[0].cp;
+  const f = T.__get('orderFort')(u, 'sandbag', 6.5, 5.5);
+  T.rtTick(0.1);
+  T.orderMoveTo(u, 2.5, 8.5); T.rtTick(0.1);
+  assert.ok(!G.forts.includes(f), '짓다 만 방어물은 치워짐');
+  assert.equal(G.nats[0].cp, cp0, '시작도 안 했으면 지휘점수 환불');
 });
