@@ -15,17 +15,20 @@ const FORT={
   wire:{n:'철조망',len:.42,w:.09,cov:0,h:.08,hp:14,bt:5,cost:1,desc:'보병을 막음(공병은 끊고 통과). 차량은 깔고 지나감'},
   jersey:{n:'콘크리트 방벽',len:.3,w:.07,cov:.35,h:.07,hp:70,bt:9,cost:2,desc:'모든 차량을 막는 저지 블록. 엄폐 35%'},
   hedgehog:{n:'대전차 장애물',len:.15,w:.15,cov:.1,h:.12,hp:55,bt:7,cost:2,desc:'철골 고슴도치. 모든 차량을 막고 보병은 지나감'},
+  trench:{n:'참호',len:.5,w:.11,cov:0,h:0,hp:90,bt:12,cost:1,desc:'땅을 파 들어가 앉는 호. 안의 보병은 사방 엄폐 50%(포격에도). 바퀴 차량은 못 건넘',inside:1},
+  nest:{n:'기관총 진지',len:.28,w:.28,cov:.45,h:.1,hp:45,bt:9,cost:2,desc:'반원형 모래주머니 진지. 앞쪽 엄폐 45%. 바퀴 차량을 막음',inside:1},
 };
 const FORT_KS=Object.keys(FORT);
-Object.assign(COVK,{sandbag:{n:'모래주머니',v:.4},jersey:{n:'콘크리트 방벽',v:.35},hedgehog:{n:'대전차 장애물',v:.1}});
+Object.assign(COVK,{trench:{n:'참호',v:.5},nest:{n:'기관총 진지',v:.45},sandbag:{n:'모래주머니',v:.4},jersey:{n:'콘크리트 방벽',v:.35},hedgehog:{n:'대전차 장애물',v:.1}});
 /* 누가 무엇을 지을 수 있나: 공병은 전부, 소총·기관총은 모래주머니·철조망, 나머지 보병은 모래주머니 */
-function fortKinds(type){const t=UT[type];if(!t||t.cls!=='inf')return [];if(type==='eng')return FORT_KS.slice();if(type==='rifle'||type==='mg')return ['sandbag','wire'];return ['sandbag'];}
+function fortKinds(type){const t=UT[type];if(!t||t.cls!=='inf')return [];if(type==='eng')return FORT_KS.slice();if(type==='mg')return ['sandbag','wire','trench','nest'];if(type==='rifle')return ['sandbag','wire','trench'];return ['sandbag','trench'];}
 const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return u.type==='eng'?'eng':'inf';return u.type==='tank'||u.type==='spg'?'trk':'veh';};
 const NAV_CLR={inf:.03,eng:.03,veh:.11,trk:.12};
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
   car:{inf:2,eng:2,veh:2,trk:2},barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
-  sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2}};
+  sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2},
+  trench:{inf:0,eng:0,veh:2,trk:0},nest:{inf:0,eng:0,veh:2,trk:1}};
 /* 길을 막는 물체 목록 (방향 있는 상자) */
 function navObstacles(){const O=[];
   for(const p of G.props||[]){
@@ -131,7 +134,8 @@ function orderFort(u,k,x,z){const d=FORT[k];if(!d||!fortKinds(u.type).includes(k
   if(N2.cp<d.cost)return '지휘점수가 모자랍니다';const why=fortCanPlace(u.nat,k,x,z);if(why)return why;
   const {ry,fx,fz}=fortPose(u.nat,x,z);G.forts=G.forts||[];const f={id:FORT_ID++,k,nat:u.nat,x,z,ry,hp:d.hp,prog:0,paid:d.cost};G.forts.push(f);N2.cp-=d.cost;
   // 방어물 뒤(위협 반대쪽)에 서서 짓는다
-  let sx=x-fx*(d.w/2+.1),sz=z-fz*(d.w/2+.1);if(!walkable(u,sx,sz)){sx=x;sz=z;}
+  // 참호·진지는 안에서, 나머지는 뒤에서 짓는다
+  let sx=d.inside?x:x-fx*(d.w/2+.1),sz=d.inside?z:z-fz*(d.w/2+.1);if(!walkable(u,sx,sz)){sx=x;sz=z;}
   if(u.job)fortCancel(u);u.tgt=null;u.tgtTile=null;u.dest=[sx,sz];u.path=pathPts(u,sx,sz);u.job={id:f.id,x:sx,z:sz};G.fortV=(G.fortV||0)+1;bump();return f;}
 function fortCancel(u){const j=u.job;u.job=null;if(!j)return;const f=(G.forts||[]).find(o=>o.id===j.id);
   if(f&&f.prog<1&&!G.units.some(o=>o!==u&&o.job&&o.job.id===f.id)){if(f.prog<.05)G.nats[f.nat].cp+=f.paid||0;fortRemove(f);}}
@@ -140,7 +144,11 @@ function fortRemove(f,why){const was=G.forts.includes(f);G.forts=G.forts.filter(
 /* 다 지은 방어물을 엄폐 목록(G.covers)에 넣는다. 길이 방향으로 원 세 개 */
 function fortCovers(){G.covers=(G.covers||[]).filter(c=>!c.fort);
   for(const f of G.forts||[]){if(f.prog<1)continue;const d=FORT[f.k];if(!d.cov)continue;const ax=Math.cos(f.ry),az=-Math.sin(f.ry);const n=d.len>.2?3:1;
+    if(f.k==='nest'){// 앞쪽 반원(로컬 −z)에 엄폐 셋
+      const cs=Math.cos(f.ry),sn=Math.sin(f.ry);for(const a of [-.9,0,.9]){const lx=Math.sin(a)*.12,lz=-Math.cos(a)*.12;G.covers.push({x:f.x+lx*cs+lz*sn,z:f.z-lx*sn+lz*cs,r:.07,kind:'nest',cov:d.cov,h:d.h,fort:f.id});}continue;}
     for(let i=0;i<n;i++){const s=n===1?0:(i-1)*d.len/3;G.covers.push({x:f.x+ax*s,z:f.z+az*s,r:Math.max(.08,d.len/(n*2)),kind:f.k,cov:d.cov,h:d.h,fort:f.id});}}}
+/* 이 점이 다 지은 참호 안인가 (04c coverOf·coverAt이 부른다) */
+function trenchAt(x,z){for(const f of G.forts||[])if(f.k==='trench'&&f.prog>=1&&inBox(fortShape(f),x,z,.01))return true;return false;}
 /* 매 틱: 짓기 진행 */
 function fortTick(dt){if(!G.forts)G.forts=[];
   for(const u of G.units){const j=u.job;if(!j)continue;const f=G.forts.find(o=>o.id===j.id);if(!f||f.prog>=1){u.job=null;continue;}
@@ -167,5 +175,5 @@ function aiFort(n){const N2=G.nats[n];if(N2.cp<6||Math.random()>.35)return;const
   for(const u of G.units){if(u.nat!==n||u.job||(u.path&&u.path.length)||u.tgt!=null)continue;const ks=fortKinds(u.type);if(!ks.length||u.type==='sniper'||u.type==='mortar')continue;
     const o=own.find(q=>Math.hypot(q.c+.5-u.x,q.r+.5-u.z)<2.5);if(!o)continue;
     const [fx,fz]=fortFront(n,u.x,u.z);const x=u.x+fx*.22,z=u.z+fz*.22;if((G.forts||[]).some(f=>Math.hypot(f.x-x,f.z-z)<.45))continue;
-    const t=tileAt(x,z);const k=u.type==='eng'&&eVeh&&t&&t.t==='road'&&ks.includes('hedgehog')?'hedgehog':u.type==='eng'&&Math.random()<.3?'jersey':'sandbag';
+    const t=tileAt(x,z);const p=Math.random();const k=u.type==='eng'&&eVeh&&t&&t.t==='road'&&ks.includes('hedgehog')?'hedgehog':u.type==='eng'&&p<.3?'jersey':u.type==='mg'&&p<.6?'nest':t&&t.t!=='road'&&p<.45&&ks.includes('trench')?'trench':'sandbag';
     if(N2.cp-FORT[k].cost<4)return;if(typeof orderFort(u,k,x,z)!=='string')return;}}
