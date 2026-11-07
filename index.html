@@ -197,6 +197,69 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .v3u em.rd{background:#c9a23a;color:#11161c}.v3u em.rd.jm{background:#ff7a2a;color:#fff;animation:rdblink .6s steps(2) infinite}.v3u u.rk{border-color:#f0c45a;color:#f0c45a}
 @keyframes rdblink{50%{opacity:.45}}
 @media (prefers-reduced-motion:reduce){.v3u em.rd.jm{animation:none}}
+/* ---------- 전투 후 기록 (07r-recap) ---------- */
+.recap{position:fixed;inset:0;z-index:30;overflow:auto;overscroll-behavior:contain;background:rgba(10,12,13,.97);color:#e6e3dc;
+  padding:max(14px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(20px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.rc-wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.rc-narrow{max-width:560px}
+.rc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid #2e3133;padding-bottom:12px}
+.rc-kicker{margin:0;font-family:var(--font-m);font-size:11px;letter-spacing:.14em;color:#9a968c;text-transform:uppercase}
+.rc-res{margin:4px 0 2px;font-size:32px;line-height:1.1;letter-spacing:.04em;font-weight:700}
+.rc-res.win{color:#d9cfae}.rc-res.loss{color:#c98b78}.rc-res.draw{color:#d4d1c9}
+.rc-why{margin:0;color:#a9a59b;font-size:13px}
+.rc-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px;align-items:start}
+.rc-mapcol,.rc-side{display:flex;flex-direction:column;gap:10px;min-width:0}
+.rc-modes{display:flex;gap:6px;flex-wrap:wrap}
+.rc-modes .btn[aria-pressed="true"],.rc-rp .btn[aria-pressed="true"]{background:#e6e3dc;color:#111;border-color:#e6e3dc}
+.rc-mapbox{position:relative;border:1px solid #2e3133;background:#202224;aspect-ratio:1/1}
+.rc-mapbox canvas{display:block;width:100%;height:100%;image-rendering:auto}
+.rc-cap{margin:0;font-size:12px;color:#9a968c;font-family:var(--font-m)}
+.rc-rp{display:flex;gap:8px;align-items:center}
+.rc-rp input{flex:1;min-width:0;accent-color:#d9cfae}
+.rc-tt{font-family:var(--font-m);font-size:12px;color:#c9c5bb;font-variant-numeric:tabular-nums;white-space:nowrap}
+.recap h3{margin:8px 0 0;font-size:13px;letter-spacing:.06em;color:#d4d1c9;display:flex;gap:8px;align-items:baseline}
+.recap h3 .stats{font-weight:400;font-size:11px;color:#8c887f}
+.rc-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:#2e3133;border:1px solid #2e3133}
+.rc-tiles div{background:#16191a;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.rc-tiles b{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;font-family:var(--font-m);color:#ece8df}
+.rc-tiles b small{font-size:12px;color:#8c887f;font-weight:400}
+.rc-tiles span{font-size:11.5px;color:#9a968c}
+.recap .tbl{overflow-x:auto}
+.recap table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+.recap th,.recap td{padding:6px 7px;border-bottom:1px solid #26292b;text-align:right;white-space:nowrap}
+.recap th:first-child,.recap td:first-child{text-align:left}
+.recap th{color:#8c887f;font-weight:500;font-size:11px}
+.recap td small,.recap th small{color:#7c786f}
+.rc-chart{width:100%;height:auto;display:block;background:#141617;border:1px solid #26292b}
+.rc-axis{display:flex;justify-content:space-between;font-family:var(--font-m);font-size:10.5px;color:#7c786f}
+.rc-moms,.rc-top,.rc-arcs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.rc-mom{all:unset;box-sizing:border-box;display:flex;gap:12px;width:100%;padding:8px 10px;border-radius:4px;cursor:pointer;font-size:13px;min-height:40px;align-items:center}
+.rc-mom:hover,.rc-mom:focus-visible{background:#1d2022}
+.rc-mom:focus-visible,.rc-arc:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.rc-mom time{font-family:var(--font-m);color:#d9cfae;font-size:12px;min-width:38px;font-variant-numeric:tabular-nums}
+.rc-top li{display:flex;gap:10px;align-items:baseline;padding:5px 10px;font-size:13px}
+.rc-top b{font-family:var(--font-m);color:#8c887f;width:12px}
+.rc-top small{color:#8c887f;margin-left:auto}
+.rc-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.rc-wipe{position:relative;aspect-ratio:1/1;border:1px solid #2e3133;overflow:hidden;background:#202224}
+.rc-wipe img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.8) contrast(1.04)}
+.rc-wipe i{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#e6e3dc;box-shadow:0 0 6px rgba(0,0,0,.6)}
+.rc-wipe .tag{position:absolute;top:8px;font-family:var(--font-m);font-size:11px;background:rgba(10,12,13,.75);padding:2px 7px;border-radius:3px}
+.rc-wipe .tag.l{left:8px}.rc-wipe .tag.r{right:8px}
+#rc-air{display:flex;flex-direction:column;gap:8px}
+#rc-air input{accent-color:#d9cfae}
+.rc-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.rc-photos figure{margin:0}.rc-photos img{width:100%;display:block;border:1px solid #2e3133}
+.rc-photos figcaption{font-size:11px;color:#9a968c;margin-top:3px}
+.rc-arc{all:unset;box-sizing:border-box;display:flex;gap:12px;align-items:center;width:100%;padding:8px;border-radius:5px;cursor:pointer;border:1px solid transparent}
+.rc-arc:hover{background:#1a1d1f;border-color:#2e3133}
+.rc-arc img{image-rendering:pixelated;border:1px solid #2e3133;flex:none}
+.rc-arc span{display:flex;flex-direction:column;gap:1px;min-width:0}
+.rc-arc b{font-size:15px}.rc-arc small{font-size:12px;color:#9a968c}
+.rc-empty{display:flex;flex-direction:column;gap:12px;align-items:flex-start;color:#a9a59b}
+.rc-empty p{margin:0}
+@media (max-width:860px){.rc-grid{grid-template-columns:minmax(0,1fr)}.rc-res{font-size:26px}}
+@media (max-width:420px){.rc-tiles b{font-size:18px}.rc-tiles div{padding:8px}}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -254,6 +317,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div class="err" id="setup-err"></div>
     <button class="btn primary" data-act="start" id="b-start">작전 개시</button>
     <button class="btn" data-act="resume" id="b-resume" hidden>저장된 작전 이어하기</button>
+    <button class="btn" data-act="archive" id="b-archive">지난 전투 기록</button>
   </div>
 </div>
 <div class="overlay" id="handoff" hidden>
@@ -1952,6 +2016,98 @@ function breach(a,P){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face
   if(typeof ignite==='function')ignite(P.r,P.c,.28*ta.ex);
   bump();}
 
+/* ---- 05j-chron.js ---- */
+/* ===================== 전투 기록: 파괴된 도시와 전황의 기록 =====================
+   전투 내내 G.chron에 기록을 남긴다. 화면은 07r-recap.js가 그린다.
+   - base: 전투 시작 때 도시(칸마다 지형·층수)
+   - fr: 3초마다 부대 위치·거점 주인·세력별 전력
+   - ev: 사건(격파·건물 붕괴·화재·거점 확보·화력 지원·추락)
+   - hits: 포탄·폭발이 떨어진 곳(지도에 탄흔으로 남는다)
+   - heat: 칸마다 전투가 얼마나 격렬했는지
+   전투가 끝나면 chronEnd()가 통계를 내고 기록 보관함(localStorage)에 넣는다. */
+const CHRON={dt:3,maxEv:500,maxHits:900,keep:6,key:'triad-chron'};
+const CHRON_TYPES=Object.keys(UT);
+const b36=(v,w)=>{v=Math.max(0,Math.min(36**w-1,Math.round(v)));return v.toString(36).padStart(w,'0');};
+/* 칸 하나를 글자 하나로: 건물은 층수(A=0층…), 나머지는 지형 */
+function chronTile(x){if(x.t==='bldg')return String.fromCharCode(65+Math.min(25,x.f||1));return {road:'r',plaza:'p',park:'g',rubble:'x',water:'w'}[x.t]||'r';}
+function chronMap(){let t='',d='',b='';for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];t+=chronTile(x);
+    d+=x.t==='bldg'&&x.bmax?String(Math.max(0,Math.min(9,Math.round(x.bhp/x.bmax*9)))):'9';b+=x.burnt||x.fire>0?'1':'0';}
+  return {t,d,b};}
+function chronInit(){if(!G||!G.map)return;
+  G.chron={v:1,t0:Date.now(),base:chronMap(),fr:[],ev:[],hits:[],heat:new Array(N*N).fill(0),top:{},peak:{},nx:0,shots:G.order.map(()=>0),strikes:G.order.map(()=>0),fires:0};
+  chronSample();}
+const chronOn=()=>G&&G.chron&&!G.chron.end;
+function chronHeat(x,z,v){const C=G.chron;const r=Math.floor(z),c=Math.floor(x);if(!inb(r,c))return;C.heat[r*N+c]=Math.round((C.heat[r*N+c]+v)*10)/10;}
+function chronEv(k,x,z,o){if(!chronOn())return;const C=G.chron;if(C.ev.length>=CHRON.maxEv&&k==='kill')return;
+  C.ev.push(Object.assign({t:Math.round((G.time||0)*10)/10,k,x:Math.round(x*100)/100,z:Math.round(z*100)/100},o||{}));}
+/* 3초마다 한 장: 부대마다 6글자(세력·병종·x·z), 거점 주인, 세력별 전력(체력 합) */
+function chronSample(){const C=G.chron;let u='';const s=G.order.map(()=>0);
+  for(const x of G.units){if(x.dead)continue;const j=G.order.indexOf(x.nat);if(j<0)continue;s[j]+=Math.max(0,x.hp||0);
+    u+=x.nat+b36(CHRON_TYPES.indexOf(x.type),1)+b36(x.x*8,2)+b36(x.z*8,2);}
+  const o=G.objs.map(ob=>{const w=G.map[ob.r][ob.c].owner;return w==null?'-':String(w);}).join('');
+  C.fr.push({t:Math.round((G.time||0)*10)/10,u,o,s:s.map(v=>Math.round(v))});
+  // 거점 주인이 바뀌었으면 사건으로
+  const prev=C.lastO;if(prev!=null)for(let i=0;i<o.length;i++)if(o[i]!==prev[i]&&o[i]!=='-'){const ob=G.objs[i];chronEv('cap',ob.c+.5,ob.r+.5,{n:+o[i],w:prev[i]==='-'?null:+prev[i],o:i});}
+  C.lastO=o;
+  for(const n of G.order){const k=objCount(n);if(k>(C.peak[n]||0))C.peak[n]=k;}
+  C.nx=(G.time||0)+CHRON.dt;}
+/* 유닛 하나의 짧은 이름(경험치 스레드가 u.name을 붙이면 그걸 쓴다) */
+const chronName=u=>u.name||`${UT[u.type].n} ${u.id}호`;
+
+/* ---------- 게임 로직에 기록을 건다 (원래 함수는 그대로 부른다) ---------- */
+{const _ng=newGame;newGame=function(cfg){const g=_ng(cfg);try{chronInit();}catch(e){}return g;};}
+{const _k=kill;kill=function(u,by){const live=G.units.includes(u);const ux=u.x,uz=u.z;_k(u,by);
+  if(!live||!chronOn())return;chronHeat(ux,uz,3);
+  if(by){const T=G.chron.top;const id=by.id;T[id]=T[id]||{n:by.nat,ty:by.type,nm:chronName(by),k:0};T[id].k++;T[id].nm=chronName(by);}
+  chronEv('kill',ux,uz,{n:u.nat,ty:u.type,by:by?by.nat:null,bt:by?by.type:null});};}
+{const _d=damageBldg;damageBldg=function(r,c,amt){const x=G.map[r][c];const was=x.t==='bldg',f0=x.f;_d(r,c,amt);
+  if(!was||!chronOn())return;chronHeat(c+.5,r+.5,Math.min(4,(amt||0)*.15));
+  if(x.t!=='bldg')chronEv('fall',c+.5,r+.5,{f:f0,o:x.obj!=null?x.obj:undefined});};}
+if(typeof ignite==='function'){const _i=ignite;ignite=function(r,c,p){const ok=_i(r,c,p);if(ok&&chronOn()){G.chron.fires++;chronEv('fire',c+.5,r+.5);}return ok;};}
+{const _s=support;support=function(n,kind,r,c){const ok=_s(n,kind,r,c);if(ok&&chronOn()){const j=G.order.indexOf(n);if(j>=0)G.chron.strikes[j]++;chronEv('sup',c+.5,r+.5,{n,s:kind});chronHeat(c+.5,r+.5,2);}return ok;};}
+if(typeof shellBoom==='function'){const _b=shellBoom;shellBoom=function(s,x,z,h,r,c){_b(s,x,z,h,r,c);if(!chronOn())return;const C=G.chron;chronHeat(x,z,1.5);
+  if(C.hits.length<CHRON.maxHits)C.hits.push([Math.round(x*50)/50,Math.round(z*50)/50,r!=null?1:0,Math.round(G.time||0)]);};}
+{const _sh=rtShoot;rtShoot=function(a,d){const r=_sh(a,d);if(chronOn()&&d){chronHeat(d.x,d.z,.08);const j=G.order.indexOf(a.nat);if(j>=0)G.chron.shots[j]++;}return r;};}
+if(typeof crashAt==='function'){const _c=crashAt;crashAt=function(cr){_c(cr);if(chronOn()&&cr&&cr.big)chronEv('crash',cr.x??0,cr.z??0,{ty:cr.kind});};}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.chron)return;if(chronOn()&&(G.time||0)>=G.chron.nx)chronSample();if(G.over&&!G.chron.end)chronEnd();};}
+
+/* ---------- 전투가 끝나면: 통계 ---------- */
+function chronStats(){const C=G.chron;const B=C.base.t,F=chronMap();let b0=0,fl0=0,fallen=0,flLost=0,dmg=0,burnt=0;
+  for(let i=0;i<B.length;i++){const a=B.charCodeAt(i);if(a<65||a>90)continue;const f=a-65;b0++;fl0+=f;
+    if(F.t[i]==='x'){fallen++;flLost+=f;}else{if(+F.d[i]<9)dmg++;}if(F.b[i]==='1')burnt++;}
+  const nats=G.order.map((n,j)=>{const x=G.nats[n];const cs=x.cas||{};
+    return {n,ctrl:x.ctrl,alive:!!x.alive,vp:x.vp,objs:objCount(n),peak:C.peak[n]||0,kills:x.kills||0,losses:x.losses||0,kia:cs.kia||0,wia:(cs.wia||0)+(cs.lw||0),evac:cs.evac||0,bought:x.bought||0,shots:C.shots[j]||0,strikes:C.strikes[j]||0,units:G.units.filter(u=>u.nat===n).length};});
+  const top=Object.values(C.top).sort((a,b)=>b.k-a.k).slice(0,3);
+  return {b0,fl0,fallen,flLost,dmg,burnt,ruin:fl0?Math.round(flLost/fl0*100):0,shells:C.hits.length,fires:C.fires,nats,top,fin:F};}
+/* 주요 장면: 첫 교전, 첫 붕괴, 가장 큰 붕괴, 거점 쟁탈, 마지막 격파 */
+function chronMoments(){const C=G.chron;const M=[];const ev=C.ev;const nm=n=>n==null?'중립':NATS[n].name;
+  const first=k=>ev.find(e=>e.k===k);const k1=first('kill');if(k1)M.push({t:k1.t,x:k1.x,z:k1.z,k:'kill',s:`첫 교전: ${nm(k1.n)} ${UT[k1.ty]?UT[k1.ty].n:''} 격파`});
+  const falls=ev.filter(e=>e.k==='fall');if(falls.length){const f1=falls[0];M.push({t:f1.t,x:f1.x,z:f1.z,k:'fall',s:`첫 건물 붕괴 (${f1.f}층)`});
+    const big=falls.slice(1).sort((a,b)=>b.f-a.f)[0];if(big&&big.f>=3)M.push({t:big.t,x:big.x,z:big.z,k:'fall',s:`${big.f}층 건물 붕괴${big.o!=null?' · '+G.objs[big.o].name:''}`});}
+  const caps=ev.filter(e=>e.k==='cap');const swaps=caps.filter(e=>e.w!=null);
+  for(const e of swaps.slice(0,4))M.push({t:e.t,x:e.x,z:e.z,k:'cap',s:`${nm(e.n)}, ${G.objs[e.o].name} 탈환`});
+  if(!swaps.length&&caps.length){const e=caps[caps.length-1];M.push({t:e.t,x:e.x,z:e.z,k:'cap',s:`${nm(e.n)}, ${G.objs[e.o].name} 확보`});}
+  const fs=first('fire');if(fs)M.push({t:fs.t,x:fs.x,z:fs.z,k:'fire',s:'시가지에 첫 화재'});
+  const cr=first('crash');if(cr)M.push({t:cr.t,x:cr.x,z:cr.z,k:'crash',s:'항공기 추락'});
+  const kl=ev.filter(e=>e.k==='kill'&&!(UT[e.ty]&&UT[e.ty].fly));if(kl.length>1){const e=kl[kl.length-1];M.push({t:e.t,x:e.x,z:e.z,k:'kill',s:`마지막 격파: ${nm(e.n)} ${UT[e.ty]?UT[e.ty].n:''}`});}
+  M.sort((a,b)=>a.t-b.t);return M.slice(0,10);}
+/* 끝. 통계를 내고 보관함에 넣는다(구경용 첫 화면 전투·훈련은 빼고) */
+function chronEnd(){const C=G.chron;if(!C||C.end)return;chronSample();C.end=1;C.stats=chronStats();C.moments=chronMoments();
+  if(!G.boot&&G.scn!=='tut'){try{chronArchive(chronRecord());}catch(e){}}}
+/* 보관용 기록 한 건 */
+function chronRecord(){const C=G.chron,S=C.stats;
+  return {v:1,id:C.t0,at:Date.now(),seed:G.seed,size:G.size,N,scn:G.scn||null,viewer:G.viewer,order:G.order.slice(),win:G.over?G.over.win:null,why:G.over?G.over.why:'',time:Math.round(G.time||0),
+    objs:G.objs.map(o=>({r:o.r,c:o.c,name:o.name})),base:C.base,fin:S.fin,heat:C.heat,fr:C.fr,ev:C.ev,hits:C.hits,stats:Object.assign({},S,{fin:undefined}),moments:C.moments,img:C._img||null};}
+function chronList(){try{if(typeof localStorage==='undefined')return [];const a=JSON.parse(localStorage.getItem(CHRON.key)||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}}
+/* 새 기록을 앞에 넣는다. 저장 공간이 모자라면 오래된 기록의 사진·리플레이부터 덜어 낸다 */
+function chronArchive(rec){if(typeof localStorage==='undefined')return false;let a=chronList().filter(x=>x.id!==rec.id);a.unshift(rec);a=a.slice(0,CHRON.keep);
+  for(let tries=0;tries<12;tries++){try{localStorage.setItem(CHRON.key,JSON.stringify(a));return true;}catch(e){
+    const old=a.slice(1).reverse().find(x=>x.img)||a.slice(1).reverse().find(x=>x.fr&&x.fr.length);
+    if(old){if(old.img)old.img=null;else old.fr=[];continue;}if(a.length>1){a.pop();continue;}if(rec.img){rec.img=null;continue;}if(rec.fr.length){rec.fr=rec.fr.filter((_,i)=>i%2===0);continue;}return false;}}
+  return false;}
+/* 기록을 화면에 붙인 사진으로 보탠다(종군기자 카메라 같은 기능이 쓸 수 있다): chronPhoto(dataURL, '설명') */
+function chronPhoto(url,cap){if(!G||!G.chron||!url)return;const C=G.chron;C._ph=C._ph||[];C._ph.push({t:Math.round(G.time||0),url,cap:cap||''});if(C._ph.length>12)C._ph.shift();}
+
 /* ---- 05j-missile.js ---- */
 /* ===================== 미사일: 대전차 유도미사일·다연장 로켓·미사일 타격 =====================
    - 대전차 유도미사일팀: 멈춰 서서 쏜다. 미사일(G.missiles)이 눈에 보이게 날아가 표적을 따라가다 마지막에 위에서 내리꽂힌다.
@@ -3528,6 +3684,204 @@ function v3RadioLines(L,LC,c){if(!radioOn()||!G.rq)return;const vn=G.viewer;
    if(e)s+=e.run?' · 전령이 명령을 들고 가는 중':e.jam?' · 무전 두절, 재송신 중':` · 무전 전달 중 ${Math.max(0,e.at-(G.time||0)).toFixed(1)}초`;
    else if(radioCut(u))s+=' · 적 재밍 반경 안(명령 지연)';return s;};}
 
+/* ---- 07r-recap.js ---- */
+/* ===================== 전투 후 기록 화면 =====================
+   전투가 끝나면 폐허가 된 도시의 지도, 리플레이, 항공 사진(전/후), 전황 통계, 주요 장면을 보여 준다.
+   기록은 05j-chron.js가 모은다. 지난 전투는 시작 화면의 [지난 전투 기록]에서 다시 본다. */
+const RC={rec:null,t:0,play:false,mode:'after',spd:1,last:0,cache:null,ck:'',pulse:null,raf:0};
+const RC_S=720;   // 지도 캔버스 크기(픽셀)
+const rcH=(i,s)=>{let h=(i*2654435761^(s||0)*40503)>>>0;h=Math.imul(h^h>>>15,2246822507)>>>0;h=Math.imul(h^h>>>13,3266489909)>>>0;return ((h^h>>>16)>>>0)/4294967296;};
+const rcEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rcCol=n=>n==null||n==='-'?'#8b9294':MAPCOL[+n];
+const rcNat=n=>n==null?'무승부':NATS[n].name;
+
+/* ---------- 항공 사진: 3D 도시를 바로 위에서 한 장 찍는다 ---------- */
+function rcAerial(){try{if(typeof V3==='undefined'||!V3.on||!V3.ren||!G)return null;const ren=V3.ren,cam=V3.cam,sc=V3.scene;const m=N/2;
+    const fov=cam.fov,asp=cam.aspect;const W=1024;const D=m*1.06/Math.tan(19*Math.PI/180);
+    cam.fov=38;cam.aspect=1;cam.updateProjectionMatrix();cam.position.set(m,D,m+.001);cam.lookAt(m,0,m);
+    const fn=sc.fog.near,ff=sc.fog.far;sc.fog.near=D*4;sc.fog.far=D*6;
+    const S=V3.sun.shadow.camera;const sh=[S.left,S.right,S.top,S.bottom];S.left=-N*.75;S.right=N*.75;S.top=N*.75;S.bottom=-N*.75;S.far=160;S.updateProjectionMatrix();
+    V3.sun.position.set(m-16,22,m+10);V3.sun.target.position.set(m,0,m);V3.sun.target.updateMatrixWorld();
+    const lab=V3.grid?V3.grid.visible:false;if(V3.grid)V3.grid.visible=false;
+    if(typeof v3FowUpd==='function'){v3FowUpd(null);}
+    // 다음 날 아침 정찰 사진처럼: 맑은 낮 빛으로, 터지는 중인 화염·먼지는 빼고
+    const turn=G.turn,wx=G.wx,fxv=V3.G&&V3.G.fx?V3.G.fx.visible:true;G.turn=3;G.wx='clear';if(typeof v3Light==='function')v3Light();if(V3.G&&V3.G.fx)V3.G.fx.visible=false;
+    ren.setPixelRatio(1);ren.setSize(W,W,false);ren.render(sc,cam);const url=ren.domElement.toDataURL('image/jpeg',.72);
+    G.turn=turn;G.wx=wx;if(typeof v3Light==='function')v3Light();if(V3.G&&V3.G.fx)V3.G.fx.visible=fxv;
+    cam.fov=fov;cam.aspect=asp;sc.fog.near=fn;sc.fog.far=ff;[S.left,S.right,S.top,S.bottom]=sh;S.far=90;S.updateProjectionMatrix();if(V3.grid)V3.grid.visible=lab;
+    V3.fowSrc=-1;if(typeof v3Size==='function')v3Size();if(typeof bump==='function')bump();
+    return url&&url.length>2000?url:null;}catch(e){return null;}}
+/* 전투 시작 사진: 새 작전이 열리고 도시가 그려진 뒤 */
+{const _ng=newGame;newGame=function(cfg){const g=_ng(cfg);const me=G;if(typeof setTimeout==='function'&&typeof document!=='undefined')setTimeout(()=>{if(G!==me||G.boot||!G.chron||G.over)return;const u=rcAerial();if(u)G.chron._img={pre:u,post:null};},1600);return g;};}
+/* 전투 끝 사진: 기록이 보관된 뒤 사진을 덧붙여 다시 보관한다 */
+{const _e=chronEnd;chronEnd=function(){const C=G&&G.chron;const was=C&&C.end;_e();if(!C||was||G.boot||G.scn==='tut'||typeof document==='undefined')return;
+  setTimeout(()=>{if(!G||G.chron!==C)return;const u=rcAerial();if(u){C._img=Object.assign({pre:null},C._img||{},{post:u});try{chronArchive(chronRecord());}catch(e){}if(RC.rec&&RC.rec.id===C.t0){RC.rec.img=C._img;rcAerialHTML();}}},900);};}
+/* 전투가 끝나면 잠깐 뒤 기록 화면을 연다 */
+{const _r=render;render=function(){_r();if(!G||!G.over||G.boot||!G.chron||G._rc)return;G._rc=true;if(!G.chron.end)chronEnd();
+  setTimeout(()=>{if(G&&G.over&&G.chron)rcOpen(chronRecord());},2200);};}
+
+/* ---------- 시각 t의 도시 ---------- */
+function rcState(rec,t){const end=t>=rec.time-.01;const fall=new Set(),fire=new Map();
+  for(const e of rec.ev){if(e.t>t)break;const i=Math.floor(e.z)*rec.N+Math.floor(e.x);if(e.k==='fall')fall.add(i);else if(e.k==='fire'&&!fire.has(i))fire.set(i,e.t);}
+  return {end,fall,fire};}
+/* 건물·잔해 층. 무너진 칸 수가 바뀔 때만 다시 그린다 */
+function rcCity(rec,st,mode){const n=rec.N,cs=RC_S/n;const pre=mode==='before';const ck=rec.id+':'+mode+':'+(pre?0:st.end?'E':st.fall.size)+':'+(pre?0:[...st.fire.keys()].filter(i=>st.end||RC.t-st.fire.get(i)>=50).length);
+  if(RC.cache&&RC.ck===ck)return RC.cache;
+  const cv=RC.cache||document.createElement('canvas');cv.width=cv.height=RC_S;const g=cv.getContext('2d');RC.ck=ck;RC.cache=cv;
+  const B=rec.base.t,F=rec.fin;const tileAt=i=>{if(pre)return B[i];if(st.end)return F.t[i];return st.fall.has(i)?'x':B[i];};
+  // 땅
+  g.fillStyle='#303234';g.fillRect(0,0,RC_S,RC_S);
+  for(let i=0;i<n*n;i++){const r=Math.floor(i/n),c=i%n,x=c*cs,y=r*cs;const ch=B[i];
+    if(ch==='p'){g.fillStyle='#6c6a64';g.fillRect(x,y,cs,cs);}else if(ch==='g'){g.fillStyle='#4b5340';g.fillRect(x,y,cs,cs);g.fillStyle='rgba(30,36,26,.5)';for(let k=0;k<3;k++){const a=rcH(i,k);g.beginPath();g.arc(x+cs*rcH(i,k+9),y+cs*rcH(i,k+19),cs*(.12+a*.14),0,6.29);g.fill();}}
+    else if(ch==='w'){g.fillStyle='#34505a';g.fillRect(x,y,cs,cs);}
+    else if(ch>='A'&&ch<='Z'){g.fillStyle='#5f5d58';g.fillRect(x-.5,y-.5,cs+1,cs+1);}   // 건물 터의 보도
+    for(let k=0;k<6;k++){g.fillStyle=rcH(i,k+40)<.5?'rgba(255,255,255,.035)':'rgba(0,0,0,.06)';g.fillRect(x+cs*rcH(i,k+50),y+cs*rcH(i,k+60),1.5,1.5);}}
+  // 건물 그림자(남동쪽으로 길게)
+  g.fillStyle='rgba(8,8,8,.42)';
+  for(let i=0;i<n*n;i++){const ch=tileAt(i);if(!(ch>='A'&&ch<='Z'))continue;const f=ch.charCodeAt(0)-65,r=Math.floor(i/n),c=i%n;const d=Math.min(cs*2.2,cs*(.18+f*.16));
+    g.beginPath();g.moveTo(c*cs,r*cs+cs);g.lineTo(c*cs+cs,r*cs);g.lineTo(c*cs+cs+d,r*cs+d*.7);g.lineTo(c*cs+cs+d,r*cs+cs+d*.7);g.lineTo(c*cs+d,r*cs+cs+d*.7);g.closePath();g.fill();}
+  // 잔해: 칸 밖으로 흘러넘친 파편
+  for(let i=0;i<n*n;i++){if(tileAt(i)!=='x')continue;const r=Math.floor(i/n),c=i%n,x=c*cs,y=r*cs;const was=B[i]>='A'&&B[i]<='Z';
+    g.fillStyle=was?'#7c756a':'#6c665d';g.fillRect(x,y,cs,cs);const k0=was?Math.min(60,14+(B.charCodeAt(i)-65)*5):12;
+    for(let k=0;k<k0;k++){const a=rcH(i,k),b=rcH(i,k+100),s=rcH(i,k+200);const spill=was?.35:.1;
+      g.fillStyle=s<.33?'#4a463f':s<.66?'#9a9284':'#857d70';const w=cs*(.05+s*.14);g.fillRect(x-cs*spill+a*cs*(1+2*spill),y-cs*spill+b*cs*(1+2*spill),w,w*(.6+a*.6));}
+    if(was){g.fillStyle='rgba(40,36,32,.35)';g.beginPath();g.arc(x+cs*.5,y+cs*.5,cs*.32,0,6.29);g.fill();}}
+  // 지붕
+  for(let i=0;i<n*n;i++){const ch=tileAt(i);if(!(ch>='A'&&ch<='Z'))continue;const f=ch.charCodeAt(0)-65,r=Math.floor(i/n),c=i%n,x=c*cs,y=r*cs;
+    const v=Math.min(190,128+f*6);g.fillStyle=`rgb(${v},${v-2},${v-7})`;g.fillRect(x,y,cs,cs);
+    // 테두리(옆 칸 높이가 다르면 난간 선)
+    g.fillStyle='rgba(30,28,25,.45)';const nb=(a,b)=>{if(a<0||b<0||a>=n||b>=n)return -1;const q=tileAt(a*n+b);return q>='A'&&q<='Z'?q.charCodeAt(0)-65:-1;};
+    if(nb(r-1,c)!==f)g.fillRect(x,y,cs,1.2);if(nb(r,c-1)!==f)g.fillRect(x,y,1.2,cs);if(nb(r+1,c)!==f)g.fillRect(x,y+cs-1.2,cs,1.2);if(nb(r,c+1)!==f)g.fillRect(x+cs-1.2,y,1.2,cs);
+    // 얼룩·실외기
+    for(let k=0;k<2;k++){if(rcH(i,k+300)<.5)continue;g.fillStyle='rgba(40,38,34,.22)';g.beginPath();g.arc(x+cs*rcH(i,k+310),y+cs*rcH(i,k+320),cs*(.1+rcH(i,k+330)*.2),0,6.29);g.fill();}
+    if(rcH(i,340)<.4){g.fillStyle='#a9a69e';g.fillRect(x+cs*rcH(i,341)*.7,y+cs*rcH(i,342)*.7,cs*.18,cs*.14);}
+    // 부서진 정도와 그을음(전투 뒤)
+    if(!pre){const dm=st.end?9-(+F.d[i]):0;for(let k=0;k<dm;k++){g.fillStyle=`rgba(25,23,20,${.18+rcH(i,k+400)*.2})`;const s=cs*(.08+rcH(i,k+410)*.22);g.beginPath();g.arc(x+cs*rcH(i,k+420),y+cs*rcH(i,k+430),s,0,6.29);g.fill();}
+      const burnt=st.end?F.b[i]==='1':st.fire.has(i)&&RC.t-st.fire.get(i)>=50;
+      if(burnt){g.fillStyle='rgba(18,16,14,.62)';g.fillRect(x,y,cs,cs);for(let k=0;k<4;k++){g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.arc(x+cs*rcH(i,k+500),y+cs*rcH(i,k+510),cs*.28,0,6.29);g.fill();}}}}
+  return cv;}
+function rcFrame(rec,t){const F=rec.fr;if(!F||!F.length)return null;let lo=0,hi=F.length-1;if(t<=F[0].t)return F[0];while(lo<hi){const m=(lo+hi+1)>>1;if(F[m].t<=t)lo=m;else hi=m-1;}return F[lo];}
+function rcUnits(f){const o=[];if(!f)return o;for(let i=0;i+5<f.u.length;i+=6){o.push({n:+f.u[i],ty:CHRON_TYPES[parseInt(f.u[i+1],36)]||'rifle',x:parseInt(f.u.slice(i+2,i+4),36)/8,z:parseInt(f.u.slice(i+4,i+6),36)/8});}return o;}
+/* 지도 한 장 그리기 */
+function rcDraw(){const rec=RC.rec;const cv=$('#rc-map');if(!rec||!cv)return;const g=cv.getContext('2d');const n=rec.N,cs=RC_S/n;const mode=RC.mode;
+  const t=mode==='before'?0:mode==='replay'?RC.t:rec.time;RC.t=mode==='replay'?RC.t:t;const st=rcState(rec,t);
+  g.drawImage(rcCity(rec,st,mode==='heat'?'after':mode),0,0);
+  if(mode!=='before'){
+    // 탄흔
+    for(const h of rec.hits||[]){if(h[3]!=null&&h[3]>t)continue;const x=h[0]*cs,y=h[1]*cs;const gr=g.createRadialGradient(x,y,0,x,y,cs*.42);gr.addColorStop(0,'rgba(14,12,10,.85)');gr.addColorStop(.6,'rgba(30,26,22,.45)');gr.addColorStop(1,'rgba(30,26,22,0)');g.fillStyle=gr;g.beginPath();g.arc(x,y,cs*.42,0,6.29);g.fill();
+      g.fillStyle='rgba(20,18,15,.55)';for(let k=0;k<7;k++){const a=rcH(Math.round(h[0]*97+h[1]*31),k)*6.29,rr=cs*(.3+rcH(Math.round(h[0]*13+h[1]*71),k)*.6);g.fillRect(x+Math.cos(a)*rr,y+Math.sin(a)*rr,1.6,1.6);}}
+    // 불타는 건물
+    const now=performance.now()/1000;for(const [i,ft] of st.fire){if(st.end||t-ft>=50||st.fall.has(i))continue;const x=(i%n+.5)*cs,y=(Math.floor(i/n)+.5)*cs;const f=.7+Math.sin(now*9+i)*.15;
+      const gr=g.createRadialGradient(x,y,0,x,y,cs*.9);gr.addColorStop(0,`rgba(255,150,60,${.75*f})`);gr.addColorStop(.5,`rgba(220,80,30,${.35*f})`);gr.addColorStop(1,'rgba(220,80,30,0)');g.fillStyle=gr;g.beginPath();g.arc(x,y,cs*.9,0,6.29);g.fill();}
+    // 쓰러진 자리(전투 뒤 지도)
+    if(mode==='after')for(const e of rec.ev){if(e.k!=='kill'||(UT[e.ty]&&UT[e.ty].fly))continue;const x=e.x*cs,y=e.z*cs,s=cs*.16;g.strokeStyle=rcCol(e.n);g.globalAlpha=.75;g.lineWidth=1.4;g.beginPath();g.moveTo(x-s,y-s);g.lineTo(x+s,y+s);g.moveTo(x+s,y-s);g.lineTo(x-s,y+s);g.stroke();g.globalAlpha=1;}
+  }
+  if(mode==='heat'){let mx=0;for(const v of rec.heat)mx=Math.max(mx,v);if(mx>0){g.save();g.globalCompositeOperation='lighter';
+    for(let i=0;i<n*n;i++){const v=rec.heat[i];if(v<=0)continue;const k=Math.sqrt(v/mx);const x=(i%n+.5)*cs,y=(Math.floor(i/n)+.5)*cs;const gr=g.createRadialGradient(x,y,0,x,y,cs*1.4);gr.addColorStop(0,`rgba(255,${120-k*70|0},40,${.42*k})`);gr.addColorStop(1,'rgba(255,80,40,0)');g.fillStyle=gr;g.fillRect(x-cs*1.4,y-cs*1.4,cs*2.8,cs*2.8);}g.restore();}}
+  // 부대(리플레이)
+  const fr=mode==='replay'?rcFrame(rec,t):mode==='before'?rec.fr&&rec.fr[0]:null;
+  if(fr)for(const u of rcUnits(fr)){const T2=UT[u.ty]||{};const x=u.x*cs,y=u.z*cs;g.fillStyle=rcCol(u.n);g.strokeStyle='rgba(0,0,0,.7)';g.lineWidth=1;
+    if(T2.fly){g.beginPath();g.moveTo(x,y-cs*.28);g.lineTo(x+cs*.24,y+cs*.18);g.lineTo(x-cs*.24,y+cs*.18);g.closePath();g.fill();g.stroke();}
+    else if(T2.cls==='veh'){g.fillRect(x-cs*.26,y-cs*.2,cs*.52,cs*.4);g.strokeRect(x-cs*.26,y-cs*.2,cs*.52,cs*.4);}
+    else{g.beginPath();g.arc(x,y,cs*.2,0,6.29);g.fill();g.stroke();}}
+  // 방금 일어난 사건
+  if(mode==='replay')for(const e of rec.ev){if(e.t>t)break;const a=t-e.t;if(a>4)continue;const k=1-a/4;const x=e.x*cs,y=e.z*cs;
+    if(e.k==='kill'){g.strokeStyle=`rgba(255,240,220,${k})`;g.lineWidth=1.5;g.beginPath();g.arc(x,y,cs*(.3+a*.25),0,6.29);g.stroke();}
+    else if(e.k==='fall'){g.fillStyle=`rgba(214,196,160,${.55*k})`;g.beginPath();g.arc(x,y,cs*(.8+a*.6),0,6.29);g.fill();}
+    else if(e.k==='sup'){g.strokeStyle=`rgba(255,170,90,${k})`;g.lineWidth=2;g.beginPath();g.arc(x,y,cs*(1.2+a*.3),0,6.29);g.stroke();}}
+  // 거점
+  const owners=mode==='replay'&&fr?fr.o:mode==='before'?null:(rec.fr&&rec.fr.length?rec.fr[rec.fr.length-1].o:null);
+  rec.objs.forEach((o,i)=>{const x=(o.c+.5)*cs,y=(o.r+.5)*cs;const w=owners?owners[i]:'-';g.lineWidth=2.2;g.strokeStyle='rgba(0,0,0,.6)';g.beginPath();g.arc(x,y,cs*.62,0,6.29);g.stroke();
+    g.strokeStyle=rcCol(w);g.lineWidth=1.6;g.beginPath();g.arc(x,y,cs*.62,0,6.29);g.stroke();g.fillStyle=rcCol(w);g.beginPath();g.arc(x,y,cs*.14,0,6.29);g.fill();
+    if(cs>=12){g.font=`600 ${Math.max(9,cs*.62)|0}px ${getComputedStyle(document.body).fontFamily}`;g.textAlign='center';g.fillStyle='rgba(0,0,0,.75)';g.fillText(o.name,x+1,y-cs*.8+1);g.fillStyle='#ecebe6';g.fillText(o.name,x,y-cs*.8);}});
+  // 고른 장면 표시
+  if(RC.pulse){const p=RC.pulse;const x=p.x*cs,y=p.z*cs;const a=(performance.now()/600)%1;g.strokeStyle=`rgba(255,255,255,${1-a})`;g.lineWidth=2;g.beginPath();g.arc(x,y,cs*(.6+a*1.6),0,6.29);g.stroke();}
+  // 필름 같은 마감: 살짝 탈색된 비네트
+  const vg=g.createRadialGradient(RC_S/2,RC_S/2,RC_S*.35,RC_S/2,RC_S/2,RC_S*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.35)');g.fillStyle=vg;g.fillRect(0,0,RC_S,RC_S);
+  const tl=$('#rc-tl');if(tl&&mode==='replay'){tl.value=String(Math.round(RC.t*10));$('#rc-tt').textContent=`${fmtT(RC.t)} / ${fmtT(rec.time)}`;}}
+/* 리플레이: 전투 전체를 약 40초에 */
+function rcLoop(now){RC.raf=0;const rec=RC.rec;if(!rec||$('#recap').hidden)return;const dt=Math.min(.1,(now-(RC.last||now))/1000);RC.last=now;
+  if(RC.mode==='replay'&&RC.play){RC.t+=dt*Math.max(4,rec.time/40)*RC.spd;if(RC.t>=rec.time){RC.t=rec.time;RC.play=false;rcCtl();}}
+  rcDraw();if(RC.play||RC.pulse||RC.mode==='replay')RC.raf=requestAnimationFrame(rcLoop);}
+function rcKick(){if(!RC.raf){RC.last=0;RC.raf=requestAnimationFrame(rcLoop);}}
+function rcCtl(){const b=$('#rc-play');if(b){b.textContent=RC.play?'멈춤':'재생';b.setAttribute('aria-pressed',RC.play?'true':'false');}
+  document.querySelectorAll('#recap [data-rcm]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.rcm===RC.mode?'true':'false'));
+  const rp=$('#rc-rp');if(rp)rp.hidden=RC.mode!=='replay';const sp=$('#rc-spd');if(sp)sp.textContent=RC.spd+'×';
+  const cap=$('#rc-cap');if(cap)cap.textContent={before:'전투 전 도시',after:'전투 후 폐허 · ✕ 쓰러진 자리 · 검은 점 탄흔',heat:'격전지 · 밝을수록 싸움이 격렬했던 곳',replay:'리플레이 · 점 보병 · 네모 차량 · 세모 항공'}[RC.mode];}
+
+/* ---------- 화면 ---------- */
+function rcStrength(rec){const F=rec.fr||[];if(F.length<2)return '';const W=320,H=90;let mx=1;for(const f of F)for(const v of f.s)mx=Math.max(mx,v);const T=rec.time||F[F.length-1].t||1;
+  const ln=rec.order.map((n,j)=>`<polyline fill="none" stroke="${rcCol(n)}" stroke-width="1.8" stroke-linejoin="round" points="${F.map(f=>`${(f.t/T*W).toFixed(1)},${(H-(f.s[j]||0)/mx*H).toFixed(1)}`).join(' ')}"/>`).join('');
+  const mk=(rec.moments||[]).map(m=>`<line x1="${(m.t/T*W).toFixed(1)}" x2="${(m.t/T*W).toFixed(1)}" y1="0" y2="${H}" stroke="rgba(255,255,255,.12)"/>`).join('');
+  return `<svg viewBox="-2 -2 ${W+4} ${H+4}" class="rc-chart" role="img" aria-label="세력별 전력 추이">${mk}${ln}</svg><div class="rc-axis"><span>0:00</span><span>${fmtT(T)}</span></div>`;}
+function rcAerialHTML(){const box=$('#rc-air');if(!box)return;const im=RC.rec&&RC.rec.img;if(!im||!im.post&&!im.pre){box.hidden=true;return;}box.hidden=false;
+  if(im.pre&&im.post){box.innerHTML=`<h3>항공 정찰 사진 <span class="stats">작전 전 · 다음 날 아침 · 밀어서 비교</span></h3><div class="rc-wipe"><img src="${im.post}" alt="전투 뒤 도시 항공 사진"><img src="${im.pre}" alt="전투 전 도시 항공 사진" id="rc-pre" style="clip-path:inset(0 50% 0 0)"><i id="rc-bar" style="left:50%"></i><span class="tag l">전</span><span class="tag r">후</span></div><input type="range" id="rc-wipe" min="0" max="100" value="50" aria-label="전후 비교 위치">`;}
+  else box.innerHTML=`<h3>항공 사진</h3><div class="rc-wipe"><img src="${im.post||im.pre}" alt="도시 항공 사진"></div>`;}
+function rcHTML(rec){const S=rec.stats||{};const V=rec.viewer;const human=S.nats&&S.nats.some(x=>x.ctrl==='human');
+  const res=rec.win==null?'무승부':human?(rec.win===V?'승리':'패배'):`${rcNat(rec.win)} 승리`;const cls=rec.win==null?'draw':human?(rec.win===V?'win':'loss'):'draw';
+  const d=new Date(rec.at);const ds=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const kia=(S.nats||[]).reduce((a,x)=>a+x.kia,0);
+  const tiles=[[fmtT(rec.time),'전투 시간'],[`${S.fallen||0}<small>/${S.b0||0}</small>`,'무너진 건물 칸'],[`${S.ruin||0}%`,'사라진 층 면적'],[S.burnt||0,'불탄 건물 칸'],[S.shells||0,'떨어진 포탄'],[kia,'전사자']];
+  const rows=(S.nats||[]).map(x=>`<tr><td style="color:${rcCol(x.n)}">${NATS[x.n].name}${x.ctrl==='human'?' <small>(나)</small>':''}</td><td>${x.n===rec.win?'승리':x.alive?'—':'전멸'}</td><td>${x.objs}<small>/${x.peak}</small></td><td>${x.kills}</td><td>${x.losses}</td><td>${x.kia}</td><td>${x.wia}</td><td>${x.evac}</td><td>${x.bought}</td></tr>`).join('');
+  const top=(S.top||[]).filter(x=>x.k>0).map((x,i)=>`<li><b>${i+1}</b><span style="color:${rcCol(x.n)}">${rcEsc(x.nm)}</span><small>${NATS[x.n].name} · 격파 ${x.k}</small></li>`).join('');
+  const mom=(rec.moments||[]).map((m,i)=>`<li><button class="rc-mom" data-rcmom="${i}"><time>${fmtT(m.t)}</time><span>${rcEsc(m.s)}</span></button></li>`).join('');
+  return `<div class="rc-wrap">
+  <header class="rc-head"><div><p class="rc-kicker">전투 후 기록 · ${ds} · ${SIZES[rec.size]?SIZES[rec.size].n:''}</p><h2 class="rc-res ${cls}">${res}</h2><p class="rc-why">${rcEsc(rec.why)}${rec.win!=null&&human&&rec.win!==V?` · ${rcNat(rec.win)} 승리`:''}</p></div>
+    <button class="ib" data-rc="close" id="rc-x" aria-label="기록 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div class="rc-grid">
+   <section class="rc-mapcol">
+    <div class="rc-modes" role="group" aria-label="지도 보기">${[['before','전투 전'],['after','전투 후'],['heat','격전지'],['replay','리플레이']].map(([k,l])=>`<button class="btn sm" data-rcm="${k}" aria-pressed="false">${l}</button>`).join('')}</div>
+    <div class="rc-mapbox"><canvas id="rc-map" width="${RC_S}" height="${RC_S}" aria-label="폐허 지도"></canvas></div>
+    <p class="rc-cap" id="rc-cap"></p>
+    <div class="rc-rp" id="rc-rp" hidden><button class="btn sm" id="rc-play" data-rc="play" aria-pressed="false">재생</button><input type="range" id="rc-tl" min="0" max="${Math.round(rec.time*10)}" value="0" aria-label="리플레이 시간"><button class="btn sm" id="rc-spd" data-rc="spd">1×</button><span class="rc-tt" id="rc-tt"></span></div>
+    <div id="rc-air" hidden></div>
+   </section>
+   <section class="rc-side">
+    <div class="rc-tiles">${tiles.map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+    <h3>세력별 전과</h3><div class="tbl"><table><tr><th>세력</th><th>결과</th><th>거점<small>/최대</small></th><th>격파</th><th>손실</th><th>전사</th><th>부상</th><th>후송</th><th>증원</th></tr>${rows}</table></div>
+    <h3>전력 추이</h3>${rcStrength(rec)}
+    ${mom?`<h3>주요 장면 <span class="stats">누르면 그 순간으로</span></h3><ol class="rc-moms">${mom}</ol>`:''}
+    ${top?`<h3>전공 부대</h3><ol class="rc-top">${top}</ol>`:''}
+    <div id="rc-ph"></div>
+    <div class="rc-act"><button class="btn" data-rc="png">지도 이미지 저장</button><button class="btn" data-rc="look">폐허 둘러보기</button>${G&&G.over?'<button class="btn primary" data-act="new">새 작전</button>':'<button class="btn primary" data-rc="close">닫기</button>'}</div>
+   </section>
+  </div></div>`;}
+function rcPhotos(){const box=$('#rc-ph');if(!box)return;const C=G&&G.chron;const ph=C&&RC.rec&&C.t0===RC.rec.id?C._ph:null;if(!ph||!ph.length){box.innerHTML='';return;}
+  box.innerHTML=`<h3>현장 사진</h3><div class="rc-photos">${ph.map(p=>`<figure><img src="${p.url}" alt="${rcEsc(p.cap||'현장 사진')}"><figcaption>${fmtT(p.t)} ${rcEsc(p.cap)}</figcaption></figure>`).join('')}</div>`;}
+function rcRoot(){let el=$('#recap');if(!el){el=document.createElement('div');el.id='recap';el.className='recap';el.hidden=true;el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label','전투 후 기록');document.body.appendChild(el);}return el;}
+function rcOpen(rec){if(!rec||typeof document==='undefined')return;RC.rec=rec;RC.cache=null;RC.ck='';RC.pulse=null;RC.play=false;RC.t=0;RC.spd=1;RC.mode='after';
+  const el=rcRoot();el.innerHTML=rcHTML(rec);el.hidden=false;const sh=$('#sheet');if(sh&&G&&G.over){UI.sheet=false;$('#app').classList.remove('sheet-open');sh.hidden=true;}
+  rcAerialHTML();rcPhotos();rcCtl();rcDraw();const x=$('#rc-x');if(x)x.focus();}
+function rcClose(){const el=$('#recap');if(el)el.hidden=true;RC.play=false;RC.pulse=null;}
+/* 지난 전투 목록 */
+function rcThumb(rec){const n=rec.N,c=document.createElement('canvas');c.width=c.height=n*2;const g=c.getContext('2d');g.fillStyle='#303234';g.fillRect(0,0,n*2,n*2);
+  for(let i=0;i<n*n;i++){const ch=rec.fin.t[i];g.fillStyle=ch==='x'?'#8a8274':ch==='g'?'#4b5340':ch==='p'?'#6c6a64':ch==='w'?'#34505a':ch>='A'&&ch<='Z'?(rec.fin.b[i]==='1'?'#3a3734':'#a7a49d'):'#303234';g.fillRect(i%n*2,Math.floor(i/n)*2,2,2);}
+  return c.toDataURL();}
+function rcArchive(){const a=chronList();const el=rcRoot();RC.rec=null;
+  const items=a.map((r,i)=>{const d=new Date(r.at);const S=r.stats||{};const hu=S.nats&&S.nats.some(x=>x.ctrl==='human');const res=r.win==null?'무승부':hu?(r.win===r.viewer?'승리':'패배'):`${rcNat(r.win)} 승리`;
+    return `<li><button class="rc-arc" data-rcarc="${i}"><img src="${rcThumb(r)}" alt="" width="72" height="72"><span><b>${res}</b><small>${d.getMonth()+1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} · ${SIZES[r.size]?SIZES[r.size].n:''} · ${fmtT(r.time)}</small><small>무너진 건물 ${S.fallen||0}칸 · 도시 ${S.ruin||0}% 파괴</small></span></button></li>`;}).join('');
+  el.innerHTML=`<div class="rc-wrap rc-narrow"><header class="rc-head"><div><p class="rc-kicker">보관함 · 최근 ${CHRON.keep}판</p><h2 class="rc-res draw">지난 전투 기록</h2></div><button class="ib" data-rc="close" aria-label="닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    ${items?`<ol class="rc-arcs">${items}</ol>`:`<div class="rc-empty"><p>아직 끝낸 전투가 없습니다. 작전을 하나 끝내면 무너진 도시와 전황이 여기에 남습니다.</p><button class="btn primary" data-rc="close">작전 고르기</button></div>`}</div>`;
+  el.hidden=false;}
+function rcPng(){const cv=$('#rc-map');if(!cv)return;try{const a=document.createElement('a');a.download=`triad-폐허-${new Date(RC.rec.at).toISOString().slice(0,10)}.png`;a.href=cv.toDataURL('image/png');document.body.appendChild(a);a.click();a.remove();toast('지도 이미지를 저장했습니다');}catch(e){toast('이 화면에서는 이미지를 저장할 수 없습니다');}}
+if(typeof document!=='undefined'){
+  document.addEventListener('click',e=>{const t=e.target;
+    const op=t.closest('[data-act="recap"]');if(op){if(G&&G.chron){if(!G.chron.end&&G.over)chronEnd();rcOpen(G.over?chronRecord():null);}return;}
+    if(t.closest('[data-act="archive"]')){rcArchive();return;}
+    const root=t.closest('#recap');if(!root)return;if(t.closest('[data-act="new"]')){rcClose();return;}
+    const m=t.closest('[data-rcm]');if(m){RC.mode=m.dataset.rcm;RC.pulse=null;if(RC.mode==='replay'&&RC.t>=RC.rec.time-.1)RC.t=0;rcCtl();rcDraw();rcKick();return;}
+    const mo=t.closest('[data-rcmom]');if(mo){const p=RC.rec.moments[+mo.dataset.rcmom];RC.mode='replay';RC.t=Math.max(0,p.t-2);RC.play=true;RC.spd=1;RC.pulse=p;setTimeout(()=>{if(RC.pulse===p)RC.pulse=null;},6000);rcCtl();rcKick();const mb=$('#rc-map');if(mb&&mb.scrollIntoView&&window.innerWidth<=760)mb.scrollIntoView({block:'center',behavior:'smooth'});return;}
+    const ar=t.closest('[data-rcarc]');if(ar){const r=chronList()[+ar.dataset.rcarc];if(r)rcOpen(r);return;}
+    const b=t.closest('[data-rc]');if(!b)return;const a=b.dataset.rc;
+    if(a==='close'){rcClose();return;}
+    if(a==='look'){rcClose();if(typeof v3HomeCam==='function'&&G)v3HomeCam(false);toast('폐허를 둘러보세요. 아래 [전투 기록]으로 다시 열 수 있습니다');return;}
+    if(a==='play'){if(RC.t>=RC.rec.time-.1)RC.t=0;RC.play=!RC.play;rcCtl();rcKick();return;}
+    if(a==='spd'){RC.spd=RC.spd===1?3:RC.spd===3?.5:1;rcCtl();return;}
+    if(a==='png'){rcPng();return;}});
+  document.addEventListener('input',e=>{const t=e.target;if(t.id==='rc-tl'&&RC.rec){RC.t=+t.value/10;RC.play=false;rcCtl();rcDraw();return;}
+    if(t.id==='rc-wipe'){const v=+t.value;const p=$('#rc-pre'),b=$('#rc-bar');if(p)p.style.clipPath=`inset(0 ${100-v}% 0 0)`;if(b)b.style.left=v+'%';}});
+  document.addEventListener('keydown',e=>{const el=$('#recap');if(el&&!el.hidden&&e.key==='Escape'){rcClose();e.stopPropagation();}},true);}
+
 /* ---- 07s-men.js ---- */
 /* ===================== 3D: 병사 한 명 한 명 그리기 =====================
    05f-men.js가 정한 병사 위치(u._men)를 그대로 따라 그린다. 자세: 서기 / 무릎쏴(쏘거나 재장전·엄호 중) / 엎드림(제압·옆 사람 피격).
@@ -3837,7 +4191,7 @@ function v3MsBoom(x,z,R){if(!V3.on)return;const T=V3.T;const y=v3TopAt(x,z);cons
 /* ---- 08-ui.js ---- */
 /* ===================== UI: HUD·하단 바·메뉴 ===================== */
 function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.units.includes(UI.sel))UI.targets=targetsOf(UI.sel,false);else clearSel();}if(typeof scnCheck==='function')scnCheck();
-  if(G.over&&!G._rep){G._rep=true;UI.sheet=true;UI.tab='world';sfx(G.over.win===G.viewer?'win':'boom');}
+  if(G.over&&!G._rep){G._rep=true;UI.sheet=typeof rcOpen!=='function';UI.tab='world';sfx(G.over.win===G.viewer?'win':'boom');}
   const ho=$('#handoff');if(ho)ho.hidden=true;
   renderHUD();renderActbar();renderPanel();renderObj();if(typeof v3Sync==='function')v3Sync();}
 function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNight();
@@ -3855,7 +4209,7 @@ function uHealth(u){const c=typeof casSummary==='function'?casSummary(u):null;
 function uInfo(u){const t=UT[u.type];const x=cell(u.r,u.c);const where=x.t==='bldg'?(t.cls==='inf'?(onRoof(u)?'옥상':`건물 안 ${Math.floor(curFl(u)+1e-6)+1}/${x.f}층`)+(u.climb?' · 계단 이동 중':''):`건물 ${x.f}층`):TT[x.t].n;
   const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';const cv=coverOf(u);const cvt=cv.cov>0&&cv.kind!=='bldg'?` · 엄폐 ${(COVK[cv.kind]||{n:'연막'}).n} ${Math.round(cv.cov*100)}%`:'';return `${uHealth(u)} · ${where}${cvt} · ${st}${u.brk?' · 공황(후퇴 중)':typeof PINNED!=='undefined'&&u.supp>=PINNED?' · 제압되어 꼼짝 못 함':u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${typeof vetInfo==='function'?vetInfo(u):u.rank?' · 숙련 '+u.rank:''}`;}
 function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.hidden=false;let h='';const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;if(UI.sel&&!s)clearSel();
-  if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':NATS[w].full+' 승리'}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
+  if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':NATS[w].full+' 승리'}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab">${typeof rcOpen==='function'&&G.chron?'<button class="btn sm" data-act="recap" id="ab-recap">전투 기록</button>':''}<button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
   if(G.boot||isAI(n)){el.innerHTML=`<b>관전</b><span>AI끼리 싸우는 중</span>`;return;}
   const pz=`<button class="btn sm${G.paused?' primary':''}" data-act="pause" id="ab-pause">${G.paused?'재개':'일시정지'}</button>`;
   if(UI.phase==='buy'){const t=UT[UI.buyT];h=`<b>${t.n} 배치</b><span>초록 칸을 탭하세요 · 지휘 ${t.cost}</span><div class="ab"><button class="btn sm" data-act="buy-cancel" id="ab-bc">취소</button></div>`;}
