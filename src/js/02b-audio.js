@@ -190,6 +190,7 @@ function sfx(kind,vol=1,x,z){const a=audio();if(!a)return;if(x!=null&&z!=null){
   const tone=(freq,dur,type='sine',to)=>{const o=a.createOscillator();o.type=type;o.frequency.setValueAtTime(freq,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);o.start(t);o.stop(t+dur+.05);return o;};
   if(kind==='click'){env(tone(880,.05),.12,.05);}
   else if(kind==='radio'){env(noise(.12,'bandpass',2300,4),.22,.11,.002);env(tone(1250,.05,'square'),.05,.05);}
+  else if(kind==='shutter'){env(noise(.03,'highpass',3200),.4,.03,.002);const s=a.createBufferSource();s.buffer=noiseBuf(a,.05);const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=1800;const g=a.createGain();g.gain.setValueAtTime(.0001,t+.07);g.gain.exponentialRampToValueAtTime(.3*vol,t+.075);g.gain.exponentialRampToValueAtTime(.0001,t+.12);s.connect(f);f.connect(g);g.connect(SFX.master);s.start(t+.07);}
   else if(kind==='build'){env(tone(330,.12,'triangle'),.16,.12);}
   else if(kind==='turn'){env(tone(660,.18),.18,.2);}
   else if(kind==='distant'){env(noise(1.6,'lowpass',260),.5*1,1.5,.05);env(tone(48,1.2,'sine',24),.35,1.2,.05);}
