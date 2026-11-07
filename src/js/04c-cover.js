@@ -32,6 +32,7 @@ function coverOf(d,a){const td=UT[d.type];if(td.fly)return {cov:0,kind:null};con
   if(x.t==='bldg')put(typeof onRoof==='function'&&onRoof(d)?{cov:COVK.roof.v,kind:'roof'}:{cov:COVK.bldg.v,kind:'bldg'});
   else{if(TT[x.t].cov)put({cov:TT[x.t].cov,kind:x.t});
     const ind=a&&UT[a.type].ind;const [px,pz]=posOf(d);const objs=coverObjs(d);
+    if(td.cls==='inf'&&typeof trenchAt==='function'&&trenchAt(px,pz))put({cov:COVK.trench.v,kind:'trench'});// 참호 안: 사방·곡사 모두 (04d-fort)
     if(!ind){let dirs;if(a){const [ax,az]=posOf(a);const L=Math.hypot(ax-px,az-pz)||1;dirs=[[(ax-px)/L,(az-pz)/L]];}else dirs=DIR8.map(([p,q])=>{const L=Math.hypot(p,q);return [q/L,p/L];});
       const low=a&&eye(a)>=eye(d)+2;
       for(const [ux,uz] of dirs){const c=dirCoverAt(px,pz,ux,uz,td.cls,d,objs);if(low)c.cov*=.5;put(c);}}
@@ -57,6 +58,7 @@ function rawDmg(a,d,counter){const ta=UT[a.type],td=UT[d.type];let v=ta.atk[td.c
 function calcDmg(a,d,counter){const v=rawDmg(a,d,counter);if(!v)return 0;return v*hitP(a,d).p;}
 /* 이 지점 근처에 엄폐가 되는 자리가 있으면 그쪽으로 붙는다 (보병 이동 명령의 도착점) */
 function coverAt(px,pz,cls,objs){const t=tileAt(px,pz);if(!t)return 0;if(t.t==='bldg')return COVK.bldg.v;let b=TT[t.t].cov||0;
+  if(cls==='inf'&&typeof trenchAt==='function'&&trenchAt(px,pz))b=Math.max(b,COVK.trench.v);
   for(const [p,q] of DIR8){const L=Math.hypot(p,q);b=Math.max(b,dirCoverAt(px,pz,q/L,p/L,cls,null,objs).cov);}return b;}
 function coverSnap(u,x,z){if(UT[u.type].cls!=='inf')return [x,z];const objs=coverObjs(u);const c0=coverAt(x,z,'inf',objs);if(c0>=.3)return [x,z];
   let best=[x,z],bs=c0+.05;

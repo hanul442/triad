@@ -67,8 +67,8 @@ function jetDrop(j){const {n,r,c}=j;
       crashAt({x,z,t:G.time+1.6,big:1,nat:n,kind:'jet'});if(FXH.jetDown)FXH.jetDown(j,x,z);sfx('boom');bump();return;}}
   if(FXH.bomb)FXH.bomb(r,c);sfx('arty');
   for(const [a,b] of supArea(r,c,0)){const x=G.map[a][b];const u=unitAt(a,b);
-    if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const d=Math.max(1,Math.round(9*(1-cov)*(.85+Math.random()*.3)));u.hp-=d;u.supp=2;if(u.hp<=0)kill(u,null);}
-    if(x.t==='bldg')damageBldg(a,b,24);}
+    if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const d=Math.max(1,Math.round(9*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:.6});}
+    if(x.t==='bldg'){damageBldg(a,b,24);if(typeof ignite==='function')ignite(a,b,.7);}}
   // 폭풍: 주변 부대도 제압
   for(const u of G.units)if(!UT[u.type].fly&&Math.hypot(u.x-(c+.5),u.z-(r+.5))<1.8)u.supp=Math.max(u.supp||0,1.5);
   bump();}
@@ -80,10 +80,10 @@ function airDown(u,why){const t=UT[u.type];crashAt({x:u.x,z:u.z,t:(G.time||0)+(t
   if(t.heli)L(`${natName(u.nat)} 공격헬기 격추!`);else if(why==='jam')L(`${natName(u.nat)} ${t.n} 전파 방해로 추락`);}
 function crashTick(){if(!G.crash||!G.crash.length)return;const keep=[];
   for(const cr of G.crash){if(cr.t>G.time){keep.push(cr);continue;}if(FXH.crash)FXH.crash(cr);
-    if(!cr.big){if(cr.kind==='fpv')for(const u of G.units)if(!UT[u.type].fly&&Math.hypot(u.x-cr.x,u.z-cr.z)<.45){u.hp=Math.round((u.hp-1)*10)/10;u.supp=Math.max(u.supp||0,1);if(u.hp<=0)kill(u,null);}continue;}
+    if(!cr.big){if(cr.kind==='fpv')for(const u of G.units)if(!UT[u.type].fly&&Math.hypot(u.x-cr.x,u.z-cr.z)<.45){u.supp=Math.max(u.supp||0,1);harm(u,1,null,{kind:'blast',x:cr.x,z:cr.z,rad:.3});}continue;}
     sfx('boom');const r=Math.floor(cr.z),c=Math.floor(cr.x);
-    for(const u of G.units.slice())if(!UT[u.type].fly&&Math.hypot(u.x-cr.x,u.z-cr.z)<1){u.hp=Math.round((u.hp-4)*10)/10;u.supp=2;if(u.hp<=0&&G.units.includes(u))kill(u,null);}
-    if(inb(r,c)&&G.map[r][c].t==='bldg')damageBldg(r,c,8);}
+    for(const u of G.units.slice())if(!UT[u.type].fly&&Math.hypot(u.x-cr.x,u.z-cr.z)<1){u.supp=2;harm(u,4,null,{kind:'blast',x:cr.x,z:cr.z,rad:.6});}
+    if(inb(r,c)&&G.map[r][c].t==='bldg'){damageBldg(r,c,8);if(typeof ignite==='function')ignite(r,c,.4);}}
   G.crash=keep;bump();}
 
 /* ---------- FPV·정찰드론: 전파 방해와 돌입 ---------- */
@@ -109,11 +109,11 @@ function droneTick(u,dt){const t=UT[u.type];u.air=u.air||{born:G.time||0};
 function fpvBoom(u,e){const te=UT[e.type];const ins=cell(e.r,e.c).t==='bldg'&&!te.fly;
   let dmg=te.cls==='veh'?7:4.5;if(ins)dmg*=.45;dmg*=.85+Math.random()*.3;dmg=Math.round(dmg*10)/10;
   if(FXH.fpvBoom)FXH.fpvBoom(u,e);sfx('hit');airRemove(u);
-  e.hp=Math.round((e.hp-dmg)*10)/10;e.supp=Math.max(e.supp||0,1.5);G.nats[u.nat].dmg=(G.nats[u.nat].dmg||0)+dmg;
+  e.supp=Math.max(e.supp||0,1.5);G.nats[u.nat].dmg=(G.nats[u.nat].dmg||0)+dmg;
   if(ins)damageBldg(e.r,e.c,3);
   L(`${natName(u.nat)} FPV 드론이 ${natName(e.nat)} ${te.n} 타격`);
-  if(e.hp<=0&&G.units.includes(e))kill(e,u);
-  for(const o of G.units.slice())if(o!==e&&!UT[o.type].fly&&Math.hypot(o.x-e.x,o.z-e.z)<.6){o.hp=Math.round((o.hp-1)*10)/10;o.supp=Math.max(o.supp||0,1);if(o.hp<=0&&G.units.includes(o))kill(o,u);}
+  harm(e,dmg,u,{kind:'blast',x:e.x,z:e.z,rad:.35});
+  for(const o of G.units.slice())if(o!==e&&!UT[o.type].fly&&Math.hypot(o.x-e.x,o.z-e.z)<.6){o.supp=Math.max(o.supp||0,1);harm(o,1,u,{kind:'frag',x:e.x,z:e.z,rad:.4});}
   bump();}
 
 /* ---------- 드론팀 ---------- */

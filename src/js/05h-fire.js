@@ -18,7 +18,7 @@ function fireTick(dt){if(!G.fires||!G.fires.length)return;const keep=[];
       if(Math.random()<dt*x.fire*(same?.022:.004))ignite(a,b,1);}
     // 안의 보병
     for(const u of G.units.slice()){if(u.r!==r||u.c!==c||UT[u.type].cls!=='inf')continue;const fl=curFl(u);if(fl>x.fireFl+1.2&&x.fire<.8)continue;
-      blastHurt(u,Math.round(dt*FIRE_HURT*x.fire*100)/100,null);u.supp=Math.max(u.supp||0,1);
+      u._burn=(u._burn||0)+dt*FIRE_HURT*x.fire;if(u._burn>=1){u._burn-=1;blastHurt(u,1,null,{kind:'blast'});}u.supp=Math.max(u.supp||0,1);   // 연기·불길: 1씩 모아서 한 명씩 다친다
       // 멈춰 있는 부대는 불을 피해 나간다
       if(G.units.includes(u)&&x.fire>.55&&!(u.path&&u.path.length)&&u._fleeK!==k){u._fleeK=k;const out=fireExit(u);if(out)orderMove(u,out[0],out[1]);}}
     if(x.fuel<=0){x.fire=0;x.burnt=1;bump();continue;}

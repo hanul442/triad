@@ -12,6 +12,9 @@ function v3FortMats(){if(V3.fm)return V3.fm;const T=V3.T;
     post:new T.MeshStandardMaterial({color:'#4b3d2c',roughness:1}),
     conc:new T.MeshStandardMaterial({color:'#8f8a80',roughness:1,flatShading:true}),
     steel:new T.MeshStandardMaterial({color:'#5b4334',roughness:.8,metalness:.35,flatShading:true}),
+    pit:new T.MeshStandardMaterial({color:'#2e2720',roughness:1}),
+    berm:new T.MeshStandardMaterial({color:'#6e5e47',roughness:1,flatShading:true}),
+    plank:new T.MeshStandardMaterial({color:'#5a4632',roughness:1}),
     ghost:new T.MeshBasicMaterial({color:'#e8e2d0',transparent:true,opacity:.35,depthWrite:false})};}
 function v3FortGeos(){if(V3.fg)return V3.fg;const T=V3.T,m=MU;
   const tor=new T.TorusGeometry(.42*m,.045*m,3,9).rotateY(Math.PI/2);
@@ -28,6 +31,14 @@ function v3FortMesh(f){const T=V3.T,m=MU,M=v3FortMats(),Gx=v3FortGeos(),d=FORT[f
     for(const [zz,yy] of [[-.38*m,.42*m],[.38*m,.42*m],[0,1.05*m]])for(let i=0;i<n;i++)add(Gx.tor,M.wire,-L/2+(i+.5)*L/n,yy,zz,(R()-.5)*.5,(R()-.5)*.3,0);
     for(const s of [-.5,0,.5])add(Gx.post,M.post,s*L*.9,.65*m,0,(R()-.5)*.15,0,(R()-.5)*.15);}
   else if(f.k==='jersey')add(Gx.jersey,M.conc,0,0,0);
+  else if(f.k==='trench'){// 파인 바닥 + 판자 벽 + 양옆으로 퍼낸 흙둔덕. 가운데에서 살짝 꺾여 지그재그로
+    const L=d.len,W=d.w;for(const [sx,a] of [[-L/4,.22],[L/4,-.22]]){const s=new T.Group();s.position.set(sx,0,0);s.rotation.y=a;g.add(s);
+      const o=new T.Mesh(new T.BoxGeometry(L/2+.03,.004,W*.62),M.pit);o.position.y=.003;o.receiveShadow=true;s.add(o);
+      for(const zz of [-1,1]){const p=new T.Mesh(new T.BoxGeometry(L/2+.02,.35*m,.08*m),M.plank);p.position.set(0,.16*m,zz*W*.31);p.castShadow=true;s.add(p);
+        const b=new T.Mesh(new T.BoxGeometry(L/2+.05,.5*m,W*.32),M.berm);b.position.set(0,.2*m,zz*W*.62);b.rotation.x=zz*.18;b.castShadow=true;b.receiveShadow=true;s.add(b);}}}
+  else if(f.k==='nest'){// 반원형 모래주머니 2단, 열린 쪽(로컬 +z)이 뒤
+    const R0=.12;for(let row=0;row<3;row++){const n=row===2?7:8;for(let i=0;i<n;i++){const a=-1.75+(i+(row%2?.5:0)+.5)/n*3.5;const x=Math.sin(a)*R0,z=-Math.cos(a)*R0;
+      add(Gx.bag,M.bag,x,(.12+row*.22)*m,z,0,-a+(R()-.5)*.15,(R()-.5)*.08);}}}
   else if(f.k==='hedgehog'){const h=new T.Group();for(const [rx,ry,rz] of [[0,0,0],[0,Math.PI/2,0],[0,0,Math.PI/2]]){const o=new T.Mesh(Gx.beam,M.steel);o.rotation.set(rx,ry,rz);o.castShadow=true;h.add(o);}
     h.rotation.set(.615,R()*Math.PI,.785);h.position.y=.78*m;g.add(h);}
   g.position.set(f.x,0,f.z);g.rotation.y=f.ry;return g;}

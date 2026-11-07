@@ -330,7 +330,7 @@ function v3SyncUnits(vs,vn){const keep=new Set();
     o.userData.k=key(u.r,u.c);o.userData.to=[u.x,v3UnitY(u),u.z];o.userData.id=u.id;o.userData.u=u;
     const S=o.userData.sold;if(S.length&&u._men)S.forEach((s,i)=>{const m=u._men[i];if(m&&m.dead&&s.m.visible)v3Corpse(s,o,u.nat);});else if(S.length){const nf=Math.max(1,Math.ceil(u.hp/hpMax(u)*S.length));S.forEach((s,i)=>{if(i>=nf&&s.m.visible)v3Corpse(s,o,u.nat);});}
     o.userData.sel.visible=u===UI.sel||(UI.group||[]).includes(u);const gy=o.userData.air?-(v3UnitY(u)-v3Top(u.r,u.c))+.02:.02;o.userData.ring.position.y=gy;o.userData.sel.position.y=gy+.01;if(o.userData.shadow)o.userData.shadow.position.y=gy-.005;}
-  for(const [id,o] of V3.uo)if(!keep.has(id)){const dead=!G.units.some(u=>u.id===id);if(dead)for(const s of o.userData.sold)v3Corpse(s,o,o.userData.u?o.userData.u.nat:0);V3.G.units.remove(o);V3.uo.delete(id);}}
+  for(const [id,o] of V3.uo)if(!keep.has(id)){const dead=!G.units.some(u=>u.id===id);if(dead){const M=o.userData.u&&o.userData.u._men;o.userData.sold.forEach((s,i)=>{const m=M&&M[i];if(!m||m.dead)v3Corpse(s,o,o.userData.u?o.userData.u.nat:0);});}V3.G.units.remove(o);V3.uo.delete(id);}}
 /* 매 프레임 부대 움직임: 부대 중심은 좌표를 따라가고, 병사들은 제각각 흩어져 걷는다 */
 function v3AnimUnits(dt,now){if(!(dt>0))return;for(const o of V3.uo.values()){const to=o.userData.to,uu=o.userData.u;if(!to||!uu)continue;
     const tx=uu.x,tz=uu.z;const kk=1-Math.exp(-dt*12);o.position.x+=(tx-o.position.x)*kk;o.position.z+=(tz-o.position.z)*kk;
@@ -409,8 +409,9 @@ function v3SyncSmoke(){const T=V3.T,g=V3.G.amb;for(const sp of V3.smoke)g.remove
 function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
   for(const o of G.objs){const x=G.map[o.r][o.c];const [px0,pz]=v3x(o.r,o.c);want.set('o'+x.obj,{html:`<span>${o.name}</span>`,cls:'v3c',col:mapCol(x.owner),p:[px0,v3Top(o.r,o.c)+1.05,pz]});}
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;const hm=hpMax(u);const hc=u.hp>hm*.6?'#5cd18a':u.hp>hm*.3?'#f0b23a':'#ff5a4e';
-    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
-    want.set('u'+u.id,{html:`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
+    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(typeof v3MorTag==='function'?v3MorTag(u):u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
+    want.set('u'+u.id,{html:`${typeof v3UnitTag==='function'?v3UnitTag(u):`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>`}${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
+  if(typeof ccpOf==='function'&&G.order&&G.order.includes(vn)){const c=ccpOf(vn);want.set('ccp',{html:'<span>환자집결지</span>',cls:'v3c',col:'#e9e6dc',p:[c.x,v3TopAt(c.x,c.z)+.45,c.z]});}
   for(const [id,o] of V3.labels)if(!want.has(id)){o.el.remove();V3.labels.delete(id);}
   for(const [id,w] of want){let o=V3.labels.get(id);if(!o){const el=document.createElement('div');el.className='v3l '+w.cls;lab.appendChild(el);o={el};V3.labels.set(id,o);}
     if(o.html!==w.html){o.el.innerHTML=w.html;o.html=w.html;}o.el.style.setProperty('--c',w.col);o.p=w.p;o.uid=w.uid;}}

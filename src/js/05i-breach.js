@@ -23,7 +23,7 @@ function breach(a,P){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face
   for(const u of G.units.slice()){if(u.nat===a.nat||UT[u.type].cls!=='inf'||u.r==null)continue;const Y=cell(u.r,u.c);if(Y.t!=='bldg')continue;
     let m;if(u.r===P.r&&u.c===P.c)m=1;else if(Math.abs(u.r-P.r)+Math.abs(u.c-P.c)===1&&Y.blk!=null&&Y.blk===X.blk)m=.3;else continue;
     const df=Math.abs(curFl(u)-P.fl);m*=df<.5?1:df<1.5?.35:.06;if(eye(u)>=bldgH(Y)-.05)m*=.4;   // 옥상은 덜 다친다
-    blastHurt(u,Math.round(base*m*(.8+Math.random()*.4)*10)/10,a);}
+    blastHurt(u,Math.round(base*m*(.8+Math.random()*.4)*10)/10,a,{kind:'blast',x:P.x,z:P.z,rad:.5});}
   damageBldg(P.r,P.c,Math.max(2,Math.round((ta.atk.veh||4)*ta.ex*.25+1.5)));
   if(typeof ignite==='function')ignite(P.r,P.c,.28*ta.ex);
   bump();}

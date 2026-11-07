@@ -161,3 +161,11 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .ucard b{font-size:12.5px}
 .v3u{gap:3px}
 .v3u em{width:auto;height:auto;padding:1px 3px;border-radius:2px;font-size:8px}
+
+/* 병사별 상태 칸 (05g-casualty) */
+.v3u .pp{display:flex;gap:1px;width:auto;height:auto;background:none;border:0;overflow:visible}
+.v3u .pp b{display:block;width:3px;height:6px;background:#5cd18a;box-shadow:0 0 0 1px rgba(0,0,0,.65)}
+.v3u .pp b.lw{background:#f0b23a}.v3u .pp b.hw{background:#ff4a3e}.v3u .pp b.hy{background:#ff4a3e;opacity:.5}
+.v3u .pp b.aw{background:#8a96a3;opacity:.7}.v3u .pp b.ev{background:#8a96a3;opacity:.3}.v3u .pp b.kia{background:#151515;opacity:.8}
+.v3u em.sh{background:#c88a2a}.v3u em.br{background:#8a2a8a}
+.cas-tbl td{font-variant-numeric:tabular-nums}
