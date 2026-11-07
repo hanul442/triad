@@ -7,7 +7,7 @@
    - 차량: 뚫린 곳에서 불꽃이 튀고, 유폭은 큰 폭발과 불길. */
 FXH.cas=function(u,m,out){if(!V3.on)return;const x=m.x,z=m.z;if(out==='hw'||out==='kia')dsScar('blood',x,z,out==='kia'?.06:.05);if(m.orph)return;};
 FXH.cook=function(x,z,big){if(!V3.on)return;const y=v3TopAt(x,z);setTimeout(()=>{v3Burst(x,y+.1,z,big?1.8:1.1,'#ff7a2a',big?9:5,big?6:3);dsSpray(x,y+.1,z,big?90:50,big?1:.7);dsScar('scorch',x,z,big?.32:.22);dsFires(x,z,big?6:3,60000,.5,.05);dsDust(x,z,1.2,9000,5,'#4a4540');
-  V3.shake=Math.max(V3.shake,big?.22:.12);if(typeof sfx==='function')sfx('boom');},0);};
+  V3.shake=Math.max(V3.shake,big?.22:.12);if(typeof sndCook==='function')sndCook(x,z,big);},0);};
 FXH.vhit=function(u,r){if(!V3.on)return;const o=V3.uo.get(u.id);if(!o)return;const p=o.position;setTimeout(()=>{v3Burst(p.x,p.y+.12,p.z,.35,'#ffd27a',1,1.2);if(r>.78||u.vd&&u.vd.fire)dsFires(p.x,p.z,2,8000,.15,p.y+.1);},180);};
 /* 쓰러진 병사가 시체로 바뀐 것을 기억(후송 중 죽은 병사도 한 번만 시체로) */
 {const _c=v3Corpse;v3Corpse=function(s,o,nat){if(s.cx)return;s.cx=1;return _c(s,o,nat);};}

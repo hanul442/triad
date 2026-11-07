@@ -169,3 +169,14 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .v3u .pp b.aw{background:#8a96a3;opacity:.7}.v3u .pp b.ev{background:#8a96a3;opacity:.3}.v3u .pp b.kia{background:#151515;opacity:.8}
 .v3u em.sh{background:#c88a2a}.v3u em.br{background:#8a2a8a}
 .cas-tbl td{font-variant-numeric:tabular-nums}
+/* 소리 설정 창: 소리 버튼 왼쪽에 뜬다 */
+.sndpop{position:fixed;z-index:6;width:232px;background:rgba(9,13,18,.94);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:10px 12px 8px;font-family:var(--font-m);font-size:12px;color:#e8ecef;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+.sndpop .sp-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sndpop .sp-k{flex:1;color:#8e99a3;font-size:10.5px}
+.sndpop .sp-mute{min-width:52px;height:32px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:var(--raise);color:#e8ecef;font:inherit;cursor:pointer}
+.sndpop .sp-mute[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.sndpop .sp-r{display:grid;grid-template-columns:48px 1fr;align-items:center;gap:8px;min-height:36px}
+.sndpop .sp-r span{color:#b9c2c9}
+.sndpop input[type=range]{width:100%;accent-color:var(--accent);height:24px;margin:0}
+.sndpop input[type=range]:disabled{opacity:.4}
+.sndpop :focus-visible{outline:2px solid var(--accent);outline-offset:2px}

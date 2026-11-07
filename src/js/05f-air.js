@@ -64,8 +64,8 @@ function jetDrop(j){const {n,r,c}=j;
     e.firedT=G.time;e.face=Math.atan2(r+.5-e.z,c+.5-e.x)*180/Math.PI;const p=e.type==='aa'?.3:.12;if(FXH.aaShot)FXH.aaShot(e,j);
     if(Math.random()<p){const a=Math.random()*6.283,d=1.5+Math.random()*2;const x=Math.min(N-.5,Math.max(.5,c+.5+Math.cos(a)*d)),z=Math.min(N-.5,Math.max(.5,r+.5+Math.sin(a)*d));
       L(`${natName(e.nat)} ${UT[e.type].n} 전투기 격추! 폭격 실패`);G.nats[e.nat].kills++;e.kills=(e.kills||0)+1;
-      crashAt({x,z,t:G.time+1.6,big:1,nat:n,kind:'jet'});if(FXH.jetDown)FXH.jetDown(j,x,z);sfx('boom');bump();return;}}
-  if(FXH.bomb)FXH.bomb(r,c);sfx('arty');
+      crashAt({x,z,t:G.time+1.6,big:1,nat:n,kind:'jet'});if(FXH.jetDown)FXH.jetDown(j,x,z);sfx('boom',1.2,x,z);bump();return;}}
+  if(FXH.bomb)FXH.bomb(r,c);
   for(const [a,b] of supArea(r,c,0)){const x=G.map[a][b];const u=unitAt(a,b);
     if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const d=Math.max(1,Math.round(9*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:.6});}
     if(x.t==='bldg'){damageBldg(a,b,24);if(typeof ignite==='function')ignite(a,b,.7);}}
@@ -81,7 +81,7 @@ function airDown(u,why){const t=UT[u.type];crashAt({x:u.x,z:u.z,t:(G.time||0)+(t
 function crashTick(){if(!G.crash||!G.crash.length)return;const keep=[];
   for(const cr of G.crash){if(cr.t>G.time){keep.push(cr);continue;}if(FXH.crash)FXH.crash(cr);
     if(!cr.big){if(cr.kind==='fpv')for(const u of G.units)if(!UT[u.type].fly&&Math.hypot(u.x-cr.x,u.z-cr.z)<.45){u.supp=Math.max(u.supp||0,1);harm(u,1,null,{kind:'blast',x:cr.x,z:cr.z,rad:.3});}continue;}
-    sfx('boom');const r=Math.floor(cr.z),c=Math.floor(cr.x);
+    sfx('boom',1.3,cr.x,cr.z);const r=Math.floor(cr.z),c=Math.floor(cr.x);
     for(const u of G.units.slice())if(!UT[u.type].fly&&Math.hypot(u.x-cr.x,u.z-cr.z)<1){u.supp=2;harm(u,4,null,{kind:'blast',x:cr.x,z:cr.z,rad:.6});}
     if(inb(r,c)&&G.map[r][c].t==='bldg'){damageBldg(r,c,8);if(typeof ignite==='function')ignite(r,c,.4);}}
   G.crash=keep;bump();}
@@ -108,7 +108,7 @@ function droneTick(u,dt){const t=UT[u.type];u.air=u.air||{born:G.time||0};
 /* 부딪혀 터짐: 표적에 큰 피해(위에서 덮치므로 장갑 무시, 건물 안이면 지붕·벽이 일부 막는다), 주변에 파편 */
 function fpvBoom(u,e){const te=UT[e.type];const ins=cell(e.r,e.c).t==='bldg'&&!te.fly;
   let dmg=te.cls==='veh'?7:4.5;if(ins)dmg*=.45;dmg*=.85+Math.random()*.3;dmg=Math.round(dmg*10)/10;
-  if(FXH.fpvBoom)FXH.fpvBoom(u,e);sfx('hit');airRemove(u);
+  if(FXH.fpvBoom)FXH.fpvBoom(u,e);airRemove(u);
   e.supp=Math.max(e.supp||0,1.5);G.nats[u.nat].dmg=(G.nats[u.nat].dmg||0)+dmg;
   if(ins)damageBldg(e.r,e.c,3);
   L(`${natName(u.nat)} FPV 드론이 ${natName(e.nat)} ${te.n} 타격`);
@@ -128,7 +128,7 @@ function dteamTick(u,dt){if(u.dr==null){u.dr=4;u.dsT=0;u.lt=-99;u.rs=G.time;}
     const s=UT[e.type].cost*(UT[e.type].cls==='veh'?2:1)/(3+d)*(cell(e.r,e.c).t==='bldg'?.5:1)*(own.includes(e.id)?.3:1);if(s>bs){bs=s;best=e;}}
   if(!best)return;launchFpv(u,best);}
 function launchFpv(u,e){const f=mkUnit(u.nat,'fpv',u.r,u.c);f.x=u.x;f.z=u.z;f.op=u.id;f.tgt=e?e.id:null;f.air={born:G.time};u.dr--;u.lt=G.time;u.firedT=G.time;
-  if(FXH.launch)FXH.launch(u,f);sfx('launch',.5);L(`${natName(u.nat)} 드론팀 FPV 이륙`);bump();return f;}
+  if(FXH.launch)FXH.launch(u,f);L(`${natName(u.nat)} 드론팀 FPV 이륙`);bump();return f;}
 /* 험비·장갑차에서 드론팀 하차 (차량마다 한 번, 지휘 3) */
 const DISMOUNT_CP=3;
 function canDismount(v){return v&&(v.type==='hmv'||v.type==='ifv')&&!v.dis&&G.nats[v.nat].cp>=DISMOUNT_CP;}

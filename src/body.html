@@ -16,8 +16,15 @@
     <button class="ib" data-act="home" id="b-home" aria-label="집결지로 이동"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8H4z"/><path d="M10 19v-5h4v5"/></svg></button>
     <button class="ib" data-act="cine" id="b-cine" aria-label="낮은 시점 (C)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l5 3v6H3z"/><circle cx="8" cy="12" r="2.5"/></svg></button>
     <button class="ib" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
-    <button class="ib" data-act="snd" id="b-snd" aria-label="효과음" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+    <button class="ib" data-act="snd" id="b-snd" aria-label="소리 설정 (M 음소거)" aria-pressed="true" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
     <button class="ib" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </div>
+  <div class="sndpop" id="sndpop" role="dialog" aria-label="소리 설정" hidden>
+    <div class="sp-h"><b>소리</b><span class="sp-k">M 음소거</span><button class="sp-mute" data-act="snd-mute" id="b-smute" aria-pressed="true">켜짐</button></div>
+    <label class="sp-r"><span>전체</span><input type="range" min="0" max="100" step="1" data-snd="master"></label>
+    <label class="sp-r"><span>전투</span><input type="range" min="0" max="100" step="1" data-snd="fx"></label>
+    <label class="sp-r"><span>무전</span><input type="range" min="0" max="100" step="1" data-snd="radio"></label>
+    <label class="sp-r"><span>환경음</span><input type="range" min="0" max="100" step="1" data-snd="amb"></label>
   </div>
   <div class="toast" id="toast" role="status" hidden></div>
   <div class="tip" id="tip" hidden></div>
