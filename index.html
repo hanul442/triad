@@ -1970,7 +1970,8 @@ function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
 function aiThink(n){const N2=G.nats[n];
   const vis=()=>G.units.filter(e=>e.nat!==n&&seen(e,n));
   // 화력 지원
-  if(typeof aiSupport==='function')aiSupport(n,vis());
+  // 다른 모듈이 aiAirSup를 감싸 새 지원(미사일 등)을 붙이므로, 제병협동 지원을 못 부른 때는 그쪽도 물어본다
+  if(typeof aiSupport==='function'){const E=vis();if(!aiSupport(n,E)&&E.length&&typeof aiAirSup==='function')aiAirSup(n,E);}
   else{const E=vis();if(E.length&&N2.cp>=SUP.arty.cost+2&&(N2.supT||0)<=G.time){let best=null,bs=0;
       for(const e of E)for(const [a,b] of supArea(e.r,e.c,1)){let s=0;for(const [p,q] of supArea(a,b,1)){const o=unitAt(p,q);if(!o)continue;s+=o.nat===n?-UT[o.type].cost*1.5:UT[o.type].cost;}if(s>bs){bs=s;best=[a,b];}}
       const tk=E.find(e=>e.type==='tank'&&!inside(e));
