@@ -9,7 +9,7 @@ function dsInit(){const el=$('#v3d-grain');if(!el)return;const c=document.create
   V3.puffD=v3Tex(96,96,(g2)=>{const R2=mulberry(77);for(let i=0;i<9;i++){const x=28+R2()*40,y=28+R2()*40,r=14+R2()*18;const gr=g2.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.6,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');g2.fillStyle=gr;g2.fillRect(0,0,96,96);}});}
 /* ---------- 바닥 흔적 ---------- */
 function dsScar(kind,x,z,r,seed){if(!V3.on)return;const sc={k:kind,x,z,r,s:seed??Math.random()*1e6|0};if(!V3.scars||V3.scars.seed!==V3.seed)V3.scars={seed:V3.seed,list:[]};V3.scars.list.push(sc);if(V3.scars.list.length>900)V3.scars.list.shift();dsDraw(sc);if(V3.gtex)V3.gtex.needsUpdate=true;}
-function dsReplay(){if(!V3.scars||V3.scars.seed!==V3.seed)return;for(const sc of V3.scars.list)dsDraw(sc);}
+function dsReplay(){if(!V3.scars||V3.scars.seed!==V3.seed){V3.scars={seed:V3.seed,list:[]};dsPrewar();}for(const sc of V3.scars.list)dsDraw(sc);dsAmbientBuild();}
 function dsDraw(sc){const g=V3.gctx,P=V3.gP;if(!g)return;const R=mulberry(sc.s);const X=sc.x*P,Y=sc.z*P,rr=sc.r*P;g.save();g.translate(X,Y);
   if(sc.k==='crater'){// 구덩이: 어두운 안쪽, 밝은 흙 테두리, 둘레로 흩어진 흙
     for(let i=0;i<26;i++){const a=R()*6.283,d=rr*(1+R()*1.6);g.fillStyle=R()<.5?'rgba(20,17,13,.5)':'rgba(120,106,84,.45)';g.beginPath();g.arc(Math.cos(a)*d,Math.sin(a)*d,1+R()*3,0,7);g.fill();}
@@ -71,3 +71,37 @@ function dsShell(x,z,big){if(!V3.on)return;const T=V3.T;const y0=v3TopAt(x,z);
     V3.shake=Math.max(V3.shake,big?.2:.12);if(typeof sfx==='function')sfx('boom');},380);}
 function dsBarrage(r,c,n,spread){const [cx,cz]=v3x(r,c);for(let i=0;i<n;i++)setTimeout(()=>{const ox=(Math.random()-.5)*spread,oz=(Math.random()-.5)*spread;dsShell(cx+ox,cz+oz,i===0||Math.random()<.25);},200+i*(260+Math.random()*220));}
 function v3TopAt(x,z){const r=Math.floor(z),c=Math.floor(x);return inb(r,c)?v3Top(r,c):0;}
+/* ---------- 도시 전체의 전쟁 분위기 ----------
+   새 지도마다 한 번: 전투 전부터 이미 상처 난 도시(구덩이·그을음·잔해 자국), 멀리 솟는 연기 기둥, 타고 있는 차량과 잔해 더미.
+   매 프레임: 연기 기둥을 피워 올리고, 재가 떠다니고, 가끔 멀리서 포성이 울린다. */
+function dsPrewar(){const R=mulberry((G.seed|0)^0x77ab);const L=V3.scars.list;const push=(k,x,z,r)=>L.push({k,x,z,r,s:R()*1e6|0});
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const [cx,cz]=v3x(r,c);
+    if(x.t==='rubble'){push('rubble',cx+(R()-.5)*.3,cz+(R()-.5)*.3,.8);push('spray',cx,cz,1.1);if(R()<.5)push('scorch',cx+(R()-.5)*.5,cz+(R()-.5)*.5,.25);}
+    else if(x.t==='road'||x.t==='plaza'||x.t==='park'){const p=R();if(p<.05)push('crater',cx+(R()-.5)*.6,cz+(R()-.5)*.6,.12+R()*.1);else if(p<.11)push('scorch',cx+(R()-.5)*.6,cz+(R()-.5)*.6,.12+R()*.14);else if(p<.16)push('spray',cx+(R()-.5)*.6,cz+(R()-.5)*.6,.3+R()*.35);
+      if(x.t==='road'&&R()<.08)push('tread',cx+(R()-.5)*.5,cz+(R()-.5)*.5,.08+R()*.08);}}
+  for(const p of (G.props||[]))if(p.k==='car'&&p.burnt)push('scorch',p.x,p.z,.3);}
+function dsAmbientBuild(){if(V3.ambSeed===V3.seed)return;V3.ambSeed=V3.seed;const T=V3.T;const R=mulberry((G.seed|0)^0x5a5a);
+  for(const p of V3.plumes||[])for(const s of p.sp){V3.G.amb.remove(s);s.material.dispose();}V3.plumes=[];
+  const plume=(x,z,y0,big)=>{const sp=[];const n=big?14:9;for(let i=0;i<n;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%3?'#3d3732':'#6a625a',transparent:true,depthWrite:false,opacity:0,rotation:R()*6.28}));s.renderOrder=1;V3.G.amb.add(s);sp.push(s);}
+    V3.plumes.push({x,z,y0,big,sp,ph:R()*9,h:big?9+R()*4:5+R()*3});};
+  // 지도 안: 잔해 칸 몇 곳이 아직 타고 있다
+  const rub=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(G.map[r][c].t==='rubble')rub.push([r,c]);
+  for(let i=rub.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[rub[i],rub[j]]=[rub[j],rub[i]];}
+  rub.slice(0,3).forEach(([r,c])=>{const [x,z]=v3x(r,c);plume(x+(R()-.5)*.4,z+(R()-.5)*.4,.1,false);dsFires(x,z,4,1e12,.8,.04);});
+  for(const p of (G.props||[]))if(p.k==='car'&&p.burnt&&R()<.35)dsFires(p.x,p.z,2,1e12,.25,.12);
+  // 지도 밖: 도시의 다른 구역이 불타고 있다
+  for(let i=0;i<7;i++){const a=R()*6.283,d=N*(.62+R()*.3);plume(N/2+Math.cos(a)*d,N/2+Math.sin(a)*d,0,true);}
+  // 지도 밖으로 이어지는 도시: 멀리 안개에 잠긴 건물 실루엣
+  if(V3.outer){V3.G.amb.remove(V3.outer);V3.outer.geometry.dispose();}
+  {const boxes=[];for(let i=0;i<420;i++){const a=R()*6.283,d=N*(.56+R()*.5);const x=N/2+Math.cos(a)*d*1.15,z=N/2+Math.sin(a)*d;if(x>-1&&x<N+1&&z>-1&&z<N+1)continue;boxes.push([x,z,.4+R()*.5,.4+R()*.6,FLOOR_H*(1+Math.floor(R()*7))]);}
+    const im=new T.InstancedMesh(new T.BoxGeometry(1,1,1),new T.MeshStandardMaterial({color:'#5a5750',roughness:1,flatShading:true}),boxes.length);const m4=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(),ps=new T.Vector3();
+    boxes.forEach(([x,z,w,d,h],i)=>{ps.set(x,h/2-.02,z);sc.set(w,h,d);m4.compose(ps,q,sc);im.setMatrixAt(i,m4);});im.receiveShadow=true;V3.G.amb.add(im);V3.outer=im;}
+  // 떠다니는 재
+  if(!V3.ash){const n=360,P=new Float32Array(n*3);for(let i=0;i<n;i++)P.set([(Math.random()-.5)*26,Math.random()*7,(Math.random()-.5)*26],i*3);const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));
+    V3.ash=new T.Points(geo,new T.PointsMaterial({color:'#2a2724',size:.035,transparent:true,opacity:.7,depthWrite:false}));V3.scene.add(V3.ash);}
+  DS.nextRumble=performance.now()+6000+Math.random()*9000;}
+function dsFrame(now,dt){if(!V3.plumes)return;const tt=now/1000;const s=V3.cs;
+  for(const p of V3.plumes){const n=p.sp.length;for(let i=0;i<n;i++){const l=((tt*.045+p.ph)+i/n)%1;const o=p.sp[i];const w=l*l;
+      o.position.set(p.x+DS.wind[0]*l*60+Math.sin(tt*.25+p.ph+i)*.15*l,p.y0+l*p.h,p.z+DS.wind[1]*l*60);o.scale.setScalar((p.big?1.4:.6)*(.3+l*2.6));o.material.opacity=(p.big?.55:.5)*Math.sin(l*Math.PI)*(1-w*.4);}}
+  if(V3.ash){V3.ash.position.set(s.x,0,s.z);const a=V3.ash.geometry.attributes.position.array;for(let i=0;i<a.length;i+=3){a[i]+=DS.wind[0]*dt*4+Math.sin(tt+i)*dt*.1;a[i+1]-=dt*.12;a[i+2]+=DS.wind[1]*dt*4;if(a[i+1]<0)a[i+1]=7;if(a[i]>13)a[i]-=26;if(a[i+2]>13)a[i+2]-=26;}V3.ash.geometry.attributes.position.needsUpdate=true;}
+  if(DS.nextRumble&&now>DS.nextRumble&&G&&!G.paused){DS.nextRumble=now+8000+Math.random()*16000;if(typeof sfx==='function')sfx('boom',.22);V3.shake=Math.max(V3.shake,.02);}}
