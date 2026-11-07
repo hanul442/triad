@@ -13,10 +13,11 @@ Object.assign(UT,{
   zu:{n:'대공포 차량',cls:'veh',mv:6,vis:6,rng:[1,7],atk:{inf:5,veh:1,air:8},sup:1,cost:6,hpMax:8,desc:'짐칸에 연장 기관포를 실은 차량. 드론·헬기를 가장 잘 맞힘. 장갑 얇음'},
   gunship:{n:'공격헬기',cls:'air',mv:9,vis:7,rng:[0,5.5],atk:{inf:7,veh:7,air:2},ex:1,sup:1,cost:10,fly:1,hpMax:14,heli:1,noBuy:1,desc:'화력 지원으로만 부름. 지정한 곳 위를 선회하며 사격. 탭해서 선회 지점을 옮길 수 있음'},
 });
-for(const t of ['fpv','aa','ew','zu'])if(!TYPES.includes(t))TYPES.splice(TYPES.indexOf('drone')+1+['fpv','aa','ew','zu'].indexOf(t),0,t);
+UT.dteam={n:'드론팀',cls:'inf',mv:3,vis:6,rng:[1,3],atk:{inf:2,veh:0,air:1},cost:4,dteam:1,desc:'FPV 조종수 팀. 멈춰서 자리를 잡으면 보이는 적에게 FPV를 띄움(드론 4대, 25초마다 1대 보급). 조종 거리 10칸, 조종수가 쓰러지면 드론도 떨어짐. 험비·장갑차에서 하차시킬 수도 있음'};
+for(const t of ['fpv','dteam','aa','ew','zu'])if(!TYPES.includes(t))TYPES.splice(TYPES.indexOf('drone')+1+['fpv','dteam','aa','ew','zu'].indexOf(t),0,t);
 UT.drone.hpMax=3;UT.drone.desc='건물 위로 날아 넓게 정찰. 공격 불가. 소총으론 잘 안 맞지만 전파 방해·대공에 약함';
-Object.assign(COOL,{fpv:1,aa:7,ew:2.4,zu:.9,gunship:1.3});
-Object.assign(VOLLEY,{fpv:1,aa:1,ew:2,zu:8,gunship:4});
+Object.assign(COOL,{dteam:2.4,fpv:1,aa:7,ew:2.4,zu:.9,gunship:1.3});
+Object.assign(VOLLEY,{dteam:2,fpv:1,aa:1,ew:2,zu:8,gunship:4});
 SUP.gunship={n:'공격헬기',cost:10,rad:0,air:1,desc:'보이는 곳 위로 공격헬기가 와서 45초 동안 선회하며 사격. 대공에 격추될 수 있음',fn:(n,r,c)=>callGunship(n,r,c)};
 Object.assign(SUP.air,{air:1,desc:'전투기가 몇 초 뒤 날아와 한 칸에 폭탄. 건물을 무너뜨림. 근처 적 대공이 먼저 격추할 수도',fn:(n,r,c)=>jetRun(n,r,c)});
 CLSN.air='항공';
@@ -91,6 +92,8 @@ function droneTick(u,dt){const t=UT[u.type];u.air=u.air||{born:G.time||0};
   const j=jammedBy(u);u.jam=j?1:0;
   if(j&&Math.random()<(t.kami?.5:.15)*dt){if(G.nats[j.nat]){G.nats[j.nat].kills++;j.kills=(j.kills||0)+1;}airDown(u,'jam');FXH.kill(u);airRemove(u);G.nats[u.nat].losses++;return false;}
   if(!t.kami)return true;
+  // 드론팀이 띄운 FPV: 조종수가 쓰러지거나 10칸 밖으로 나가면 신호가 끊긴다
+  if(u.op!=null){const op=G.units.find(z=>z.id===u.op);if(!op||Math.hypot(op.x-u.x,op.z-u.z)>DT_LINK){L(`${natName(u.nat)} FPV 조종 신호 끊김`);airDown(u);FXH.kill(u);airRemove(u);return false;}}
   if(G.time-u.air.born>FPV_LIFE){L(`${natName(u.nat)} FPV 드론 배터리 소진`);airDown(u);FXH.kill(u);airRemove(u);return false;}
   let e=u.tgt!=null?G.units.find(z=>z.id===u.tgt):null;if(e&&(UT[e.type].fly||(G.fog&&!seen(e,u.nat))))e=null;
   // 명령이 없으면 가까이 보이는 지상 적을 스스로 노린다(값진 표적 우선)
@@ -113,17 +116,42 @@ function fpvBoom(u,e){const te=UT[e.type];const ins=cell(e.r,e.c).t==='bldg'&&!t
   for(const o of G.units.slice())if(o!==e&&!UT[o.type].fly&&Math.hypot(o.x-e.x,o.z-e.z)<.6){o.supp=Math.max(o.supp||0,1);harm(o,1,u,{kind:'frag',x:e.x,z:e.z,rad:.4});}
   bump();}
 
+/* ---------- 드론팀 ---------- */
+const DT_LINK=10, DT_SETUP=3, DT_GAP=9, DT_RESUP=25;
+function dteamTick(u,dt){if(u.dr==null){u.dr=4;u.dsT=0;u.lt=-99;u.rs=G.time;}
+  if(u.dr<4&&G.time-u.rs>=DT_RESUP){u.dr++;u.rs=G.time;}else if(u.dr>=4)u.rs=G.time;
+  if((u.path&&u.path.length)||u.climb){u.dsT=0;return;}u.dsT+=dt;
+  if(u.dsT<DT_SETUP||u.dr<=0||G.time-u.lt<DT_GAP||u.supp>.8)return;
+  if(G.units.filter(f=>f.op===u.id).length>=2)return;
+  const own=G.units.filter(f=>f.op===u.id).map(f=>f.tgt);let best=null,bs=0;
+  for(const e of G.units){if(e.nat===u.nat||UT[e.type].fly||(G.fog&&!seen(e,u.nat)))continue;const d=Math.hypot(e.x-u.x,e.z-u.z);if(d>DT_LINK-1)continue;
+    const s=UT[e.type].cost*(UT[e.type].cls==='veh'?2:1)/(3+d)*(cell(e.r,e.c).t==='bldg'?.5:1)*(own.includes(e.id)?.3:1);if(s>bs){bs=s;best=e;}}
+  if(!best)return;launchFpv(u,best);}
+function launchFpv(u,e){const f=mkUnit(u.nat,'fpv',u.r,u.c);f.x=u.x;f.z=u.z;f.op=u.id;f.tgt=e?e.id:null;f.air={born:G.time};u.dr--;u.lt=G.time;u.firedT=G.time;
+  if(FXH.launch)FXH.launch(u,f);sfx('launch',.5);L(`${natName(u.nat)} 드론팀 FPV 이륙`);bump();return f;}
+/* 험비·장갑차에서 드론팀 하차 (차량마다 한 번, 지휘 3) */
+const DISMOUNT_CP=3;
+function canDismount(v){return v&&(v.type==='hmv'||v.type==='ifv')&&!v.dis&&G.nats[v.nat].cp>=DISMOUNT_CP;}
+function dismount(v){if(!canDismount(v))return null;let spot=null,bd=9;
+  for(let i=0;i<16;i++){const a=i/16*6.283;for(const R of [.45,.7,1]){const x=v.x+Math.cos(a)*R,z=v.z+Math.sin(a)*R;const t=tileAt(x,z);if(!t||t.t==='bldg'||t.t==='water')continue;if(R<bd){bd=R;spot=[x,z];}}}
+  if(!spot)return null;G.nats[v.nat].cp-=DISMOUNT_CP;v.dis=1;const u=mkUnit(v.nat,'dteam',Math.floor(spot[1]),Math.floor(spot[0]));u.x=spot[0];u.z=spot[1];u.face=v.face;
+  L(`${natName(v.nat)} ${UT[v.type].n}에서 드론팀 하차`);if(FXH.land)FXH.land(u);bump();return u;}
+
 /* 매 틱: 날아다니는 것들 (rtTick에서 부대 처리 전에 부른다) */
 function airTick(dt){if(!G)return;
   if(G.airq&&G.airq.length){const keep=[];for(const j of G.airq){if(j.t>G.time){keep.push(j);continue;}jetDrop(j);}G.airq=keep;}
   crashTick();
   for(const u of G.units.slice()){if(!G.units.includes(u))continue;const t=UT[u.type];if(!t.fly)continue;
-    if(t.heli){gunshipTick(u,dt);continue;}droneTick(u,dt);}}
+    if(t.heli){gunshipTick(u,dt);continue;}droneTick(u,dt);}
+  for(const u of G.units.slice())if(UT[u.type].dteam&&G.units.includes(u))dteamTick(u,dt);
+  // AI: 적이 가까이 보이면 험비·장갑차가 드론팀을 내려놓는다
+  for(const v of G.units.slice()){if(!canDismount(v)||!isAI(v.nat)||G.units.filter(o=>o.nat===v.nat).length>=unitCap())continue;if(Math.random()>dt*.15)continue;
+    if(G.units.some(e=>e.nat!==v.nat&&!UT[e.type].fly&&Math.hypot(e.x-v.x,e.z-v.z)<8&&(!G.fog||seen(e,v.nat))))dismount(v);}}
 
 /* ---------- AI ---------- */
 // 증원 가중치: 적 차량이 보이면 FPV, 적 비행체가 보이면 대공, 적 FPV가 보이면 전자전팀
 function aiAirW(E,cnt){const eVeh=E.filter(e=>UT[e.type].cls==='veh').length,eAir=E.filter(e=>UT[e.type].fly).length,eFpv=E.filter(e=>UT[e.type].kami).length;
-  return {fpv:cnt('fpv')<4&&E.length?.4+eVeh*1.2:0,aa:cnt('aa')<2?(eAir?1.6:.3):0,zu:cnt('zu')<1?(eAir?1.4:.2):0,ew:cnt('ew')<2?(eFpv?2.2:.25):0};}
+  return {fpv:cnt('fpv')<3&&E.length?.2+eVeh*.6:0,dteam:cnt('dteam')<2?(E.length?.9+eVeh*.5:.3):0,aa:cnt('aa')<2?(eAir?1.6:.3):0,zu:cnt('zu')<1?(eAir?1.4:.2):0,ew:cnt('ew')<2?(eFpv?2.2:.25):0};}
 // FPV: 보이는 적 중 값진 지상 표적(차량 우선)을 골라 돌입. 없으면 평소처럼 움직인다.
 function aiFpv(n,u,E){if(u.tgt!=null&&G.units.some(e=>e.id===u.tgt))return true;let best=null,bs=0;
   for(const e of E){if(UT[e.type].fly)continue;const d=Math.hypot(e.x-u.x,e.z-u.z);if(d>14)continue;const s=UT[e.type].cost*(UT[e.type].cls==='veh'?2:1)/(3+d)*(cell(e.r,e.c).t==='bldg'?.5:1);if(s>bs){bs=s;best=e;}}

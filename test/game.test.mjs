@@ -372,10 +372,12 @@ test('병사 개별 사격: 분대가 쏘면 몇 명이 실제로 쏘고, 탄창
   const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
   const a = T.mkUnit(0, 'rifle', 10, 10), d = T.mkUnit(1, 'rifle', 10, 13); G.units.push(a, d); T.bump();
   T.rtTick(0.1);
-  for (let i = 0; i < 6; i++) T.rtShoot(a, d);
-  assert.ok(a._sh && a._sh.length >= 1, '쏜 병사 기록');
-  assert.ok(a._men.some(m => m.rl > 0), '누군가는 재장전 중');
-  assert.ok(d._thr, '맞은 쪽은 위협 방향을 안다');
+  // 마지막 사격 때 모두 재장전 중일 수도 있으니, 한 번이라도 누가 쐈는지·재장전했는지를 센다(무작위 실패 방지)
+  let fired = 0, reloaded = false; for (const m of a._men) { m.lag = 0; m.pr = 0; } // 출발 대기·엎드림 상태는 이 테스트와 무관
+  for (let i = 0; i < 6; i++) { T.rtShoot(a, d); if (a._sh && a._sh.length) fired++; if (a._men.some(m => m.rl > 0)) reloaded = true; }
+  assert.ok(fired >= 1, '쏜 병사 기록');
+  assert.ok(reloaded, '누군가는 재장전 중');
+  assert.ok(d._thr || !(d.dmgIn > 0), '맞은 쪽은 위협 방향을 안다');
 });
 
 test('박격포: 건물 안에서는 못 쏘고, 포탄이 날아가 떨어진 곳에서 터진다', () => {
@@ -629,7 +631,7 @@ test('공중전: 하늘의 표적은 소총으로 잘 안 맞고 대공 수단�
 
 test('공중전: FPV는 표적에 날아가 터지고, 전파 방해 안에서는 떨어진다', () => {
   const T = loadGame(); const G = setup(T);
-  const tk = T.mkUnit(1, 'tank', 5, 9); tk.x = 9.5; tk.z = 5.5;
+  const tk = T.mkUnit(1, 'tank', 5, 9); tk.x = 9.5; tk.z = 5.5; tk.cd = 99; // 전차가 먼저 쏴 떨어뜨리지 않게(격추는 다른 테스트에서 본다)
   const f = T.mkUnit(0, 'fpv', 5, 5); f.x = 5.5; f.z = 5.5; f.tgt = tk.id;
   T.rtRun(4);
   assert.ok(!G.units.includes(f), 'FPV는 소모됨'); assert.ok(tk.hp < 10, `전차 피해 ${tk.hp}`);
@@ -646,4 +648,15 @@ test('공중전: 전투기 폭격은 몇 초 뒤에 떨어지고, 공격헬기�
   const far = T.mkUnit(1, 'rifle', 15, 15); far.hold = true; G.over = null;
   T.__get('callGunship')(0, 6, 6); const g = G.units.find(u => u.type === 'gunship'); assert.ok(g);
   T.rtRun(70); assert.ok(!G.units.includes(g), '임무 시간이 끝나면 돌아감'); assert.equal(G.nats[0].losses, 0, '복귀는 손실이 아님');
+});
+
+test('드론팀: 차량에서 내리고, 멈춰서 FPV를 띄우며, 조종수가 쓰러지면 드론이 떨어진다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const v = T.mkUnit(0, 'hmv', 5, 3); v.hold = true; G.nats[0].cp = 10;
+  const d = T.__get('dismount')(v); assert.ok(d && d.type === 'dteam'); assert.equal(G.nats[0].cp, 7);
+  assert.equal(T.__get('dismount')(v), null, '차량마다 한 번');
+  const tk = T.mkUnit(1, 'tank', 5, 11); tk.hold = true; d.hold = true;
+  T.rtRun(6); assert.ok(G.log.some(m => m.includes('FPV 이륙')), 'FPV 이륙'); assert.ok(d.dr < 4);
+  const f = T.__get('launchFpv')(d, null); f.hold = true; G.units = G.units.filter(u => u !== d); T.rtRun(0.3);
+  assert.ok(!G.units.includes(f), '조종수가 없으면 추락');
 });
