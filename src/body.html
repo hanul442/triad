@@ -39,6 +39,9 @@
   <div class="card">
     <h2>TRIAD 시가전</h2>
     <p>도시 한복판의 거점을 두고 분대 단위로 싸우는 실시간 전술 게임입니다. 건물에 들어가 엄폐하고, 시야를 가리는 빌딩을 이용하고, 필요하면 건물째 무너뜨리세요.</p>
+    <h3 class="sec">캠페인 · 하령 작전</h3>
+    <p class="csub">공화국군이 하령시로 밀고 들어왔습니다. 연방군 기동대대를 지휘해 세 임무를 차례로 해내세요.</p>
+    <div class="clist" id="camp-list"></div>
     <h3 class="sec">훈련과 시나리오</h3>
     <div class="grid" id="scn-list"></div>
     <h3 class="sec">자유 전투</h3>
@@ -58,4 +61,10 @@
     <p>기기를 넘겨주세요. 준비되면 시작합니다.</p>
     <button class="btn primary" data-act="handoff" id="b-ho">작전 시작</button>
   </div>
+</div>
+<div class="overlay" id="brief" hidden role="dialog" aria-modal="true" aria-label="작전 브리핑">
+  <div class="card ccard"></div>
+</div>
+<div class="overlay" id="debrief" hidden role="dialog" aria-modal="true" aria-label="작전 결과">
+  <div class="card ccard"></div>
 </div>

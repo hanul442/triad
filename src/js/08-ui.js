@@ -1,6 +1,6 @@
 /* ===================== UI: HUD·하단 바·메뉴 ===================== */
 function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.units.includes(UI.sel))UI.targets=targetsOf(UI.sel,false);else clearSel();}if(typeof scnCheck==='function')scnCheck();
-  if(G.over&&!G._rep){G._rep=true;UI.sheet=true;UI.tab='world';sfx(G.over.win===G.viewer?'win':'boom');}
+  if(G.over&&!G._rep){G._rep=true;UI.sheet=!G.camp;UI.tab='world';sfx(G.over.win===G.viewer?'win':'boom');if(G.camp&&typeof campDebrief==='function')campDebrief();}
   const ho=$('#handoff');if(ho)ho.hidden=true;
   renderHUD();renderActbar();renderPanel();renderObj();if(typeof v3Sync==='function')v3Sync();}
 function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNight();
@@ -34,7 +34,7 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.
   else{const N2=G.nats[n];const cnt=G.units.filter(u=>u.nat===n).length;const cd=Math.max(0,(N2.supT||0)-(G.time||0));
     h=`<b>${NATS[n].name} 지휘소</b><span>부대 ${cnt} · 지휘 ${N2.cp}${cd?` · 화력 지원 ${Math.ceil(cd)}초`:''} · 아군을 탭해 지휘</span><div class="ab"><button class="btn sm" data-act="reinf" id="ab-reinf">증원·지원</button><button class="btn sm" data-act="all" id="ab-all">전체 선택</button><button class="btn sm" data-act="spd" id="ab-spd">${G.spd}×</button>${pz}</div>`;}
   el.innerHTML=h;}
-function renderObj(){const el=$('#obj');if(!el)return;const m=typeof scnObjective==='function'?scnObjective():null;if(m&&!G.over){el.hidden=false;el.innerHTML=`<b>${m.t}</b> ${m.m}`;}else el.hidden=true;}
+function renderObj(){const el=$('#obj');if(!el)return;const m=typeof scnObjective==='function'?scnObjective():null;if(m&&!G.over){el.hidden=false;el.innerHTML=`<b>${m.t}</b> ${m.html||m.m}`;}else el.hidden=true;}
 function renderTip(){const el=$('#tip');if(!el||!G)return;const k=UI.hk;if(k==null||UI.sel||UI.phase){el.hidden=true;return;}const r=kr(k),c=kc(k);const x=cell(r,c);const u=unitAt(r,c);
   const vis=!G.fog||visSet(G.viewer).has(k);let s=x.obj!=null?`<b>${G.objs[x.obj].name}</b> ${natName(x.owner)} · `:'';s+=x.t==='bldg'?`${x.f}층 건물 ${x.bhp}/${x.bmax}`:TT[x.t].n;
   if(u&&(!G.fog||seen(u,G.viewer)))s+=` · <span style="color:${mapCol(u.nat)}">${UT[u.type].n}</span> ${u.hp}/${hpMax(u)}`;if(!vis)s+=' · 시야 밖';el.innerHTML=s;el.hidden=false;}
@@ -72,6 +72,6 @@ const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로
 <h3>방어물</h3><ul class="rules"><li>보병을 고르고 [축성]을 누르면 모래주머니(엄폐 40%)·철조망(보병 차단)·참호(안에 들어가면 사방 엄폐 50%)를, 기관총팀은 기관총 진지를, 공병은 콘크리트 방벽·대전차 장애물(차량 차단)까지 지휘점수로 쌓습니다</li><li>도로 위에 놓으면 길을 가로질러 놓입니다. 차량은 주차된 차·방벽·장애물을 넘지 못하고 돌아가며, 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다</li></ul>
 <h3>공중전</h3><ul class="rules"><li>드론과 헬기는 쏜다고 다 맞지 않습니다. 소총·기관총은 대부분 빗나가고, 대공팀(휴대용 대공미사일)과 대공포 차량이 잘 맞힙니다. 보병은 아주 가까이 온 드론에 산탄총을 씁니다</li><li>전자전팀은 반경 3.5칸 안 적 드론의 신호를 끊어 떨어뜨립니다(헬기·전투기에는 효과 없음)</li><li>드론팀은 멈춰서 3초 자리를 잡으면 보이는 적(10칸 안)에게 FPV를 띄웁니다. 한 번에 2대까지, 드론 4대를 들고 25초마다 1대씩 보급받습니다. 조종수가 쓰러지거나 10칸 밖으로 나가면 드론이 떨어집니다. 험비·장갑차를 고르고 [드론팀 하차]로 내려놓을 수도 있습니다</li><li>FPV 자폭드론은 적에게 날아가 부딪혀 터집니다. 위에서 덮쳐 장갑을 무시하지만 한 발만 맞아도 떨어집니다</li><li>공격헬기는 지정한 곳 위를 45초 동안 선회하며 쏩니다. 탭해서 선회 지점을 옮길 수 있고, 대공미사일은 플레어로 두 번까지 피하기도 합니다</li><li>근접 항공 지원은 전투기가 몇 초 뒤 와서 폭탄을 떨어뜨리고, 목표 근처 적 대공이 먼저 격추할 수 있습니다. 폭우에는 헬기·전투기가 뜨지 못합니다</li><li>격추된 헬기는 떨어진 곳 주변에 피해를 줍니다</li></ul>
 <h3>화면</h3><ul class="rules"><li>드래그: 이동 · 두 손가락: 확대·회전 · 마우스 휠: 확대 · 오른쪽 드래그 또는 Shift+드래그: 회전·기울기</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지</li></ul>`;
-function showSetup(){const sl=$('#scn-list');if(sl&&typeof scnButtons==='function')sl.innerHTML=scnButtons();
+function showSetup(){const cl=$('#camp-list');if(cl&&typeof campList==='function')cl.innerHTML=campList();for(const id of ['brief','debrief']){const o=$('#'+id);if(o)o.hidden=true;}const sl=$('#scn-list');if(sl&&typeof scnButtons==='function')sl.innerHTML=scnButtons();
   const box=$('#slots');box.innerHTML=NATS.map((N2,i)=>`<div class="slot"><i class="sw" style="background:${N2.col}"></i><label for="slot-${i}">${N2.full} <small>${N2.edge}</small></label><select id="slot-${i}"><option value="human">사람</option><option value="ai">AI</option>${i>1?'<option value="none">없음</option>':''}</select></div>`).join('');
   NATS.forEach((_,i)=>{$('#slot-'+i).value=UI.setupSlots[i]||'none';});$('#b-resume').hidden=!loadSave();$('#setup').hidden=false;}
