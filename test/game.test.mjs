@@ -660,3 +660,17 @@ test('드론팀: 차량에서 내리고, 멈춰서 FPV를 띄우며, 조종수�
   const f = T.__get('launchFpv')(d, null); f.hold = true; G.units = G.units.filter(u => u !== d); T.rtRun(0.3);
   assert.ok(!G.units.includes(f), '조종수가 없으면 추락');
 });
+
+test('전투 기록: 붕괴·격파·거점·탄흔이 남고, 끝나면 통계와 주요 장면이 나온다', () => {
+  const T = loadGame(); T.newGame({ slots: ['ai', 'ai', 'none', 'none'], size: 's', fog: false, seed: 5 });
+  const G = T.G; const C = G.chron; assert.ok(C && C.base.t.length === T.N * T.N, '시작 도시');
+  let bk = null; for (let r = 0; r < T.N && !bk; r++) for (let c = 0; c < T.N; c++) if (G.map[r][c].t === 'bldg') { bk = [r, c]; break; }
+  T.damageBldg(bk[0], bk[1], 9999); assert.ok(C.ev.some(e => e.k === 'fall'), '붕괴 기록');
+  const e = T.mkUnit(1, 'rifle', 5, 5); T.__get('kill')(e, null); assert.ok(C.ev.some(x => x.k === 'kill' && x.n === 1), '격파 기록');
+  T.rtRun(7); assert.ok(C.fr.length >= 3, `3초마다 한 장 (${C.fr.length})`);
+  G.over = { win: 0, why: '테스트' }; T.rtTick(0.1);
+  assert.ok(C.end && C.stats.fallen >= 1 && C.stats.b0 > 0, '통계');
+  const rec = T.__get('chronRecord')(); const js = JSON.stringify(rec); assert.ok(js.length < 400000, `기록 크기 ${js.length}`);
+  assert.equal(rec.fin.t[bk[0] * T.N + bk[1]], 'x', '무너진 칸은 잔해');
+  assert.ok(Array.isArray(rec.moments) && rec.moments.some(m => m.k === 'fall'), '주요 장면');
+});

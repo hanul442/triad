@@ -1,6 +1,6 @@
 /* ===================== UI: HUD·하단 바·메뉴 ===================== */
 function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.units.includes(UI.sel))UI.targets=targetsOf(UI.sel,false);else clearSel();}if(typeof scnCheck==='function')scnCheck();
-  if(G.over&&!G._rep){G._rep=true;UI.sheet=true;UI.tab='world';sfx(G.over.win===G.viewer?'win':'boom');}
+  if(G.over&&!G._rep){G._rep=true;UI.sheet=typeof rcOpen!=='function';UI.tab='world';sfx(G.over.win===G.viewer?'win':'boom');}
   const ho=$('#handoff');if(ho)ho.hidden=true;
   renderHUD();renderActbar();renderPanel();renderObj();if(typeof v3Sync==='function')v3Sync();}
 function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNight();
@@ -18,7 +18,7 @@ function uHealth(u){const c=typeof casSummary==='function'?casSummary(u):null;
 function uInfo(u){const t=UT[u.type];const x=cell(u.r,u.c);const where=x.t==='bldg'?(t.cls==='inf'?(onRoof(u)?'옥상':`건물 안 ${Math.floor(curFl(u)+1e-6)+1}/${x.f}층`)+(u.climb?' · 계단 이동 중':''):`건물 ${x.f}층`):TT[x.t].n;
   const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';const cv=coverOf(u);const cvt=cv.cov>0&&cv.kind!=='bldg'?` · 엄폐 ${(COVK[cv.kind]||{n:'연막'}).n} ${Math.round(cv.cov*100)}%`:'';return `${uHealth(u)} · ${where}${cvt} · ${st}${u.brk?' · 공황(후퇴 중)':typeof PINNED!=='undefined'&&u.supp>=PINNED?' · 제압되어 꼼짝 못 함':u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${u.rank?' · 숙련 '+u.rank:''}`;}
 function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.hidden=false;let h='';const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;if(UI.sel&&!s)clearSel();
-  if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':NATS[w].full+' 승리'}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
+  if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':NATS[w].full+' 승리'}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab">${typeof rcOpen==='function'&&G.chron?'<button class="btn sm" data-act="recap" id="ab-recap">전투 기록</button>':''}<button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
   if(G.boot||isAI(n)){el.innerHTML=`<b>관전</b><span>AI끼리 싸우는 중</span>`;return;}
   const pz=`<button class="btn sm${G.paused?' primary':''}" data-act="pause" id="ab-pause">${G.paused?'재개':'일시정지'}</button>`;
   if(UI.phase==='buy'){const t=UT[UI.buyT];h=`<b>${t.n} 배치</b><span>초록 칸을 탭하세요 · 지휘 ${t.cost}</span><div class="ab"><button class="btn sm" data-act="buy-cancel" id="ab-bc">취소</button></div>`;}
