@@ -18,6 +18,7 @@ const WLOC={head:'머리',torso:'몸통',arm:'팔',leg:'다리'};
 const WST={ok:'정상',lw:'경상',hw:'중상',kia:'전사',evac:'후송됨',rear:'후방'};
 Object.assign(FXH,{cas(){},cook(){},vhit(){}});
 const casStats=n=>{const N2=G.nats[n];return N2.cas||(N2.cas={kia:0,wia:0,lw:0,evac:0,dow:0,veh:0});};
+const wiaDn=S=>{S.wia=Math.max(0,S.wia-1);};
 function casLog(m){G.log.unshift(m);G.log=G.log.slice(0,8);}
 const roleOf=(u,i)=>i===0?'분대장':i===1&&(u._men||[]).length>=5?'위생병':'';
 /* 저장해 둔 부상 기록(u.ws)을 병사 목록에 입힌다. menInit(05f) 끝에서 부른다. */
@@ -49,7 +50,7 @@ function woundMan(u,m,kind,cov,by){const w=u.ws[m.i];let {loc,out}=woundRoll(kin
   if(w.s==='hw')out='kia';else if(out==='lw'&&w.s==='lw')out='hw';
   const S=casStats(u.nat);const was=w.s;w.s=out;w.w=loc;u.casT=t;
   if(out==='hw'){w.b=(loc==='head'||loc==='torso'?70:kind==='blast'?90:140)+Math.random()*120;w.a=0;w.dt=t;S.wia++;}
-  else if(out==='kia'){S.kia++;if(was==='hw')S.wia--;}
+  else if(out==='kia'){S.kia++;if(was==='hw')wiaDn(S);}
   else if(out==='lw'){S.lw++;if(loc==='leg')w.slow=1;}
   manFlags(u,m);
   u.mor=Math.max(0,(u.mor??80)-(out==='kia'?12:out==='hw'?9:4)-(m.i===0&&out!=='lw'?10:0));
@@ -119,7 +120,7 @@ function casCoverSpot(u,x,z){const th=menThreatDir(u);const ux=Math.cos(th),uz=M
   return best;}
 function casTick(u,dt){const M=menOf(u);const t=G.time||0;const S=casStats(u.nat);let ch=false;
   // 출혈
-  for(const m of M){const w=u.ws[m.i];if(w.s!=='hw'||w.y)continue;w.b-=dt*(w.a?.35:1);if(w.b<=0){w.s='kia';S.dow++;S.wia--;S.kia++;u.mor=Math.max(0,u.mor-6);ch=true;manFlags(u,m);}}
+  for(const m of M){const w=u.ws[m.i];if(w.s!=='hw'||w.y)continue;w.b-=dt*(w.a?.35:1);if(w.b<=0){w.s='kia';S.dow++;wiaDn(S);S.kia++;u.mor=Math.max(0,u.mor-6);ch=true;manFlags(u,m);}}
   // 하던 일: 끌어 옮기기·지혈
   const base=CAS_SP();
   for(const m of M){const k=m.task;if(!k)continue;const c=M[k.t],cw=c&&u.ws[k.t];if(!c||!cw||cw.s!=='hw'||cw.y||m.dead||m.down||m.gone){m.task=null;ch=true;continue;}
@@ -140,7 +141,7 @@ function casTick(u,dt){const M=menOf(u);const t=G.time||0;const S=casStats(u.nat
       if((w.a||t-(w.dt||0)>25)&&(u.supp||0)<1.2){const F=free().filter(m=>m.i!==0&&roleOf(u,m.i)!=='위생병');const able=casAble(u).length;
         if(F.length&&able>=3){F.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z));evStart(u,F[0],{u:u.id,i:c.i,x:c.x,z:c.z});busy.add(c.i);ch=true;}}}
     // 쓰러진 채 남겨진 아군 부상자(분대가 끝난 자리)를 데려간다
-    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken||Math.hypot(o.x-u.x,o.z-u.z)>1.2)continue;
+    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken)continue;if(Math.hypot(o.x-u.x,o.z-u.z)>2&&!M.some(m=>menAct(m)&&Math.hypot(m.x-o.x,m.z-o.z)<.8))continue;   // 분대 근처이거나 병사 하나라도 곁에 있으면
       const F=free().filter(m=>m.i!==0);if(!F.length)break;F.sort((a,b)=>Math.hypot(a.x-o.x,a.z-o.z)-Math.hypot(b.x-o.x,b.z-o.z));o.taken=1;evStart(u,F[0],{orph:o.id,x:o.x,z:o.z});ch=true;break;}}
   if(ch)casSync(u,null);}
 /* ---------- 후송조: 전우 한 명이 부상자를 업고 환자집결지로, 넘기고 돌아온다 ---------- */
@@ -148,7 +149,8 @@ let EVID=1;
 function evStart(u,car,cas){G.evac=G.evac||[];const p={id:'e'+(EVID++),nat:u.nat,u:u.id,ci:car.i,cas,x:car.x,z:car.z,ph:'get',path:null,rp:0};
   u.ws[car.i].y=p.id;car.task=null;manFlags(u,car);G.evac.push(p);return p;}
 function evCas(p){if(p.cas.orph)return (G.cas||[]).find(o=>o.id===p.cas.orph)||null;const u=G.units.find(z=>z.id===p.cas.u);return u?u.ws[p.cas.i]:p.cas.w||null;}
-function evTick(dt){if(!G.evac||!G.evac.length)return;const keep=[];const S=n=>casStats(n);
+// 후송조가 없어도 남겨진 부상자의 출혈·수습 표시는 매 틱 갱신한다
+function evTick(dt){G.evac=G.evac||[];const keep=[];const S=n=>casStats(n);
   for(const p of G.evac){const u=G.units.find(z=>z.id===p.u);let goal;
     const w=evCas(p);
     if(p.ph==='get'){if(!w||w.s!=='hw'||(p.cas.u!=null&&w.y&&w.y!==p.id)){p.ph=u?'back':'rear';p.path=null;}
@@ -156,10 +158,10 @@ function evTick(dt){if(!G.evac||!G.evac.length)return;const keep=[];const S=n=>c
         if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.06){// 업는다
           if(p.cas.orph){G.cas=G.cas.filter(o=>o!==w);p.cas.w=w;}else{w.y=p.id;if(m)manFlags(u,m);p.cas.w=w;}
           p.ph='out';p.path=null;if(u)casSync(u,null);}}}
-    if(p.ph==='out'){const cw=p.cas.w||w;if(cw&&cw.s==='hw'){cw.b-=dt*(cw.a?.35:.5);if(cw.b<=0){cw.s='kia';S(p.nat).dow++;S(p.nat).wia--;S(p.nat).kia++;p.drop=[p.x,p.z];
+    if(p.ph==='out'){const cw=p.cas.w||w;if(cw&&cw.s==='hw'){cw.b-=dt*(cw.a?.35:.5);if(cw.b<=0){cw.s='kia';S(p.nat).dow++;wiaDn(S(p.nat));S(p.nat).kia++;p.drop=[p.x,p.z];
           if(p.cas.u!=null&&u){cw.y=0;const m=u._men[p.cas.i];if(m){m.x=p.x;m.z=p.z;manFlags(u,m);}}else FXH.cas(null,{x:p.x,z:p.z,orph:1},'kia');p.ph=u?'back':'rear';p.path=null;}}
       if(p.ph==='out'){const c=ccpOf(p.nat);goal=[c.x,c.z];
-        if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){if(cw){cw.s='evac';cw.y=0;}S(p.nat).evac++;S(p.nat).wia--;if(u&&p.cas.u!=null){const m=u._men[p.cas.i];if(m)manFlags(u,m);}
+        if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){if(cw){cw.s='evac';cw.y=0;}S(p.nat).evac++;wiaDn(S(p.nat));if(u&&p.cas.u!=null){const m=u._men[p.cas.i];if(m)manFlags(u,m);}
           p.ph=u?'back':'rear';p.path=null;}}}
     if(p.ph==='back'){if(!u){p.ph='rear';p.path=null;}else{goal=[u.x,u.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.35){const m=u._men[p.ci];u.ws[p.ci].y=0;if(m){m.x=p.x;m.z=p.z;m.lag=0;manFlags(u,m);}casSync(u,null);continue;}}}
     if(p.ph==='rear'){const c=ccpOf(p.nat);goal=[c.x,c.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){continue;}}
@@ -172,7 +174,7 @@ function evTick(dt){if(!G.evac||!G.evac.length)return;const keep=[];const S=n=>c
     keep.push(p);}
   G.evac=keep;
   // 남겨진 부상자 출혈
-  if(G.cas&&G.cas.length){G.cas=G.cas.filter(o=>{if(o.taken&&!G.evac.some(p=>p.cas.orph===o.id))o.taken=0;o.b-=dt*(o.a?.35:1);if(o.b<=0){const s=S(o.nat);s.dow++;s.wia--;s.kia++;FXH.cas(null,{x:o.x,z:o.z,orph:1},'kia');return false;}return true;});}}
+  if(G.cas&&G.cas.length){G.cas=G.cas.filter(o=>{if(o.taken&&!G.evac.some(p=>p.cas.orph===o.id))o.taken=0;o.b-=dt*(o.a?.35:1);if(o.b<=0){const s=S(o.nat);s.dow++;wiaDn(s);s.kia++;FXH.cas(null,{x:o.x,z:o.z,orph:1},'kia');return false;}return true;});}}
 /* ---------- 사기 ---------- */
 function morTick(u,dt){const t=G.time||0;const M=menOf(u);const able=casAble(u).length;const cap=Math.min(100,(85+(u.rank||0)*5)*(.4+.6*able/M.length));
   if((u.supp||0)>=PINNED)u.mor-=1.1*dt;

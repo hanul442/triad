@@ -631,7 +631,7 @@ test('공중전: 하늘의 표적은 소총으로 잘 안 맞고 대공 수단�
 
 test('공중전: FPV는 표적에 날아가 터지고, 전파 방해 안에서는 떨어진다', () => {
   const T = loadGame(); const G = setup(T);
-  const tk = T.mkUnit(1, 'tank', 5, 9); tk.x = 9.5; tk.z = 5.5;
+  const tk = T.mkUnit(1, 'tank', 5, 9); tk.x = 9.5; tk.z = 5.5; tk.cd = 99; // 전차가 먼저 쏴 떨어뜨리지 않게(격추는 다른 테스트에서 본다)
   const f = T.mkUnit(0, 'fpv', 5, 5); f.x = 5.5; f.z = 5.5; f.tgt = tk.id;
   T.rtRun(4);
   assert.ok(!G.units.includes(f), 'FPV는 소모됨'); assert.ok(tk.hp < 10, `전차 피해 ${tk.hp}`);
