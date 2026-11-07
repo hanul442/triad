@@ -377,3 +377,50 @@ test('병사 개별 사격: 분대가 쏘면 몇 명이 실제로 쏘고, 탄창
   assert.ok(a._men.some(m => m.rl > 0), '누군가는 재장전 중');
   assert.ok(d._thr, '맞은 쪽은 위협 방향을 안다');
 });
+
+test('박격포: 건물 안에서는 못 쏘고, 포탄이 날아가 떨어진 곳에서 터진다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 3); T.bump();
+  const m = T.mkUnit(0, 'mortar', 5, 5); m.x = 5.8; m.z = 5.5; m.fl = 1; m.flK = T.key(5, 5);
+  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; T.bump();
+  assert.ok(!T.canHit(m, e), '건물 안(실내층)에서는 곡사 사격 불가');
+  m.r = 5; m.c = 2; m.x = 2.5; m.z = 5.5; m.fl = 0; m.flK = null; T.bump();
+  assert.ok(T.canHit(m, e), '지상에서는 쏜다');
+  const hp0 = e.hp; T.rtShoot(m, e);
+  assert.equal(e.hp, hp0, '쏘는 순간에는 피해 없음');
+  assert.equal(T.G.shells.length, 1, '포탄이 날아간다');
+  for (let i = 0; i < 60 && T.G.shells.length; i++) { T.G.time += .1; T.shellTick(); }
+  assert.equal(T.G.shells.length, 0, '포탄이 떨어졌다');
+});
+
+test('포탄이 날아가다 건물에 걸리면 그 벽에서 터진다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 6, 8); T.bump(); const b0 = G.map[5][6].bhp;
+  const s = T.shellLaunch({ x0: 2.5, z0: 5.5, h0: .5, tx: 6.5, tz: 5.5, n: 0, spread: 0, ap: 1, T: 1 });
+  s.x1 = 6.5; s.z1 = 5.5;
+  for (let i = 0; i < 20 && T.G.shells.length; i++) { T.G.time += .1; T.shellTick(); }
+  assert.ok(G.map[5][6].bhp < b0 || G.map[5][6].t !== 'bldg', '건물이 맞았다');
+});
+
+test('대전차팀은 건물 안 적이 있는 층 벽을 뚫고, 구멍이 남는다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 6, 3); T.bump();
+  const e = T.mkUnit(1, 'rifle', 5, 6); e.x = 6.5; e.z = 5.5; e.fl = 1; e.flK = T.key(5, 6);
+  const a = T.mkUnit(0, 'at', 5, 3); a.x = 3.5; a.z = 5.5; T.bump();
+  const P = T.breachPt(a, e); assert.ok(P, '벽 지점이 잡힌다'); assert.equal(P.fl, 1);
+  const hp0 = e.hp; const b0 = G.map[5][6].bhp; T.breach(a, P);
+  assert.ok(e.hp < hp0, '그 층 적이 다친다'); assert.ok(G.map[5][6].bhp < b0, '건물이 상한다');
+  assert.equal(T.G.holes.length, 1, '구멍이 남는다');
+});
+
+test('불난 건물은 타면서 상하고 안의 보병이 다치며, 결국 꺼진다', () => {
+  const T = loadGame(); const G = setup(T);
+  for (const c of [5, 6]) { bldg(G, 5, c, 3); G.map[5][c].blk = 1; } T.bump();
+  const u = T.mkUnit(1, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; u.fl = 0; u.flK = T.key(5, 5);
+  assert.ok(T.ignite(5, 5, 1)); const b0 = G.map[5][5].bhp, hp0 = u.hp;
+  for (let i = 0; i < 300; i++) T.fireTick(.1);
+  assert.ok(G.map[5][5].t !== 'bldg' || G.map[5][5].bhp < b0, '건물이 상한다');
+  assert.ok(u.hp < hp0 || !T.G.units.includes(u), '안의 보병이 다친다');
+  for (let i = 0; i < 2000 && T.G.fires.length; i++) T.fireTick(.1);
+  assert.equal(T.G.fires.length, 0, '결국 꺼진다');
+});

@@ -9,7 +9,7 @@ export function loadGame() {
 ;globalThis.__T = {
   get G() { return G; }, set G(v) { G = v; }, get N() { return N; },
   newGame, eye, rtTick, rtRun, aiThink, pathTo, orderMove, orderMoveTo, orderGroupMove, pathPts, orderAttack, rtShoot, ROUND_S, reach, attack, shootBldg, calcDmg, canHit, los, visSet, seen, mkUnit, unitAt, cell, key, kr, kc, nbrs, dist, mcost,
-  UT, TT, SUP, TYPES, SIZES, buy, deploySpots, support, canSupport, moveUnit, damageBldg, income, objCount, checkOver, inZone, zoneSpots, genMap, targetsOf, bump,
+  UT, TT, SUP, shellLaunch, shellTick, breachPt, breach, ignite, fireTick, TYPES, SIZES, buy, deploySpots, support, canSupport, moveUnit, damageBldg, income, objCount, checkOver, inZone, zoneSpots, genMap, targetsOf, bump,
 };`;
   vm.runInContext(code, ctx, { filename: 'triad-bundle.js' });
   Object.defineProperty(ctx.__T, '__get', { value: name => ctx[name] });

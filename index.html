@@ -581,9 +581,10 @@ function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.
   if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch');L(`${natName(n)} 연막 차장`);bump();return true;}
   if(kind==='heli'){heliInsert(n,r,c);L(`${natName(n)} 헬기 투입 요청`);bump();return true;}
   sfx('arty');L(`${natName(n)} ${SUP[kind].n}`);
+  if(kind==='arty'&&typeof shellBarrage==='function'){shellBarrage(n,r,c,9,2.8);bump();return true;}   // 포격은 실제 포탄으로(05g-shells)
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
     const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.hp-=d;u.supp=2;if(u.hp<=0)kill(u,null);}
-    if(x.t==='bldg')damageBldg(a,b,kind==='air'?24:(ctr?9:6));}
+    if(x.t==='bldg'){damageBldg(a,b,kind==='air'?24:(ctr?9:6));if(kind==='air'&&typeof ignite==='function')ignite(a,b,ctr?.8:.35);}}
   bump();return true;}
 
 /* ---- 04b-sight.js ---- */
@@ -932,6 +933,7 @@ function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb)return;cons
     else if(!canHit(u,e)&&!moving&&!u.hold){u.path=pathPts(u,e.x,e.z);}}
   let tg=rtPick(u);
   if(!tg&&u.tgtTile!=null){const r=kr(u.tgtTile),c=kc(u.tgtTile);if(G.map[r][c].t!=='bldg'){u.tgtTile=null;}else if(canHitTile(u,r,c)){rtShootBldg(u,r,c);u.cd=COOL[u.type]*(.9+Math.random()*.2);return;}}
+  if(typeof breachPick==='function'){const P=breachPick(u,tg);if(P){breach(u,P);u.cd=COOL[u.type]*(.9+Math.random()*.2)*(moving?1.5:1);return;}}   // 건물 안 적: 그 층 벽을 친다(05i-breach)
   if(!tg)return;rtShoot(u,tg);u.cd=COOL[u.type]*(.85+Math.random()*.3)*(moving?1.5:1);}
 /* 30초마다: 수입·승점·날씨·연막 */
 function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue;G.nats[n].cp+=income(n);G.nats[n].vp+=objCount(n);}
@@ -940,6 +942,8 @@ function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue
 function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   while(G.time>=G.turn*ROUND_S&&!G.over)rtRound();
   if(typeof heliTick==='function')heliTick();
+  if(typeof shellTick==='function')shellTick();
+  if(typeof fireTick==='function')fireTick(dt);
   for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;if(!flTick(u,dt))rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
   rtSeparate(dt);
   for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;
@@ -1206,6 +1210,137 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
    d._thr=[a.x,a.z,G.time||0];d._hitT=G.time||0;return _shoot(a,d);};
  const _sb=rtShootBldg;rtShootBldg=function(a,r,c){if(UT[a.type].cls==='inf'){if(!a._men)menInit(a);const sh=menShooters(a,Math.min(3,VOLLEY[a.type]||1));for(const m of sh)m.aim=[c+.5,r+.5];a._sh=sh.map(m=>m.i);}return _sb(a,r,c);};}
 
+/* ---- 05g-shells.js ---- */
+/* ===================== 포탄: 박격포·자주포·포격 지원이 실제 궤적으로 날아간다 =====================
+   쏘는 순간 피해가 나지 않는다. 포탄(G.shells)이 포물선을 그리며 날아가고, 떨어진 곳에서 터진다.
+   조준은 흩어진다(거리에 비례). 가끔은 각을 잘못 잡아 크게 빗나가고, 날아가다 건물에 걸리면 그 벽·지붕에서 터진다.
+   폭발은 반경 안 모두에게 피해를 준다. 건물 안에 있으면 거의 막아 주지만, 포탄이 바로 그 건물 그 층에 꽂히면 크게 다친다.
+   높이 단위는 층(04b-sight와 같다). */
+const SHELL_R=1.05;            // 폭발 반경(칸)
+const SHELL_MIS=.1;            // 각도를 잘못 잡아 크게 빗나갈 확률
+/* 조준점에서 흩어진 실제 탄착점 */
+function shellAim(x0,z0,tx,tz,spread){const d=Math.hypot(tx-x0,tz-z0);let e=(spread??1)*(.1+d*.06);let mis=false;
+  if(Math.random()<SHELL_MIS){e*=3.2;mis=true;}
+  const a=Math.random()*6.283,rr=e*Math.sqrt(Math.random());
+  // 크게 빗나갈 때는 주로 사거리 방향(짧거나 길게)으로
+  if(mis){const k=(Math.random()<.5?-1:1)*(.6+Math.random()*.6)*e,dx=(tx-x0)/(d||1),dz=(tz-z0)/(d||1);return [tx+dx*k+(Math.random()-.5)*.4,tz+dz*k+(Math.random()-.5)*.4,true];}
+  return [tx+Math.cos(a)*rr,tz+Math.sin(a)*rr,false];}
+/* 포탄 하나를 띄운다. o: {x0,z0,h0,tx,tz,n,src,pw,spread,delay,T,ap,kind} */
+let SHELL_ID=1;
+function shellLaunch(o){G.shells=G.shells||[];const [x1,z1,mis]=shellAim(o.x0,o.z0,o.tx,o.tz,o.spread);
+  const x1c=Math.min(N-.02,Math.max(.02,x1)),z1c=Math.min(N-.02,Math.max(.02,z1));const d=Math.hypot(x1c-o.x0,z1c-o.z0);
+  const s={id:SHELL_ID++,x0:o.x0,z0:o.z0,h0:o.h0??.6,x1:x1c,z1:z1c,t0:(G.time||0)+(o.delay||0),T:o.T??(1.1+d*.16),ap:o.ap??(2.2+d*.55),
+    n:o.n,src:o.src??null,type:o.type||'mortar',pw:o.pw??1,mis,k:0};
+  G.shells.push(s);return s;}
+/* 포탄 위치: k(0~1) */
+function shellPos(s,k){return [s.x0+(s.x1-s.x0)*k,s.z0+(s.z1-s.z0)*k,s.h0*(1-k)+4*s.ap*k*(1-k)];}
+/* 매 틱: 날아가는 포탄을 움직이고, 건물에 걸리거나 땅에 닿으면 터뜨린다 */
+function shellTick(){if(!G.shells||!G.shells.length)return;const keep=[];
+  for(const s of G.shells){const t=(G.time||0)-s.t0;if(t<0){keep.push(s);continue;}
+    const k1=Math.min(1,t/s.T),k0=s.k;let hit=null;
+    const [ax,az]=shellPos(s,k0),[bx,bz]=shellPos(s,k1);const steps=Math.max(1,Math.ceil(Math.hypot(bx-ax,bz-az)/.06));
+    for(let i=1;i<=steps&&!hit;i++){const k=k0+(k1-k0)*i/steps;if(k<.08)continue;const [x,z,h]=shellPos(s,k);const r=Math.floor(z),c=Math.floor(x);if(!inb(r,c))continue;const X=G.map[r][c];
+      if(X.t!=='bldg')continue;const bh=bldgH(X);if(h>bh)continue;const b=bldgBox(r,c);if(x<b[0]||x>b[1]||z<b[2]||z>b[3])continue;
+      hit={x,z,h:Math.max(0,h),r,c};}
+    s.k=k1;
+    if(hit){shellBoom(s,hit.x,hit.z,hit.h,hit.r,hit.c);continue;}
+    if(k1>=1){shellBoom(s,s.x1,s.z1,0,null,null);continue;}
+    keep.push(s);}
+  G.shells=keep;}
+/* 폭발 피해를 준다(병사 단위 피해 모듈이 이 함수를 감쌀 수 있다) */
+function blastHurt(u,dmg,by){if(!(dmg>0)||!G.units.includes(u))return;u.hp=Math.round((u.hp-dmg)*100)/100;u.supp=Math.max(u.supp||0,1.6);
+  if(by&&G.nats[by.nat])G.nats[by.nat].dmg=(G.nats[by.nat].dmg||0)+dmg;if(u.hp<=0)kill(u,by&&G.units.includes(by)?by:null);}
+/* 터짐: (x,z,h) 지점. 건물(r,c)에 꽂혔으면 r,c가 있다 */
+function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.src):null;const ta=UT[s.type]||UT.mortar;const base=DPS_K*(COOL[s.type]||4.6)*1.25*s.pw;
+  if(r!=null){damageBldg(r,c,Math.max(1,Math.round((2+ta.ex*2)*s.pw*(.8+Math.random()*.4))));if(typeof ignite==='function')ignite(r,c,.18*s.pw);}
+  const bf=r!=null?Math.floor(h):null;
+  for(const u of G.units.slice()){if(UT[u.type].fly)continue;const d=Math.hypot(u.x-x,u.z-z);if(d>SHELL_R*1.6)continue;
+    const X=cell(u.r,u.c);const inB=X.t==='bldg'&&eye(u)<bldgH(X);let f=Math.max(0,1-d/SHELL_R);
+    if(r!=null&&u.r===r&&u.c===c&&UT[u.type].cls==='inf'){const df=Math.abs(curFl(u)-bf);f=df<.6?1:df<1.6?.45:.12;}   // 꽂힌 건물: 그 층이 크게 다친다
+    else if(inB)f*=.12;                                  // 다른 건물 안: 벽이 막아 준다
+    else if(r!=null)f*=.6;                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
+    if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
+    const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
+    dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by);else u.supp=Math.max(u.supp||0,1);}
+  if(typeof FXH.boom==='function')FXH.boom(x,z,h,r!=null,s);
+  bump();}
+/* 곡사 화기의 한 발: 즉시 피해 대신 포탄을 띄운다 */
+function shellShoot(a,d){a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(d.z-a.z,d.x-a.x)*180/Math.PI;
+  const [ax,az]=posOf(a);const big=UT[a.type].cls==='veh';
+  shellLaunch({x0:ax,z0:az,h0:eye(a),tx:d.x,tz:d.z,n:a.nat,src:a.id,type:a.type,pw:big?1.3:1,spread:big?1.15:1});
+  a.lastShot={t:G.time||0,hits:0,k:1,tgt:d.id,shell:1};
+  if(typeof FXH.launch==='function')FXH.launch(a);else FXH.fire(a,d.r,d.c,d,a.lastShot);return 0;}
+{const _sh=rtShoot;rtShoot=function(a,d){if(UT[a.type].ind)return shellShoot(a,d);return _sh(a,d);};}
+/* 포격 지원: 지도 밖 포대에서 포탄이 차례로 떨어진다 */
+function shellBarrage(n,r,c,cnt,spread){const tx=c+.5,tz=r+.5;const fx=tx+(Math.random()<.5?-1:1)*N*.7,fz=tz-N*.6;
+  for(let i=0;i<cnt;i++){const ox=(Math.random()-.5)*spread,oz=(Math.random()-.5)*spread;
+    const s=shellLaunch({x0:fx,z0:fz,h0:8,tx:tx+ox,tz:tz+oz,n,src:null,type:'spg',pw:1.5,spread:.35,delay:.3+i*(.35+Math.random()*.3),T:2.2,ap:7});s.off=1;}}
+
+/* ---- 05h-fire.js ---- */
+/* ===================== 건물 화재 =====================
+   폭발(포탄·대전차 화기·공습·붕괴)이 건물에 불을 붙인다. 불은 커지면서 위층으로 타고 오르고(x.fireFl),
+   같은 블록 옆 칸으로, 드물게 붙어 있는 다른 건물로 번진다. 타는 동안 건물이 상하고 안의 보병이 다친다.
+   연료(x.fuel)를 다 태우면 꺼지고 그을린 채 남는다(x.burnt). 많이 상하면 무너진다(damageBldg).
+   G.fires: 타고 있는 칸 key 목록. */
+const FIRE_DPS=.32;            // 다 타오를 때 초당 건물 피해
+const FIRE_HURT=.22;           // 다 타오를 때 초당 보병 피해
+function ignite(r,c,p){if(!inb(r,c))return false;const x=G.map[r][c];if(x.t!=='bldg'||x.fire>0||x.burnt)return false;if(Math.random()>=(p??1))return false;
+  x.fire=.25;x.fuel=35+Math.random()*45;x.fireFl=0;x.fdmg=0;G.fires=G.fires||[];G.fires.push(key(r,c));
+  L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물에 불이 붙었다`);bump();return true;}
+function fireTick(dt){if(!G.fires||!G.fires.length)return;const keep=[];
+  for(const k of G.fires){const r=kr(k),c=kc(k);const x=G.map[r][c];if(x.t!=='bldg'||!(x.fire>0)){x.fire=0;continue;}
+    x.fire=Math.min(1,x.fire+dt*.045);x.fuel-=dt*(.4+x.fire*.6);
+    x.fireFl=Math.min(Math.max(0,x.f-1),x.fireFl+dt*.05*x.fire);
+    x.fdmg+=dt*FIRE_DPS*x.fire;if(x.fdmg>=1){const a=Math.floor(x.fdmg);x.fdmg-=a;damageBldg(r,c,a);if(x.t!=='bldg')continue;}
+    // 번짐
+    for(const [a,b] of nbrs(r,c)){const y=G.map[a][b];if(y.t!=='bldg'||y.fire>0||y.burnt)continue;const same=y.blk!=null&&y.blk===x.blk;
+      if(Math.random()<dt*x.fire*(same?.022:.004))ignite(a,b,1);}
+    // 안의 보병
+    for(const u of G.units.slice()){if(u.r!==r||u.c!==c||UT[u.type].cls!=='inf')continue;const fl=curFl(u);if(fl>x.fireFl+1.2&&x.fire<.8)continue;
+      blastHurt(u,Math.round(dt*FIRE_HURT*x.fire*100)/100,null);u.supp=Math.max(u.supp||0,1);
+      // 멈춰 있는 부대는 불을 피해 나간다
+      if(G.units.includes(u)&&x.fire>.55&&!(u.path&&u.path.length)&&u._fleeK!==k){u._fleeK=k;const out=fireExit(u);if(out)orderMove(u,out[0],out[1]);}}
+    if(x.fuel<=0){x.fire=0;x.burnt=1;bump();continue;}
+    keep.push(k);}
+  G.fires=keep;}
+/* 불난 건물에서 가장 가까운 바깥 칸 */
+function fireExit(u){let best=null,bd=1e9;for(let a=u.r-3;a<=u.r+3;a++)for(let b=u.c-3;b<=u.c+3;b++){if(!inb(a,b))continue;const y=G.map[a][b];if(y.t==='bldg'||mcost(u.type,y)===Infinity)continue;
+  const d=dist(u.r,u.c,a,b);if(d<bd){bd=d;best=[a,b];}}return best;}
+/* 건물이 무너지면 옆 건물에 불이 옮겨 붙기도 한다 */
+{const _db=damageBldg;damageBldg=function(r,c,amt){const x=G.map[r][c];const was=x.t==='bldg';_db(r,c,amt);
+  if(was&&x.t!=='bldg'){x.fire=0;for(const [a,b] of nbrs(r,c))ignite(a,b,.18);}};}
+
+/* ---- 05i-breach.js ---- */
+/* ===================== 벽 뚫기: 대전차 화기·전차포·폭약으로 적이 든 건물을 친다 =====================
+   건물 안 적 보병은 창가에 붙지 않으면 총으로 맞추기 어렵다. 대전차팀·공병·전차는 그 층 외벽을 겨눠 쏴서
+   구멍(G.holes)을 내고, 그 층 사람들을 크게 다치게 한다. 위아래 층은 덜 다치고, 불이 붙기도 한다.
+   표적은 보이는 적, 또는 방금 그 건물에서 쏜(총구 화염으로 들킨) 적이다. */
+function breachPt(a,e){const X=cell(e.r,e.c);if(X.t!=='bldg'||UT[e.type].cls!=='inf')return null;const he=eye(e);if(he>=bldgH(X)-.05)return null;
+  const [ax,az]=posOf(a);const b=bldgBox(e.r,e.c);const px=Math.min(b[1],Math.max(b[0],ax)),pz=Math.min(b[3],Math.max(b[2],az));const q=1e-6;
+  const side=Math.abs(px-b[0])<q&&b[0]>e.c+q?3:Math.abs(px-b[1])<q&&b[1]<e.c+1-q?1:Math.abs(pz-b[2])<q&&b[2]>e.r+q?0:Math.abs(pz-b[3])<q&&b[3]<e.r+1-q?2:-1;
+  if(side<0)return null;const t=UT[a.type];const d=Math.hypot(px-ax,pz-az);if(d>t.rng[1]+.6)return null;
+  const fl=Math.floor(curFl(e)+1e-6),h=fl+.5;if(!losPt(ax,az,eye(a),px,pz,h))return null;
+  return {x:px,z:pz,h,fl,side,r:e.r,c:e.c};}
+/* 이번에 벽을 칠지: 보병 표적이 건물 안이면 벽을 치고, 표적이 없으면 건물 안에 숨은(또는 막 쏜) 적을 찾는다 */
+function breachPick(u,tg){const t=UT[u.type];if(!t.ex||t.ind||!t.rng[1])return null;
+  if(tg){if(UT[tg.type].cls!=='inf')return null;const P=breachPt(u,tg);return P&&Math.random()<.8?P:null;}
+  const [ux,uz]=posOf(u);let best=null,bd=1e9;
+  for(const e of G.units){if(e.nat===u.nat||UT[e.type].cls!=='inf'||cell(e.r,e.c).t!=='bldg')continue;const d=Math.hypot(e.x-ux,e.z-uz);if(d>t.rng[1]+1.2||d>=bd)continue;
+    if(G.fog&&!seen(e,u.nat)&&!(firedRecently(e)&&d<=visRange(u)))continue;const P=breachPt(u,e);if(P){best=P;bd=d;}}
+  return best;}
+function breach(a,P){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(P.z-a.z,P.x-a.x)*180/Math.PI;
+  G.holes=G.holes||[];G.holes.push({r:P.r,c:P.c,x:P.x,z:P.z,h:P.h,side:P.side});if(G.holes.length>240)G.holes.shift();
+  a.lastShot={t:G.time||0,hits:1,k:1,breach:1};
+  if(typeof FXH.breach==='function')FXH.breach(a,P);else FXH.fire(a,P.r,P.c);
+  const X=G.map[P.r][P.c];const base=3+ta.ex*1.5;
+  for(const u of G.units.slice()){if(u.nat===a.nat||UT[u.type].cls!=='inf'||u.r==null)continue;const Y=cell(u.r,u.c);if(Y.t!=='bldg')continue;
+    let m;if(u.r===P.r&&u.c===P.c)m=1;else if(Math.abs(u.r-P.r)+Math.abs(u.c-P.c)===1&&Y.blk!=null&&Y.blk===X.blk)m=.3;else continue;
+    const df=Math.abs(curFl(u)-P.fl);m*=df<.5?1:df<1.5?.35:.06;if(eye(u)>=bldgH(Y)-.05)m*=.4;   // 옥상은 덜 다친다
+    blastHurt(u,Math.round(base*m*(.8+Math.random()*.4)*10)/10,a);}
+  damageBldg(P.r,P.c,Math.max(2,Math.round((ta.atk.veh||4)*ta.ex*.5+2)));
+  if(typeof ignite==='function')ignite(P.r,P.c,.28*ta.ex);
+  bump();}
+
 /* ---- 06-ai.js ---- */
 /* ===================== AI (실시간) ===================== */
 const AI_ORDER=['spg','mortar','sniper','mg','at','rifle','eng','hmv','ifv','tank','drone'];
@@ -1277,7 +1412,7 @@ function v3Supported(){try{const c=document.createElement('canvas');return !!(wi
 async function startView(){if(V3.on||V3.busy)return;if(!v3Supported()){v3Fail('이 기기나 브라우저는 3D(WebGL)를 지원하지 않습니다.');return;}
   V3.busy=true;const T=await v3Load();V3.busy=false;if(!T){v3Fail('3D 엔진을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 새로고침하세요.');return;}
   v3Init();V3.on=true;v3Size();
-  Object.assign(FXH,{fire:v3FxFire,kill:v3FxKill,collapse:v3FxCollapse,strike:v3FxStrike,land:v3FxLand});
+  Object.assign(FXH,{fire:v3FxFire,kill:v3FxKill,collapse:v3FxCollapse,strike:v3FxStrike,land:v3FxLand,boom:v3FxBoom,launch:v3FxLaunch,breach:v3FxBreach});
   if(G){v3Sync();v3HomeCam(true);}requestAnimationFrame(v3Frame);}
 function v3Fail(m){const el=$('#v3d-err');if(el){el.textContent=m;el.hidden=false;}}
 
@@ -1729,6 +1864,7 @@ function v3FxStrike(kind,r,c,n){if(!V3.on)return;const [x,z]=v3x(r,c);if(kind===
   if(kind==='air'){const T=V3.T;const jet=new T.Mesh(new T.ConeGeometry(.12,.7,6),V3.M.dark);jet.rotation.z=-Math.PI/2;V3.G.fx.add(jet);
     V3.fx.push({o:jet,t0:performance.now(),dur:900,upd:(o,k)=>{o.position.set(x-14+k*28,5.5-Math.sin(k*Math.PI)*1.5,z-3+k*6);}});
     setTimeout(()=>{v3Burst(x,v3Top(r,c)*.6+.3,z,2.4,'#ff6a1a',10,7);dsColumn(x,z,2.2);dsDust(x,z,3.6,26000,40);dsSpray(x,v3Top(r,c)*.5+.3,z,180,1.7);dsScar('crater',x,z,.45);dsFires(x,z,5,50000,1.2);V3.shake=Math.max(V3.shake,.35);},520);return;}
+  if(kind==='arty'&&typeof shellBarrage==='function')return;   // 실제 포탄은 v3Shells가 그린다
   dsBarrage(r,c,9,2.8);}
 // 총탄 착탄: 작은 흙먼지
 function v3Impact(x,y,z){const T=V3.T;for(let i=0;i<2;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#9a8f80',transparent:true,depthWrite:false,opacity:0}));const ox=(Math.random()-.5)*.2,oz=(Math.random()-.5)*.2;V3.G.fx.add(s);
@@ -1753,7 +1889,7 @@ function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}
-  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);
+  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);
   for(const o of V3.G.sites.children)if(o.userData.flag)o.rotation.y=Math.sin(now/700+o.position.x)*.25;
   const tt=now/1000;for(const sp of V3.smoke){if(sp.kind==='fire'){const f=.75+Math.sin(tt*13+sp.ph*20)*.15+Math.sin(tt*7.3)*.1;sp.o.position.set(sp.x,sp.y+.15,sp.z);sp.o.scale.setScalar(.45*f);sp.o.material.opacity=.75*f;continue;}
     if(sp.kind==='screen'){const l=(tt*.08+sp.ph)%1;sp.o.position.set(sp.x+Math.sin(tt*.3+sp.ph*9)*.15,.4+l*.8,sp.z);sp.o.scale.setScalar(1.5+l*.6);sp.o.material.opacity=.75*Math.sin(l*Math.PI)+.15;continue;}
@@ -2032,6 +2168,70 @@ function v3FxLand(u){if(!V3.on)return;dsDust(u.x,u.z,.8,1800,4,'#9c9283');}
 function v3Cine(){const s=V3.cs;V3.cine=!V3.cine;if(V3.cine){V3.cineBak={pitch:s.pitch,d:s.gd,yaw:s.gyaw};s.pitch=.22;s.gd=4.2;const u=UI.sel;if(u){s.gx=u.x;s.gz=u.z;s.gyaw=-(u.face||0)*Math.PI/180+Math.PI/2;}}
   else{const b=V3.cineBak||{pitch:1.38,d:14,yaw:s.gyaw};s.pitch=b.pitch;s.gd=b.d;s.gyaw=b.yaw;}
   const el=$('#b-cine');if(el)el.setAttribute('aria-pressed',V3.cine?'true':'false');}
+
+/* ---- 07i-war.js ---- */
+/* ===================== 포탄·벽 구멍·건물 화재 그리기 =====================
+   G.shells: 날아가는 포탄을 매 화면 포물선 위에 그린다(게임 시간 기준이라 배속·일시정지를 따른다).
+   FXH.boom: 포탄이 땅이나 건물에 터지는 장면. FXH.launch: 박격포·자주포 발사. FXH.breach: 로켓이 벽에 꽂혀 구멍이 나는 장면.
+   G.holes: 외벽 구멍(검게 뚫리고 위로 그을음). G.fires: 불난 건물(창마다 불길, 지붕 위 검은 연기 기둥). */
+const v3H=h=>.06+h*FLOOR_H;     // 층 높이 → 화면 높이
+function v3FxLaunch(a){if(typeof sfx==='function')sfx(UT[a.type].cls==='veh'?'boom':'launch',.7);if(!V3.on)return;const [x,y,z]=v3Pos(a.r,a.c,a);
+  v3Burst(x,y+.05,z,UT[a.type].cls==='veh'?.7:.35,'#ffd27a',1,UT[a.type].cls==='veh'?1.5:.6);dsDust(x,z,UT[a.type].cls==='veh'?.9:.45,4000,2,'#8e887e',y);}
+function v3FxBoom(x,z,h,onB,s){if(typeof sfx==='function')sfx('boom',onB?.8:.7);if(!V3.on)return;const big=(s&&s.pw||1)>1.2;const sz=big?1.4:1;
+  if(onB){const y=v3H(h);v3Burst(x,y,z,sz*1.1,'#ffb060',3,2.2);v3Debris(x,y,z,big?18:12,1.1);dsSpray(x,y,z,big?110:70,sz*.8);dsDust(x,z,sz*1.6,14000,8,'#9c9283',y*.6);
+    const r=Math.floor(z),c=Math.floor(x);if(inb(r,c)){const b=bldgBox(r,c);const gx=Math.min(b[1]+.12,Math.max(b[0]-.12,x)),gz=Math.min(b[3]+.12,Math.max(b[2]-.12,z));dsScar('rubble',gx,gz,.22*sz);}}
+  else{const y=v3TopAt(x,z);v3Burst(x,y+.15,z,sz*1.1,'#ffb060',0,2.5);dsColumn(x,z,sz*1.2);dsDust(x,z,sz*2.2,15000+Math.random()*9000,14);
+    dsSpray(x,y+.3,z,big?110:70,sz*.9);v3Debris(x,y+.2,z,big?14:8,1);dsScar('crater',x,z,sz*.19);if(Math.random()<.35)dsFires(x,z,1+Math.round(Math.random()*2),18000+Math.random()*20000,sz*.6,y+.03);}
+  const cs=V3.cs;const dd=cs?Math.hypot(cs.x-x,cs.z-z):5;V3.shake=Math.max(V3.shake,(big?.2:.12)*Math.max(.3,1-dd/14));}
+/* 로켓·전차포가 벽에 꽂힌다: 연기 꼬리를 끌며 날아가 벽에서 터진다 */
+function v3FxBreach(a,P){if(typeof sfx==='function')sfx('launch',.8);if(!V3.on)return;const T=V3.T;const [x1,y1,z1]=v3Pos(a.r,a.c,a);const x2=P.x,z2=P.z,y2=v3H(P.h);
+  const d=Math.hypot(x2-x1,z2-z1),dur=180+d*90;const tr=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#ffd9a0',blending:T.AdditiveBlending,transparent:true,depthWrite:false}));tr.scale.setScalar(.12);V3.G.fx.add(tr);
+  let lastP=0;V3.fx.push({o:tr,t0:performance.now(),dur,upd:(o,k)=>{const x=x1+(x2-x1)*k,y=y1+(y2-y1)*k+Math.sin(k*Math.PI)*.04,z=z1+(z2-z1)*k;o.position.set(x,y,z);
+    if(k-lastP>.12){lastP=k;dsDust(x,z,.18,2600,1,'#bdb5a8',y);}}});
+  v3Burst(x1,y1,z1,.3,'#ffd27a',1,.6);dsDust(x1-(x2-x1)/d*.25,z1-(z2-z1)/d*.25,.5,3000,2,'#c9c1b3',y1);   // 뒤 폭풍
+  setTimeout(()=>{if(!V3.on)return;const nx=P.side===1?1:P.side===3?-1:0,nz=P.side===2?1:P.side===0?-1:0;
+    v3Burst(x2+nx*.05,y2,z2+nz*.05,.9,'#ff9a40',3,1.8);v3Debris(x2+nx*.08,y2,z2+nz*.08,12,.9);dsSpray(x2+nx*.1,y2,z2+nz*.1,60,.6);dsDust(x2+nx*.2,z2+nz*.2,1,10000,6,'#a39a8c',y2);
+    dsScar('rubble',x2+nx*.18,z2+nz*.18,.16);V3.shake=Math.max(V3.shake,.08);if(typeof sfx==='function')sfx('boom',.7);},dur);}
+/* ---------- 매 화면 ---------- */
+function v3WarFrame(now,dt){if(!G)return;v3ShellsDraw();v3HolesSync();v3FiresDraw(now);}
+function v3ShellsDraw(){const T=V3.T;V3.shellO=V3.shellO||new Map();const live=new Set();const gt=(G.time||0)+(typeof RT!=='undefined'?Math.min(RT.acc||0,.1):0);
+  for(const s of G.shells||[]){const k=(gt-s.t0)/s.T;if(k<0||k>1)continue;live.add(s.id);let o=V3.shellO.get(s.id);
+    if(!o){o=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#ffe2a8',blending:T.AdditiveBlending,transparent:true,depthWrite:false}));o.scale.setScalar(.09);V3.G.fx.add(o);V3.shellO.set(s.id,o);o.userData.lt=0;}
+    const [x,z,h]=shellPos(s,Math.min(1,k));const y=v3H(h);o.position.set(x,y,z);
+    // 연기 꼬리: 조금씩 남긴다
+    if(k-o.userData.lt>.06&&k<.97){o.userData.lt=k;const p=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#cfc8bc',transparent:true,depthWrite:false,opacity:.0}));p.position.set(x,y,z);V3.G.fx.add(p);
+      V3.fx.push({o:p,t0:performance.now(),dur:900,upd:(q,kk)=>{q.scale.setScalar(.05+kk*.12);q.material.opacity=.35*(1-kk);}});}}
+  for(const [id,o] of V3.shellO)if(!live.has(id)){V3.G.fx.remove(o);o.material.dispose();V3.shellO.delete(id);}}
+/* 벽 구멍 무늬: 들쭉날쭉한 검은 구멍 + 깨진 테두리 + 위로 번진 그을음 */
+function v3HoleTex(){if(V3.holeTex)return V3.holeTex;const T=V3.T;const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const R=mulberry(77);
+  const blob=(cx,cy,rad,col,n)=>{g.fillStyle=col;g.beginPath();for(let i=0;i<=n;i++){const a=i/n*6.283,rr=rad*(.65+R()*.5);const x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?g.lineTo(x,y):g.moveTo(x,y);}g.fill();};
+  const gr=g.createLinearGradient(0,64,0,0);gr.addColorStop(0,'rgba(20,18,16,0)');gr.addColorStop(.45,'rgba(20,18,16,.55)');gr.addColorStop(1,'rgba(20,18,16,0)');g.fillStyle=gr;g.beginPath();g.ellipse(32,22,22,22,0,0,6.283);g.fill();   // 그을음
+  blob(32,38,17,'#8d867c',16);blob(32,38,12,'#0d0c0b',14);
+  for(let i=0;i<10;i++){g.fillStyle=R()<.5?'#5a554e':'#a39c90';g.fillRect(14+R()*36,24+R()*30,2+R()*3,2+R()*3);}
+  V3.holeTex=new T.CanvasTexture(c);return V3.holeTex;}
+function v3HolesSync(){const H=G.holes||[];const sig=H.length+':'+V3.seed+':'+G.ver;if(V3.holeSig===sig)return;
+  // 건물 상태가 바뀌었을 수 있으니 G.ver가 바뀔 때 다시 본다(구멍 수는 적다)
+  V3.holeSig=sig;const T=V3.T;if(V3.holeG){V3.scene.remove(V3.holeG);V3.holeG.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
+  const g=new T.Group();V3.holeG=g;V3.scene.add(g);if(!H.length)return;
+  const mat=V3.holeM||(V3.holeM=new T.MeshBasicMaterial({map:v3HoleTex(),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));
+  const geo=V3.holeGeo||(V3.holeGeo=new T.PlaneGeometry(.26,.26));
+  for(const p of H){const X=G.map[p.r]&&G.map[p.r][p.c];if(!X||X.t!=='bldg'||p.h>bldgH(X))continue;const m=new T.Mesh(geo,mat);m.userData.keepGeo=1;m.userData.keepMat=1;
+    const nx=p.side===1?1:p.side===3?-1:0,nz=p.side===2?1:p.side===0?-1:0;m.position.set(p.x+nx*.006,v3H(p.h)+.02,p.z+nz*.006);m.rotation.y=Math.atan2(nx,nz);g.add(m);}}
+/* 불난 건물: 바깥 벽 창마다 불길(타오른 층까지), 지붕 위로 검은 연기 기둥 */
+function v3FireBuild(k){const T=V3.T;const r=kr(k),c=kc(k);const X=G.map[r][c];const b=bldgBox(r,c);const g=new T.Group();const q=1e-6;const F=[];
+  const faces=[];if(b[0]>c+q)faces.push([b[0]-.01,null,-1,0]);if(b[1]<c+1-q)faces.push([b[1]+.01,null,1,0]);if(b[2]>r+q)faces.push([null,b[2]-.01,0,-1]);if(b[3]<r+1-q)faces.push([null,b[3]+.01,0,1]);
+  for(let f=0;f<X.f;f++)for(const fc of faces){const o=(v3Hash(k,f*7+fc[2]*3+fc[3])-.5)*.5;const x=fc[0]!=null?fc[0]:c+.5+o,z=fc[1]!=null?fc[1]:r+.5+o;
+    const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:v3Hash(k,f+40)<.4?'#ffd27a':'#ff7a24',blending:T.AdditiveBlending,transparent:true,depthWrite:false,opacity:0}));s.position.set(x,v3H(f+.45),z);g.add(s);F.push({s,f,ph:v3Hash(k,f+60)*20});}
+  const S=[];const top=v3H(X.f);for(let i=0;i<10;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%3?'#26221f':'#3a332d',transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*6.28}));g.add(s);S.push({s,ph:i/10});}
+  const light=new T.PointLight('#ff7a2a',0,2.2,2);light.position.set(c+.5,top*.5,r+.5);g.add(light);
+  V3.scene.add(g);return {g,F,S,top,x:c+.5,z:r+.5,light};}
+function v3FiresDraw(now){V3.fireO=V3.fireO||new Map();const want=new Set(G.fires||[]);
+  for(const [k,o] of V3.fireO){const X=G.map[kr(k)][kc(k)];if(!want.has(k)||X.t!=='bldg'||V3.fireSeed!==V3.seed){V3.scene.remove(o.g);o.g.traverse(q=>{if(q.material)q.material.dispose();});V3.fireO.delete(k);}}
+  V3.fireSeed=V3.seed;const t=now/1000;
+  for(const k of want){let o=V3.fireO.get(k);if(!o){o=v3FireBuild(k);V3.fireO.set(k,o);}const X=G.map[kr(k)][kc(k)];const I=X.fire||0;
+    for(const f of o.F){const on=f.f<=(X.fireFl||0)+.3;const fl=.7+Math.sin(t*15+f.ph)*.2+Math.sin(t*8.7+f.ph*2)*.1;const sz=.12+.1*I;f.s.material.opacity=on?.9*fl*Math.min(1,I*1.6):0;f.s.scale.set(sz*fl,sz*fl*1.5,1);}
+    for(const p of o.S){const l=(t*.12+p.ph)%1;p.s.position.set(o.x+DS.wind[0]*l*40+Math.sin(t*.4+p.ph*9)*.1,o.top+l*3.2,o.z+DS.wind[1]*l*40);p.s.scale.setScalar(.3+l*1.6);p.s.material.opacity=.6*I*Math.sin(l*Math.PI);}
+    o.light.intensity=1.2*I*(.8+Math.sin(t*11)*.2);}}
 
 /* ---- 07m-units.js ---- */
 /* ===================== 현대 부대 모형 =====================

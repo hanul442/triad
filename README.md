@@ -2,7 +2,9 @@
 
 도시 한복판의 거점을 두고 분대 단위로 싸우는 3D 실시간 전술 게임입니다. 건물에 들어가 엄폐하고, 시야를 가리는 빌딩을 이용하고, 필요하면 건물째 무너뜨리세요. 2~4개 세력 중 하나를 사람이 지휘하고 나머지는 AI가 맡습니다.
 
-**플레이:** https://hanul442.github.io/triad/
+**플레이:** https://hanul442.github.io/triad/ (main 브랜치 배포본)
+
+**3D 시가전 개발 미리보기:** https://claude.ai/artifact/7zEiSXZZEW8Gu3uEPEhPPZ (feat/3d-urban 최신 빌드)
 
 ## 처음이라면
 
