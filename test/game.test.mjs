@@ -423,6 +423,7 @@ test('불난 건물은 타면서 상하고 안의 보병이 다치며, 결국 �
   assert.ok(u.hp < hp0 || !T.G.units.includes(u), '안의 보병이 다친다');
   for (let i = 0; i < 2000 && T.G.fires.length; i++) T.fireTick(.1);
   assert.equal(T.G.fires.length, 0, '결국 꺼진다');
+});
 
 /* ---------- 설치형 방어물·장애물 (04d-fort) ---------- */
 // 건물 사이 한 줄짜리 도로(5행)를 만든다
