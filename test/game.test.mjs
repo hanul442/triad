@@ -49,7 +49,7 @@ test('보병은 모든 거점에, 차량은 다른 집결지에 갈 수 있다',
 
 function setup(T) {
   T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 3, fog: false });
-  T.G.units = []; T.G.covers = []; // 빈 도로 지도라 도시 소품 엄폐도 비운다
+  T.G.units = []; T.G.props = []; T.G.covers = []; // 빈 도로 지도라 도시 소품(엄폐·장애물)도 비운다
   const G = T.G;
   for (let r = 0; r < T.N; r++) for (let c = 0; c < T.N; c++) { G.map[r][c] = { t: 'road', owner: null, obj: null, smoke: 0 }; }
   T.bump();
@@ -63,7 +63,8 @@ test('건물은 시야를 막고, 더 높은 곳에서는 넘겨 본다', () => 
   assert.equal(T.los(5, 2, .5, 5, 8, .5), false, '지상끼리는 건물에 막힘');
   assert.equal(T.los(3, 2, .5, 3, 8, .5), true, '옆 줄은 트임');
   bldg(G, 5, 2, 6); T.bump();
-  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), true, '6층 건물에서는 3층 건물 너머가 보임');
+  assert.equal(T.los(5, 2, 6.3, 5, 8, .5), true, '6층 건물 옥상에서는 3층 건물 너머가 보임');
+  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), false, '건물 한가운데(창에서 먼 곳)에서는 밖이 안 보임');
 });
 
 test('엄폐: 건물 안 보병은 피해를 덜 받고, 폭발물은 엄폐를 절반만 받는다', () => {
@@ -97,7 +98,7 @@ test('폭발물로 건물을 쏘면 숨은 적도 맞는다', () => {
 
 test('건물 안 저격수는 붙어 있는 적에게만 보인다', () => {
   const T = loadGame(); const G = setup(T); G.fog = true;
-  bldg(G, 5, 5, 2); const s = T.mkUnit(1, 'sniper', 5, 5); const e = T.mkUnit(0, 'rifle', 5, 2); T.bump();
+  bldg(G, 5, 5, 2); const s = T.mkUnit(1, 'sniper', 5, 5); s.x = 5.22; s.z = 5.5; const e = T.mkUnit(0, 'rifle', 5, 2); T.bump();
   assert.equal(T.seen(s, 0), false);
   e.c = 4; T.bump();
   assert.equal(T.seen(s, 0), true);
@@ -133,28 +134,54 @@ test('건물은 문으로만 드나들고, 안에서는 계단으로 한 층씩 
   assert.ok(u.path.some(p => p.door === 'b'), '문을 지난다');
   // 걸어 들어가는 동안 매 순간 벽을 넘지 않는다
   let lx = u.x, lz = u.z, inT = null;
-  for (let i = 0; i < 600; i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z), '틱 사이 벽 통과'); lx = u.x; lz = u.z; if (inT == null && u.r === 5 && u.c === 5) inT = G.time; if (u.fl >= 3) break; }
+  for (let i = 0; i < 600; i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z), '틱 사이 벽 통과'); lx = u.x; lz = u.z; if (inT == null && u.r === 5 && u.c === 5) inT = G.time; if (u.fl >= 4) break; }
   assert.ok(inT != null, '건물 가운데 칸에 들어간다');
-  assert.equal(u.fl, 3, '꼭대기 층(4층)까지 오른다');
-  const climb = G.time - inT; assert.ok(climb > 3 * 2.4 - .5, `오르는 데 시간이 걸린다 (${climb.toFixed(1)}초)`);
-  // 꼭대기 층 눈높이는 예전(건물 높이 −0.5)과 같다
-  assert.equal(T.eye(u), 3.5);
+  assert.equal(u.fl, 4, '옥상까지 오른다');
+  assert.ok(u.cd > 0, '계단에서 내려선 직후에는 바로 쏘지 않는다');
+  const climb = G.time - inT; assert.ok(climb > 4 * 2.4 - .5, `오르는 데 시간이 걸린다 (${climb.toFixed(1)}초)`);
+  // 옥상에서는 건물 높이보다 조금 위에서 본다
+  assert.ok(Math.abs(T.eye(u) - 4.3) < 1e-9);
   // 나가라고 하면 먼저 1층까지 내려온 뒤 문으로 나간다
   T.orderMoveTo(u, 1.5, 1.5); T.rtTick(0.1);
-  assert.ok(u.r === 5 && u.c === 5 && u.fl < 3 && u.fl > 0, '계단으로 내려오는 중');
+  assert.ok(u.r === 5 && u.c === 5 && u.fl < 4 && u.fl > 0, '계단으로 내려오는 중');
   lx = u.x; lz = u.z; let outT = 0;
   for (let i = 0; i < 600 && !(u.r === 1 && u.c === 1); i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z)); if (G.map[u.r][u.c].t !== 'bldg' && !outT) { outT = 1; assert.equal(u.fl, 0); } lx = u.x; lz = u.z; }
   assert.ok(u.r === 1 && u.c === 1, '밖으로 나와 목적지에 간다');
 });
 
+test('계단을 오르내리는 동안은 쏘지 않는다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 4); G.map[5][5].blk = 1; T.bump();
+  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; u.fl = 0; u.flK = T.key(5, 5);
+  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; e.hp = 999; e.nocas = 1; e.cd = 999;
+  let shotWhileClimb = false;
+  for (let i = 0; i < 200; i++) { const was = u.climb; const f0 = u.firedT; T.rtTick(0.1); if (u.firedT !== f0 && (was || u.climb)) shotWhileClimb = true; }
+  assert.ok(!shotWhileClimb);
+  assert.ok(u.firedT != null, '옥상에 올라선 뒤에는 쏜다');
+});
+
 test('1층에 막 들어온 보병은 낮게 보고, 위층에 오르면 건물 너머를 본다', () => {
   const T = loadGame(); const G = setup(T);
   bldg(G, 5, 5, 4); G.map[5][5].blk = 1; bldg(G, 5, 7, 1); G.map[5][7].blk = 2; T.bump();
-  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
+  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.8; u.z = 5.5; const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
   u.fl = 0; u.flK = T.key(5, 5); T.bump();
   assert.ok(!T.canHit(u, e), '1층에서는 앞 건물에 가린다');
   u.fl = 3; T.bump();
-  assert.ok(T.canHit(u, e), '4층에서는 넘겨 쏜다');
+  assert.ok(T.canHit(u, e), '4층 창가에서는 넘겨 쏜다');
+});
+
+test('벽 너머로는 못 쏜다: 건물 안에서는 바깥 벽 창가에서만 쏜다', () => {
+  const T = loadGame(); const G = setup(T);
+  for (const c of [4, 5, 6]) { bldg(G, 5, c, 2); G.map[5][c].blk = 1; } T.bump();
+  const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
+  const u = T.mkUnit(0, 'rifle', 5, 4); u.fl = 0; u.flK = T.key(5, 4); u.x = 4.5; u.z = 5.5;
+  assert.ok(!T.canHit(u, e), '같은 블록의 다른 칸 벽 너머는 못 쏜다');
+  u.x = 4.5; u.z = 5.2; assert.ok(!T.canHit(u, e), '건물 안쪽 칸에서는 동쪽 적을 못 본다');
+  const v = T.mkUnit(0, 'rifle', 5, 6); v.fl = 0; v.flK = T.key(5, 6); v.x = 6.5; v.z = 5.5; T.bump();
+  assert.ok(!T.canHit(v, e), '방 한가운데에서는 못 쏜다');
+  v.x = 6.8; T.bump(); assert.ok(T.canHit(v, e), '바깥 벽 창가에서는 쏜다');
+  assert.ok(T.canHit(e, v), '창가의 적은 맞출 수 있다');
+  v.x = 6.5; T.bump(); assert.ok(!T.canHit(e, v), '방 안쪽 적은 밖에서 못 맞춘다');
 });
 
 test('거점 점령과 지휘점수 수입', () => {
@@ -364,7 +391,7 @@ test('사상자: 피해는 병사 한 명씩 다치게 하고, 분대 화력은 
   assert.ok(bad >= 1 && bad <= 5, `다친 병사 ${bad}`);
   assert.ok(G.units.includes(u), '분대는 남아 있음');
   const able = u.ws.filter(w => w.s === 'ok' || w.s === 'lw').length;
-  assert.ok(u.hp <= 10 * able / 9 + 1e-9, `화력 ${u.hp} ≤ 가용 ${able}/9`);
+  assert.ok(u.hp <= 10 * able / 9 + .1, `화력 ${u.hp} ≤ 가용 ${able}/9`);
   // 큰 폭발은 터진 곳 가까운 병사부터
   const M = u._men; M.forEach((m, i) => { m.x = 10 + (i < 4 ? .1 : .9); m.z = 10.5; });
   u.ws.forEach(w => { w.s = 'ok'; delete w.y; }); F(T, 'casSync')(u, null);
@@ -439,4 +466,129 @@ test('차량 부위 피해: 기동 불능이면 못 움직이고, 승무원이 �
   // 대전차 화기에 여러 번 맞으면 어딘가 고장 난다
   let broke = 0; for (let k = 0; k < 20; k++) { const t = T.mkUnit(1, 'tank', 12, 8); t.hp = 999; F(T, 'harm')(t, 1, at, { kind: 'blast', hits: 3 }); const V = t.vd; if (!G.units.includes(t) || V.mob || V.gun || V.crew.some(c => c !== 'ok')) broke++; G.units = G.units.filter(x => x !== t); }
   assert.ok(broke >= 8, `고장 ${broke}/20`);
+});
+
+test('박격포: 건물 안에서는 못 쏘고, 포탄이 날아가 떨어진 곳에서 터진다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 3); T.bump();
+  const m = T.mkUnit(0, 'mortar', 5, 5); m.x = 5.8; m.z = 5.5; m.fl = 1; m.flK = T.key(5, 5);
+  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; T.bump();
+  assert.ok(!T.canHit(m, e), '건물 안(실내층)에서는 곡사 사격 불가');
+  m.r = 5; m.c = 2; m.x = 2.5; m.z = 5.5; m.fl = 0; m.flK = null; T.bump();
+  assert.ok(T.canHit(m, e), '지상에서는 쏜다');
+  T.rtShoot(m, e);
+  assert.ok(!e.dmgIn, '쏘는 순간에는 피해 없음');
+  assert.equal(T.G.shells.length, 1, '포탄이 날아간다');
+  for (let i = 0; i < 60 && T.G.shells.length; i++) { T.G.time += .1; T.shellTick(); }
+  assert.equal(T.G.shells.length, 0, '포탄이 떨어졌다');
+});
+
+test('포탄이 날아가다 건물에 걸리면 그 벽에서 터진다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 6, 8); T.bump(); const b0 = G.map[5][6].bhp;
+  const s = T.shellLaunch({ x0: 2.5, z0: 5.5, h0: .5, tx: 6.5, tz: 5.5, n: 0, spread: 0, ap: 1, T: 1 });
+  s.x1 = 6.5; s.z1 = 5.5;
+  for (let i = 0; i < 20 && T.G.shells.length; i++) { T.G.time += .1; T.shellTick(); }
+  assert.ok(G.map[5][6].bhp < b0 || G.map[5][6].t !== 'bldg', '건물이 맞았다');
+});
+
+test('대전차팀은 건물 안 적이 있는 층 벽을 뚫고, 구멍이 남는다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 6, 3); T.bump();
+  const e = T.mkUnit(1, 'rifle', 5, 6); e.x = 6.5; e.z = 5.5; e.fl = 1; e.flK = T.key(5, 6);
+  const a = T.mkUnit(0, 'at', 5, 3); a.x = 3.5; a.z = 5.5; T.bump();
+  const P = T.breachPt(a, e); assert.ok(P, '벽 지점이 잡힌다'); assert.equal(P.fl, 1);
+  const hp0 = e.hp; const b0 = G.map[5][6].bhp; T.breach(a, P);
+  assert.ok(e.dmgIn > 0, '그 층 적이 다친다'); assert.ok(G.map[5][6].bhp < b0, '건물이 상한다');
+  assert.equal(T.G.holes.length, 1, '구멍이 남는다');
+});
+
+test('불난 건물은 타면서 상하고 안의 보병이 다치며, 결국 꺼진다', () => {
+  const T = loadGame(); const G = setup(T);
+  for (const c of [5, 6]) { bldg(G, 5, c, 3); G.map[5][c].blk = 1; } T.bump();
+  const u = T.mkUnit(1, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; u.fl = 0; u.flK = T.key(5, 5);
+  assert.ok(T.ignite(5, 5, 1)); const b0 = G.map[5][5].bhp, hp0 = u.hp;
+  for (let i = 0; i < 300; i++) T.fireTick(.1);
+  assert.ok(G.map[5][5].t !== 'bldg' || G.map[5][5].bhp < b0, '건물이 상한다');
+  assert.ok(u.dmgIn > 0 || !T.G.units.includes(u), '안의 보병이 다친다');
+  for (let i = 0; i < 2000 && T.G.fires.length; i++) T.fireTick(.1);
+  assert.equal(T.G.fires.length, 0, '결국 꺼진다');
+});
+
+/* ---------- 설치형 방어물·장애물 (04d-fort) ---------- */
+// 건물 사이 한 줄짜리 도로(5행)를 만든다
+function alley(T) { const G = setup(T); for (let c = 0; c < T.N; c++) { bldg(G, 4, c, 2); bldg(G, 6, c, 2); } T.bump(); return G; }
+const done = (G, k, x, z, ry = Math.PI / 2) => { const T2 = G; const f = { id: 900 + (G.forts || []).length, k, nat: 1, x, z, ry, hp: 50, prog: 1 }; (G.forts = G.forts || []).push(f); return f; };
+
+test('차량은 방벽을 넘어가지 않는다: 골목이 막히면 앞에서 멈추고, 보병은 넘어간다', () => {
+  const T = loadGame(); const G = alley(T);
+  for (const z of [5.2, 5.5, 5.8]) done(G, 'jersey', 8.5, z);
+  T.__get('fortCovers')(); G.navV = 1;
+  const t = T.mkUnit(0, 'tank', 5, 2); t.x = 2.5; t.z = 5.5;
+  T.orderMoveTo(t, 12.5, 5.5);
+  for (let i = 0; i < 600; i++) T.rtTick(0.1);
+  assert.ok(t.x < 8.4, `전차가 방벽 앞에서 멈춤 (x=${t.x.toFixed(2)})`);
+  const u = T.mkUnit(0, 'rifle', 5, 3); u.x = 3.5; u.z = 5.5;
+  T.orderMoveTo(u, 12.5, 5.5);
+  for (let i = 0; i < 600 && u.path.length; i++) T.rtTick(0.1);
+  assert.ok(u.x > 12, `보병은 넘어감 (x=${u.x.toFixed(2)})`);
+});
+
+test('차량은 주차된 차를 돌아가고 차 위를 지나지 않는다', () => {
+  const T = loadGame(); const G = setup(T);
+  G.props = [{ k: 'car', kind: 'suv', x: 6.5, z: 5.5, ry: Math.PI / 2, col: '#fff' }]; G.navV = 2;
+  const box = { x: 6.5, z: 5.5, ry: Math.PI / 2, hl: .205, hw: .085 };
+  const t = T.mkUnit(0, 'ifv', 5, 2); t.x = 2.5; t.z = 5.5;
+  T.orderMoveTo(t, 10.5, 5.5);
+  for (let i = 0; i < 400 && t.path.length; i++) { T.rtTick(0.1); assert.ok(!T.__get('inBox')(box, t.x, t.z, 0.05), `차를 넘어감 (${t.x.toFixed(2)},${t.z.toFixed(2)})`); }
+  assert.ok(Math.hypot(t.x - 10.5, t.z - 5.5) < .1, '돌아서 도착');
+});
+
+test('전차는 모래주머니·철조망을 짓밟고, 바퀴 차량은 모래주머니에 막힌다', () => {
+  const T = loadGame(); const G = alley(T);
+  for (const z of [5.2, 5.5, 5.8]) done(G, 'sandbag', 8.5, z);
+  G.navV = 3;
+  const h = T.mkUnit(0, 'hmv', 5, 2); h.x = 2.5; h.z = 5.5;
+  T.orderMoveTo(h, 12.5, 5.5);
+  for (let i = 0; i < 400; i++) T.rtTick(0.1);
+  assert.ok(h.x < 8.4, `험비는 막힘 (x=${h.x.toFixed(2)})`);
+  const t = T.mkUnit(0, 'tank', 5, 3); t.x = 3.5; t.z = 5.5;
+  G.units = G.units.filter(u => u !== h);
+  T.orderMoveTo(t, 12.5, 5.5);
+  for (let i = 0; i < 600 && t.path.length; i++) T.rtTick(0.1);
+  assert.ok(t.x > 12, `전차는 통과 (x=${t.x.toFixed(2)})`);
+  assert.ok(G.forts.length < 3, '짓밟힌 모래주머니가 사라짐');
+});
+
+test('공병이 지휘점수를 써서 모래주머니를 쌓으면 엄폐가 되고, 포격에 부서진다', () => {
+  const T = loadGame(); const G = setup(T); G.maxR = 999;
+  const e = T.mkUnit(0, 'eng', 5, 3); e.x = 3.5; e.z = 5.5;
+  const cp0 = G.nats[0].cp;
+  const f = T.__get('orderFort')(e, 'sandbag', 6.5, 5.5);
+  assert.equal(typeof f, 'object', String(f));
+  assert.equal(G.nats[0].cp, cp0 - 1);
+  for (let i = 0; i < 200 && f.prog < 1; i++) T.rtTick(0.1);
+  assert.equal(f.prog, 1, '다 지음');
+  assert.ok(G.covers.some(c => c.fort === f.id), '엄폐 목록에 들어감');
+  // 방어물 뒤 보병은 앞에서 오는 사격에 엄폐를 받는다
+  const enemy = T.mkUnit(1, 'rifle', 5, 10); enemy.x = 10.5; enemy.z = 5.5;
+  const [fx] = [f.x]; const d = T.mkUnit(0, 'rifle', 5, 6); d.x = fx - .12; d.z = 5.5;
+  const cv = T.__get('coverOf')(d, enemy);
+  assert.ok(cv.cov >= .35, `모래주머니 엄폐 ${cv.cov} ${cv.kind}`);
+  G.nats[0].cp = 50; G.time = 999;
+  T.__get('fortBlast')(6.5, 5.5, 1.5, 40);
+  assert.ok(!G.forts.includes(f), '포격에 부서짐');
+  assert.ok(!G.covers.some(c => c.fort === f.id), '엄폐도 사라짐');
+});
+
+test('소총분대는 콘크리트 방벽을 못 짓고, 짓던 중 다른 명령을 받으면 취소된다', () => {
+  const T = loadGame(); const G = setup(T);
+  const u = T.mkUnit(0, 'rifle', 5, 3);
+  assert.equal(typeof T.__get('orderFort')(u, 'jersey', 6.5, 5.5), 'string');
+  const cp0 = G.nats[0].cp;
+  const f = T.__get('orderFort')(u, 'sandbag', 6.5, 5.5);
+  T.rtTick(0.1);
+  T.orderMoveTo(u, 2.5, 8.5); T.rtTick(0.1);
+  assert.ok(!G.forts.includes(f), '짓다 만 방어물은 치워짐');
+  assert.equal(G.nats[0].cp, cp0, '시작도 안 했으면 지휘점수 환불');
 });

@@ -41,7 +41,7 @@ const OUT={bullet:{head:{kia:.7,hw:.3},torso:{kia:.3,hw:.6,lw:.1},arm:{lw:.8,hw:
   frag:{head:{kia:.6,hw:.4},torso:{kia:.25,hw:.6,lw:.15},arm:{lw:.65,hw:.35},leg:{hw:.5,lw:.5}}};
 /* 병사 m이 맞았다: 결과(stop/lw/hw/kia) */
 function woundRoll(kind,cov){if(kind==='blast'||kind==='crush'){const loc=pickW(LOC_FRAG);return {loc,out:pickW(kind==='blast'?{kia:.42,hw:.43,lw:.15}:{kia:.38,hw:.45,lw:.17})};}
-  const frag=kind==='frag';const loc=pickW(frag?LOC_FRAG:cov>=.25?LOC_COV:LOC_OPEN);
+  const frag=kind==='frag'||kind==='burn';const loc=pickW(frag?LOC_FRAG:cov>=.25?LOC_COV:LOC_OPEN);
   if(loc==='torso'&&Math.random()<(frag?.3:.45))return {loc,out:'stop'};      // 방탄판이 막음
   return {loc,out:pickW(OUT[frag?'frag':'bullet'][loc])};}
 function woundMan(u,m,kind,cov,by){const w=u.ws[m.i];let {loc,out}=woundRoll(kind,cov);const t=G.time||0;
@@ -70,7 +70,7 @@ function casPick(u,kind,by,o,M){const ex=kind==='blast'||kind==='frag'||kind==='
     if(s>bs){bs=s;best=m;bc=cov;}}
   return {m:best,cov:bc};}
 function hurtMen(u,amt,by,o){const M=menOf(u);const kind=o.kind||'bullet';
-  u.supp=Math.min(3,(u.supp||0)+(kind==='bullet'?.2:.5));u._hitT=G.time||0;if(by)u._thr=[by.x,by.z,G.time||0];
+  if(kind!=='burn')u.supp=Math.min(3,(u.supp||0)+(kind==='bullet'?.2:.5));u._hitT=G.time||0;if(by)u._thr=[by.x,by.z,G.time||0];
   if(u.nocas){casSync(u,by);return;}                         // 테스트용: 다치지 않는 표적
   const ex=amt/hpMax(u)*M.length*CAS_K;let c=Math.floor(ex)+(Math.random()<ex%1?1:0);
   if(kind==='bullet'&&by&&!UT[by.type].ex)c=Math.min(c,o.hits||c);
