@@ -594,7 +594,7 @@ function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.
   sfx('arty');L(`${natName(n)} ${SUP[kind].n}`);
   if(kind==='arty'&&typeof shellBarrage==='function'){shellBarrage(n,r,c,9,2.8);bump();return true;}   // 포격은 실제 포탄으로(05g-shells)
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
-    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
+    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:Math.max(TT[x.t].cov*.5,typeof trenchAt==='function'&&UT[u.type].cls==='inf'&&trenchAt(u.x,u.z)?.5:0);/* 참호는 포격도 막는다 */const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
     if(x.t==='bldg'){damageBldg(a,b,kind==='air'?24:(ctr?9:6));if(kind==='air'&&typeof ignite==='function')ignite(a,b,ctr?.8:.35);}}
   if(typeof fortBlast==='function')fortBlast(c+.5,r+.5,kind==='air'?.7:1.5,kind==='air'?90:24);
   bump();return true;}
@@ -783,6 +783,7 @@ function coverOf(d,a){const td=UT[d.type];if(td.fly)return {cov:0,kind:null};con
   if(x.t==='bldg')put(typeof onRoof==='function'&&onRoof(d)?{cov:COVK.roof.v,kind:'roof'}:{cov:COVK.bldg.v,kind:'bldg'});
   else{if(TT[x.t].cov)put({cov:TT[x.t].cov,kind:x.t});
     const ind=a&&UT[a.type].ind;const [px,pz]=posOf(d);const objs=coverObjs(d);
+    if(td.cls==='inf'&&typeof trenchAt==='function'&&trenchAt(px,pz))put({cov:COVK.trench.v,kind:'trench'});// 참호 안: 사방·곡사 모두 (04d-fort)
     if(!ind){let dirs;if(a){const [ax,az]=posOf(a);const L=Math.hypot(ax-px,az-pz)||1;dirs=[[(ax-px)/L,(az-pz)/L]];}else dirs=DIR8.map(([p,q])=>{const L=Math.hypot(p,q);return [q/L,p/L];});
       const low=a&&eye(a)>=eye(d)+2;
       for(const [ux,uz] of dirs){const c=dirCoverAt(px,pz,ux,uz,td.cls,d,objs);if(low)c.cov*=.5;put(c);}}
@@ -807,6 +808,7 @@ function rawDmg(a,d,counter){const ta=UT[a.type],td=UT[d.type];let v=ta.atk[td.c
 function calcDmg(a,d,counter){const v=rawDmg(a,d,counter);if(!v)return 0;return v*hitP(a,d).p;}
 /* 이 지점 근처에 엄폐가 되는 자리가 있으면 그쪽으로 붙는다 (보병 이동 명령의 도착점) */
 function coverAt(px,pz,cls,objs){const t=tileAt(px,pz);if(!t)return 0;if(t.t==='bldg')return COVK.bldg.v;let b=TT[t.t].cov||0;
+  if(cls==='inf'&&typeof trenchAt==='function'&&trenchAt(px,pz))b=Math.max(b,COVK.trench.v);
   for(const [p,q] of DIR8){const L=Math.hypot(p,q);b=Math.max(b,dirCoverAt(px,pz,q/L,p/L,cls,null,objs).cov);}return b;}
 function coverSnap(u,x,z){if(UT[u.type].cls!=='inf')return [x,z];const objs=coverObjs(u);const c0=coverAt(x,z,'inf',objs);if(c0>=.3)return [x,z];
   let best=[x,z],bs=c0+.05;
@@ -832,17 +834,20 @@ const FORT={
   wire:{n:'철조망',len:.42,w:.09,cov:0,h:.08,hp:14,bt:5,cost:1,desc:'보병을 막음(공병은 끊고 통과). 차량은 깔고 지나감'},
   jersey:{n:'콘크리트 방벽',len:.3,w:.07,cov:.35,h:.07,hp:70,bt:9,cost:2,desc:'모든 차량을 막는 저지 블록. 엄폐 35%'},
   hedgehog:{n:'대전차 장애물',len:.15,w:.15,cov:.1,h:.12,hp:55,bt:7,cost:2,desc:'철골 고슴도치. 모든 차량을 막고 보병은 지나감'},
+  trench:{n:'참호',len:.5,w:.11,cov:0,h:0,hp:90,bt:12,cost:1,desc:'땅을 파 들어가 앉는 호. 안의 보병은 사방 엄폐 50%(포격에도). 바퀴 차량은 못 건넘',inside:1},
+  nest:{n:'기관총 진지',len:.28,w:.28,cov:.45,h:.1,hp:45,bt:9,cost:2,desc:'반원형 모래주머니 진지. 앞쪽 엄폐 45%. 바퀴 차량을 막음',inside:1},
 };
 const FORT_KS=Object.keys(FORT);
-Object.assign(COVK,{sandbag:{n:'모래주머니',v:.4},jersey:{n:'콘크리트 방벽',v:.35},hedgehog:{n:'대전차 장애물',v:.1}});
+Object.assign(COVK,{trench:{n:'참호',v:.5},nest:{n:'기관총 진지',v:.45},sandbag:{n:'모래주머니',v:.4},jersey:{n:'콘크리트 방벽',v:.35},hedgehog:{n:'대전차 장애물',v:.1}});
 /* 누가 무엇을 지을 수 있나: 공병은 전부, 소총·기관총은 모래주머니·철조망, 나머지 보병은 모래주머니 */
-function fortKinds(type){const t=UT[type];if(!t||t.cls!=='inf')return [];if(type==='eng')return FORT_KS.slice();if(type==='rifle'||type==='mg')return ['sandbag','wire'];return ['sandbag'];}
+function fortKinds(type){const t=UT[type];if(!t||t.cls!=='inf')return [];if(type==='eng')return FORT_KS.slice();if(type==='mg')return ['sandbag','wire','trench','nest'];if(type==='rifle')return ['sandbag','wire','trench'];return ['sandbag','trench'];}
 const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return u.type==='eng'?'eng':'inf';return u.type==='tank'||u.type==='spg'?'trk':'veh';};
 const NAV_CLR={inf:.03,eng:.03,veh:.11,trk:.12};
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
   car:{inf:2,eng:2,veh:2,trk:2},barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
-  sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2}};
+  sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2},
+  trench:{inf:0,eng:0,veh:2,trk:0},nest:{inf:0,eng:0,veh:2,trk:1}};
 /* 길을 막는 물체 목록 (방향 있는 상자) */
 function navObstacles(){const O=[];
   for(const p of G.props||[]){
@@ -948,7 +953,8 @@ function orderFort(u,k,x,z){const d=FORT[k];if(!d||!fortKinds(u.type).includes(k
   if(N2.cp<d.cost)return '지휘점수가 모자랍니다';const why=fortCanPlace(u.nat,k,x,z);if(why)return why;
   const {ry,fx,fz}=fortPose(u.nat,x,z);G.forts=G.forts||[];const f={id:FORT_ID++,k,nat:u.nat,x,z,ry,hp:d.hp,prog:0,paid:d.cost};G.forts.push(f);N2.cp-=d.cost;
   // 방어물 뒤(위협 반대쪽)에 서서 짓는다
-  let sx=x-fx*(d.w/2+.1),sz=z-fz*(d.w/2+.1);if(!walkable(u,sx,sz)){sx=x;sz=z;}
+  // 참호·진지는 안에서, 나머지는 뒤에서 짓는다
+  let sx=d.inside?x:x-fx*(d.w/2+.1),sz=d.inside?z:z-fz*(d.w/2+.1);if(!walkable(u,sx,sz)){sx=x;sz=z;}
   if(u.job)fortCancel(u);u.tgt=null;u.tgtTile=null;u.dest=[sx,sz];u.path=pathPts(u,sx,sz);u.job={id:f.id,x:sx,z:sz};G.fortV=(G.fortV||0)+1;bump();return f;}
 function fortCancel(u){const j=u.job;u.job=null;if(!j)return;const f=(G.forts||[]).find(o=>o.id===j.id);
   if(f&&f.prog<1&&!G.units.some(o=>o!==u&&o.job&&o.job.id===f.id)){if(f.prog<.05)G.nats[f.nat].cp+=f.paid||0;fortRemove(f);}}
@@ -957,7 +963,11 @@ function fortRemove(f,why){const was=G.forts.includes(f);G.forts=G.forts.filter(
 /* 다 지은 방어물을 엄폐 목록(G.covers)에 넣는다. 길이 방향으로 원 세 개 */
 function fortCovers(){G.covers=(G.covers||[]).filter(c=>!c.fort);
   for(const f of G.forts||[]){if(f.prog<1)continue;const d=FORT[f.k];if(!d.cov)continue;const ax=Math.cos(f.ry),az=-Math.sin(f.ry);const n=d.len>.2?3:1;
+    if(f.k==='nest'){// 앞쪽 반원(로컬 −z)에 엄폐 셋
+      const cs=Math.cos(f.ry),sn=Math.sin(f.ry);for(const a of [-.9,0,.9]){const lx=Math.sin(a)*.12,lz=-Math.cos(a)*.12;G.covers.push({x:f.x+lx*cs+lz*sn,z:f.z-lx*sn+lz*cs,r:.07,kind:'nest',cov:d.cov,h:d.h,fort:f.id});}continue;}
     for(let i=0;i<n;i++){const s=n===1?0:(i-1)*d.len/3;G.covers.push({x:f.x+ax*s,z:f.z+az*s,r:Math.max(.08,d.len/(n*2)),kind:f.k,cov:d.cov,h:d.h,fort:f.id});}}}
+/* 이 점이 다 지은 참호 안인가 (04c coverOf·coverAt이 부른다) */
+function trenchAt(x,z){for(const f of G.forts||[])if(f.k==='trench'&&f.prog>=1&&inBox(fortShape(f),x,z,.01))return true;return false;}
 /* 매 틱: 짓기 진행 */
 function fortTick(dt){if(!G.forts)G.forts=[];
   for(const u of G.units){const j=u.job;if(!j)continue;const f=G.forts.find(o=>o.id===j.id);if(!f||f.prog>=1){u.job=null;continue;}
@@ -984,7 +994,7 @@ function aiFort(n){const N2=G.nats[n];if(N2.cp<6||Math.random()>.35)return;const
   for(const u of G.units){if(u.nat!==n||u.job||(u.path&&u.path.length)||u.tgt!=null)continue;const ks=fortKinds(u.type);if(!ks.length||u.type==='sniper'||u.type==='mortar')continue;
     const o=own.find(q=>Math.hypot(q.c+.5-u.x,q.r+.5-u.z)<2.5);if(!o)continue;
     const [fx,fz]=fortFront(n,u.x,u.z);const x=u.x+fx*.22,z=u.z+fz*.22;if((G.forts||[]).some(f=>Math.hypot(f.x-x,f.z-z)<.45))continue;
-    const t=tileAt(x,z);const k=u.type==='eng'&&eVeh&&t&&t.t==='road'&&ks.includes('hedgehog')?'hedgehog':u.type==='eng'&&Math.random()<.3?'jersey':'sandbag';
+    const t=tileAt(x,z);const p=Math.random();const k=u.type==='eng'&&eVeh&&t&&t.t==='road'&&ks.includes('hedgehog')?'hedgehog':u.type==='eng'&&p<.3?'jersey':u.type==='mg'&&p<.6?'nest':t&&t.t!=='road'&&p<.45&&ks.includes('trench')?'trench':'sandbag';
     if(N2.cp-FORT[k].cost<4)return;if(typeof orderFort(u,k,x,z)!=='string')return;}}
 
 /* ---- 05-flow.js ---- */
@@ -1345,7 +1355,7 @@ function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menT
       let cov=typeof dirCoverAt==='function'?dirCoverAt(x,z,ux,uz,'inf',u,objs).cov:0;
       // 벽에 붙기: 옆에 건물 벽이 있으면 조금 더 좋다(시가지에서는 벽을 따라 선다)
       let hug=0;for(const [p,q] of [[1,0],[-1,0],[0,1],[0,-1]]){const tt=tileAt(x+p*.13,z+q*.13);if(tt&&tt.t==='bldg'){hug=.06;break;}}
-      C.push({x,z,s:cov+hug-rad*.22+(t.t==='rubble'?.04:0)});}}
+      C.push({x,z,s:cov+hug-rad*.22+(t.t==='rubble'?.04:0)+(typeof trenchAt==='function'&&trenchAt(x,z)?.6:0)});/* 참호가 있으면 그 안으로 */}}
   const taken=[];const ord=L.slice().sort((a,b)=>(a.i===0?-1:0)-(b.i===0?-1:0));
   ord.forEach((m,k)=>{let best=null,bs=-1e9;for(const c of C){let s=c.s;for(const t of taken){const d=Math.hypot(c.x-t[0],c.z-t[1]);if(d<MEN.spread)s-=1;else if(d<MEN.spread*1.6)s-=.08;}
       s-=Math.hypot(c.x-m.x,c.z-m.z)*.05;if(s>bs){bs=s;best=c;}}
@@ -1651,7 +1661,8 @@ function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.sr
     const X=cell(u.r,u.c);const inB=X.t==='bldg'&&eye(u)<bldgH(X);let f=Math.max(0,1-d/SHELL_R);
     if(r!=null&&u.r===r&&u.c===c&&UT[u.type].cls==='inf'){const df=Math.abs(curFl(u)-bf);f=df<.6?1:df<1.6?.45:.12;}   // 꽂힌 건물: 그 층이 크게 다친다
     else if(inB)f*=.12;                                  // 다른 건물 안: 벽이 막아 준다
-    else if(r!=null)f*=.6;                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
+    else if(r!=null)f*=.6;
+    if(r==null&&UT[u.type].cls==='inf'&&typeof trenchAt==='function'&&trenchAt(u.x,u.z))f*=d<.25?.8:.45;   // 참호: 바로 옆에 떨어지지 않으면 파편을 막는다                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
     if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
     const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
     dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by,{kind:'blast',x,z,rad:SHELL_R*.6});else u.supp=Math.max(u.supp||0,1);}
@@ -2544,6 +2555,9 @@ function v3FortMats(){if(V3.fm)return V3.fm;const T=V3.T;
     post:new T.MeshStandardMaterial({color:'#4b3d2c',roughness:1}),
     conc:new T.MeshStandardMaterial({color:'#8f8a80',roughness:1,flatShading:true}),
     steel:new T.MeshStandardMaterial({color:'#5b4334',roughness:.8,metalness:.35,flatShading:true}),
+    pit:new T.MeshStandardMaterial({color:'#2e2720',roughness:1}),
+    berm:new T.MeshStandardMaterial({color:'#6e5e47',roughness:1,flatShading:true}),
+    plank:new T.MeshStandardMaterial({color:'#5a4632',roughness:1}),
     ghost:new T.MeshBasicMaterial({color:'#e8e2d0',transparent:true,opacity:.35,depthWrite:false})};}
 function v3FortGeos(){if(V3.fg)return V3.fg;const T=V3.T,m=MU;
   const tor=new T.TorusGeometry(.42*m,.045*m,3,9).rotateY(Math.PI/2);
@@ -2560,6 +2574,14 @@ function v3FortMesh(f){const T=V3.T,m=MU,M=v3FortMats(),Gx=v3FortGeos(),d=FORT[f
     for(const [zz,yy] of [[-.38*m,.42*m],[.38*m,.42*m],[0,1.05*m]])for(let i=0;i<n;i++)add(Gx.tor,M.wire,-L/2+(i+.5)*L/n,yy,zz,(R()-.5)*.5,(R()-.5)*.3,0);
     for(const s of [-.5,0,.5])add(Gx.post,M.post,s*L*.9,.65*m,0,(R()-.5)*.15,0,(R()-.5)*.15);}
   else if(f.k==='jersey')add(Gx.jersey,M.conc,0,0,0);
+  else if(f.k==='trench'){// 파인 바닥 + 판자 벽 + 양옆으로 퍼낸 흙둔덕. 가운데에서 살짝 꺾여 지그재그로
+    const L=d.len,W=d.w;for(const [sx,a] of [[-L/4,.22],[L/4,-.22]]){const s=new T.Group();s.position.set(sx,0,0);s.rotation.y=a;g.add(s);
+      const o=new T.Mesh(new T.BoxGeometry(L/2+.03,.004,W*.62),M.pit);o.position.y=.003;o.receiveShadow=true;s.add(o);
+      for(const zz of [-1,1]){const p=new T.Mesh(new T.BoxGeometry(L/2+.02,.35*m,.08*m),M.plank);p.position.set(0,.16*m,zz*W*.31);p.castShadow=true;s.add(p);
+        const b=new T.Mesh(new T.BoxGeometry(L/2+.05,.5*m,W*.32),M.berm);b.position.set(0,.2*m,zz*W*.62);b.rotation.x=zz*.18;b.castShadow=true;b.receiveShadow=true;s.add(b);}}}
+  else if(f.k==='nest'){// 반원형 모래주머니 2단, 열린 쪽(로컬 +z)이 뒤
+    const R0=.12;for(let row=0;row<3;row++){const n=row===2?7:8;for(let i=0;i<n;i++){const a=-1.75+(i+(row%2?.5:0)+.5)/n*3.5;const x=Math.sin(a)*R0,z=-Math.cos(a)*R0;
+      add(Gx.bag,M.bag,x,(.12+row*.22)*m,z,0,-a+(R()-.5)*.15,(R()-.5)*.08);}}}
   else if(f.k==='hedgehog'){const h=new T.Group();for(const [rx,ry,rz] of [[0,0,0],[0,Math.PI/2,0],[0,0,Math.PI/2]]){const o=new T.Mesh(Gx.beam,M.steel);o.rotation.set(rx,ry,rz);o.castShadow=true;h.add(o);}
     h.rotation.set(.615,R()*Math.PI,.785);h.position.y=.78*m;g.add(h);}
   g.position.set(f.x,0,f.z);g.rotation.y=f.ry;return g;}
@@ -3015,7 +3037,7 @@ function v3MenAnim(o,uu,dt,now,fa){const M=uu._men,S=o.userData.sold;const ox=o.
     let cur=fig.rotation.y,want=-head,dd=want-cur;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;fig.rotation.y=cur+dd*Math.min(1,dt*9);
     const tilt=prone?-1.42:0;fig.rotation.z+=(tilt-fig.rotation.z)*Math.min(1,dt*7);
     const sy=kneel?.72:1;fig.scale.y+=(sy-fig.scale.y)*Math.min(1,dt*7);
-    fig.position.set(s.wx-ox,y+(prone?.012:0),s.wz-oz);
+    fig.position.set(s.wx-ox,y+(prone?.012:0)-(typeof trenchAt==='function'&&trenchAt(s.wx,s.wz)?.9*MU:0),s.wz-oz);/* 참호 안 병사는 허리까지 잠긴다 */
     const gait=prone?.25:1,sw=Math.min(1,s.spd/.35)*Math.sin(now/(prone?160:70)+s.ph)*.7*gait;
     if(fig.userData.legL){fig.userData.legL.rotation.z=sw;fig.userData.legR.rotation.z=-sw;}});}
 /* 분대 사격 연출: 쏜 병사마다 예광탄 하나씩 */
@@ -3109,7 +3131,7 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.
   else if(UI.phase==='sup'){const S=SUP[UI.supK];h=`<b>${S.n}</b><span>${UI.st!=null?'같은 칸을 다시 탭하거나 실행':'목표 지점을 탭하세요'} · ${S.desc}</span><div class="ab">${UI.st!=null?`<button class="btn sm primary" data-act="sup-fire" id="ab-sf">실행</button>`:''}<button class="btn sm" data-act="sup-cancel" id="ab-sc">취소</button></div>`;}
   else if(s){const t=UT[s.type];const x0=cell(s.r,s.c);
     const ng=(UI.group||[]).filter(x=>G.units.includes(x)).length;const tip=(typeof fortTip==='function'&&fortTip())||(UI.phase==='demo'?'부술 건물을 탭하세요':(ng?`외 ${ng}개 부대 · `:'')+'탭: 이동 · 적 탭: 공격');
-    h=`<b style="color:${mapCol(n)}">${t.n}</b><span>${uInfo(s)} · ${tip}</span><div class="ab">${t.ex?`<button class="btn sm${UI.phase==='demo'?' primary':''}" data-act="demo" id="ab-demo">건물 사격</button>`:''}${t.cls==='inf'&&x0.t==='bldg'?`<button class="btn sm" data-act="floor" id="ab-floor">${s.flT===0?'위층으로':'1층으로'}</button>`:''}${typeof fortBar==='function'?fortBar(s):''}<button class="btn sm${s.hold?' primary':''}" data-act="hold" id="ab-hold">고수</button><button class="btn sm" data-act="stop" id="ab-stop">정지</button><button class="btn sm" data-act="cancel" id="ab-cancel">해제</button></div>`;}
+    h=`<b style="color:${mapCol(n)}">${t.n}</b><span>${uInfo(s)} · ${tip}</span><div class="ab">${t.ex?`<button class="btn sm${UI.phase==='demo'?' primary':''}" data-act="demo" id="ab-demo">건물 사격</button>`:''}${t.cls==='inf'&&x0.t==='bldg'?`<button class="btn sm" data-act="floor" id="ab-floor">${s.flT===0?'옥상으로':'1층으로'}</button>`:''}${typeof fortBar==='function'?fortBar(s):''}<button class="btn sm${s.hold?' primary':''}" data-act="hold" id="ab-hold">고수</button><button class="btn sm" data-act="stop" id="ab-stop">정지</button><button class="btn sm" data-act="cancel" id="ab-cancel">해제</button></div>`;}
   else if(UI.pane){const {r,c}=UI.pane;const x=cell(r,c);const u=unitAt(r,c);const vis=!G.fog||visSet(n).has(key(r,c));
     const nm=x.obj!=null?G.objs[x.obj].name+' · ':'';const own=x.obj!=null?` · ${natName(x.owner)} 거점`:'';
     const what=x.t==='bldg'?`${x.f}층 건물 · 내구 ${Math.ceil(x.bhp)}/${x.bmax} · 엄폐 40%`:`${TT[x.t].n}${TT[x.t].cov?` · 엄폐 ${Math.round(TT[x.t].cov*100)}%`:''}`;
@@ -3153,7 +3175,7 @@ const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로
 <li>차량은 대전차 화기에 뚫리면 부위가 망가집니다: 기동 불능, 무장 파손, 승무원 부상, 화재(승무원이 탈출하고 잠시 뒤 탄약이 터짐)</li><li>전차는 장갑이 두꺼워 대전차팀·공병·전차 말고는 피해 −35%</li><li>건물 안 대전차팀은 기갑에 +25%, 차량에 붙은 보병은 +20%. 2층 이상 높은 곳에서 쏘면 +15%</li><li>저격수는 건물 안에 있으면 붙어 있는 적에게만 보입니다(쏘면 잠시 드러남)</li></ul>
 <h3>건물 파괴</h3><ul class="rules"><li>폭발물은 건물 자체를 쏠 수 있고, 안에 숨은 적도 함께 피해를 입습니다</li><li>내구가 0이 되면 건물이 무너져 잔해가 되고, 안에 있던 부대는 큰 피해를 입습니다</li></ul>
 <h3>증원과 화력 지원</h3><ul class="rules"><li>지휘점수로 집결지나 거점 옆에 증원을 부릅니다</li><li>포병 사격(3×3), 근접 항공 지원(한 칸, 건물 붕괴), 연막(3×3 시야 차단)은 ${SUP_CD}초마다 하나씩, 연막 말고는 보이는 곳에만 씁니다</li></ul>
-<h3>방어물</h3><ul class="rules"><li>보병을 고르고 [축성]을 누르면 모래주머니(엄폐 40%)·철조망(보병 차단)을, 공병은 콘크리트 방벽·대전차 장애물(차량 차단)까지 지휘점수로 쌓습니다</li><li>도로 위에 놓으면 길을 가로질러 놓입니다. 차량은 주차된 차·방벽·장애물을 넘지 못하고 돌아가며, 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다</li></ul>
+<h3>방어물</h3><ul class="rules"><li>보병을 고르고 [축성]을 누르면 모래주머니(엄폐 40%)·철조망(보병 차단)·참호(안에 들어가면 사방 엄폐 50%)를, 기관총팀은 기관총 진지를, 공병은 콘크리트 방벽·대전차 장애물(차량 차단)까지 지휘점수로 쌓습니다</li><li>도로 위에 놓으면 길을 가로질러 놓입니다. 차량은 주차된 차·방벽·장애물을 넘지 못하고 돌아가며, 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다</li></ul>
 <h3>화면</h3><ul class="rules"><li>드래그: 이동 · 두 손가락: 확대·회전 · 마우스 휠: 확대 · 오른쪽 드래그 또는 Shift+드래그: 회전·기울기</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지</li></ul>`;
 function showSetup(){const sl=$('#scn-list');if(sl&&typeof scnButtons==='function')sl.innerHTML=scnButtons();
   const box=$('#slots');box.innerHTML=NATS.map((N2,i)=>`<div class="slot"><i class="sw" style="background:${N2.col}"></i><label for="slot-${i}">${N2.full} <small>${N2.edge}</small></label><select id="slot-${i}"><option value="human">사람</option><option value="ai">AI</option>${i>1?'<option value="none">없음</option>':''}</select></div>`).join('');

@@ -47,7 +47,8 @@ function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.sr
     const X=cell(u.r,u.c);const inB=X.t==='bldg'&&eye(u)<bldgH(X);let f=Math.max(0,1-d/SHELL_R);
     if(r!=null&&u.r===r&&u.c===c&&UT[u.type].cls==='inf'){const df=Math.abs(curFl(u)-bf);f=df<.6?1:df<1.6?.45:.12;}   // 꽂힌 건물: 그 층이 크게 다친다
     else if(inB)f*=.12;                                  // 다른 건물 안: 벽이 막아 준다
-    else if(r!=null)f*=.6;                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
+    else if(r!=null)f*=.6;
+    if(r==null&&UT[u.type].cls==='inf'&&typeof trenchAt==='function'&&trenchAt(u.x,u.z))f*=d<.25?.8:.45;   // 참호: 바로 옆에 떨어지지 않으면 파편을 막는다                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
     if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
     const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
     dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by,{kind:'blast',x,z,rad:SHELL_R*.6});else u.supp=Math.max(u.supp||0,1);}

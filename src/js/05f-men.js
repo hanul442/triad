@@ -69,7 +69,7 @@ function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menT
       let cov=typeof dirCoverAt==='function'?dirCoverAt(x,z,ux,uz,'inf',u,objs).cov:0;
       // 벽에 붙기: 옆에 건물 벽이 있으면 조금 더 좋다(시가지에서는 벽을 따라 선다)
       let hug=0;for(const [p,q] of [[1,0],[-1,0],[0,1],[0,-1]]){const tt=tileAt(x+p*.13,z+q*.13);if(tt&&tt.t==='bldg'){hug=.06;break;}}
-      C.push({x,z,s:cov+hug-rad*.22+(t.t==='rubble'?.04:0)});}}
+      C.push({x,z,s:cov+hug-rad*.22+(t.t==='rubble'?.04:0)+(typeof trenchAt==='function'&&trenchAt(x,z)?.6:0)});/* 참호가 있으면 그 안으로 */}}
   const taken=[];const ord=L.slice().sort((a,b)=>(a.i===0?-1:0)-(b.i===0?-1:0));
   ord.forEach((m,k)=>{let best=null,bs=-1e9;for(const c of C){let s=c.s;for(const t of taken){const d=Math.hypot(c.x-t[0],c.z-t[1]);if(d<MEN.spread)s-=1;else if(d<MEN.spread*1.6)s-=.08;}
       s-=Math.hypot(c.x-m.x,c.z-m.z)*.05;if(s>bs){bs=s;best=c;}}

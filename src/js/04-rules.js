@@ -63,7 +63,7 @@ function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.
   sfx('arty');L(`${natName(n)} ${SUP[kind].n}`);
   if(kind==='arty'&&typeof shellBarrage==='function'){shellBarrage(n,r,c,9,2.8);bump();return true;}   // 포격은 실제 포탄으로(05g-shells)
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
-    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
+    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:Math.max(TT[x.t].cov*.5,typeof trenchAt==='function'&&UT[u.type].cls==='inf'&&trenchAt(u.x,u.z)?.5:0);/* 참호는 포격도 막는다 */const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
     if(x.t==='bldg'){damageBldg(a,b,kind==='air'?24:(ctr?9:6));if(kind==='air'&&typeof ignite==='function')ignite(a,b,ctr?.8:.35);}}
   if(typeof fortBlast==='function')fortBlast(c+.5,r+.5,kind==='air'?.7:1.5,kind==='air'?90:24);
   bump();return true;}

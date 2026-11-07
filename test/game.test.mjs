@@ -592,3 +592,28 @@ test('차량 부위 피해: 기동 불능이면 못 움직이고, 승무원이 �
   let broke = 0; for (let k = 0; k < 20; k++) { const t = T.mkUnit(1, 'tank', 12, 8); t.hp = 999; F(T, 'harm')(t, 1, at, { kind: 'blast', hits: 3 }); const V = t.vd; if (!G.units.includes(t) || V.mob || V.gun || V.crew.some(c => c !== 'ok')) broke++; G.units = G.units.filter(x => x !== t); }
   assert.ok(broke >= 8, `고장 ${broke}/20`);
 });
+
+test('참호 안 보병은 사방·포격에 엄폐되고, 바퀴 차량은 참호를 못 건너며 전차는 건넌다. 기관총 진지는 앞쪽만 막는다', () => {
+  const T = loadGame(); const G = alley(T); G.maxR = 999;
+  const tr = done(G, 'trench', 8.5, 5.5); T.__get('fortCovers')(); G.fortNV = 1;
+  const d = T.mkUnit(0, 'rifle', 5, 8); d.x = 8.5; d.z = 5.5;
+  for (const [x, z] of [[12.5, 5.5], [3.5, 5.5]]) { const e = T.mkUnit(1, 'rifle', 5, Math.floor(x)); e.x = x; e.z = z;
+    const cv = T.__get('coverOf')(d, e); assert.equal(cv.kind, 'trench'); assert.ok(cv.cov >= .5); G.units = G.units.filter(u => u !== e); }
+  G.units = [];
+  const h = T.mkUnit(0, 'hmv', 5, 2); h.x = 2.5; h.z = 5.5; T.orderMoveTo(h, 12.5, 5.5);
+  for (let i = 0; i < 300; i++) T.rtTick(0.1);
+  assert.ok(h.x < 8.4, `험비는 참호 앞에서 멈춤 (x=${h.x.toFixed(2)})`);
+  G.units = [];
+  const t = T.mkUnit(0, 'tank', 5, 3); t.x = 3.5; t.z = 5.5; T.orderMoveTo(t, 12.5, 5.5);
+  for (let i = 0; i < 400 && t.path.length; i++) T.rtTick(0.1);
+  assert.ok(t.x > 12, `전차는 참호를 건넘 (x=${t.x.toFixed(2)})`);
+  assert.ok(G.forts.includes(tr), '참호는 그대로');
+  // 기관총 진지: ry=0이면 앞이 −z쪽
+  const T2 = loadGame(); const G2 = setup(T2);
+  const n = { id: 1, k: 'nest', nat: 0, x: 5.5, z: 5.5, ry: 0, hp: 45, prog: 1 }; G2.forts = [n]; T2.__get('fortCovers')(); G2.fortNV = 1;
+  const m = T2.mkUnit(0, 'mg', 5, 5); m.x = 5.5; m.z = 5.5;
+  const front = T2.mkUnit(1, 'rifle', 1, 5); front.x = 5.5; front.z = 1.5;
+  const back = T2.mkUnit(1, 'rifle', 9, 5); back.x = 5.5; back.z = 9.5;
+  assert.ok(T2.__get('coverOf')(m, front).cov >= .45, '앞에서 쏘면 엄폐');
+  assert.ok(T2.__get('coverOf')(m, back).cov < .2, '뒤에서 쏘면 엄폐 없음');
+});
