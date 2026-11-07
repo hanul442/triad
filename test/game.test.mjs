@@ -83,8 +83,8 @@ test('건물이 무너지면 잔해가 되고 안의 부대가 피해를 입는�
   bldg(G, 5, 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5);
   T.damageBldg(5, 5, 999);
   assert.equal(G.map[5][5].t, 'rubble');
-  assert.equal(d.hp, 5);
-  assert.equal(d.supp, 2);
+  assert.ok(d.ws.some(w => w.s !== 'ok') || !G.units.includes(d), '무너진 건물에 깔린 병사');
+  assert.ok(d.dmgIn === 5 && d.supp >= 2);
 });
 
 test('폭발물로 건물을 쏘면 숨은 적도 맞는다', () => {
@@ -93,7 +93,7 @@ test('폭발물로 건물을 쏘면 숨은 적도 맞는다', () => {
   const hp0 = G.map[5][5].bhp;
   T.shootBldg(a, 5, 5);
   assert.ok(G.map[5][5].bhp < hp0 || G.map[5][5].t === 'rubble');
-  assert.ok(d.hp < 10);
+  assert.ok(d.dmgIn > 0);
 });
 
 test('건물 안 저격수는 붙어 있는 적에게만 보인다', () => {
@@ -233,9 +233,9 @@ test('트인 곳에서는 칸을 따라 꺾지 않고 곧게 간다', () => {
 test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, 건물 안이 더 오래 버틴다', () => {
   const ttk = (inBldg) => { const T = loadGame(); const G = setup(T); G.maxR = 999; G.nats[1].ctrl = 'human'; // AI가 표적을 건물 밖으로 빼지 않게
     if (inBldg) bldg(G, 5, 5, 2);
-    T.mkUnit(0, 'rifle', 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); d.hp = 1000; T.bump();
-    for (let i = 0; i < 300; i++) { d.cd = 99; T.rtTick(0.1); }
-    return 1000 - d.hp; };
+    T.mkUnit(0, 'rifle', 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); d.nocas = 1; T.bump();
+    for (let i = 0; i < 300; i++) { d.cd = 99; d.supp = 0; T.rtTick(0.1); }
+    return d.dmgIn || 0; };
   // 피해 굴림과 재장전이 무작위라 세 판씩 합산한다
   let open = 0, cov = 0; for (let i = 0; i < 3; i++) { open += ttk(false); cov += ttk(true); }
   assert.ok(open > 15, `30초 동안 피해를 줌 (${open})`);
@@ -244,10 +244,10 @@ test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, �
 
 test('공격 명령: 사거리 밖 적을 쫓아가 쏜다', () => {
   const T = loadGame(); const G = setup(T); G.maxR = 999; G.nats[1].ctrl = 'human'; // 표적이 AI로 도망다니지 않게
-  const a = T.mkUnit(0, 'rifle', 2, 2), d = T.mkUnit(1, 'mg', 12, 12); d.hp = 1000; T.bump();
+  const a = T.mkUnit(0, 'rifle', 2, 2), d = T.mkUnit(1, 'mg', 12, 12); d.nocas = 1; T.bump();
   T.orderAttack(a, d);
-  for (let i = 0; i < 400 && d.hp === 1000; i++) { d.cd = 99; T.rtTick(0.1); }
-  assert.ok(d.hp < 1000, '쫓아가서 맞힘');
+  for (let i = 0; i < 400 && !d.dmgIn; i++) { d.cd = 99; T.rtTick(0.1); }
+  assert.ok(d.dmgIn > 0, '쫓아가서 맞힘');
   assert.ok(T.dist(a.r, a.c, d.r, d.c) <= T.UT.rifle.rng[1]);
 });
 
@@ -349,7 +349,7 @@ test('헬기 투입: 보이는 빈 도로에 요청하면 몇 초 뒤 소총분�
   assert.ok(!T.canSupport(0, 'heli', 5, 5) || T.cell(5, 5).t !== 'bldg', '건물 위에는 내릴 수 없다');
 });
 
-test('병사 개별 행동: 차례로 출발하고, 따로 흩어져 서고, 체력만큼 쓰러진다', () => {
+test('병사 개별 행동: 차례로 출발하고, 따로 흩어져 서고, 맞은 병사만 쓰러진다', () => {
   const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
   const u = T.mkUnit(0, 'rifle', 10, 10); G.units.push(u); T.bump();
   T.rtTick(0.1); const M = u._men; assert.ok(M && M.length >= 8, '병사 목록');
@@ -363,9 +363,9 @@ test('병사 개별 행동: 차례로 출발하고, 따로 흩어져 서고, 체
   let minD = 9; for (let i = 0; i < M.length; i++) for (let j = i + 1; j < M.length; j++) minD = Math.min(minD, Math.hypot(M[i].x - M[j].x, M[i].z - M[j].z));
   assert.ok(minD > .04, '병사끼리 겹치지 않음 ' + minD);
   assert.ok(M.some((m, i) => Math.abs(m.x - xs0[i]) > 5), '실제로 이동함');
-  // 체력이 반으로 줄면 병사도 절반쯤 쓰러진다
-  u.hp = 5; T.rtTick(0.1);
-  const dead = M.filter(m => m.dead).length; assert.ok(dead >= 4 && dead <= 5, '쓰러진 병사 ' + dead);
+  // 맞으면 병사 한 명 한 명이 쓰러진다(체력에서 거꾸로 세지 않는다)
+  u.ws[3] = { s: 'kia' }; u.ws[5] = { s: 'hw', b: 99, a: 0 }; T.__get('casSync')(u, null);
+  assert.ok(M[3].dead && M[5].down && !M[5].dead, '전사·중상 구분');
 });
 
 test('병사 개별 사격: 분대가 쏘면 몇 명이 실제로 쏘고, 탄창이 비면 재장전한다', () => {
@@ -501,4 +501,94 @@ test('소총분대는 콘크리트 방벽을 못 짓고, 짓던 중 다른 명�
   T.orderMoveTo(u, 2.5, 8.5); T.rtTick(0.1);
   assert.ok(!G.forts.includes(f), '짓다 만 방어물은 치워짐');
   assert.equal(G.nats[0].cp, cp0, '시작도 안 했으면 지휘점수 환불');
+});
+
+/* ---------- 병사 개별 피해 (05g-casualty) ---------- */
+const F = (T, n) => T.__get(n);
+const hw = (u, i, b = 200) => { u.ws[i] = { s: 'hw', w: 'leg', b, a: 0, dt: 0 }; };
+
+test('사상자: 피해는 병사 한 명씩 다치게 하고, 분대 화력은 싸울 수 있는 병사 수를 따른다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const u = T.mkUnit(1, 'rifle', 10, 10); T.rtTick(0.1);
+  assert.equal(u.ws.length, 9); assert.ok(u.ws.every(w => w.s === 'ok'));
+  F(T, 'harm')(u, 3, null, { kind: 'bullet' });
+  const bad = u.ws.filter(w => w.s !== 'ok').length;
+  assert.ok(bad >= 1 && bad <= 5, `다친 병사 ${bad}`);
+  assert.ok(G.units.includes(u), '분대는 남아 있음');
+  const able = u.ws.filter(w => w.s === 'ok' || w.s === 'lw').length;
+  assert.ok(u.hp <= 10 * able / 9 + .05, `화력 ${u.hp} ≤ 가용 ${able}/9`);
+  // 큰 폭발은 터진 곳 가까운 병사부터
+  const M = u._men; M.forEach((m, i) => { m.x = 10 + (i < 4 ? .1 : .9); m.z = 10.5; });
+  u.ws.forEach(w => { w.s = 'ok'; delete w.y; }); F(T, 'casSync')(u, null);
+  F(T, 'harm')(u, 3, null, { kind: 'blast', x: 10.1, z: 10.5, rad: .3 });
+  const near = u.ws.slice(0, 4).filter(w => w.s !== 'ok').length, far = u.ws.slice(4).filter(w => w.s !== 'ok').length;
+  assert.ok(near >= far, `가까운 쪽 ${near} ≥ 먼 쪽 ${far}`);
+});
+
+test('부상자: 위생병이 지혈하고, 전우가 업고 환자집결지로 갔다가 돌아온다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const u = T.mkUnit(0, 'rifle', 8, 6); T.rtTick(0.1); hw(u, 4); F(T, 'casSync')(u, null);
+  let aided = false, left = false;
+  for (let i = 0; i < 1500 && u.ws[4].s === 'hw'; i++) { T.rtTick(0.1); if (u.ws[4].a) aided = true; if ((G.evac || []).length) left = true; }
+  assert.ok(aided, '지혈함'); assert.ok(left, '후송조가 떠남');
+  assert.equal(u.ws[4].s, 'evac', '환자집결지에 도착');
+  assert.equal(G.nats[0].cas.evac, 1);
+  for (let i = 0; i < 1500 && (G.evac || []).length; i++) T.rtTick(0.1);
+  assert.equal((G.evac || []).length, 0, '업고 간 전우가 돌아옴');
+  assert.equal(u.ws.filter(w => w.y).length, 0);
+  assert.ok(u.ws.filter(w => w.s === 'ok').length === 8);
+});
+
+test('부상자: 돌볼 사람이 없으면 피를 흘리다 숨진다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const u = T.mkUnit(0, 'sniper', 8, 6); T.rtTick(0.1); hw(u, 1, 3); F(T, 'casSync')(u, null);
+  assert.ok(G.units.includes(u));
+  for (let i = 0; i < 50; i++) T.rtTick(0.1);
+  assert.equal(u.ws[1].s, 'kia'); assert.equal(G.nats[0].cas.dow, 1);
+});
+
+test('분대 전투 불능: 남은 중상자는 그 자리에 남고, 지나가는 아군 분대가 데려간다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const u = T.mkUnit(0, 'at', 8, 8); T.rtTick(0.1);
+  hw(u, 0); hw(u, 1); u.ws[2] = { s: 'kia' }; u.ws[3] = { s: 'kia' }; F(T, 'casSync')(u, null);
+  assert.ok(!G.units.includes(u), '분대가 사라짐');
+  assert.equal(G.cas.length, 2, '중상자 둘이 남음');
+  const r = T.mkUnit(0, 'rifle', 8, 9);
+  for (let i = 0; i < 2500 && (G.cas.length || (G.evac || []).length); i++) T.rtTick(0.1);
+  assert.equal(G.nats[0].cas.evac, 2, '둘 다 후송');
+  assert.ok(G.units.includes(r));
+});
+
+test('사기: 사상자가 많이 나면 공황에 빠져 물러나고 명령을 듣지 않는다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const u = T.mkUnit(0, 'rifle', 8, 20); T.rtTick(0.1);
+  u.mor = 10; T.rtTick(0.1);
+  assert.equal(u.brk, 1, '공황');
+  for (let i = 0; i < 30; i++) T.rtTick(0.1);
+  assert.ok(u.x < 20.5, `환자집결지(서쪽) 쪽으로 물러남 x=${u.x}`);
+  T.orderMoveTo(u, 30.5, 8.5);
+  const end = u.path.length ? u.path[u.path.length - 1] : [u.x, u.z];
+  assert.ok(end[0] < 25, '명령을 무시함');
+});
+
+test('제압: 총알이 계속 날아오면 쌓여서 꼼짝 못 한다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const a = T.mkUnit(0, 'mg', 8, 4), d = T.mkUnit(1, 'rifle', 8, 8); d.nocas = 1; T.rtTick(0.1);
+  for (let i = 0; i < 8; i++) T.rtShoot(a, d);
+  assert.ok(d.supp >= 1.6, `제압 ${d.supp}`);
+  T.orderMoveTo(d, 8.5, 20.5); const x0 = d.x; for (let i = 0; i < 5; i++) { d.supp = 3; T.rtTick(0.1); }
+  assert.ok(Math.abs(d.x - x0) < 1e-6, '움직이지 않음');
+});
+
+test('차량 부위 피해: 기동 불능이면 못 움직이고, 승무원이 다치면 차를 버린다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const v = T.mkUnit(1, 'ifv', 8, 8); const at = T.mkUnit(0, 'at', 8, 5);
+  F(T, 'vdOf')(v).mob = 1; T.orderMoveTo(v, 20.5, 8.5); const x0 = v.x;
+  for (let i = 0; i < 20; i++) T.rtTick(0.1);
+  assert.equal(v.x, x0, '기동 불능');
+  v.vd.crew[0] = 'kia'; v.vd.crew[1] = 'hw'; F(T, 'harm')(v, .1, at, { kind: 'bullet' });
+  assert.ok(!G.units.includes(v), '승무원이 차를 버림');
+  // 대전차 화기에 여러 번 맞으면 어딘가 고장 난다
+  let broke = 0; for (let k = 0; k < 20; k++) { const t = T.mkUnit(1, 'tank', 12, 8); t.hp = 999; F(T, 'harm')(t, 1, at, { kind: 'blast', hits: 3 }); const V = t.vd; if (!G.units.includes(t) || V.mob || V.gun || V.crew.some(c => c !== 'ok')) broke++; G.units = G.units.filter(x => x !== t); }
+  assert.ok(broke >= 8, `고장 ${broke}/20`);
 });

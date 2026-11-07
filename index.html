@@ -178,6 +178,14 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .ucard b{font-size:12.5px}
 .v3u{gap:3px}
 .v3u em{width:auto;height:auto;padding:1px 3px;border-radius:2px;font-size:8px}
+
+/* 병사별 상태 칸 (05g-casualty) */
+.v3u .pp{display:flex;gap:1px;width:auto;height:auto;background:none;border:0;overflow:visible}
+.v3u .pp b{display:block;width:3px;height:6px;background:#5cd18a;box-shadow:0 0 0 1px rgba(0,0,0,.65)}
+.v3u .pp b.lw{background:#f0b23a}.v3u .pp b.hw{background:#ff4a3e}.v3u .pp b.hy{background:#ff4a3e;opacity:.5}
+.v3u .pp b.aw{background:#8a96a3;opacity:.7}.v3u .pp b.ev{background:#8a96a3;opacity:.3}.v3u .pp b.kia{background:#151515;opacity:.8}
+.v3u em.sh{background:#c88a2a}.v3u em.br{background:#8a2a8a}
+.cas-tbl td{font-variant-numeric:tabular-nums}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -543,22 +551,25 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
 function damageBldg(r,c,amt){const x=G.map[r][c];if(x.t!=='bldg'||amt<=0)return;x.bhp-=amt;bump();
   if(x.bhp<=0){const f0=x.f;x.t='rubble';G.navV=(G.navV||0)+1;x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom');L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
-    const u=unitAt(r,c);if(u){u.hp-=5;u.supp=2;if(u.hp<=0)kill(u,null);}}}
+    const u=unitAt(r,c);if(u){u.supp=2;harm(u,5,null,{kind:'crush'});}}}
+/* 부대가 피해를 입는다(체력 단위). 보병은 병사 한 명 한 명이, 차량은 부위별로 다친다(05g-casualty의 harmX). */
+function harm(u,amt,by,o){if(!u||!G.units.includes(u)||!(amt>0))return 0;o=o||{};u.dmgIn=Math.round(((u.dmgIn||0)+amt)*10)/10;
+  if(typeof harmX==='function'&&harmX(u,amt,by,o))return amt;
+  u.hp=Math.round((u.hp-amt)*10)/10;if(u.hp<=0&&G.units.includes(u))kill(u,by);return amt;}
 function kill(u,by){FXH.kill(u);G.units=G.units.filter(x=>x!==u);bump();const N2=G.nats[u.nat];N2.losses++;if(by){G.nats[by.nat].kills++;by.kills=(by.kills||0)+1;by.rank=Math.min(2,Math.floor(by.kills/2));}
   L(`${natName(u.nat)} ${UT[u.type].n} 격파`);if(UI.sel===u)UI.sel=null;}
-function attack(a,d){const ta=UT[a.type];a.shot=G.turn;FXH.fire(a,d.r,d.c);const dmg=rollDmg(calcDmg(a,d,false));d.hp-=dmg;
+function attack(a,d){const ta=UT[a.type];a.shot=G.turn;FXH.fire(a,d.r,d.c);const dmg=rollDmg(calcDmg(a,d,false));
   if(ta.sup||ta.ex)d.supp=2;if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.round(dmg*ta.ex*.6));
-  G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;
-  if(d.hp<=0){if(G.units.includes(d))kill(d,a);}
-  else if(G.units.includes(d)&&!UT[d.type].ind&&canHit(d,a)){const cd=rollDmg(calcDmg(d,a,true));if(cd>0){d.shot=G.turn;FXH.fire(d,a.r,a.c);a.hp-=cd;if(a.hp<=0)kill(a,d);}}
+  G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;harm(d,dmg,a,{kind:ta.ex?'blast':'bullet'});
+  if(G.units.includes(d)&&!UT[d.type].ind&&canHit(d,a)){const cd=rollDmg(calcDmg(d,a,true));if(cd>0){d.shot=G.turn;FXH.fire(d,a.r,a.c);harm(a,cd,d,{kind:UT[d.type].ex?'blast':'bullet'});}}
   bump();return dmg;}
 function shootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;FXH.fire(a,r,c);const amt=Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*(.85+Math.random()*.3));damageBldg(r,c,amt);
-  const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.hp-=Math.max(1,Math.round(amt*.25));u.supp=2;if(u.hp<=0)kill(u,a);}bump();}
+  const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.supp=2;harm(u,Math.max(1,Math.round(amt*.25)),a,{kind:'frag'});}bump();}
 /* 이동 직후: 거점 점령, 적의 경계 사격 */
 function afterMove(u){const x=cell(u.r,u.c);if(UT[u.type].cap&&x.obj!=null&&x.owner!==u.nat){const was=x.owner;x.owner=u.nat;L(`${natName(u.nat)} ${G.objs[x.obj].name} 확보${was!=null?` (${natName(was)}에게서 탈환)`:''}`);sfx('build');}
   for(const w of G.units.slice()){if(!w.ow||w.nat===u.nat||!G.units.includes(u))continue;if(G.fog&&!seen(u,w.nat))continue;if(!canHit(w,u))continue;
-    w.ow=false;L(`${natName(w.nat)} ${UT[w.type].n} 경계 사격`);const ta=UT[w.type];w.shot=G.turn;FXH.fire(w,u.r,u.c);const dmg=rollDmg(calcDmg(w,u,false)*.85);u.hp-=dmg;if(ta.sup||ta.ex)u.supp=2;
-    if(u.hp<=0){kill(u,w);break;}}
+    w.ow=false;L(`${natName(w.nat)} ${UT[w.type].n} 경계 사격`);const ta=UT[w.type];w.shot=G.turn;FXH.fire(w,u.r,u.c);const dmg=rollDmg(calcDmg(w,u,false)*.85);if(ta.sup||ta.ex)u.supp=2;harm(u,dmg,w,{kind:ta.ex?'blast':'bullet'});
+    if(!G.units.includes(u))break;}
   bump();}
 function moveUnit(u,r,c){u.r=r;u.c=c;u.x=c+.5;u.z=r+.5;u.moved=true;bump();afterMove(u);}
 function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const vs=G.fog?1:null;
@@ -583,7 +594,7 @@ function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.
   sfx('arty');L(`${natName(n)} ${SUP[kind].n}`);
   if(kind==='arty'&&typeof shellBarrage==='function'){shellBarrage(n,r,c,9,2.8);bump();return true;}   // 포격은 실제 포탄으로(05g-shells)
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
-    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.hp-=d;u.supp=2;if(u.hp<=0)kill(u,null);}
+    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
     if(x.t==='bldg'){damageBldg(a,b,kind==='air'?24:(ctr?9:6));if(kind==='air'&&typeof ignite==='function')ignite(a,b,ctr?.8:.35);}}
   if(typeof fortBlast==='function')fortBlast(c+.5,r+.5,kind==='air'?.7:1.5,kind==='air'?90:24);
   bump();return true;}
@@ -1079,12 +1090,12 @@ function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.fac
   a.lastShot={t:G.time||0,hits,k,cover:h.kind,cov:h.cov,tgt:d.id};FXH.fire(a,d.r,d.c,d,a.lastShot);
   const dmg=Math.round(rawDmg(a,d,false)*hits/k*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;if(ta.sup)d.supp=Math.max(d.supp||0,hits?1.2:.8);   // 기관총·박격포는 빗나가도 고개를 숙이게 한다
   if(ta.ex&&typeof fortBlast==='function')fortBlast(d.x,d.z,.25,(hits?3:1.5)*ta.ex*COOL[a.type]);// 폭발물은 근처 방어물도 부순다
-  if(!hits)return 0;d.hp=Math.round((d.hp-dmg)*10)/10;if(ta.ex)d.supp=Math.max(d.supp||0,1);
+  if(!hits)return 0;if(ta.ex)d.supp=Math.max(d.supp||0,1);
   if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.max(1,Math.round(dmg*ta.ex*.8)));
-  G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;if(d.hp<=0&&G.units.includes(d))kill(d,a);return dmg;}
+  G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;harm(d,dmg,a,{kind:ta.ex?'blast':'bullet',hits});return dmg;}
 function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(r-a.r,c-a.c)*180/Math.PI;FXH.fire(a,r,c);
   const amt=Math.max(1,Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*DPS_K*COOL[a.type]*1.2*(.85+Math.random()*.3)));damageBldg(r,c,amt);
-  const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.hp=Math.round((u.hp-amt*.2)*10)/10;u.supp=Math.max(u.supp||0,1);if(u.hp<=0)kill(u,a);}}
+  const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.supp=Math.max(u.supp||0,1);harm(u,amt*.2,a,{kind:'frag'});}}
 /* 자동 표적: 가장 이득이 큰 적 */
 function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
   for(const e of G.units){if(e.nat===u.nat||(vs&&!seen(e,u.nat)))continue;if(Math.hypot(u.x-e.x,u.z-e.z)>UT[u.type].rng[1]+.6)continue;if(!canHit(u,e))continue;
@@ -1277,7 +1288,7 @@ function orderFloor(u,up){u.flT=up?null:0;}
    - 사격: 분대가 쏠 때마다 쏠 수 있는 병사 몇 명이 실제로 쏜다(총구 섬광·예광탄이 그 병사에게서 나감).
      탄창을 다 쓰면 재장전하는데, 짝(둘씩 한 조)이 재장전 중이면 겹치지 않게 조금 더 쏜다.
    - 반응: 제압당하면 엎드리고, 엄폐 밖에 있던 병사는 가까운 엄폐로 기어간다. 옆 사람이 쓰러지면 잠깐 엎드린다.
-   - 사상자: 분대 체력이 줄면 그만큼 병사가 쓰러지는데, 엄폐 밖·움직이는 병사가 먼저 맞는다.
+   - 사상자: 맞을 때마다 병사 한 명씩 다친다(05g-casualty). 엄폐 밖·움직이는 병사가 먼저 맞는다.
    게임 규칙(명중률·피해)은 바뀌지 않는다. 이 파일은 분대 점을 움직이지 않는다. */
 const MEN_N={rifle:9,mg:6,at:4,sniper:2,eng:6,mortar:5};
 const MEN={gapW:.2,gapN:.12,spread:.11,bound:3.4,threatT:5,mag:{rifle:5,mg:3,at:1,sniper:4,eng:3,mortar:2},rl:{rifle:2.4,mg:4,at:3.2,sniper:2.6,eng:2.4,mortar:2.8}};
@@ -1290,8 +1301,10 @@ function menHash(id,i){const s=Math.sin(id*127.1+i*311.7)*43758.5453;return s-Ma
 function menInit(u){const n=menN(u.type);const M=[];
   for(let i=0;i<n;i++){const a=menHash(u.id,i)*6.283,r=i?.06+menHash(u.id,i+40)*.12:0;let x=u.x+Math.cos(a)*r,z=u.z+Math.sin(a)*r;if(!menClear(u,u.x,u.z,x,z)){x=u.x;z=u.z;}
     M.push({i,x,z,f:(u.face||0)*Math.PI/180,dead:0,mag:MEN.mag[u.type]||4,rl:0,lag:0,pr:0,ft:-99,aim:null,sp:null,spd:0,stk:0,sec:0});}
-  Object.defineProperty(u,'_men',{value:M,writable:true,configurable:true,enumerable:false});u._tr=[[u.x,u.z]];return M;}
-const menAlive=u=>(u._men||[]).filter(m=>!m.dead);
+  Object.defineProperty(u,'_men',{value:M,writable:true,configurable:true,enumerable:false});u._tr=[[u.x,u.z]];if(typeof casLoad==='function')casLoad(u,M);return M;}
+/* 지금 분대와 함께 움직이고 싸우는 병사: 전사·중상(쓰러짐)·후송 중·부상자 돌보는 중이 아닌 사람 (05g-casualty) */
+const menAct=m=>!m.dead&&!m.down&&!m.gone&&!m.task;
+const menAlive=u=>(u._men||[]).filter(menAct);
 /* 분대장 발자국: 지나온 길을 점으로 남긴다(가장 최근이 앞) */
 function menTrail(u){const T=u._tr||(u._tr=[[u.x,u.z]]);const h=T[0];const d=Math.hypot(u.x-h[0],u.z-h[1]);
   if(d>.04){T.unshift([u.x,u.z]);if(T.length>90)T.length=90;}else{h[0]=u.x;h[1]=u.z;}}
@@ -1307,7 +1320,7 @@ function menThreat(u){const t=G.time||0;return u.supp>0||t-(u.firedT??-99)<MEN.t
 function menThreatDir(u){const t=G.time||0;if(u._thr&&t-u._thr[2]<12)return Math.atan2(u._thr[1]-u.z,u._thr[0]-u.x);
   if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);if(e)return Math.atan2(e.z-u.z,e.x-u.x);}return (u.face||0)*Math.PI/180;}
 /* 새 이동 명령: 앞쪽(첫 경유점에 가까운) 병사부터 차례로 출발 */
-function menNewOrder(u,M){const p=u.path[0]||[u.x,u.z];const L=M.filter(m=>!m.dead).sort((a,b)=>Math.hypot(a.x-p[0],a.z-p[1])-Math.hypot(b.x-p[0],b.z-p[1]));
+function menNewOrder(u,M){const p=u.path[0]||[u.x,u.z];const L=M.filter(menAct).sort((a,b)=>Math.hypot(a.x-p[0],a.z-p[1])-Math.hypot(b.x-p[0],b.z-p[1]));
   const thr=menThreat(u);L.forEach((m,k)=>{m.rank=k;m.lag=k*(thr?.12:.24)+menHash(u.id,k+70)*.15;m.sp=null;});u._plan=0;}
 /* 이동 중 병사 한 명이 갈 곳: 발자국 위 자기 순번 자리, 넓은 길이면 길 한쪽(벽 쪽)으로 비켜서 */
 function menMoveSpot(u,m,k){const wide=cell(u.r,u.c).t!=='bldg';let gap=wide?MEN.gapW:MEN.gapN;
@@ -1318,7 +1331,7 @@ function menMoveSpot(u,m,k){const wide=cell(u.r,u.c).t!=='bldg';let gap=wide?MEN
   let lat=Math.max(0,Math.min(fr-.07,.34));if(fr<.12)lat=0;   // 넓은 길: 벽을 따라 비켜선다
   return [P.x+nx*side*lat,P.z+nz*side*lat];}
 /* 멈춘 분대: 병사마다 엄폐 자리 고르기 */
-function menPlan(u,M){const L=M.filter(m=>!m.dead);if(!L.length)return;const th=menThreatDir(u);const ux=Math.cos(th),uz=Math.sin(th);const here=cell(u.r,u.c);
+function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menThreatDir(u);const ux=Math.cos(th),uz=Math.sin(th);const here=cell(u.r,u.c);
   u._plan=1;u._planT=G.time||0;u._planF=th;
   if(here.t==='bldg'){// 건물 안: 쏘는 쪽 벽(창가)을 따라 늘어선다
     const ax=Math.abs(ux)>Math.abs(uz);const cx=u.c+.5,cz=u.r+.5;const n=L.length;
@@ -1341,23 +1354,16 @@ function menPlan(u,M){const L=M.filter(m=>!m.dead);if(!L.length)return;const th=
     const n=L.length;m.sec=(k===n-1&&n>=4&&!menThreat(u))?th+Math.PI:th+((k%5)-2)*.32;});}
 /* 쏠 수 있는 병사 고르기(분대 사격 때) */
 function menShooters(u,k){const M=u._men;if(!M)return [];const t=G.time||0;
-  const ok=M.filter(m=>!m.dead&&m.rl<=0&&m.lag<=0&&!(m.pr>0&&m.crawl));const mv=ok.filter(m=>m.spd<.05);const pool=(mv.length?mv:ok).slice();
+  const ok=M.filter(m=>menAct(m)&&m.rl<=0&&m.lag<=0&&!(m.pr>0&&m.crawl));const mv=ok.filter(m=>m.spd<.05);const pool=(mv.length?mv:ok).slice();
   const out=[];for(let i=0;i<k&&pool.length;i++){const j=Math.floor(Math.random()*pool.length);out.push(pool.splice(j,1)[0]);}
-  for(const m of out){m.ft=t;m.mag--;if(m.mag<=0){const bud=M[m.i^1];if(bud&&!bud.dead&&bud.rl>0&&m.mag>-2)continue;m.rl=(MEN.rl[u.type]||2.5)*(.85+Math.random()*.3);}}
+  for(const m of out){m.ft=t;m.mag--;if(m.mag<=0){const bud=M[m.i^1];if(bud&&menAct(bud)&&bud.rl>0&&m.mag>-2)continue;m.rl=(MEN.rl[u.type]||2.5)*(.85+Math.random()*.3);}}
   return out;}
-/* 사상자: 노출된 병사·움직이는 병사가 먼저 쓰러진다 */
-function menCasualty(u,M){const L=M.filter(m=>!m.dead);if(L.length<=1&&G.units.includes(u))return null;const th=menThreatDir(u);const ux=Math.cos(th),uz=Math.sin(th);
-  const objs=typeof coverObjs==='function'&&cell(u.r,u.c).t!=='bldg'?coverObjs(u):null;let best=L[0],bs=-1e9;
-  for(const m of L){const cov=objs?dirCoverAt(m.x,m.z,ux,uz,'inf',u,objs).cov:.4;const s=Math.random()*.6-cov+(m.spd>.05?.25:0)+(m.pr>0?-.15:0);if(s>bs){bs=s;best=m;}}
-  best.dead=G.time||0.001;for(const o of L)if(o!==best&&Math.hypot(o.x-best.x,o.z-best.z)<.3){o.pr=Math.max(o.pr,1.2+Math.random());}
-  return best;}
 /* 매 틱: 병사들 */
 function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
-  const n=M.length,want=Math.max(1,Math.ceil(u.hp/hpMax(u)*n-1e-6));let alive=M.reduce((a,m)=>a+(m.dead?0:1),0);
-  while(alive>want){if(!menCasualty(u,M))break;alive--;}
+  // 사상자는 체력에서 거꾸로 셈하지 않고, 맞을 때마다 병사 한 명씩 정한다(05g-casualty의 hurtMen)
   menTrail(u);const moving=!!(u.path&&u.path.length)&&!u.climb;
   const pe=moving?u.path[u.path.length-1].join(','):'';if(moving&&u._pe!==pe)menNewOrder(u,M);u._pe=pe;
-  const thr=menThreat(u);const L=M.filter(m=>!m.dead);
+  const thr=menThreat(u);const L=M.filter(menAct);
   if(!moving){if(!u._plan||(thr&&Math.abs(Math.atan2(Math.sin(menThreatDir(u)-u._planF),Math.cos(menThreatDir(u)-u._planF)))>.8)||t-(u._planT||0)>15||u._planK!==key(u.r,u.c)){menPlan(u,M);u._planK=key(u.r,u.c);}}
   else u._plan=0;
   // 번갈아 이동: 위협 속에서 움직이면 앞조·뒷조가 교대로 멈춘다
@@ -1391,6 +1397,209 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
  const _shoot=rtShoot;rtShoot=function(a,d){if(UT[a.type].cls==='inf'){if(!a._men)menInit(a);const sh=menShooters(a,VOLLEY[a.type]||1);for(const m of sh)m.aim=[d.x,d.z];a._sh=sh.map(m=>m.i);}
    d._thr=[a.x,a.z,G.time||0];d._hitT=G.time||0;return _shoot(a,d);};
  const _sb=rtShootBldg;rtShootBldg=function(a,r,c){if(UT[a.type].cls==='inf'){if(!a._men)menInit(a);const sh=menShooters(a,Math.min(3,VOLLEY[a.type]||1));for(const m of sh)m.aim=[c+.5,r+.5];a._sh=sh.map(m=>m.i);}return _sb(a,r,c);};}
+
+/* ---- 05g-casualty.js ---- */
+/* ===================== CASUALTY: 맞은 곳에 따라 다치는 병사, 부상자 후송, 사기, 차량 부위 피해 =====================
+   보병 분대에는 체력 막대가 없다. 총알·파편이 들어오면 병사 한 명 한 명이 맞고, 맞은 부위에 따라
+     정상 → 경상(계속 싸움, 다리면 느림) → 중상(쓰러져 피를 흘림, 싸울 수 없음) → 전사
+   가 정해진다. 몸통은 방탄판이 막아 주기도 한다. 분대의 화력(u.hp)은 싸울 수 있는 병사 수로 거꾸로 정한다.
+   - 중상자: 엄폐 밖에 쓰러지면 가까운 전우가 엄폐 뒤로 끌어 옮기고, 위생병(없으면 전우)이 지혈한다(출혈이 느려짐).
+     그다음 전우 한 명이 업고 자기 편 환자집결지(G.ccp)로 데려간다. 그동안 분대는 그 두 사람만큼 약해진다.
+     업고 간 전우는 부상자를 넘기고 분대로 돌아온다. 피가 다 흐르면 전사.
+   - 싸울 수 있는 병사가 아무도 없으면 분대는 끝난다. 남은 중상자는 그 자리에 남고(G.cas), 지나가는 아군 분대가 데려간다.
+   - 제압: 맞거나 총알이 스치면 쌓이고(최대 3) 시간이 지나면 줄어든다. 1.6을 넘으면 꼼짝 못 하고 엎드린다(이동 불가, 사격 느림).
+   - 사기(u.mor 0~100): 사상자·제압으로 떨어지고 조용하면 돌아온다. 50 아래는 흔들림(사격 느림), 20 아래는 공황:
+     환자집결지 쪽으로 물러나고 쏘지 않으며 명령을 듣지 않는다(45까지 회복하면 다시 싸운다). 공황이어도 부상자는 업고 간다.
+   - 차량: 대전차 화기에 뚫리면 엔진·궤도(기동 불능), 포·포탑(무장 파손), 승무원 부상, 탄약·연료(화재 → 승무원 탈출, 잠시 뒤 유폭).
+     승무원 둘 이상이 쓰러지거나, 움직이지도 쏘지도 못하면 승무원이 차를 버린다. */
+const CAS_K=1.15;               // 체력 1만큼의 피해가 병사 몇 명을 다치게 하나(분대 인원 비례) 보정
+const PINNED=1.6;               // 이 이상 제압되면 꼼짝 못 함
+const VCREW={tank:4,ifv:3,hmv:4,spg:4};
+const WLOC={head:'머리',torso:'몸통',arm:'팔',leg:'다리'};
+const WST={ok:'정상',lw:'경상',hw:'중상',kia:'전사',evac:'후송됨',rear:'후방'};
+Object.assign(FXH,{cas(){},cook(){},vhit(){}});
+const casStats=n=>{const N2=G.nats[n];return N2.cas||(N2.cas={kia:0,wia:0,lw:0,evac:0,dow:0,veh:0});};
+function casLog(m){G.log.unshift(m);G.log=G.log.slice(0,8);}
+const roleOf=(u,i)=>i===0?'분대장':i===1&&(u._men||[]).length>=5?'위생병':'';
+/* 저장해 둔 부상 기록(u.ws)을 병사 목록에 입힌다. menInit(05f) 끝에서 부른다. */
+function casLoad(u,M){if(!u.ws||u.ws.length!==M.length)u.ws=M.map(()=>({s:'ok'}));if(u.mor==null)u.mor=80+(u.rank||0)*5;
+  for(const m of M)manFlags(u,m);}
+function manFlags(u,m){const w=u.ws[m.i];m.dead=w.s==='kia'?(m.dead||G.time||.001):0;m.down=w.s==='hw'&&!w.y?1:0;m.gone=(w.s==='evac'||w.s==='rear'||w.s==='orph'||w.y)?1:0;
+  if(m.down)m.pr=1e9;else if(m.pr>1e8)m.pr=0;if(m.dead||m.down||m.gone)m.task=null;}
+const menOf=u=>u._men||(typeof menInit==='function'?menInit(u):[]);
+/* 싸울 수 있는 병사(정상·경상, 분대에 있음). 부상자를 돌보는 사람도 센다. */
+const casAble=u=>menOf(u).filter(m=>{const w=u.ws[m.i];return (w.s==='ok'||w.s==='lw')&&!w.y;});
+/* 분대 화력 = 싸울 수 있는 병사 몫(경상은 0.7, 부상자를 돌보는 중이면 0.4) */
+function casSync(u,by){const M=menOf(u);let v=0,able=0;for(const m of M){manFlags(u,m);const w=u.ws[m.i];if((w.s!=='ok'&&w.s!=='lw')||w.y)continue;able++;v+=(w.s==='lw'?.7:1)*(m.task?.4:1);}
+  if(!able){if(G.units.includes(u)){casOrphan(u);L(`${natName(u.nat)} ${UT[u.type].n} 전투 불능`);kill(u,by);}return 0;}
+  u.hp=Math.max(.1,Math.round(hpMax(u)*v/M.length*10)/10);return able;}
+/* 분대가 끝나면 남은 중상자는 그 자리에 남는다 */
+function casOrphan(u){G.cas=G.cas||[];for(const m of menOf(u)){const w=u.ws[m.i];if(w.s==='hw'&&!w.y){G.cas.push({id:'c'+u.id+'_'+m.i,nat:u.nat,x:m.x,z:m.z,b:w.b,a:w.a||0,w:w.w,s:'hw'});w.s='orph';manFlags(u,m);}}}
+/* ---------- 맞은 부위와 결과 ---------- */
+function pickW(t){let r=Math.random(),a=0;for(const k in t){a+=t[k];if(r<a)return k;}return Object.keys(t).pop();}
+const LOC_OPEN={head:.1,torso:.42,arm:.2,leg:.28},LOC_COV={head:.22,torso:.2,arm:.38,leg:.2},LOC_FRAG={head:.12,torso:.35,arm:.25,leg:.28};
+const OUT={bullet:{head:{kia:.7,hw:.3},torso:{kia:.3,hw:.6,lw:.1},arm:{lw:.8,hw:.2},leg:{hw:.45,lw:.55}},
+  frag:{head:{kia:.6,hw:.4},torso:{kia:.25,hw:.6,lw:.15},arm:{lw:.65,hw:.35},leg:{hw:.5,lw:.5}}};
+/* 병사 m이 맞았다: 결과(stop/lw/hw/kia) */
+function woundRoll(kind,cov){if(kind==='blast'||kind==='crush'){const loc=pickW(LOC_FRAG);return {loc,out:pickW(kind==='blast'?{kia:.42,hw:.43,lw:.15}:{kia:.38,hw:.45,lw:.17})};}
+  const frag=kind==='frag';const loc=pickW(frag?LOC_FRAG:cov>=.25?LOC_COV:LOC_OPEN);
+  if(loc==='torso'&&Math.random()<(frag?.3:.45))return {loc,out:'stop'};      // 방탄판이 막음
+  return {loc,out:pickW(OUT[frag?'frag':'bullet'][loc])};}
+function woundMan(u,m,kind,cov,by){const w=u.ws[m.i];let {loc,out}=woundRoll(kind,cov);const t=G.time||0;
+  if(out==='stop'){m.pr=Math.max(m.pr||0,1.4+Math.random());u.supp=Math.min(3,(u.supp||0)+.3);return 'stop';}
+  if(w.s==='hw')out='kia';else if(out==='lw'&&w.s==='lw')out='hw';
+  const S=casStats(u.nat);const was=w.s;w.s=out;w.w=loc;u.casT=t;
+  if(out==='hw'){w.b=(loc==='head'||loc==='torso'?70:kind==='blast'?90:140)+Math.random()*120;w.a=0;w.dt=t;S.wia++;}
+  else if(out==='kia'){S.kia++;if(was==='hw')S.wia--;}
+  else if(out==='lw'){S.lw++;if(loc==='leg')w.slow=1;}
+  manFlags(u,m);
+  u.mor=Math.max(0,(u.mor??80)-(out==='kia'?12:out==='hw'?9:4)-(m.i===0&&out!=='lw'?10:0));
+  for(const o of u._men)if(o!==m&&menAct(o)&&Math.hypot(o.x-m.x,o.z-m.z)<.3)o.pr=Math.max(o.pr||0,1.2+Math.random());
+  if(u.nat===G.viewer||by&&by.nat===G.viewer){const who=roleOf(u,m.i)||'병사';casLog(`${natName(u.nat)} ${UT[u.type].n} ${who} ${WLOC[loc]} ${out==='kia'?'전사':out==='hw'?'중상':'경상'}`);}
+  FXH.cas(u,m,out);return out;}
+/* 피해가 어느 병사에게 가나: 총알은 노출되고 움직이는 사람, 폭발은 터진 곳에 가까운 사람 */
+function casPick(u,kind,by,o,M){const ex=kind==='blast'||kind==='frag'||kind==='crush';
+  const L=M.filter(m=>!m.dead&&!m.gone&&(ex||!m.down));if(!L.length)return null;
+  let ux=1,uz=0;if(by){const d=Math.hypot(by.x-u.x,by.z-u.z)||1;ux=(by.x-u.x)/d;uz=(by.z-u.z)/d;}
+  const inB=cell(u.r,u.c).t==='bldg';const objs=!ex&&!inB&&typeof coverObjs==='function'?coverObjs(u):null;
+  let best=null,bs=-1e9,bc=0;
+  for(const m of L){let cov=.4,s;
+    if(!ex){const t=tileAt(m.x,m.z);if(t&&t.t!=='bldg'&&objs)cov=Math.max(TT[t.t].cov||0,dirCoverAt(m.x,m.z,ux,uz,'inf',u,objs).cov);
+      s=Math.random()*.7-cov+(m.spd>.05?.25:0)-(m.pr>0?.15:0)-(m.down?.3:0);}
+    else if(o&&o.x!=null){const d=Math.hypot(m.x-o.x,m.z-o.z);s=Math.random()*.6-d/Math.max(.3,o.rad||.4)-(m.pr>0?.15:0);}
+    else s=Math.random();
+    if(s>bs){bs=s;best=m;bc=cov;}}
+  return {m:best,cov:bc};}
+function hurtMen(u,amt,by,o){const M=menOf(u);const kind=o.kind||'bullet';
+  u.supp=Math.min(3,(u.supp||0)+(kind==='bullet'?.2:.5));u._hitT=G.time||0;if(by)u._thr=[by.x,by.z,G.time||0];
+  if(u.nocas){casSync(u,by);return;}                         // 테스트용: 다치지 않는 표적
+  const ex=amt/hpMax(u)*M.length*CAS_K;let c=Math.floor(ex)+(Math.random()<ex%1?1:0);
+  if(kind==='bullet'&&by&&!UT[by.type].ex)c=Math.min(c,o.hits||c);
+  for(let i=0;i<c;i++){const p=casPick(u,kind,by,o,M);if(!p)break;woundMan(u,p.m,kind,p.cov,by);}
+  casSync(u,by);}
+/* ---------- 차량 ---------- */
+function vdOf(u){return u.vd||(u.vd={mob:0,gun:0,crew:Array.from({length:VCREW[u.type]||3},()=>'ok'),fire:0});}
+function hurtVeh(u,amt,by,o){const V=vdOf(u);const ta=by?UT[by.type]:null;const kind=o.kind||'bullet';
+  u.hp=Math.round((u.hp-amt)*10)/10;u._hitT=G.time||0;
+  const heavy=kind==='blast'||kind==='crush'||(ta&&ta.atk.veh>=5);const S=casStats(u.nat);const nm=`${natName(u.nat)} ${UT[u.type].n}`;
+  const rolls=Math.min(3,Math.max(1,o.hits||1));const crewHit=()=>{const i=V.crew.findIndex(c=>c==='ok');if(i<0)return;V.crew[i]=Math.random()<.4?'kia':'hw';if(V.crew[i]==='kia')S.kia++;else S.wia++;};
+  for(let k=0;k<rolls;k++){
+    if(heavy){const pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;if(Math.random()>pen)continue;
+      const r=Math.random();
+      if(r<.28){if(!V.mob){V.mob=1;L(`${nm} 기동 불능`);}}
+      else if(r<.5){if(!V.gun){V.gun=1;L(`${nm} 무장 파손`);}}
+      else if(r<.78){crewHit();if(Math.random()<.4)crewHit();}
+      else{V.fire=1;}
+      FXH.vhit(u,r);}
+    else if(u.type==='hmv'&&Math.random()<.18)crewHit();}       // 험비는 장갑이 얇아 소총탄에도 승무원이 다친다
+  if(!G.units.includes(u))return;
+  const crewDown=V.crew.filter(c=>c!=='ok').length;
+  if(u.hp<=0){S.veh++;casCook(u,.5);kill(u,by);return;}
+  if(V.fire){L(`${nm} 화재, 승무원 탈출`);S.veh++;casCook(u,u.type==='hmv'?.2:.8);kill(u,by);return;}
+  if(crewDown>=2||crewDown>=V.crew.length-1||V.mob&&V.gun){L(`${nm} 승무원이 차를 버림`);S.veh++;kill(u,by);return;}}
+/* 불붙은 차량은 몇 초 뒤 탄약이 터진다(주변 부대 피해) */
+function casCook(u,p){if(Math.random()>p)return;(G.cook=G.cook||[]).push({t:(G.time||0)+4+Math.random()*9,x:u.x,z:u.z,big:u.type==='tank'||u.type==='spg'?1:0});}
+function cookTick(){if(!G.cook||!G.cook.length)return;const keep=[];
+  for(const c of G.cook){if(c.t>G.time){keep.push(c);continue;}FXH.cook(c.x,c.z,c.big);
+    for(const u of G.units.slice()){if(UT[u.type].fly)continue;const d=Math.hypot(u.x-c.x,u.z-c.z);if(d<(c.big?.9:.6))harm(u,(c.big?5:3)*(1-d),null,{kind:'blast',x:c.x,z:c.z,rad:.6});}}
+  G.cook=keep;}
+/* harm(04-rules)에서 부른다: 처리했으면 true */
+function harmX(u,amt,by,o){const c=UT[u.type].cls;if(c==='inf'){hurtMen(u,amt,by,o);return true;}if(c==='veh'){hurtVeh(u,amt,by,o);return true;}return false;}
+/* ---------- 환자집결지 ---------- */
+function ccpOf(n){G.ccp=G.ccp||{};if(G.ccp[n])return G.ccp[n];let sp=zoneSpots(n).filter(([r,c])=>['road','plaza','park'].includes(G.map[r][c].t));if(!sp.length)sp=zoneSpots(n).filter(([r,c])=>G.map[r][c].t!=='water'&&G.map[r][c].t!=='bldg');
+  const p=sp.length?sp[Math.floor(sp.length*.6)]:[Math.floor(N/2),Math.floor(N/2)];return G.ccp[n]={x:p[1]+.5,z:p[0]+.5};}
+/* ---------- 분대 안: 끌어 옮기기, 응급처치, 후송 보내기 ---------- */
+const CAS_SP=()=>UT.rifle.mv*SPD_K;
+function casStep(u,m,tx,tz,sp,dt){const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d<.02)return true;const st=Math.min(d,sp*dt);const nx=m.x+dx/d*st,nz=m.z+dz/d*st;
+  if(menClear(u,m.x,m.z,nx,nz)){m.x=nx;m.z=nz;m.stk=0;}else{m.stk=(m.stk||0)+dt;if(m.stk>2){m.x=tx;m.z=tz;m.stk=0;}}
+  m.f=Math.atan2(dz,dx);m.spd=st/dt;return d<=st+.02;}
+/* 부상자를 끌어다 놓을 엄폐 자리 */
+function casCoverSpot(u,x,z){const th=menThreatDir(u);const ux=Math.cos(th),uz=Math.sin(th);const objs=coverObjs(u);let best=null,bs=.15;
+  for(const rad of [0,.12,.24,.36,.48])for(let i=0;i<(rad?10:1);i++){const a=i/10*6.283;const px=x+Math.cos(a)*rad,pz=z+Math.sin(a)*rad;if(rad&&!menClear(u,x,z,px,pz))continue;const t=tileAt(px,pz);if(!t||t.t==='bldg')continue;
+    const s=dirCoverAt(px,pz,ux,uz,'inf',u,objs).cov+(TT[t.t].cov||0)*.5-rad*.25;if(s>bs){bs=s;best=[px,pz];}}
+  return best;}
+function casTick(u,dt){const M=menOf(u);const t=G.time||0;const S=casStats(u.nat);let ch=false;
+  // 출혈
+  for(const m of M){const w=u.ws[m.i];if(w.s!=='hw'||w.y)continue;w.b-=dt*(w.a?.35:1);if(w.b<=0){w.s='kia';S.dow++;S.wia--;S.kia++;u.mor=Math.max(0,u.mor-6);ch=true;manFlags(u,m);}}
+  // 하던 일: 끌어 옮기기·지혈
+  const base=CAS_SP();
+  for(const m of M){const k=m.task;if(!k)continue;const c=M[k.t],cw=c&&u.ws[k.t];if(!c||!cw||cw.s!=='hw'||cw.y||m.dead||m.down||m.gone){m.task=null;ch=true;continue;}
+    if(k.k==='drag'){if(k.ph==='go'){if(casStep(u,m,c.x,c.z,base*1.6,dt))k.ph='pull';}
+      else{const px=m.x,pz=m.z;const done=casStep(u,m,k.x,k.z,base*.45,dt);c.x+=m.x-px;c.z+=m.z-pz;if(done){cw.dr=1;m.task=null;ch=true;}}}
+    else if(k.k==='aid'){if(Math.hypot(c.x-m.x,c.z-m.z)>.06)casStep(u,m,c.x+.04,c.z,base*1.6,dt);else{m.spd=0;k.tm+=dt;if(k.tm>=k.need){cw.a=1;m.task=null;ch=true;}}}}
+  {const busy=new Set(M.filter(m=>m.task).map(m=>m.task.t));const free=()=>M.filter(m=>menAct(m)&&m.lag<=0);
+    const inB=cell(u.r,u.c).t==='bldg';
+    for(const c of M){const w=u.ws[c.i];if(w.s!=='hw'||w.y||busy.has(c.i))continue;
+      const ct=tileAt(c.x,c.z);
+      // 엄폐 밖이면 먼저 끌어 옮긴다
+      if(!w.dr&&!inB&&!u.brk&&ct&&ct.t!=='bldg'){const sp=casCoverSpot(u,c.x,c.z);if(sp&&Math.hypot(sp[0]-c.x,sp[1]-c.z)>.05){const F=free().filter(m=>m.i!==0&&roleOf(u,m.i)!=='위생병');const F2=F.length?F:free();
+          if(F2.length>1){F2.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z));F2[0].task={k:'drag',t:c.i,ph:'go',x:sp[0],z:sp[1]};busy.add(c.i);ch=true;continue;}}
+        else w.dr=1;}
+      if(!w.a){const med=M[1]&&roleOf(u,1)==='위생병'&&menAct(M[1])?M[1]:null;const F=med?[med]:free().filter(m=>m.i!==0);
+        if(F.length&&(med||free().length>2)){F.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z));F[0].task={k:'aid',t:c.i,tm:0,need:med?6:11};busy.add(c.i);ch=true;continue;}}
+      // 후송: 지혈했거나 오래 기다렸고, 꼼짝 못 하는 상황이 아니면 한 명이 업고 간다
+      if((w.a||t-(w.dt||0)>25)&&(u.supp||0)<1.2){const F=free().filter(m=>m.i!==0&&roleOf(u,m.i)!=='위생병');const able=casAble(u).length;
+        if(F.length&&able>=3){F.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z));evStart(u,F[0],{u:u.id,i:c.i,x:c.x,z:c.z});busy.add(c.i);ch=true;}}}
+    // 쓰러진 채 남겨진 아군 부상자(분대가 끝난 자리)를 데려간다
+    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken||Math.hypot(o.x-u.x,o.z-u.z)>1.2)continue;
+      const F=free().filter(m=>m.i!==0);if(!F.length)break;F.sort((a,b)=>Math.hypot(a.x-o.x,a.z-o.z)-Math.hypot(b.x-o.x,b.z-o.z));o.taken=1;evStart(u,F[0],{orph:o.id,x:o.x,z:o.z});ch=true;break;}}
+  if(ch)casSync(u,null);}
+/* ---------- 후송조: 전우 한 명이 부상자를 업고 환자집결지로, 넘기고 돌아온다 ---------- */
+let EVID=1;
+function evStart(u,car,cas){G.evac=G.evac||[];const p={id:'e'+(EVID++),nat:u.nat,u:u.id,ci:car.i,cas,x:car.x,z:car.z,ph:'get',path:null,rp:0};
+  u.ws[car.i].y=p.id;car.task=null;manFlags(u,car);G.evac.push(p);return p;}
+function evCas(p){if(p.cas.orph)return (G.cas||[]).find(o=>o.id===p.cas.orph)||null;const u=G.units.find(z=>z.id===p.cas.u);return u?u.ws[p.cas.i]:p.cas.w||null;}
+function evTick(dt){if(!G.evac||!G.evac.length)return;const keep=[];const S=n=>casStats(n);
+  for(const p of G.evac){const u=G.units.find(z=>z.id===p.u);let goal;
+    const w=evCas(p);
+    if(p.ph==='get'){if(!w||w.s!=='hw'||(p.cas.u!=null&&w.y&&w.y!==p.id)){p.ph=u?'back':'rear';p.path=null;}
+      else{const m=u&&p.cas.u!=null?u._men[p.cas.i]:null;goal=m?[m.x,m.z]:[p.cas.x,p.cas.z];
+        if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.06){// 업는다
+          if(p.cas.orph){G.cas=G.cas.filter(o=>o!==w);p.cas.w=w;}else{w.y=p.id;if(m)manFlags(u,m);p.cas.w=w;}
+          p.ph='out';p.path=null;if(u)casSync(u,null);}}}
+    if(p.ph==='out'){const cw=p.cas.w||w;if(cw&&cw.s==='hw'){cw.b-=dt*(cw.a?.35:.5);if(cw.b<=0){cw.s='kia';S(p.nat).dow++;S(p.nat).wia--;S(p.nat).kia++;p.drop=[p.x,p.z];
+          if(p.cas.u!=null&&u){cw.y=0;const m=u._men[p.cas.i];if(m){m.x=p.x;m.z=p.z;manFlags(u,m);}}else FXH.cas(null,{x:p.x,z:p.z,orph:1},'kia');p.ph=u?'back':'rear';p.path=null;}}
+      if(p.ph==='out'){const c=ccpOf(p.nat);goal=[c.x,c.z];
+        if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){if(cw){cw.s='evac';cw.y=0;}S(p.nat).evac++;S(p.nat).wia--;if(u&&p.cas.u!=null){const m=u._men[p.cas.i];if(m)manFlags(u,m);}
+          p.ph=u?'back':'rear';p.path=null;}}}
+    if(p.ph==='back'){if(!u){p.ph='rear';p.path=null;}else{goal=[u.x,u.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.35){const m=u._men[p.ci];u.ws[p.ci].y=0;if(m){m.x=p.x;m.z=p.z;m.lag=0;manFlags(u,m);}casSync(u,null);continue;}}}
+    if(p.ph==='rear'){const c=ccpOf(p.nat);goal=[c.x,c.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){continue;}}
+    if(!goal){continue;}
+    // 길 따라 걷기(업고 가면 느리다)
+    const pu={type:'rifle',nat:p.nat,x:p.x,z:p.z,r:Math.floor(p.z),c:Math.floor(p.x),path:p.path||[]};
+    p.rp-=dt;if(!p.path||!p.path.length||p.rp<=0&&p.ph!=='out'){p.path=pathPts(pu,goal[0],goal[1]);p.rp=3;if(!p.path.length)p.path=[goal];}
+    const sp=CAS_SP()*(p.ph==='out'?.5:p.ph==='get'?1.3:1);let left=sp*dt;
+    while(left>0&&p.path.length){const [tx,tz]=p.path[0];const dx=tx-p.x,dz=tz-p.z,d=Math.hypot(dx,dz);if(d<=left){p.x=tx;p.z=tz;left-=d;p.path.shift();}else{p.x+=dx/d*left;p.z+=dz/d*left;left=0;}p.f=Math.atan2(dz,dx);}
+    keep.push(p);}
+  G.evac=keep;
+  // 남겨진 부상자 출혈
+  if(G.cas&&G.cas.length){G.cas=G.cas.filter(o=>{if(o.taken&&!G.evac.some(p=>p.cas.orph===o.id))o.taken=0;o.b-=dt*(o.a?.35:1);if(o.b<=0){const s=S(o.nat);s.dow++;s.wia--;s.kia++;FXH.cas(null,{x:o.x,z:o.z,orph:1},'kia');return false;}return true;});}}
+/* ---------- 사기 ---------- */
+function morTick(u,dt){const t=G.time||0;const M=menOf(u);const able=casAble(u).length;const cap=Math.min(100,(85+(u.rank||0)*5)*(.4+.6*able/M.length));
+  if((u.supp||0)>=PINNED)u.mor-=1.1*dt;
+  else if(t-(u.casT??-99)>10&&(u.supp||0)<.6){if((u._frT||0)<=t){u._frT=t+1;u._fr=G.units.some(o=>o!==u&&o.nat===u.nat&&Math.hypot(o.x-u.x,o.z-u.z)<2.5);}u.mor+=2*dt*(u._fr?1.5:1);}
+  u.mor=Math.max(0,Math.min(cap,u.mor));
+  if(!u.brk&&u.mor<20){u.brk=1;L(`${natName(u.nat)} ${UT[u.type].n} 공황, 뒤로 물러남`);u._rt=0;}
+  if(u.brk&&u.mor>=45){u.brk=0;u.path=[];L(`${natName(u.nat)} ${UT[u.type].n} 다시 전열로`);}
+  if(u.brk&&(u._rt||0)<=t&&!(u.path&&u.path.length)){u._rt=t+8;const c=ccpOf(u.nat);const dx=c.x-u.x,dz=c.z-u.z,d=Math.hypot(dx,dz);
+    if(d>1.5){const k=Math.min(5,d)/d;u.path=pathPts(u,u.x+dx*k,u.z+dz*k);u.tgt=null;u.tgtTile=null;u.dest=null;}}}
+/* ---------- 엔진에 끼우기 ---------- */
+const pinned=u=>UT[u.type].cls==='inf'&&(u.supp||0)>=PINNED&&!u.brk;
+const shaken=u=>(u.mor??80)<50;
+{const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||!G.units)return;
+   for(const u of G.units.slice()){if(!G.units.includes(u)||UT[u.type].cls!=='inf')continue;try{casTick(u,dt);if(G.units.includes(u))morTick(u,dt);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}
+   try{evTick(dt);cookTick();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};
+ const _mv=rtMove;rtMove=function(u,dt){if(u.vd&&u.vd.mob){u.path=[];return;}if(pinned(u))return;
+   if(UT[u.type].cls==='inf'&&u.ws&&u.ws.some(w=>w.slow&&w.s==='lw'&&!w.y)){return _mv(u,dt*.8);}return _mv(u,dt);};
+ const _fight=rtFight;rtFight=function(u){if(u.brk)return;if(u.vd&&u.vd.gun)return;const cd0=u.cd;_fight(u);if(u.cd>cd0+.01){let k=1;
+     if(pinned(u))k*=1.6;if(shaken(u))k*=1.25;if(u.vd){const cd=u.vd.crew.filter(c=>c!=='ok').length;k*=1+.4*cd;}u.cd*=k;}};
+ // 총알이 스치기만 해도 고개를 숙인다: 사격마다 제압이 쌓인다
+ const _shoot=rtShoot;rtShoot=function(a,d){const s0=d.supp||0;const r=_shoot(a,d);if(G.units.includes(d)&&UT[d.type].cls==='inf'){d.supp=Math.min(3,Math.max(d.supp||0,s0)+(UT[a.type].sup?.3:.1));}return r;};
+ // 공황 상태 분대는 명령을 듣지 않는다
+ const deaf=f=>function(u){if(u&&u.brk){if(u.nat===G.viewer&&!isAI(u.nat))toast('공황 상태라 명령을 듣지 않습니다');return;}return f.apply(null,arguments);};
+ orderMoveTo=deaf(orderMoveTo);orderAttack=deaf(orderAttack);orderBldg=deaf(orderBldg);}
+/* 화면용: 병사 상태 요약 */
+function casSummary(u){if(UT[u.type].cls!=='inf'||!u.ws)return null;const c={ok:0,lw:0,hw:0,kia:0,evac:0,away:0};for(const w of u.ws){if(w.y&&w.s!=='hw')c.away++;else if(w.s==='rear'||w.s==='orph')c.away++;else c[w.s]=(c[w.s]||0)+1;}return c;}
 
 /* ---- 05g-shells.js ---- */
 /* ===================== 포탄: 박격포·자주포·포격 지원이 실제 궤적으로 날아간다 =====================
@@ -1430,8 +1639,10 @@ function shellTick(){if(!G.shells||!G.shells.length)return;const keep=[];
     keep.push(s);}
   G.shells=keep;}
 /* 폭발 피해를 준다(병사 단위 피해 모듈이 이 함수를 감쌀 수 있다) */
-function blastHurt(u,dmg,by){if(!(dmg>0)||!G.units.includes(u))return;u.hp=Math.round((u.hp-dmg)*100)/100;u.supp=Math.max(u.supp||0,1.6);
-  if(by&&G.nats[by.nat])G.nats[by.nat].dmg=(G.nats[by.nat].dmg||0)+dmg;if(u.hp<=0)kill(u,by&&G.units.includes(by)?by:null);}
+function blastHurt(u,dmg,by,o){if(!(dmg>0)||!G.units.includes(u))return;u.supp=Math.max(u.supp||0,1.6);
+  if(by&&G.nats[by.nat])G.nats[by.nat].dmg=(G.nats[by.nat].dmg||0)+dmg;const kb=by&&G.units.includes(by)?by:null;
+  if(typeof harm==='function'){harm(u,dmg,kb,o||{kind:'blast'});return;}   // 병사 단위 피해(05g-casualty)
+  u.hp=Math.round((u.hp-dmg)*100)/100;if(u.hp<=0)kill(u,kb);}
 /* 터짐: (x,z,h) 지점. 건물(r,c)에 꽂혔으면 r,c가 있다 */
 function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.src):null;const ta=UT[s.type]||UT.mortar;const base=DPS_K*(COOL[s.type]||4.6)*1.25*s.pw;
   if(r!=null){damageBldg(r,c,Math.max(1,Math.round((2+ta.ex*2)*s.pw*(.8+Math.random()*.4))));if(typeof ignite==='function')ignite(r,c,.18*s.pw);}
@@ -1443,7 +1654,7 @@ function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.sr
     else if(r!=null)f*=.6;                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
     if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
     const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
-    dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by);else u.supp=Math.max(u.supp||0,1);}
+    dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by,{kind:'blast',x,z,rad:SHELL_R*.6});else u.supp=Math.max(u.supp||0,1);}
   if(typeof fortBlast==='function')fortBlast(x,z,r!=null?.5:.9,Math.round(14*s.pw));   // 바리케이드·참호도 부서진다(04d-fort)
   if(typeof FXH.boom==='function')FXH.boom(x,z,h,r!=null,s);
   bump();}
@@ -1480,7 +1691,7 @@ function fireTick(dt){if(!G.fires||!G.fires.length)return;const keep=[];
       if(Math.random()<dt*x.fire*(same?.022:.004))ignite(a,b,1);}
     // 안의 보병
     for(const u of G.units.slice()){if(u.r!==r||u.c!==c||UT[u.type].cls!=='inf')continue;const fl=curFl(u);if(fl>x.fireFl+1.2&&x.fire<.8)continue;
-      blastHurt(u,Math.round(dt*FIRE_HURT*x.fire*100)/100,null);u.supp=Math.max(u.supp||0,1);
+      u._burn=(u._burn||0)+dt*FIRE_HURT*x.fire;if(u._burn>=1){u._burn-=1;blastHurt(u,1,null,{kind:'blast'});}u.supp=Math.max(u.supp||0,1);   // 연기·불길: 1씩 모아서 한 명씩 다친다
       // 멈춰 있는 부대는 불을 피해 나간다
       if(G.units.includes(u)&&x.fire>.55&&!(u.path&&u.path.length)&&u._fleeK!==k){u._fleeK=k;const out=fireExit(u);if(out)orderMove(u,out[0],out[1]);}}
     if(x.fuel<=0){x.fire=0;x.burnt=1;bump();continue;}
@@ -1519,7 +1730,7 @@ function breach(a,P){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face
   for(const u of G.units.slice()){if(u.nat===a.nat||UT[u.type].cls!=='inf'||u.r==null)continue;const Y=cell(u.r,u.c);if(Y.t!=='bldg')continue;
     let m;if(u.r===P.r&&u.c===P.c)m=1;else if(Math.abs(u.r-P.r)+Math.abs(u.c-P.c)===1&&Y.blk!=null&&Y.blk===X.blk)m=.3;else continue;
     const df=Math.abs(curFl(u)-P.fl);m*=df<.5?1:df<1.5?.35:.06;if(eye(u)>=bldgH(Y)-.05)m*=.4;   // 옥상은 덜 다친다
-    blastHurt(u,Math.round(base*m*(.8+Math.random()*.4)*10)/10,a);}
+    blastHurt(u,Math.round(base*m*(.8+Math.random()*.4)*10)/10,a,{kind:'blast',x:P.x,z:P.z,rad:.5});}
   damageBldg(P.r,P.c,Math.max(2,Math.round((ta.atk.veh||4)*ta.ex*.25+1.5)));
   if(typeof ignite==='function')ignite(P.r,P.c,.28*ta.ex);
   bump();}
@@ -1917,7 +2128,7 @@ function v3SyncUnits(vs,vn){const keep=new Set();
     o.userData.k=key(u.r,u.c);o.userData.to=[u.x,v3UnitY(u),u.z];o.userData.id=u.id;o.userData.u=u;
     const S=o.userData.sold;if(S.length&&u._men)S.forEach((s,i)=>{const m=u._men[i];if(m&&m.dead&&s.m.visible)v3Corpse(s,o,u.nat);});else if(S.length){const nf=Math.max(1,Math.ceil(u.hp/hpMax(u)*S.length));S.forEach((s,i)=>{if(i>=nf&&s.m.visible)v3Corpse(s,o,u.nat);});}
     o.userData.sel.visible=u===UI.sel||(UI.group||[]).includes(u);const gy=o.userData.air?-(v3UnitY(u)-v3Top(u.r,u.c))+.02:.02;o.userData.ring.position.y=gy;o.userData.sel.position.y=gy+.01;if(o.userData.shadow)o.userData.shadow.position.y=gy-.005;}
-  for(const [id,o] of V3.uo)if(!keep.has(id)){const dead=!G.units.some(u=>u.id===id);if(dead)for(const s of o.userData.sold)v3Corpse(s,o,o.userData.u?o.userData.u.nat:0);V3.G.units.remove(o);V3.uo.delete(id);}}
+  for(const [id,o] of V3.uo)if(!keep.has(id)){const dead=!G.units.some(u=>u.id===id);if(dead){const M=o.userData.u&&o.userData.u._men;o.userData.sold.forEach((s,i)=>{const m=M&&M[i];if(!m||m.dead)v3Corpse(s,o,o.userData.u?o.userData.u.nat:0);});}V3.G.units.remove(o);V3.uo.delete(id);}}
 /* 매 프레임 부대 움직임: 부대 중심은 좌표를 따라가고, 병사들은 제각각 흩어져 걷는다 */
 function v3AnimUnits(dt,now){if(!(dt>0))return;for(const o of V3.uo.values()){const to=o.userData.to,uu=o.userData.u;if(!to||!uu)continue;
     const tx=uu.x,tz=uu.z;const kk=1-Math.exp(-dt*12);o.position.x+=(tx-o.position.x)*kk;o.position.z+=(tz-o.position.z)*kk;
@@ -1996,8 +2207,9 @@ function v3SyncSmoke(){const T=V3.T,g=V3.G.amb;for(const sp of V3.smoke)g.remove
 function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
   for(const o of G.objs){const x=G.map[o.r][o.c];const [px0,pz]=v3x(o.r,o.c);want.set('o'+x.obj,{html:`<span>${o.name}</span>`,cls:'v3c',col:mapCol(x.owner),p:[px0,v3Top(o.r,o.c)+1.05,pz]});}
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;const hm=hpMax(u);const hc=u.hp>hm*.6?'#5cd18a':u.hp>hm*.3?'#f0b23a':'#ff5a4e';
-    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
-    want.set('u'+u.id,{html:`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
+    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(typeof v3MorTag==='function'?v3MorTag(u):u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
+    want.set('u'+u.id,{html:`${typeof v3UnitTag==='function'?v3UnitTag(u):`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>`}${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
+  if(typeof ccpOf==='function'&&G.order&&G.order.includes(vn)){const c=ccpOf(vn);want.set('ccp',{html:'<span>환자집결지</span>',cls:'v3c',col:'#e9e6dc',p:[c.x,v3TopAt(c.x,c.z)+.45,c.z]});}
   for(const [id,o] of V3.labels)if(!want.has(id)){o.el.remove();V3.labels.delete(id);}
   for(const [id,w] of want){let o=V3.labels.get(id);if(!o){const el=document.createElement('div');el.className='v3l '+w.cls;lab.appendChild(el);o={el};V3.labels.set(id,o);}
     if(o.html!==w.html){o.el.innerHTML=w.html;o.html=w.html;}o.el.style.setProperty('--c',w.col);o.p=w.p;o.uid=w.uid;}}
@@ -2810,6 +3022,65 @@ function v3MenAnim(o,uu,dt,now,fa){const M=uu._men,S=o.userData.sold;const ox=o.
 {const _f=v3FxFire;v3FxFire=function(a,r,c){const args=[...arguments];if(!a||!UT[a.type]||UT[a.type].cls!=='inf'||!a._sh||a._sh.length<2)return _f.apply(null,args);
   const sh=a._sh.slice(0,4);sh.forEach((i,k)=>{const go=()=>{if(!G||!V3.uo.has(a.id))return;const keep=a._sh;a._sh=[i];try{_f.apply(null,args);}finally{a._sh=keep;}};if(k===0)go();else setTimeout(go,k*55+Math.random()*60);});};}
 
+/* ---- 07t-cas.js ---- */
+/* ===================== 3D: 부상자·후송조·환자집결지·차량 피격 =====================
+   05g-casualty의 상태를 그린다.
+   - 중상자는 그 자리에 누워 있다(엎드린 자세, 피 웅덩이). 끌려가면 끌려간 자리로 미끄러진다.
+   - 후송조: 한 사람이 부상자를 어깨에 메고 걷는다. 부상자를 데리러 가거나 돌아올 때는 혼자 뛴다.
+   - 분대가 끝난 자리에 남겨진 부상자(G.cas)도 누워 있다.
+   - 환자집결지: 자기 편 출발 지역의 천막 하나와 흰 깃발.
+   - 차량: 뚫린 곳에서 불꽃이 튀고, 유폭은 큰 폭발과 불길. */
+FXH.cas=function(u,m,out){if(!V3.on)return;const x=m.x,z=m.z;if(out==='hw'||out==='kia')dsScar('blood',x,z,out==='kia'?.06:.05);if(m.orph)return;};
+FXH.cook=function(x,z,big){if(!V3.on)return;const y=v3TopAt(x,z);setTimeout(()=>{v3Burst(x,y+.1,z,big?1.8:1.1,'#ff7a2a',big?9:5,big?6:3);dsSpray(x,y+.1,z,big?90:50,big?1:.7);dsScar('scorch',x,z,big?.32:.22);dsFires(x,z,big?6:3,60000,.5,.05);dsDust(x,z,1.2,9000,5,'#4a4540');
+  V3.shake=Math.max(V3.shake,big?.22:.12);if(typeof sfx==='function')sfx('boom');},0);};
+FXH.vhit=function(u,r){if(!V3.on)return;const o=V3.uo.get(u.id);if(!o)return;const p=o.position;setTimeout(()=>{v3Burst(p.x,p.y+.12,p.z,.35,'#ffd27a',1,1.2);if(r>.78||u.vd&&u.vd.fire)dsFires(p.x,p.z,2,8000,.15,p.y+.1);},180);};
+/* 쓰러진 병사가 시체로 바뀐 것을 기억(후송 중 죽은 병사도 한 번만 시체로) */
+{const _c=v3Corpse;v3Corpse=function(s,o,nat){if(s.cx)return;s.cx=1;return _c(s,o,nat);};}
+/* 병사 보이기: 후송 중이면 분대 쪽 모형은 숨기고, 돌아오면 다시 보인다 */
+{const _a=v3MenAnim;v3MenAnim=function(o,uu,dt,now,fa){const M=uu._men,S=o.userData.sold;
+   S.forEach((s,i)=>{const m=M[i];if(!m||s.cx)return;if(m.gone&&!m.dead)s.m.visible=false;else if(!s.m.visible){s.m.visible=true;if(m.dead){s.wx=m.x;s.wz=m.z;}}});
+   _a(o,uu,dt,now,fa);
+   // 쓰러진 사람은 팔다리를 움직이지 않는다
+   S.forEach((s,i)=>{const m=M[i];if(m&&m.down&&s.m.userData.legL){s.m.userData.legL.rotation.z=.2;s.m.userData.legR.rotation.z=-.1;}});};}
+function v3CasFig(nat,lying){const f=v3Soldier(nat,'rifle');if(lying){f.rotation.z=-1.42;f.position.y=.012;}return f;}
+/* 후송조·남겨진 부상자·환자집결지를 맞춘다(매 동기화) */
+function v3SyncCas(vs,vn){const T=V3.T;V3.evo=V3.evo||new Map();V3.orpo=V3.orpo||new Map();const see=(x,z)=>!G.fog||!vs||vs.has(key(Math.floor(z),Math.floor(x)));
+  const keepE=new Set();
+  for(const p of G.evac||[]){if(!see(p.x,p.z)&&p.nat!==vn)continue;keepE.add(p.id);let o=V3.evo.get(p.id);
+    if(!o){o=new T.Group();const car=v3CasFig(p.nat,false);o.add(car);const cas=v3CasFig(p.nat,false);cas.rotation.set(0,0,-1.5);cas.position.set(-.004,.1,0);car.add(cas);
+      o.userData={car,cas,ph:.0};o.position.set(p.x,v3TopAt(p.x,p.z),p.z);V3.G.units.add(o);V3.evo.set(p.id,o);}
+    o.userData.p=p;o.userData.cas.visible=p.ph==='out';}
+  for(const [id,o] of V3.evo)if(!keepE.has(id)){V3.G.units.remove(o);V3.evo.delete(id);}
+  const keepO=new Set();
+  for(const c of G.cas||[]){if(!see(c.x,c.z))continue;keepO.add(c.id);if(V3.orpo.has(c.id))continue;const f=v3CasFig(c.nat,true);const g=new T.Group();g.add(f);g.position.set(c.x,v3TopAt(c.x,c.z),c.z);f.rotation.y=Math.random()*6.28;V3.G.units.add(g);V3.orpo.set(c.id,g);}
+  for(const [id,o] of V3.orpo)if(!keepO.has(id)){V3.G.units.remove(o);V3.orpo.delete(id);
+    const still=(G.cas||[]).some(c=>c.id===id);const taken=(G.evac||[]).some(p=>p.cas.orph===id);// 숨이 멎었으면 시체로 남긴다
+    if(!still&&!taken){const s={m:v3CasFig(0,false),wx:o.position.x,wz:o.position.z};s.m.visible=true;v3Corpse(s,{position:o.position},0);}}
+  // 환자집결지 천막: 내 편 것만(적 것은 보일 때)
+  V3.ccpo=V3.ccpo||new Map();
+  for(const n of G.order||[]){const c=ccpOf(n);const vis=n===vn||see(c.x,c.z);let o=V3.ccpo.get(n);
+    if(o&&o.userData.seed!==G.seed){V3.G.units.remove(o);V3.ccpo.delete(n);o=null;}
+    if(!o&&vis){o=new T.Group();const tan=new T.MeshStandardMaterial({color:n%2?'#8a7e62':'#6f7158',roughness:1});const wh=new T.MeshStandardMaterial({color:'#e9e6dc',roughness:.9});
+      const roof=new T.Mesh(new T.CylinderGeometry(.13,.13,.26,3,1,false),tan);roof.rotation.z=Math.PI/2;roof.rotation.x=Math.PI/2;roof.position.y=.065;roof.scale.set(1,1,.62);roof.castShadow=true;o.add(roof);
+      const pole=new T.Mesh(new T.BoxGeometry(.006,.2,.006),V3.M.dark||tan);pole.position.set(.17,.1,.1);o.add(pole);const fl=new T.Mesh(new T.BoxGeometry(.07,.045,.003),wh);fl.position.set(.205,.17,.1);o.add(fl);
+      for(let i=0;i<3;i++){const st=new T.Mesh(new T.BoxGeometry(.09,.012,.035),wh);st.position.set(-.06+i*.06,.006,.16);o.add(st);}// 들것
+      o.position.set(c.x,v3TopAt(c.x,c.z),c.z);o.userData.seed=G.seed;V3.G.units.add(o);V3.ccpo.set(n,o);}
+    if(o)o.visible=vis;}}
+/* 매 프레임: 후송조 걷기 */
+function v3AnimCas(dt,now){if(!V3.evo)return;for(const o of V3.evo.values()){const p=o.userData.p;if(!p)continue;const k=1-Math.exp(-dt*8);
+    const px=o.position.x,pz=o.position.z;o.position.x+=(p.x-px)*k;o.position.z+=(p.z-pz)*k;o.position.y=v3TopAt(p.x,p.z);
+    const sp=Math.hypot(o.position.x-px,o.position.z-pz)/Math.max(dt,1e-3);const car=o.userData.car;
+    if(sp>.02){const want=-Math.atan2(p.z-pz,p.x-px);let d=want-car.rotation.y;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;car.rotation.y+=d*Math.min(1,dt*8);}
+    const sw=Math.min(1,sp/.3)*Math.sin(now/(p.ph==='out'?110:70))*.6;if(car.userData.legL){car.userData.legL.rotation.z=sw;car.userData.legR.rotation.z=-sw;}}}
+{const _s=v3SyncUnits;v3SyncUnits=function(vs,vn){_s(vs,vn);try{v3SyncCas(vs,vn);}catch(e){console.warn(e);}};
+ const _a=v3AnimUnits;v3AnimUnits=function(dt,now){_a(dt,now);if(dt>0)v3AnimCas(dt,now);};}
+/* 이름표: 보병은 병사 한 명당 칸 하나(초록 정상, 노랑 경상, 빨강 중상, 회색 후송 중, 검정 전사), 차량은 체력 + 고장 */
+function v3UnitTag(u){if(UT[u.type].cls==='inf'&&u.ws){return `<i class="pp">${u.ws.map(w=>`<b class="${w.s==='orph'||w.s==='rear'?'ev':w.y&&w.s!=='hw'?'aw':w.s==='hw'&&w.y?'hy':w.s}"></b>`).join('')}</i>`;}
+  const hm=hpMax(u);const hc=u.hp>hm*.6?'#5cd18a':u.hp>hm*.3?'#f0b23a':'#ff5a4e';let h=`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>`;
+  if(u.vd){if(u.vd.mob)h+='<em title="기동 불능">궤</em>';if(u.vd.gun)h+='<em title="무장 파손">포</em>';const cd=u.vd.crew.filter(c=>c!=='ok').length;if(cd)h+=`<em title="승무원 부상">승${cd}</em>`;}
+  return h;}
+function v3MorTag(u){if(UT[u.type].cls!=='inf')return '';if(u.brk)return '<em class="br" title="공황: 후퇴 중, 명령 불가">공황</em>';if((u.supp||0)>=PINNED)return '<em title="제압: 꼼짝 못 함">제압</em>';if((u.mor??80)<50)return '<em class="sh" title="사기 저하: 사격 느림">흔들림</em>';return '';}
+
 /* ---- 08-ui.js ---- */
 /* ===================== UI: HUD·하단 바·메뉴 ===================== */
 function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.units.includes(UI.sel))UI.targets=targetsOf(UI.sel,false);else clearSel();}if(typeof scnCheck==='function')scnCheck();
@@ -2823,8 +3094,13 @@ function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNi
   const pl=$('#hud-obj');pl.style.borderColor=mapCol(vn);pl.innerHTML=G.order.map(n=>`<span style="color:${mapCol(n)}">${'■'.repeat(objCount(n))||'·'}</span>`).join(' ')+`<span class="nt"> ${G.objs.length-G.order.reduce((a,n)=>a+objCount(n),0)}</span>`;
   $('#app').classList.toggle('sheet-open',!!UI.sheet);$('#sheet').hidden=!UI.sheet;
   const g=$('#b-grid');if(g)g.setAttribute('aria-pressed',UI.grid?'true':'false');const sn=$('#b-snd');if(sn)sn.setAttribute('aria-pressed',SFX.on?'true':'false');}
+/* 부대 상태: 보병은 병사 수(가용·경상·중상·후송·전사)와 사기, 차량은 체력과 고장 */
+function uHealth(u){const c=typeof casSummary==='function'?casSummary(u):null;
+  if(c){const n=u.ws.length,able=c.ok+c.lw;const P=[`가용 ${able}/${n}`];if(c.lw)P.push(`경상 ${c.lw}`);if(c.hw)P.push(`중상 ${c.hw}`);if(c.away)P.push(`후송 중 ${c.away}`);if(c.evac)P.push(`후송됨 ${c.evac}`);if(c.kia)P.push(`전사 ${c.kia}`);
+    const m=u.mor??80;P.push(`사기 ${m>=50?'양호':m>=20?'흔들림':'공황'}`);return P.join(' · ');}
+  let h=`체력 ${Math.ceil(u.hp)}/${hpMax(u)}`;if(u.vd){if(u.vd.mob)h+=' · 기동 불능';if(u.vd.gun)h+=' · 무장 파손';const cd=u.vd.crew.filter(x=>x!=='ok').length;if(cd)h+=` · 승무원 ${cd}명 부상`;}return h;}
 function uInfo(u){const t=UT[u.type];const x=cell(u.r,u.c);const where=x.t==='bldg'?(t.cls==='inf'?(onRoof(u)?'옥상':`건물 안 ${Math.floor(curFl(u)+1e-6)+1}/${x.f}층`)+(u.climb?' · 계단 이동 중':''):`건물 ${x.f}층`):TT[x.t].n;
-  const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';const cv=coverOf(u);const cvt=cv.cov>0&&cv.kind!=='bldg'?` · 엄폐 ${(COVK[cv.kind]||{n:'연막'}).n} ${Math.round(cv.cov*100)}%`:'';return `체력 ${Math.ceil(u.hp)}/${hpMax(u)} · ${where}${cvt} · ${st}${u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${u.rank?' · 숙련 '+u.rank:''}`;}
+  const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';const cv=coverOf(u);const cvt=cv.cov>0&&cv.kind!=='bldg'?` · 엄폐 ${(COVK[cv.kind]||{n:'연막'}).n} ${Math.round(cv.cov*100)}%`:'';return `${uHealth(u)} · ${where}${cvt} · ${st}${u.brk?' · 공황(후퇴 중)':typeof PINNED!=='undefined'&&u.supp>=PINNED?' · 제압되어 꼼짝 못 함':u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${u.rank?' · 숙련 '+u.rank:''}`;}
 function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.hidden=false;let h='';const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;if(UI.sel&&!s)clearSel();
   if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':NATS[w].full+' 승리'}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
   if(G.boot||isAI(n)){el.innerHTML=`<b>관전</b><span>AI끼리 싸우는 중</span>`;return;}
@@ -2855,8 +3131,8 @@ function renderPanel(){const p=$('#panel');if(!p||!UI.sheet)return;document.quer
     h+=`<h3>병종</h3><div class="tbl"><table><tr><th>병종</th><th>이동</th><th>사거리</th><th>대보병</th><th>대기갑</th><th>특징</th></tr>`+TYPES.map(t=>{const u=UT[t];return `<tr><td>${u.n}</td><td>${u.mv}</td><td>${u.rng[1]?u.rng[0]+'–'+u.rng[1]:'-'}</td><td>${u.atk.inf||'-'}</td><td>${u.atk.veh||'-'}</td><td style="text-align:left;white-space:normal;min-width:160px">${u.desc}</td></tr>`;}).join('')+`</table></div>`;
     h+=`<div class="log">${G.log.map(l=>`<div>${l}</div>`).join('')}</div>`;}
   else if(UI.tab==='world'){if(G.over)h+=`<h3>${G.over.win==null?'무승부':NATS[G.over.win].full+' 승리'}</h3><p>${G.over.why}</p>`;
-    h+=`<h3>전황 <span class="stats">승점 ${G.vpWin} 먼저 달성 또는 ${fmtT(G.maxR*ROUND_S)} 뒤 승점 우세</span></h3><div class="tbl"><table><tr><th>세력</th><th>승점</th><th>거점</th><th>부대</th><th>지휘</th><th>격파</th><th>손실</th></tr>`+
-      G.order.map(i=>{const x=G.nats[i];return `<tr><td style="color:${mapCol(i)}">${NATS[i].name}${x.alive?'':' (전멸)'}</td><td>${x.vp}</td><td>${objCount(i)}</td><td>${G.units.filter(u=>u.nat===i).length}</td><td>${i===n||!G.fog?x.cp:'?'}</td><td>${x.kills}</td><td>${x.losses}</td></tr>`;}).join('')+`</table></div>`;
+    h+=`<h3>전황 <span class="stats">승점 ${G.vpWin} 먼저 달성 또는 ${fmtT(G.maxR*ROUND_S)} 뒤 승점 우세</span></h3><div class="tbl"><table><tr><th>세력</th><th>승점</th><th>거점</th><th>부대</th><th>지휘</th><th>격파</th><th>손실</th><th>전사</th><th>부상</th><th>후송</th></tr>`+
+      G.order.map(i=>{const x=G.nats[i];return `<tr><td style="color:${mapCol(i)}">${NATS[i].name}${x.alive?'':' (전멸)'}</td><td>${x.vp}</td><td>${objCount(i)}</td><td>${G.units.filter(u=>u.nat===i).length}</td><td>${i===n||!G.fog?x.cp:'?'}</td><td>${x.kills}</td><td>${x.losses}</td><td>${(x.cas||{}).kia||0}</td><td>${((x.cas||{}).wia||0)+((x.cas||{}).lw||0)}</td><td>${(x.cas||{}).evac||0}</td></tr>`;}).join('')+`</table></div>`;
     h+=`<h3>거점</h3><div class="kv">`+G.objs.map(o=>`<dt>${o.name}</dt><dd style="color:${mapCol(G.map[o.r][o.c].owner)}">${natName(G.map[o.r][o.c].owner)}${G.map[o.r][o.c].t==='rubble'?' · 잔해':''}</dd>`).join('')+`</div>`;
     if(G.hist.length>1)h+=vpChart();}
   else h+=RULES_HTML;
@@ -2867,7 +3143,14 @@ function vpChart(){const W2=320,H2=120;const mx=Math.max(G.vpWin,...G.hist.flat(
 const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로 흐릅니다. 30초마다 거점 하나당 승점 +1, 지휘점수 +2가 들어옵니다(기본 지휘 +3)</li><li>승점을 먼저 채우거나, 제한 시간이 끝났을 때 승점이 많은 쪽이 이깁니다. 적을 전멸시켜도 승리</li><li>거점은 소총분대·공병이 들어가면 점령됩니다</li></ul>
 <h3>지휘</h3><ul class="rules"><li>아군을 탭해 고른 뒤 땅을 탭하면 그곳으로 이동, 적을 탭하면 쫓아가 공격합니다</li><li>부대는 사거리 안에 보이는 적을 알아서 쏩니다. 움직이면서 쏘면 연사가 느려지고, 박격포는 멈춰야 쏩니다</li><li>고수: 적을 쫓지 않고 자리를 지킵니다 · 정지: 명령 취소 · 건물 사격: 폭발물 부대로 건물을 부숩니다</li><li>Space 또는 일시정지 버튼으로 멈추고 생각할 수 있습니다. 배속은 0.5×·1×·2×</li></ul>
 <h3>이동과 시야</h3><ul class="rules"><li>건물은 시야를 가립니다. 높은 건물 안에 있으면 더 멀리, 낮은 건물 너머까지 봅니다</li><li>보병은 건물 출입문(어두운 문)으로만 드나들고, 안에서는 계단으로 한 층씩 오릅니다. 멈추면 옥상까지 올라가고(옥상은 멀리 보지만 엄폐 25%), 나갈 때는 먼저 1층으로 내려옵니다</li><li>차량은 건물에 못 들어가고 잔해·공원에서 느립니다. 보병은 건물·잔해를 지날 때 느려집니다</li><li>밤에는 시야 −2, 비 −1, 안개·폭우 −2</li></ul>
-<h3>전투</h3><ul class="rules"><li>엄폐: 건물 40%, 잔해 25%, 공원 15%만큼 피해가 줄어듭니다. 폭발물(전차·대전차·공병·박격포)은 건물 엄폐를 절반만 받습니다</li><li>기관총·폭발물에 맞으면 제압: 잠시 느려지고 공격 −30%</li><li>전차는 장갑이 두꺼워 대전차팀·공병·전차 말고는 피해 −35%</li><li>건물 안 대전차팀은 기갑에 +25%, 차량에 붙은 보병은 +20%. 2층 이상 높은 곳에서 쏘면 +15%</li><li>저격수는 건물 안에 있으면 붙어 있는 적에게만 보입니다(쏘면 잠시 드러남)</li></ul>
+<h3>전투</h3><ul class="rules"><li>엄폐: 건물 40%, 잔해 25%, 공원 15%만큼 피해가 줄어듭니다. 폭발물(전차·대전차·공병·박격포)은 건물 엄폐를 절반만 받습니다</li><li>제압: 총알이 날아올 때마다 쌓이고(기관총은 더 많이) 조용하면 풀립니다. 조금 제압되면 느려지고 공격 −30%, 많이 쌓이면 엎드려 꼼짝 못 합니다</li></ul>
+<h3>사상자와 사기</h3><ul class="rules">
+<li>분대에는 체력 막대 대신 병사 칸이 있습니다: 초록 정상, 노랑 경상(계속 싸움), 빨강 중상(쓰러져 피를 흘림), 회색 후송 중, 검정 전사</li>
+<li>맞은 부위가 결과를 정합니다. 머리는 대개 전사, 몸통은 방탄판이 막기도 하고, 팔은 대개 경상, 다리는 걷지 못하는 중상이 많습니다. 폭발은 가까운 사람부터 다칩니다</li>
+<li>중상자는 전우가 엄폐 뒤로 끌어 옮기고 위생병이 지혈한 뒤, 한 명이 업고 환자집결지로 데려갔다가 돌아옵니다. 그동안 분대 화력이 줄어듭니다. 지혈 못 한 부상자는 금방 숨집니다</li>
+<li>싸울 수 있는 병사가 없으면 분대는 끝나고, 남은 부상자는 지나가는 아군 분대가 데려갑니다</li>
+<li>사기: 사상자와 제압으로 떨어집니다. '흔들림'이면 사격이 느려지고, '공황'이면 환자집결지 쪽으로 물러나며 명령을 듣지 않습니다</li>
+<li>차량은 대전차 화기에 뚫리면 부위가 망가집니다: 기동 불능, 무장 파손, 승무원 부상, 화재(승무원이 탈출하고 잠시 뒤 탄약이 터짐)</li><li>전차는 장갑이 두꺼워 대전차팀·공병·전차 말고는 피해 −35%</li><li>건물 안 대전차팀은 기갑에 +25%, 차량에 붙은 보병은 +20%. 2층 이상 높은 곳에서 쏘면 +15%</li><li>저격수는 건물 안에 있으면 붙어 있는 적에게만 보입니다(쏘면 잠시 드러남)</li></ul>
 <h3>건물 파괴</h3><ul class="rules"><li>폭발물은 건물 자체를 쏠 수 있고, 안에 숨은 적도 함께 피해를 입습니다</li><li>내구가 0이 되면 건물이 무너져 잔해가 되고, 안에 있던 부대는 큰 피해를 입습니다</li></ul>
 <h3>증원과 화력 지원</h3><ul class="rules"><li>지휘점수로 집결지나 거점 옆에 증원을 부릅니다</li><li>포병 사격(3×3), 근접 항공 지원(한 칸, 건물 붕괴), 연막(3×3 시야 차단)은 ${SUP_CD}초마다 하나씩, 연막 말고는 보이는 곳에만 씁니다</li></ul>
 <h3>방어물</h3><ul class="rules"><li>보병을 고르고 [축성]을 누르면 모래주머니(엄폐 40%)·철조망(보병 차단)을, 공병은 콘크리트 방벽·대전차 장애물(차량 차단)까지 지휘점수로 쌓습니다</li><li>도로 위에 놓으면 길을 가로질러 놓입니다. 차량은 주차된 차·방벽·장애물을 넘지 못하고 돌아가며, 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다</li></ul>

@@ -20,22 +20,25 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
 function damageBldg(r,c,amt){const x=G.map[r][c];if(x.t!=='bldg'||amt<=0)return;x.bhp-=amt;bump();
   if(x.bhp<=0){const f0=x.f;x.t='rubble';G.navV=(G.navV||0)+1;x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom');L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
-    const u=unitAt(r,c);if(u){u.hp-=5;u.supp=2;if(u.hp<=0)kill(u,null);}}}
+    const u=unitAt(r,c);if(u){u.supp=2;harm(u,5,null,{kind:'crush'});}}}
+/* 부대가 피해를 입는다(체력 단위). 보병은 병사 한 명 한 명이, 차량은 부위별로 다친다(05g-casualty의 harmX). */
+function harm(u,amt,by,o){if(!u||!G.units.includes(u)||!(amt>0))return 0;o=o||{};u.dmgIn=Math.round(((u.dmgIn||0)+amt)*10)/10;
+  if(typeof harmX==='function'&&harmX(u,amt,by,o))return amt;
+  u.hp=Math.round((u.hp-amt)*10)/10;if(u.hp<=0&&G.units.includes(u))kill(u,by);return amt;}
 function kill(u,by){FXH.kill(u);G.units=G.units.filter(x=>x!==u);bump();const N2=G.nats[u.nat];N2.losses++;if(by){G.nats[by.nat].kills++;by.kills=(by.kills||0)+1;by.rank=Math.min(2,Math.floor(by.kills/2));}
   L(`${natName(u.nat)} ${UT[u.type].n} 격파`);if(UI.sel===u)UI.sel=null;}
-function attack(a,d){const ta=UT[a.type];a.shot=G.turn;FXH.fire(a,d.r,d.c);const dmg=rollDmg(calcDmg(a,d,false));d.hp-=dmg;
+function attack(a,d){const ta=UT[a.type];a.shot=G.turn;FXH.fire(a,d.r,d.c);const dmg=rollDmg(calcDmg(a,d,false));
   if(ta.sup||ta.ex)d.supp=2;if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.round(dmg*ta.ex*.6));
-  G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;
-  if(d.hp<=0){if(G.units.includes(d))kill(d,a);}
-  else if(G.units.includes(d)&&!UT[d.type].ind&&canHit(d,a)){const cd=rollDmg(calcDmg(d,a,true));if(cd>0){d.shot=G.turn;FXH.fire(d,a.r,a.c);a.hp-=cd;if(a.hp<=0)kill(a,d);}}
+  G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;harm(d,dmg,a,{kind:ta.ex?'blast':'bullet'});
+  if(G.units.includes(d)&&!UT[d.type].ind&&canHit(d,a)){const cd=rollDmg(calcDmg(d,a,true));if(cd>0){d.shot=G.turn;FXH.fire(d,a.r,a.c);harm(a,cd,d,{kind:UT[d.type].ex?'blast':'bullet'});}}
   bump();return dmg;}
 function shootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;FXH.fire(a,r,c);const amt=Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*(.85+Math.random()*.3));damageBldg(r,c,amt);
-  const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.hp-=Math.max(1,Math.round(amt*.25));u.supp=2;if(u.hp<=0)kill(u,a);}bump();}
+  const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.supp=2;harm(u,Math.max(1,Math.round(amt*.25)),a,{kind:'frag'});}bump();}
 /* 이동 직후: 거점 점령, 적의 경계 사격 */
 function afterMove(u){const x=cell(u.r,u.c);if(UT[u.type].cap&&x.obj!=null&&x.owner!==u.nat){const was=x.owner;x.owner=u.nat;L(`${natName(u.nat)} ${G.objs[x.obj].name} 확보${was!=null?` (${natName(was)}에게서 탈환)`:''}`);sfx('build');}
   for(const w of G.units.slice()){if(!w.ow||w.nat===u.nat||!G.units.includes(u))continue;if(G.fog&&!seen(u,w.nat))continue;if(!canHit(w,u))continue;
-    w.ow=false;L(`${natName(w.nat)} ${UT[w.type].n} 경계 사격`);const ta=UT[w.type];w.shot=G.turn;FXH.fire(w,u.r,u.c);const dmg=rollDmg(calcDmg(w,u,false)*.85);u.hp-=dmg;if(ta.sup||ta.ex)u.supp=2;
-    if(u.hp<=0){kill(u,w);break;}}
+    w.ow=false;L(`${natName(w.nat)} ${UT[w.type].n} 경계 사격`);const ta=UT[w.type];w.shot=G.turn;FXH.fire(w,u.r,u.c);const dmg=rollDmg(calcDmg(w,u,false)*.85);if(ta.sup||ta.ex)u.supp=2;harm(u,dmg,w,{kind:ta.ex?'blast':'bullet'});
+    if(!G.units.includes(u))break;}
   bump();}
 function moveUnit(u,r,c){u.r=r;u.c=c;u.x=c+.5;u.z=r+.5;u.moved=true;bump();afterMove(u);}
 function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const vs=G.fog?1:null;
@@ -60,7 +63,7 @@ function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.
   sfx('arty');L(`${natName(n)} ${SUP[kind].n}`);
   if(kind==='arty'&&typeof shellBarrage==='function'){shellBarrage(n,r,c,9,2.8);bump();return true;}   // 포격은 실제 포탄으로(05g-shells)
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
-    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.hp-=d;u.supp=2;if(u.hp<=0)kill(u,null);}
+    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
     if(x.t==='bldg'){damageBldg(a,b,kind==='air'?24:(ctr?9:6));if(kind==='air'&&typeof ignite==='function')ignite(a,b,ctr?.8:.35);}}
   if(typeof fortBlast==='function')fortBlast(c+.5,r+.5,kind==='air'?.7:1.5,kind==='air'?90:24);
   bump();return true;}
