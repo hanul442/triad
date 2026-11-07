@@ -811,3 +811,72 @@ test('소리: 총을 쏘는 모든 병종에 총성이 있다', () => {
     if (u.rng[1] > 0 && !u.kami) assert.ok(W[t], `${t} 총성 없음`);
   }
 });
+
+/* ---------- 05j-real: 교범·실전 사례 규칙 ---------- */
+test('전차 주포는 가까운 위층 적을 못 쏘고, 멀리 떨어지면 쏜다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 6); T.bump();
+  const e = T.mkUnit(1, 'rifle', 5, 5); e.fl = 5; e.flK = T.key(5, 5); e.x = 5.85; e.z = 5.5;   // 6층 창가
+  const tk = T.mkUnit(0, 'tank', 5, 7); tk.x = 7.5; tk.z = 5.5; T.bump();
+  assert.ok(!T.canHit(tk, e), '20m 앞 6층은 포가 안 올라간다');
+  const ifv = T.mkUnit(0, 'ifv', 6, 7); ifv.x = 7.5; ifv.z = 5.5; T.bump();
+  assert.ok(T.canHit(ifv, e), '장갑차 기관포는 높이 든다');
+  tk.x = 11.5; tk.z = 5.5; tk.c = 11; T.bump();
+  assert.ok(T.canHit(tk, e), '멀리서는 쏠 수 있다');
+});
+
+test('차량은 정면보다 측면·후면·위에서 맞을 때 더 다친다', () => {
+  const T = loadGame(); const G = setup(T); const arc = F(T, 'armorArc');
+  const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0;    // 동쪽(+x)을 본다
+  const at = (x, z) => { const a = T.mkUnit(0, 'at', Math.floor(z), Math.floor(x)); a.x = x; a.z = z; return a; };
+  assert.equal(arc(tk, at(8.5, 5.5)), 'front');
+  assert.equal(arc(tk, at(5.5, 8.5)), 'side');
+  assert.equal(arc(tk, at(2.5, 5.5)), 'rear');
+  bldg(G, 5, 6, 5); const up = at(6.2, 5.5); up.fl = 4; up.flK = T.key(5, 6); T.bump();
+  assert.equal(arc(tk, up), 'top', '바로 옆 5층에서 쏘면 위');
+});
+
+test('대전차 화기에 맞은 차량은 연막탄을 쏘고 정면을 둔 채 후진한다', () => {
+  const T = loadGame(); const G = setup(T);
+  const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
+  const a = T.mkUnit(0, 'at', 5, 8); a.x = 8.5; a.z = 5.5;
+  const harm = F(T, 'harm'); harm(tk, 1, a, { kind: 'blast' });
+  assert.ok(G.units.includes(tk));
+  assert.ok(G.map[5][5].smoke > 0 || G.map[5][6].smoke > 0, '연막');
+  assert.equal(tk.vsm, 1, '연막탄 한 번 사용');
+  assert.ok(tk.path.length && tk.path[0][0] < tk.x, '적 반대쪽으로 후진');
+  for (let i = 0; i < 10; i++) T.rtTick(0.1);
+  assert.ok(Math.abs(tk.face) < 1, '후진하는 동안 정면은 적을 본다');
+});
+
+test('실내에서 대전차 화기를 쏘면 후폭풍으로 다음 사격이 늦다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 2); T.bump();
+  const a = T.mkUnit(0, 'at', 5, 5); a.fl = 0; a.flK = T.key(5, 5); a.x = 5.85; a.z = 5.5;
+  const b = T.mkUnit(0, 'at', 7, 5); b.x = 5.5; b.z = 7.5;
+  const tk = T.mkUnit(1, 'tank', 5, 8); tk.x = 8.5; tk.z = 5.5; tk.hp = 999; T.bump();
+  a.cd = 0; b.cd = 0; T.rtShoot(a, tk); T.rtShoot(b, tk);
+  assert.ok(a.cd > b.cd, '실내 사수는 재장전이 더 걸린다');
+  assert.ok(a.supp > 0, '후폭풍 충격');
+});
+
+test('붙어서 같은 높이의 방에 수류탄: 건물 엄폐가 크게 줄어든다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 1); T.bump();
+  const d = T.mkUnit(1, 'rifle', 5, 5); d.fl = 0; d.flK = T.key(5, 5); d.x = 5.85; d.z = 5.5;
+  const near = T.mkUnit(0, 'rifle', 5, 6); near.x = 6.4; near.z = 5.5;
+  const hitP = F(T, 'hitP');
+  const p1 = hitP(near, d); assert.ok(p1.cqb, '근접 소탕');
+  const far = T.mkUnit(0, 'rifle', 5, 8); far.x = 8.4; far.z = 5.5;
+  assert.ok(p1.p > hitP(far, d).p * 1.3);
+});
+
+test('사격받으며 트인 곳으로 움직이는 분대는 연막 수류탄을 던진다', () => {
+  const T = loadGame(); const G = setup(T);
+  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5;
+  const e = T.mkUnit(1, 'mg', 5, 9); e.x = 9.5; e.z = 5.5; e.firedT = 0; G.time = 1;
+  u.supp = 1; u.path = [[5.5, 8.5]];
+  F(T, 'squadSmoke')(u);
+  assert.equal(u.ssm, 1);
+  assert.ok(G.smk.length === 1 && G.map[G.smk[0].r][G.smk[0].c].smoke > 0);
+});
