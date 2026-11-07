@@ -9,16 +9,22 @@
 const COVK={bldg:{n:'건물 안',v:.4},wall:{n:'벽',v:.35},veh:{n:'차량',v:.3},wreck:{n:'잔해 차량',v:.3},prop:{n:'엄폐물',v:.25},car:{n:'차량',v:.3},barrier:{n:'방호벽',v:.35},hedge:{n:'덤불',v:.15},rubble:{n:'잔해',v:.25},park:{n:'나무',v:.15}};
 const VOLLEY={rifle:4,mg:6,at:1,sniper:1,eng:2,mortar:1,ifv:3,tank:1,drone:1};
 /* 엄폐물 목록: 지상 차량(서 있는 것) + 도시 소품·잔해 차량(G.covers: {x,z,r,cov,kind}) */
+// 큰 도시는 소품이 수천 개라 칸별 묶음(G._cg)으로 가까운 것만 본다. 목록이 바뀌면 다시 묶는다.
+function coverGrid(){const C=G.covers||[];let g=G._cg;if(g&&g.ref===C&&g.n===C.length&&g.N===N)return g.m;
+  const m=new Map();for(const c of C){const k=Math.floor(c.z)*N+Math.floor(c.x);let a=m.get(k);if(!a)m.set(k,a=[]);a.push(c);}
+  Object.defineProperty(G,'_cg',{value:{ref:C,n:C.length,N,m},writable:true,configurable:true,enumerable:false});return m;}
 function coverObjs(skip){const o=[];for(const u of G.units)if(u!==skip&&UT[u.type].cls==='veh'){const [x,z]=posOf(u);o.push({x,z,r:.22,cov:COVK.veh.v,kind:'veh'});}
-  if(G.covers)for(const c of G.covers)o.push(c);return o;}
+  const m=coverGrid();o.near=(px,pz)=>{const out=o.slice();const r0=Math.floor(pz),c0=Math.floor(px);
+    for(let r=r0-1;r<=r0+1;r++)for(let c=c0-1;c<=c0+1;c++){const a=m.get(r*N+c);if(a)for(const x of a)out.push(x);}return out;};
+  return o;}
 /* 점 (px,pz)에서 방향 (ux,uz)로 막아 주는 엄폐 */
 function dirCoverAt(px,pz,ux,uz,cls,skip,objs){let best={cov:0,kind:null};const put=(cov,kind)=>{if(cov>best.cov)best={cov,kind};};
   const own=tileAt(px,pz);
   for(const k of [.15,.3,.45]){const qx=px+ux*k,qz=pz+uz*k;const r=Math.floor(qz),c=Math.floor(qx);if(!inb(r,c))break;const x=G.map[r][c];
     if(x.t==='bldg'&&x!==own){const b=bldgBox(r,c);if(qx>=b[0]&&qx<=b[1]&&qz>=b[2]&&qz<=b[3]){put(cls==='veh'?.2:COVK.wall.v,'wall');break;}}
     if(x.t==='rubble'&&x!==own)put(.2,'rubble');}
-  if(cls==='inf')for(const o of objs||coverObjs(skip)){const vx=o.x-px,vz=o.z-pz,d=Math.hypot(vx,vz);const R=(o.r??.25)+.35;if(d>R||d<.02)continue;
-    if((vx*ux+vz*uz)/d>.45)put(o.cov??(COVK[o.kind]||COVK.prop).v,o.kind||'prop');}
+  if(cls==='inf'){const L=objs||coverObjs(skip);for(const o of L.near?L.near(px,pz):L){const vx=o.x-px,vz=o.z-pz,d=Math.hypot(vx,vz);const R=(o.r??.25)+.35;if(d>R||d<.02)continue;
+    if((vx*ux+vz*uz)/d>.45)put(o.cov??(COVK[o.kind]||COVK.prop).v,o.kind||'prop');}}
   return best;}
 /* 부대 d가 a의 사격에 대해 받는 엄폐 {cov, kind}. a가 없으면 어느 방향이든 가장 좋은 엄폐(표시용). */
 function coverOf(d,a){const td=UT[d.type];if(td.fly)return {cov:0,kind:null};const x=cell(d.r,d.c);

@@ -47,7 +47,7 @@ function v3CarGeos(){if(V3.carG)return V3.carG;const m=MU;const out={};
     const top=d.cab[3][1],x0=d.cab[3][0]+.05,x1=d.cab[2][0]-.05;
     out[k]={body:v3Prism(sc(d.body),d.w*m),cab:v3Prism(sc(d.cab),(d.w-.12)*m),
       roof:new V3.T.BoxGeometry((x1-x0)*m,.06*m,(d.w-.32)*m).translate((x0+x1)/2*m,(top+.03)*m,0)};}
-  out.wheel=new V3.T.CylinderGeometry(.34*MU,.34*MU,.24*MU,8).rotateX(Math.PI/2);
+  out.wheel=new V3.T.CylinderGeometry(.34*MU,.34*MU,.24*MU,6).rotateX(Math.PI/2);
   V3.carG=out;return out;}
 
 function v3BuildProps(g){const T=V3.T,pm=v3PropMats(),m=MU;
@@ -57,7 +57,7 @@ function v3BuildProps(g){const T=V3.T,pm=v3PropMats(),m=MU;
   for(const p of PR){if(p.k!=='car')continue;const {kind,x,z,ry,burnt,flip,col}=p;
     const fy=flip?(CAR_KINDS[kind].cab[2][1]+.05)*m:0,rx=flip?Math.PI:0;
     cars[kind].b.push({x,y:fy,z,ry,rx,col});if(!burnt)cars[kind].r.push({x,z,ry,col});cars[kind].c.push({x,y:fy,z,ry,rx,col:burnt?'#1a1816':'#ffffff'});
-    if(!burnt){const L=CAR_KINDS[kind].body[1][0]*.62*m,W=CAR_KINDS[kind].w*.5*m,cs=Math.cos(ry),sn=Math.sin(ry);
+    if(!burnt&&!p.lot){const L=CAR_KINDS[kind].body[1][0]*.62*m,W=CAR_KINDS[kind].w*.5*m,cs=Math.cos(ry),sn=Math.sin(ry);
       for(const [fx,fz] of [[1,1],[1,-1],[-1,1],[-1,-1]]){const lx=fx*L,lz=fz*W;wheels.push({x:x+lx*cs+lz*sn,y:.34*m,z:z-lx*sn+lz*cs,ry});}}}
   const cg=v3CarGeos();
   for(const kind in cars){v3Inst(g,cg[kind].body,pm.car,cars[kind].b);v3Inst(g,cg[kind].cab,pm.glass,cars[kind].c);v3Inst(g,cg[kind].roof,pm.car,cars[kind].r);}
@@ -93,15 +93,17 @@ function v3LeafTreeG(){if(V3.leafG)return V3.leafG;const T=V3.T;const parts=[];c
   let n=0;for(const g of parts)n+=g.attributes.position.count;const P=new Float32Array(n*3);let o=0;for(const g of parts){P.set(g.attributes.position.array,o);o+=g.attributes.position.array.length;g.dispose();}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.computeVertexNormals();V3.leafG=geo;return geo;}
 function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
-  const park=(r,c)=>inb(r,c)&&(G.map[r][c].t==='park'||G.map[r][c].t==='water');
+  const park=(r,c)=>inb(r,c)&&!G.map[r][c].yard&&(G.map[r][c].t==='park'||G.map[r][c].t==='water');
   const trees=[],trunks=[],bench=[],paths=[],plamp=[];const LEAF=['#6e6a4c','#7a7353','#5f5d43','#76704f','#665f45'];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='park')continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
     // 산책로: 이웃 공원 칸으로 이어지는 흙길, 칸 가운데서 만난다
-    const nb=[[0,1],[1,0]].filter(([a,b])=>park(r+a,c+b));
-    if(nb.length||v3Hash(k,400)<.5){paths.push({x:cx,y:.004,z:cz,sx:1,sz:1,ry:0,k,disc:1});
+    const yard=G.map[r][c].yard;// 주택 마당은 길·벤치 없이 나무만
+    const nb=yard?[]:[[0,1],[1,0]].filter(([a,b])=>park(r+a,c+b));
+    if(!yard&&(nb.length||v3Hash(k,400)<.5)){paths.push({x:cx,y:.004,z:cz,sx:1,sz:1,ry:0,k,disc:1});
       for(const [a,b] of nb)paths.push({x:cx+b*.5,y:.003,z:cz+a*.5,ry:b?0:Math.PI/2,k});}
     for(let i=0;i<2;i++)if(v3Hash(k,410+i)<.3){const a=v3Hash(k,420+i)*6.28,rr=.26+v3Hash(k,430+i)*.16;const x=cx+Math.cos(a)*rr,z=cz+Math.sin(a)*rr,s=.8+v3Hash(k,440+i)*.5;
       trees.push({x,y:0,z,s,ry:v3Hash(k,450+i)*6.28,col:LEAF[Math.floor(v3Hash(k,460+i)*LEAF.length)],k});trunks.push({x,y:3.5*m*s,z,s});}
+    if(yard)continue;
     if(v3Hash(k,470)<.45){const side=v3Hash(k,471)<.5;bench.push({x:cx+(side?.12:0),y:.25*m,z:cz+(side?0:.12),ry:side?Math.PI/2:0});}
     if(v3Hash(k,480)<.25)plamp.push({x:cx-.1,y:2*m,z:cz-.1});}
   v3Inst(g,v3LeafTreeG(),pm.leaf,trees,{keys:1});
@@ -133,8 +135,8 @@ function v3BuildPonds(g){const T=V3.T,pm=v3PropMats(),m=MU;const stones=[],reeds
 const SHOP_AWN=['#3f4a3a','#5a2e2a','#283548','#7a6a4c','#5d5f5f','#6b4a2e','#8a8476'];
 const SHOP_SIGN=['#d8d2c2','#c9b26a','#9c3b2f','#2f4a63','#e0ddd5','#3a3a3a','#b46a2c'];
 function v3BuildShops(g){const T=V3.T,pm=v3PropMats(),m=MU,IN=.08,y0=.06;const glass=[],awn=[],sign=[],door=[];
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.lm)continue;const dmg=1-x.bhp/x.bmax;if(dmg>=.4)continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
-    for(const [a,b,si] of [[-1,0,0],[1,0,1],[0,-1,2],[0,1,3]]){if(!inb(r+a,c+b)||G.map[r+a][c+b].t!=='road')continue;if(v3Hash(k,600+si)<.3)continue;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.lm||x.dist==='res')continue;const dmg=1-x.bhp/x.bmax;if(dmg>=.4)continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
+    for(const [a,b,si] of [[-1,0,0],[1,0,1],[0,-1,2],[0,1,3]]){if(!inb(r+a,c+b)||G.map[r+a][c+b].t!=='road'||G.map[r+a][c+b].al)continue;if(v3Hash(k,600+si)<.3)continue;
       const d=.5-IN+.004;const fx=cx+b*d,fz=cz+a*d;const ry=b?Math.PI/2:0;const W=.82;
       // 바깥을 향한 단위벡터 (a,b) → 월드 (b,a)
       glass.push({x:fx,y:y0+.1,z:fz,ry,sx:W,sy:.17,sz:.01,col:H2(k,si)<.15?'#3b3530':'#ffffff'});
