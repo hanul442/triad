@@ -35,8 +35,8 @@ function shellTick(){if(!G.shells||!G.shells.length)return;const keep=[];
     keep.push(s);}
   G.shells=keep;}
 /* 폭발 피해를 준다(병사 단위 피해 모듈이 이 함수를 감쌀 수 있다) */
-function blastHurt(u,dmg,by){if(!(dmg>0)||!G.units.includes(u))return;u.hp=Math.round((u.hp-dmg)*100)/100;u.supp=Math.max(u.supp||0,1.6);
-  if(by&&G.nats[by.nat])G.nats[by.nat].dmg=(G.nats[by.nat].dmg||0)+dmg;if(u.hp<=0)kill(u,by&&G.units.includes(by)?by:null);}
+function blastHurt(u,dmg,by,o){if(!(dmg>0)||!G.units.includes(u))return;u.supp=Math.max(u.supp||0,(o&&o.kind==='burn')?u.supp||0:1.6);
+  if(by&&G.nats[by.nat])G.nats[by.nat].dmg=(G.nats[by.nat].dmg||0)+dmg;harm(u,dmg,by&&G.units.includes(by)?by:null,o||{kind:'blast'});}   // 병사 단위 피해는 harm(05g-casualty)
 /* 터짐: (x,z,h) 지점. 건물(r,c)에 꽂혔으면 r,c가 있다 */
 function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.src):null;const ta=UT[s.type]||UT.mortar;const base=DPS_K*(COOL[s.type]||4.6)*1.25*s.pw;
   if(r!=null){damageBldg(r,c,Math.max(1,Math.round((2+ta.ex*2)*s.pw*(.8+Math.random()*.4))));if(typeof ignite==='function')ignite(r,c,.18*s.pw);}
@@ -48,7 +48,7 @@ function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.sr
     else if(r!=null)f*=.6;                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
     if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
     const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
-    dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by);else u.supp=Math.max(u.supp||0,1);}
+    dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by,{kind:'blast',x,z,rad:SHELL_R});else u.supp=Math.max(u.supp||0,1);}
   if(typeof fortBlast==='function')fortBlast(x,z,r!=null?.5:.9,Math.round(14*s.pw));   // 바리케이드·참호도 부서진다(04d-fort)
   if(typeof FXH.boom==='function')FXH.boom(x,z,h,r!=null,s);
   bump();}
