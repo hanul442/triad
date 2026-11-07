@@ -22,7 +22,7 @@ function v3Prism(pts,w){const T=V3.T;const s=new T.Shape();pts.forEach(([x,y],i)
    영화 Civil War(2024)처럼: 정규군(짝수 세력)은 같은 군복과 헬멧, 민병대(홀수 세력)는 청바지·후드·야구모자 위에
    플레이트캐리어를 걸친 제각각 차림. 병사마다 머리·조끼·배낭·총이 조금씩 다르고, 분대장은 무전기 안테나를 단다.
    다리 둘(걸음 흔들림)을 빼면 몸 전체를 정점 색을 쓴 형상 하나로 합쳐서, 인원이 많아도 그리기 부담이 작다. */
-Object.assign(SQUAD,{rifle:9,mg:6,at:4,sniper:2,eng:6,mortar:5});
+Object.assign(SQUAD,{rifle:9,mg:6,at:4,sniper:2,eng:6,mortar:5,aa:3,ew:3});
 const SOL={
   reg:{top:['#6f6a55','#726b55','#6a6650'],pants:['#69634e','#6d6651'],plate:['#7a6a50','#6c6248','#5c5a46'],head:['helm','helm','helm','helm','helm','boonie']},
   mil:{top:['#4a4a46','#2f3a2e','#5a5040','#3a3f4a','#6f6a55','#55493b','#2c2c2b','#6b6b66'],pants:['#3c4656','#7a6e55','#2a2a2a','#69634e','#4d4a42'],
@@ -68,6 +68,8 @@ function v3SoldierM(n,kind){const T=V3.T;
     else if(gunT==='dmr')L.push({g:B(.11,.009,.008),x:gx+.012,y:gy,z:gz,ry,c:dk},{g:B(.024,.008,.007),x:gx,y:gy+.008,z:gz,ry,c:dk});
     else L.push({g:B(.07,.009,.008),x:gx,y:gy,z:gz,ry,c:gunT==='ak'?'#4a3a2a':dk},{g:B(.016,.007,.006),x:gx-.002,y:gy+.008,z:gz,ry,c:dk},{g:B(.008,.016,.006),x:gx+.004,y:gy-.011,z:gz,ry,rz:gunT==='ak'?.4:0,c:dk});
     if(kind==='at')L.push({g:new T.CylinderGeometry(.009,.009,.1,6),x:-.03,y:.122,z:-.012,rz:Math.PI/2-.35,c:n%2?'#4a5040':'#6b6650'});
+    if(kind==='aa')L.push({g:new T.CylinderGeometry(.008,.01,.13,6),x:.005,y:.135,z:-.016,rz:Math.PI/2-.25,c:'#5d6450'},{g:B(.014,.018,.01),x:.03,y:.125,z:-.016,c:dk});// 어깨에 멘 대공미사일 발사관
+    if(kind==='ew')L.push({g:B(.024,.036,.03),x:-.034,y:.104,c:'#3c3f38'},{g:B(.0015,.07,.0015),x:-.036,y:.15,z:-.01,rz:.25,c:dk},{g:B(.0015,.07,.0015),x:-.036,y:.15,z:.01,rz:-.25,c:dk},{g:B(.03,.012,.02),x:.036,y:.104,z:.01,c:'#55584e'});// 재머 배낭·안테나·휴대 장비
     if(kind==='mortar'&&Math.random()<.5)L.push({g:new T.CylinderGeometry(.007,.007,.07,6),x:-.034,y:.13,rz:.3,c:'#3d4246'});
     G1=v3PartsGeo(L);V3.solG.set(vkey,G1);}
   const bodyM=V3.solM||(V3.solM=new T.MeshStandardMaterial({vertexColors:true,roughness:.88,flatShading:true}));
@@ -89,7 +91,7 @@ function v3CamoMat(n,kind){const id='cm'+kind+n;if(!V3.matc.has(id)){const T=V3.
 function v3VehicleM(ty,g,n){const T=V3.T;V3.vehT=V3.vehT||{};let body=v3CamoMat(n,'veh');
   // 민병대(홀수 세력)의 험비 자리는 짐칸에 기관총을 올린 민간 픽업(테크니컬)
   if(ty==='hmv'&&n%2){ty='tech';const id='tech'+n;if(!V3.matc.has(id))V3.matc.set(id,new T.MeshStandardMaterial({color:['#b8b09c','#3a3a38','#8c8270','#d0ccc2'][n%4],roughness:.6,metalness:.25,flatShading:true}));body=V3.matc.get(id);}
-  if(!V3.vehT[ty])V3.vehT[ty]=v3VehBuild(ty);
+  if(!V3.vehT[ty])V3.vehT[ty]=ty==='zu'&&typeof v3ZuBuild==='function'?v3ZuBuild():v3VehBuild(ty);
   const src=V3.vehT[ty];const c=src.clone(true);
   c.traverse(m=>{if(m.isMesh){if(m.userData.body)m.material=body;m.castShadow=true;m.receiveShadow=true;}});
   g.add(c);let tur=null;c.traverse(m=>{if(m.userData.turret)tur=m;});if(tur)g.userData.tur=tur;return c;}

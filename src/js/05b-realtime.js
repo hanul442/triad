@@ -59,6 +59,7 @@ function orderGroupMove(us,x,z){if(us.length===1){orderMoveTo(us[0],x,z);return;
 /* 사격 한 발: 분대가 VOLLEY발을 쏘고 한 발씩 명중률(엄폐·거리)로 맞았는지 굴린다 */
 function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(d.z-a.z,d.x-a.x)*180/Math.PI;
   const h=hitP(a,d),k=VOLLEY[a.type]||1;let hits=0;for(let i=0;i<k;i++)if(Math.random()<h.p)hits++;
+  if(UT[d.type].fly&&typeof airHit==='function')hits=airHit(a,d,hits);
   a.lastShot={t:G.time||0,hits,k,cover:h.kind,cov:h.cov,tgt:d.id};FXH.fire(a,d.r,d.c,d,a.lastShot);
   const dmg=Math.round(rawDmg(a,d,false)*hits/k*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;if(ta.sup)d.supp=Math.max(d.supp||0,hits?1.2:.8);   // 기관총·박격포는 빗나가도 고개를 숙이게 한다
   if(ta.ex&&typeof fortBlast==='function')fortBlast(d.x,d.z,.25,(hits?3:1.5)*ta.ex*COOL[a.type]);// 폭발물은 근처 방어물도 부순다
@@ -91,7 +92,7 @@ function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us
     const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
     const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}}
   for(const u of us.slice())if(G.units.includes(u))rtCell(u);}
-function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb)return;const moving=!!(u.path&&u.path.length);if(t.ind&&moving)return;
+function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb||t.kami)return;const moving=!!(u.path&&u.path.length);if(t.ind&&moving)return;
   // 명령받은 표적을 쫓는다
   if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);if(!e||(G.fog&&!seen(e,u.nat))){u.tgt=null;}
     else if(!canHit(u,e)&&!moving&&!u.hold){u.path=pathPts(u,e.x,e.z);}}
@@ -109,6 +110,7 @@ function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   if(typeof shellTick==='function')shellTick();
   if(typeof fireTick==='function')fireTick(dt);
   if(typeof fortTick==='function')fortTick(dt);
+  if(typeof airTick==='function')airTick(dt);
   for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;if(!flTick(u,dt))rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
   rtSeparate(dt);
   for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;
