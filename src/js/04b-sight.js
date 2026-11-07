@@ -71,7 +71,7 @@ function los(r1,c1,h1,r2,c2,h2){return losPt(c1+.5,r1+.5,h1,c2+.5,r2+.5,h2);}
 function losU(a,b){const [ax,az]=posOf(a),[bx,bz]=posOf(b);return losPt(ax,az,eye(a),bx,bz,eye(b));}
 
 function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg'){const f=Math.round(eye(u)+.5);v+=f>=5?2:f>=3?1:0;}
-  if(isNight())v-=t.fly?1:2;v+=WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
+  v+=typeof envVis==='function'?envVis(u):(isNight()?-(t.fly?1:2):0)+WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
 /* 숨은 상태: 쏜 지 얼마 안 됐으면 드러난다 */
 const firedRecently=e=>e.firedT!=null&&(G.time||0)-e.firedT<FIRE_REVEAL;
 function concealed(e){const t=UT[e.type];if(t.fly||t.cls!=='inf')return false;if(firedRecently(e))return false;const x=cell(e.r,e.c);return x.t==='bldg'||x.t==='park'||x.smoke>0;}

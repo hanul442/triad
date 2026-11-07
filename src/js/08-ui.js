@@ -5,7 +5,8 @@ function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.un
   renderHUD();renderActbar();renderPanel();renderObj();if(typeof v3Sync==='function')v3Sync();}
 function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNight();
   const ic=night?`<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M8.5 1.2A5 5 0 1 0 10.8 9 4 4 0 0 1 8.5 1.2Z" fill="#e8ecef"/></svg>`:`<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="2.6" fill="#f0c45a"/></svg>`;
-  $('#hud-clock').innerHTML=`${ic}<b>${String(h).padStart(2,'0')}:00</b><small>${fmtT(G.time||0)} / ${fmtT(G.maxR*ROUND_S)} · ${WX[G.wx].n}${G.paused?' · 일시정지':G.spd!==1?` · ${G.spd}배속`:''}</small>`;
+  $('#hud-clock').innerHTML=`${ic}<b>${String(h).padStart(2,'0')}:${typeof dayH==='function'?String(Math.floor(dayH()%1*6)*10).padStart(2,'0'):'00'}</b><small>${fmtT(G.time||0)} / ${fmtT(G.maxR*ROUND_S)} · ${typeof envTag==='function'?envTag():WX[G.wx].n}${G.paused?' · 일시정지':G.spd!==1?` · ${G.spd}배속`:''}</small>`;
+  if(typeof nvgHud==='function')nvgHud();
   $('#hud-res').innerHTML=`<i class="dot" style="background:${mapCol(vn)}"></i><span class="rv"><b>${N2.cp}</b><small class="lbl">지휘 +${income(vn)}/30초</small></span>${G.scn?'':`<span class="rv"><b>${N2.vp}/${G.vpWin}</b><small class="lbl">승점</small></span>`}<span class="rv"><b>${objCount(vn)}/${G.objs.length}</b><small class="lbl">거점</small></span>`;
   const pl=$('#hud-obj');pl.style.borderColor=mapCol(vn);pl.innerHTML=G.order.map(n=>`<span style="color:${mapCol(n)}">${'■'.repeat(objCount(n))||'·'}</span>`).join(' ')+`<span class="nt"> ${G.objs.length-G.order.reduce((a,n)=>a+objCount(n),0)}</span>`;
   $('#app').classList.toggle('sheet-open',!!UI.sheet);$('#sheet').hidden=!UI.sheet;
@@ -42,8 +43,8 @@ function renderPanel(){const p=$('#panel');if(!p||!UI.sheet)return;document.quer
   const n=G.viewer,N2=G.nats[n];let h='';
   if(UI.tab==='cmd'){const myTurn=G.cur===n&&!isAI(n)&&!G.busy&&!G.over;
     h+=`<h3>증원 요청 <span class="stats">지휘 ${N2.cp} · 30초마다 +${income(n)}</span></h3><p>집결지나 우리 거점 바로 옆(적이 2칸 안에 없을 때)에 배치합니다. 배치한 턴에는 움직이지 못합니다.</p><div class="ulist">`+
-      TYPES.map(t=>`<button class="ucard" data-act="buy:${t}" id="buy-${t}" ${myTurn&&N2.cp>=UT[t].cost?'':'disabled'} title="${UT[t].desc}"><b>${UT[t].n}</b><small>${UT[t].cost}</small></button>`).join('')+`</div>`;
-    h+=`<h3>화력 지원 <span class="stats">${SUP_CD}초마다 1회</span></h3><div class="grid">`+Object.keys(SUP).map(k=>`<button class="btn" data-act="sup:${k}" id="sup-${k}" ${myTurn&&N2.cp>=SUP[k].cost&&N2.used!==G.turn&&!(SUP[k].air&&WX[G.wx].noAir)?'':'disabled'}>${SUP[k].n} · ${SUP[k].cost}<small>${SUP[k].air&&WX[G.wx].noAir?'폭우로 출격 불가':SUP[k].desc}</small></button>`).join('')+`</div>`;
+      TYPES.map(t=>`<button class="ucard" data-act="buy:${t}" id="buy-${t}" ${myTurn&&N2.cp>=UT[t].cost&&!(typeof airGrounded==='function'&&airGrounded(t))?'':'disabled'} title="${UT[t].desc}"><b>${UT[t].n}</b><small>${UT[t].cost}</small></button>`).join('')+`</div>`;
+    h+=`<h3>화력 지원 <span class="stats">${SUP_CD}초마다 1회</span></h3><div class="grid">`+Object.keys(SUP).map(k=>`<button class="btn" data-act="sup:${k}" id="sup-${k}" ${myTurn&&N2.cp>=SUP[k].cost&&N2.used!==G.turn&&!(SUP[k].air&&WX[G.wx].noAir)&&!(SUP[k].off&&SUP[k].off())?'':'disabled'}>${SUP[k].n} · ${SUP[k].cost}<small>${SUP[k].air&&WX[G.wx].noAir?'폭우로 출격 불가':SUP[k].desc}</small></button>`).join('')+`</div>`;
     h+=`<h3>병종</h3><div class="tbl"><table><tr><th>병종</th><th>이동</th><th>사거리</th><th>대보병</th><th>대기갑</th><th>특징</th></tr>`+TYPES.map(t=>{const u=UT[t];return `<tr><td>${u.n}</td><td>${u.mv}</td><td>${u.rng[1]?u.rng[0]+'–'+u.rng[1]:'-'}</td><td>${u.atk.inf||'-'}</td><td>${u.atk.veh||'-'}</td><td style="text-align:left;white-space:normal;min-width:160px">${u.desc}</td></tr>`;}).join('')+`</table></div>`;
     h+=`<div class="log">${G.log.map(l=>`<div>${l}</div>`).join('')}</div>`;}
   else if(UI.tab==='world'){if(G.over)h+=`<h3>${G.over.win==null?'무승부':NATS[G.over.win].full+' 승리'}</h3><p>${G.over.why}</p>`;

@@ -385,7 +385,7 @@ function v3SyncHl(){if(!V3.on||!G)return;const T=V3.T,g=V3.G.hl;v3Clear(g);const
   if(L.length){const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));lg.setAttribute('color',new T.Float32BufferAttribute(LC,3));const ls=new T.LineSegments(lg,V3.M.line);ls.renderOrder=4;g.add(ls);}}
 
 /* ---------- 시간·날씨 ---------- */
-function v3Light(){const h=hourOf(),night=isNight(),dusk=(h===6||h===18||h===20&&false);const s=V3;const wx=G.wx||'clear';
+function v3Light(){if(typeof v3EnvLight==='function'){v3EnvLight();return;}const h=hourOf(),night=isNight(),dusk=(h===6||h===18||h===20&&false);const s=V3;const wx=G.wx||'clear';
   const P=night?{sun:'#7f95c9',si:.5,sky:'#2a3754',gr:'#141210',hi:.42,fog:'#0d131b',em:1.25}:dusk?{sun:'#ff9a5a',si:1.7,sky:'#d6a07a',gr:'#3f3226',hi:.55,fog:'#6f5a50',em:.55}:{sun:'#ffe9cc',si:2.3,sky:'#c9cccb',gr:'#6b6458',hi:1.15,fog:'#9a9183',em:0};
   s.sun.color.set(P.sun);s.sun.intensity=P.si*(wx==='clear'?1:.55);s.hemi.color.set(P.sky);s.hemi.groundColor.set(P.gr);s.hemi.intensity=P.hi;s.M.wall.emissiveIntensity=P.em;
   const fogC=new V3.T.Color(P.fog);if(wx==='rain'||wx==='storm')fogC.lerp(new V3.T.Color('#4a525a'),.5);s.scene.fog.color.copy(fogC);s.scene.background=fogC.clone();
@@ -459,7 +459,7 @@ function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);
   setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,2.6,26000,22);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sfx==='function')sfx('boom');},700);}
 function v3FxStrike(kind,r,c,n){if(!V3.on)return;const [x,z]=v3x(r,c);if(kind==='heli'){v3Heli(r,c,n);return;}
   if(kind==='smoke'){for(let i=0;i<9;i++)v3Burst(x+(Math.random()-.5)*2.4,.3,z+(Math.random()-.5)*2.4,1.2,'#d6d3c8',2,0);return;}
-  if(kind==='air'||kind==='gunship')return;// 전투기·공격헬기는 07x-air가 그린다
+  if(kind==='air'||kind==='gunship'||kind==='flare')return;// 전투기·공격헬기는 07x-air가 그린다
   if(kind==='arty'&&typeof shellBarrage==='function')return;   // 실제 포탄은 v3Shells가 그린다
   dsBarrage(r,c,9,2.8);}
 // 총탄 착탄: 작은 흙먼지
@@ -485,7 +485,7 @@ function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}
-  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3AirFrame==='function')v3AirFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof v3FortFrame==='function')v3FortFrame();
+  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3AirFrame==='function')v3AirFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof v3FortFrame==='function')v3FortFrame();if(typeof v3EnvFrame==='function')v3EnvFrame(now,dt);
   for(const o of V3.G.sites.children)if(o.userData.flag)o.rotation.y=Math.sin(now/700+o.position.x)*.25;
   const tt=now/1000;for(const sp of V3.smoke){if(sp.kind==='fire'){const f=.75+Math.sin(tt*13+sp.ph*20)*.15+Math.sin(tt*7.3)*.1;sp.o.position.set(sp.x,sp.y+.15,sp.z);sp.o.scale.setScalar(.45*f);sp.o.material.opacity=.75*f;continue;}
     if(sp.kind==='screen'){const l=(tt*.08+sp.ph)%1;sp.o.position.set(sp.x+Math.sin(tt*.3+sp.ph*9)*.15,.4+l*.8,sp.z);sp.o.scale.setScalar(1.5+l*.6);sp.o.material.opacity=.75*Math.sin(l*Math.PI)+.15;continue;}

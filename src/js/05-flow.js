@@ -6,12 +6,13 @@ function newGame(cfg){cfg=cfg||{};const size=SIZES[cfg.size||'m']?cfg.size||'m':
   const seed=cfg.seed??Math.floor(Math.random()*1e9);const slots=cfg.slots||['human','ai','none','none'];
   const {map,objs}=genMap(seed,SIZES[size].obj);UID=1;
   G={seed,size,map,objs,units:[],covers:[],turn:1,cur:0,time:0,spd:1,paused:false,fog:cfg.fog!==false,log:[],ver:1,wx:'clear',diff:cfg.diff||'normal',speed:cfg.speed??140,
-    maxR:cfg.maxR||24,vpWin:cfg.vpWin||objs.length*6+12,hist:[],errs:[],scn:cfg.scn||null,
+    maxR:cfg.maxR||24,h0:START_HOURS[cfg.hour]??(typeof cfg.hour==='number'?cfg.hour:7),wxLock:!!(cfg.wx&&cfg.wx!=='auto'),flares:[],vpWin:cfg.vpWin||objs.length*6+12,hist:[],errs:[],scn:cfg.scn||null,
     nats:NATS.map((_,i)=>({ctrl:slots[i]||'none',cp:6,vp:0,alive:slots[i]&&slots[i]!=='none',kills:0,losses:0,used:0,dmg:0}))};
   const act=G.nats.map((x,i)=>x.alive?i:-1).filter(i=>i>=0);G.order=act;
   for(const n of act){const sp=zoneSpots(n);const force=cfg.force||START_FORCE;let i=0;
     for(const t of force){while(i<sp.length&&mcost(t,G.map[sp[i][0]][sp[i][1]])===Infinity)i++;if(i>=sp.length)break;mkUnit(n,t,sp[i][0],sp[i][1]);i++;}}
   if(typeof propCovers==='function')propCovers();
+  if(cfg.wx&&WX[cfg.wx])G.wx=cfg.wx;else if(cfg.wx==='auto')G.wx=rollWx();
   G.cur=act[0];G.viewer=act.find(i=>G.nats[i].ctrl==='human')??act[0];
   // 실시간이라 사람은 한 세력만 지휘한다. 나머지 사람 슬롯은 AI가 맡는다.
   for(const i of act)if(G.nats[i].ctrl==='human'&&i!==G.viewer)G.nats[i].ctrl='ai';G.cur=G.viewer;G.hot=false;

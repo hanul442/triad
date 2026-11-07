@@ -17,8 +17,8 @@ const mapCol=n=>n==null?'#8b9294':MAPCOL[n];
 const isAI=n=>G.nats[n].ctrl==='ai';
 const hostile=(a,b)=>a!==b;
 const hpMax=u=>UT[u.type].hpMax||10;
-const hourOf=()=>(7+(G.turn-1))%24;
-const isNight=()=>{const h=hourOf();return h>=20||h<5;};
+const hourOf=()=>Math.floor(typeof dayH==='function'?dayH():(7+(G.turn-1))%24);
+const isNight=()=>typeof nightK==='function'?nightK()>=.5:(h=>h>=20||h<5)(hourOf());
 function L(m){G.log.unshift(m);G.log=G.log.slice(0,8);try{if(typeof document!=='undefined'&&(!isAI(G.cur)||m.includes(natName(G.viewer))))toast(m);}catch(e){}}
 function toast(m){if(typeof document==='undefined')return;const el=$('#toast');if(!el)return;el.textContent=m;el.hidden=false;el.classList.remove('in');void el.offsetWidth;el.classList.add('in');clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true;},2600);}
 /* 화면 연출 훅: 3D 화면이 있으면 그쪽에서 바꿔 끼운다. 테스트(노드)에서는 아무것도 하지 않는다. */

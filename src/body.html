@@ -2,10 +2,11 @@
   <canvas class="v3d" id="v3d" aria-label="시가지 전장 (3D)"></canvas>
   <div class="v3d-grain" id="v3d-grain" aria-hidden="true"></div>
   <div class="v3d-vig" aria-hidden="true"></div>
+  <div class="nvg-ov" id="nvg-ov" aria-hidden="true" hidden></div>
   <div class="v3d-lab" id="v3d-lab" aria-hidden="true"></div>
   <div class="v3d-err" id="v3d-err" role="alert" hidden></div>
   <div class="top">
-    <div class="tl"><button class="ib" data-act="menu" id="b-menu" aria-label="작전 메뉴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="pill" id="hud-clock"></div></div>
+    <div class="tl"><button class="ib" data-act="menu" id="b-menu" aria-label="작전 메뉴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="pill" id="hud-clock"></div><button class="ib nvg-b" data-act="nvg" id="b-nvg" aria-label="야간투시경 (N)" title="야간투시경 (N)" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="13" r="3.5"/><circle cx="16" cy="13" r="3.5"/><path d="M11.5 13h1M6 9.5 8 6h8l2 3.5"/></svg></button></div>
     <div class="plate" id="hud-obj" aria-live="polite"></div>
     <div class="pill res" id="hud-res"></div>
   </div>
@@ -45,6 +46,8 @@
     <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
     <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 32×32 (거점 4)</option><option value="m" selected>중형 44×44 (거점 12)</option><option value="l">대형 56×56 (거점 16)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
+    <div class="slot"><span></span><label for="opt-hour">시작 시각</label><select id="opt-hour"><option value="day">아침 07시</option><option value="dusk">해질녘 17시</option><option value="night">한밤 22시</option><option value="dawn">새벽 03시</option></select></div>
+    <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비</option><option value="fog">짙은 안개</option><option value="storm">폭우</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
     <input type="hidden" id="opt-speed" value="0">
     <div class="err" id="setup-err"></div>
