@@ -880,3 +880,21 @@ test('사격받으며 트인 곳으로 움직이는 분대는 연막 수류탄�
   assert.equal(u.ssm, 1);
   assert.ok(G.smk.length === 1 && G.map[G.smk[0].r][G.smk[0].c].smoke > 0);
 });
+
+test('제병협동 AI: 적 무더기엔 포격·폭격을 부르고, 장갑차는 보병을 내리며, 비싼 차량은 돈을 모아 산다', () => {
+  const T = loadGame(); const G = setup(T); G.fog = false; G.time = 100;
+  // 적 소총분대 셋이 한데 모여 있다 → 화력 지원
+  for (const [r, c] of [[10, 20], [10, 21], [11, 20]]) T.mkUnit(1, 'rifle', r, c);
+  T.mkUnit(0, 'rifle', 10, 16); G.nats[0].cp = 30; T.bump();
+  const E = G.units.filter(u => u.nat === 1);
+  assert.ok(T.__get('aiSupport')(0, E), '지원 호출'); assert.ok(G.nats[0].cp < 30);
+  assert.ok(G.nats[0].supT > G.time, '재사용 대기');
+  // 장갑차 하차는 소총분대
+  G.nats[0].cp = 10; const v = T.mkUnit(0, 'ifv', 5, 3);
+  const r = T.__get('aiDismount')(v); assert.ok(r && r.type === 'rifle'); assert.equal(G.nats[0].cp, 10 - 3);
+  // 부대 구성: 장갑차·전차가 하나도 없으면 가중치가 소총보다 크게 뛴다
+  const cnt = t => G.units.filter(u => u.nat === 0 && u.type === t).length;
+  const w = T.__get('aiArmsW')(0, [], cnt, 10);
+  assert.ok(w.tank > w.drone * 3 && w.spg > w.drone * 3);
+  assert.ok(T.__get('aiArmsSave')(0, 'tank', 10) && !T.__get('aiArmsSave')(0, 'tank', 2));
+});
