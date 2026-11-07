@@ -178,7 +178,7 @@ test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, �
 });
 
 test('공격 명령: 사거리 밖 적을 쫓아가 쏜다', () => {
-  const T = loadGame(); const G = setup(T); G.maxR = 999;
+  const T = loadGame(); const G = setup(T); G.maxR = 999; G.nats[1].ctrl = 'human'; // 표적이 AI로 도망다니지 않게
   const a = T.mkUnit(0, 'rifle', 2, 2), d = T.mkUnit(1, 'mg', 12, 12); d.hp = 1000; T.bump();
   T.orderAttack(a, d);
   for (let i = 0; i < 400 && d.hp === 1000; i++) { d.cd = 99; T.rtTick(0.1); }
