@@ -382,6 +382,7 @@ function v3SyncHl(){if(!V3.on||!G)return;const T=V3.T,g=V3.G.hl;v3Clear(g);const
   }
   // 사격선: 공격 확인 중이면 시야선을 보여준다
   if(s&&UI.fc!=null){const r2=kr(UI.fc),c2=kc(UI.fc);const d=unitAt(r2,c2);seg(s.r,s.c,r2,c2,'#ff6a3d',v3Top(s.r,s.c)+.25,(d?v3UnitY(d):v3Top(r2,c2))+.2,UT[s.type].ind?1.5+dist(s.r,s.c,r2,c2)*.3:0);}
+  if(typeof v3RadioLines==='function')v3RadioLines(L,LC,c);// 무전으로 가는 중인 명령(07r-radio)
   if(L.length){const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));lg.setAttribute('color',new T.Float32BufferAttribute(LC,3));const ls=new T.LineSegments(lg,V3.M.line);ls.renderOrder=4;g.add(ls);}}
 
 /* ---------- 시간·날씨 ---------- */
@@ -409,7 +410,7 @@ function v3SyncSmoke(){const T=V3.T,g=V3.G.amb;for(const sp of V3.smoke)g.remove
 function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
   for(const o of G.objs){const x=G.map[o.r][o.c];const [px0,pz]=v3x(o.r,o.c);want.set('o'+x.obj,{html:`<span>${o.name}</span>`,cls:'v3c',col:mapCol(x.owner),p:[px0,v3Top(o.r,o.c)+1.05,pz]});}
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;const hm=hpMax(u);const hc=u.hp>hm*.6?'#5cd18a':u.hp>hm*.3?'#f0b23a':'#ff5a4e';
-    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(typeof v3MorTag==='function'?v3MorTag(u):u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
+    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(typeof v3MorTag==='function'?v3MorTag(u):u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'')+(typeof v3RadioTag==='function'?v3RadioTag(u,vn):'');
     want.set('u'+u.id,{html:`${typeof v3UnitTag==='function'?v3UnitTag(u):`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>`}${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
   if(typeof ccpOf==='function'&&G.order&&G.order.includes(vn)){const c=ccpOf(vn);want.set('ccp',{html:'<span>환자집결지</span>',cls:'v3c',col:'#e9e6dc',p:[c.x,v3TopAt(c.x,c.z)+.45,c.z]});}
   for(const [id,o] of V3.labels)if(!want.has(id)){o.el.remove();V3.labels.delete(id);}

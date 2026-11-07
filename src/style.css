@@ -169,3 +169,8 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .v3u .pp b.aw{background:#8a96a3;opacity:.7}.v3u .pp b.ev{background:#8a96a3;opacity:.3}.v3u .pp b.kia{background:#151515;opacity:.8}
 .v3u em.sh{background:#c88a2a}.v3u em.br{background:#8a2a8a}
 .cas-tbl td{font-variant-numeric:tabular-nums}
+
+/* 무전 지연(07r-radio) */
+.v3u em.rd{background:#c9a23a;color:#11161c}.v3u em.rd.jm{background:#ff7a2a;color:#fff;animation:rdblink .6s steps(2) infinite}.v3u u.rk{border-color:#f0c45a;color:#f0c45a}
+@keyframes rdblink{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.v3u em.rd.jm{animation:none}}
