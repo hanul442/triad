@@ -169,3 +169,9 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .v3u .pp b.aw{background:#8a96a3;opacity:.7}.v3u .pp b.ev{background:#8a96a3;opacity:.3}.v3u .pp b.kia{background:#151515;opacity:.8}
 .v3u em.sh{background:#c88a2a}.v3u em.br{background:#8a2a8a}
 .cas-tbl td{font-variant-numeric:tabular-nums}
+/* 계급 휘장·베테랑 별(05j-vet) */
+.v3u b.rk{display:flex;align-items:center;gap:1px;color:#e8c766;filter:drop-shadow(0 0 1px rgba(0,0,0,.9))}
+.vet-box h3{margin:6px 0 4px}
+.vet-box .vet-on{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.vet-box .vet-on small,.vet-box .vet-empty,.vet-box .vet-fallen{opacity:.75}
+.vet-box .vet-fallen b{margin-right:4px}
