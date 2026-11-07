@@ -1,5 +1,5 @@
 /* ===================== AI (실시간) ===================== */
-const AI_ORDER=['mortar','sniper','mg','at','rifle','eng','ifv','tank','drone'];
+const AI_ORDER=['spg','mortar','sniper','mg','at','rifle','eng','hmv','ifv','tank','drone'];
 const unitCap=()=>({s:14,m:18,l:22}[G.size]||18);
 function aiGoal(n,u,vis){let best=null,bd=1e9;
   for(const o of G.objs){if(G.map[o.r][o.c].owner===n)continue;const d=dist(u.r,u.c,o.r,o.c);if(d<bd){bd=d;best=[o.r,o.c];}}
@@ -38,7 +38,7 @@ function aiThink(n){const N2=G.nats[n];const vs=G.fog?visSet(n):null;
   {const E=vis();const reserve=E.length>=3&&(N2.supT||0)<=G.time?6:0;let guard=0;
     while(guard++<3&&G.units.filter(u=>u.nat===n).length<unitCap()){const mine=G.units.filter(u=>u.nat===n);const cnt=t=>mine.filter(u=>u.type===t).length;
       const eVeh=E.filter(e=>UT[e.type].cls==='veh').length;
-      const w={rifle:5,mg:2,at:1.5+eVeh*2,sniper:cnt('sniper')<2?1.2:.2,eng:1,mortar:cnt('mortar')<2?1.4:.3,ifv:cnt('ifv')<2?1.2:.3,tank:N2.cp>=10&&cnt('tank')<2?2:0,drone:cnt('drone')<1?1:0};
+      const w={rifle:5,mg:2,at:1.5+eVeh*2,sniper:cnt('sniper')<2?1.2:.2,eng:1,mortar:cnt('mortar')<2?1.4:.3,ifv:cnt('ifv')<2?1.2:.3,tank:N2.cp>=10&&cnt('tank')<2?2:0,drone:cnt('drone')<1?1:0,hmv:cnt('hmv')<2?1:.2,spg:N2.cp>=10&&cnt('spg')<1?1.2:0};
       const af=Object.keys(w).filter(t=>w[t]>0&&UT[t].cost<=N2.cp-reserve);if(!af.length)break;
       let tot=af.reduce((a,t)=>a+w[t],0),r=Math.random()*tot,pick=af[0];for(const t of af){r-=w[t];if(r<=0){pick=t;break;}}
       const sp=deploySpots(n,pick);if(!sp.length)break;const goal=aiGoal(n,{r:Math.round((N-1)/2),c:Math.round((N-1)/2)},[]);

@@ -179,8 +179,9 @@ function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
   if(trees.length){const tg=v3DeadTree();const tm=new T.InstancedMesh(tg,M.tree,trees.length);tm.castShadow=true;tm.receiveShadow=true;
     const trg=new T.CylinderGeometry(.02,.03,.04,5);trg.translate(0,.02,0);const trm=new T.InstancedMesh(trg,M.trunk,trees.length);const tc=new T.Color();
     trees.forEach(([x,y,z,s,k],j)=>{ps.set(x,y,z);sc.set(s,s*(.85+v3Hash(k,90+j)*.4),s);m4.compose(ps,q,sc);tm.setMatrixAt(j,m4);trm.setMatrixAt(j,m4);tm.setColorAt(j,tc.set('#ffffff').offsetHSL(0,0,(v3Hash(k,91+j)-.5)*.25));});tm.userData.keys=trees.map(t=>t[4]);g.add(tm);g.add(trm);}
-  // 버려진 차량
-  {const cars=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);if(x.t==='road'&&v3Hash(k,700)<.07)cars.push([...v3x(r,c),k]);}
+  if(typeof v3BuildProps==='function')v3BuildProps(g);
+  // 버려진 차량 (소품 모듈이 없을 때만)
+  else{const cars=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);if(x.t==='road'&&v3Hash(k,700)<.07)cars.push([...v3x(r,c),k]);}
     if(cars.length){const cg=new T.BoxGeometry(.36,.14,.18);cg.translate(0,.09,0);const cm=new T.InstancedMesh(cg,new T.MeshStandardMaterial({color:'#4b4a46',roughness:.7,metalness:.2}),cars.length);cm.castShadow=true;
       const cab=new T.BoxGeometry(.18,.08,.16);cab.translate(-.02,.2,0);const ch=new T.InstancedMesh(cab,M.dark,cars.length);
       cars.forEach(([x,z,k],j)=>{ps.set(x+(v3Hash(k,701)-.5)*.5,0,z+(v3Hash(k,702)-.5)*.5);q.setFromAxisAngle(new T.Vector3(0,1,0),v3Hash(k,703)*6.28);sc.set(1,1,1);m4.compose(ps,q,sc);cm.setMatrixAt(j,m4);ch.setMatrixAt(j,m4);});q.identity();g.add(cm);g.add(ch);}}
@@ -226,7 +227,8 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
   if(rub.length){const im=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),V3.M.rubble,rub.length);im.castShadow=im.receiveShadow=true;
     rub.forEach(([x,y,z,sz,rot],i)=>{p.set(x,y,z);q.setFromEuler(new T.Euler(rot,rot*2,0));s.set(sz,sz*.5,sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);});im.userData.keys=rub.map(r=>r[5]);g.add(im);}
   if(ac.length){const im=new T.InstancedMesh(new T.BoxGeometry(.14,.08,.1),V3.M.conc,ac.length);im.castShadow=true;s.set(1,1,1);
-    ac.forEach(([x,y,z,v],i)=>{p.set(x,y+.04,z);q.setFromAxisAngle(new T.Vector3(0,1,0),v>.5?Math.PI/2:0);const sz=v<.2?[2.2,1.6,1.4]:[1,1,1];s.set(...sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);});g.add(im);}}
+    ac.forEach(([x,y,z,v],i)=>{p.set(x,y+.04,z);q.setFromAxisAngle(new T.Vector3(0,1,0),v>.5?Math.PI/2:0);const sz=v<.2?[2.2,1.6,1.4]:[1,1,1];s.set(...sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);});g.add(im);}
+  if(typeof v3BuildShops==='function')v3BuildShops(g);}
 
 /* ---------- 거점 표시 ---------- */
 function v3BuildSites(){const T=V3.T,g=V3.G.sites;v3Clear(g);
@@ -240,7 +242,7 @@ function v3BuildSites(){const T=V3.T,g=V3.G.sites;v3Clear(g);
 function v3NatMat(n){const id='n'+n;if(!V3.matc.has(id)){const col=new V3.T.Color(mapCol(n));V3.matc.set(id,new V3.T.MeshStandardMaterial({color:col,roughness:.6,emissive:col,emissiveIntensity:.25}));}return V3.matc.get(id);}
 function v3BodyMat(n,done){const id='b'+n+(done?'d':'');if(!V3.matc.has(id)){const T=V3.T;const col=new T.Color('#565a45').lerp(new T.Color(MAPCOL[n]),.45);if(done)col.multiplyScalar(.5);V3.matc.set(id,new T.MeshStandardMaterial({color:col,roughness:.75,metalness:.15,flatShading:true}));}return V3.matc.get(id);}
 /* 병사 한 명: 다리 둘(엉덩이를 축으로 흔들림), 몸통, 머리, 철모, 소총. 키 약 0.15칸(타일 한 칸 ≈ 12m) */
-function v3Soldier(n,kind){const T=V3.T;const sg=V3.sg||(V3.sg={leg:new T.BoxGeometry(.016,.06,.018).translate(0,-.03,0),torso:new T.BoxGeometry(.044,.058,.03),head:new T.SphereGeometry(.015,8,6),
+function v3Soldier(n,kind){if(typeof v3SoldierM==='function')return v3SoldierM(n,kind);const T=V3.T;const sg=V3.sg||(V3.sg={leg:new T.BoxGeometry(.016,.06,.018).translate(0,-.03,0),torso:new T.BoxGeometry(.044,.058,.03),head:new T.SphereGeometry(.015,8,6),
     helm:new T.SphereGeometry(.019,8,5,0,Math.PI*2,0,Math.PI/2),gun:new T.BoxGeometry(.075,.01,.01),pack:new T.BoxGeometry(.03,.034,.018),tube:new T.CylinderGeometry(.011,.011,.1,6).rotateZ(Math.PI/2)});
   const um=v3BodyMat(n,false),dk=V3.M.dark,sk=V3.skin||(V3.skin=new T.MeshStandardMaterial({color:'#b89878',roughness:.9}));
   const g=new T.Group();const mk=(geo,mat,x,y,z)=>{const m=new T.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;g.add(m);return m;};
@@ -257,6 +259,7 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
     for(let i=0;i<n;i++){const m=v3Soldier(u.nat,i===0?ty:'rifle');root.add(m);const a=i/n*Math.PI*2+v3Hash(u.id,i)*.8,rr=i?.1+v3Hash(u.id,10+i)*.16:0;
       sold.push({m,slot:[Math.cos(a)*rr-(i?.05:0),Math.sin(a)*rr],wx:u.x+Math.cos(a)*rr,wz:u.z+Math.sin(a)*rr,ph:v3Hash(u.id,20+i)*6.28,spd:0});}
     if(ty==='mortar'){Cy(.016,.016,.11,.06,.05,0,-.6,M.steel);B(.05,.01,.05,.06,.005,0,M.dark);}}
+  else if(t.cls==='veh'&&typeof v3VehicleM==='function')v3VehicleM(ty,g,u.nat);
   else if(t.cls==='veh'){const tank=ty==='tank';
     if(tank){B(.46,.1,.26,0,.08,0);for(const z of [-.14,.14])B(.48,.07,.06,0,.045,z,M.dark);const tur=new T.Group();tur.position.set(-.02,.15,0);g.add(tur);B(.2,.07,.18,0,0,0,body,tur);Cy(.013,.016,.36,.25,.01,0,Math.PI/2,M.steel,tur);g.userData.tur=tur;}
     else{B(.42,.11,.22,0,.1,0);B(.12,.04,.18,.15,.16,0);for(const [a,b] of [[-.14,.12],[0,.12],[.14,.12],[-.14,-.12],[0,-.12],[.14,-.12]]){const w=Cy(.045,.045,.035,a,.045,b,0,M.dark);w.rotation.x=Math.PI/2;}

@@ -11,6 +11,7 @@ function newGame(cfg){cfg=cfg||{};const size=SIZES[cfg.size||'m']?cfg.size||'m':
   const act=G.nats.map((x,i)=>x.alive?i:-1).filter(i=>i>=0);G.order=act;
   for(const n of act){const sp=zoneSpots(n);const force=cfg.force||START_FORCE;let i=0;
     for(const t of force){while(i<sp.length&&mcost(t,G.map[sp[i][0]][sp[i][1]])===Infinity)i++;if(i>=sp.length)break;mkUnit(n,t,sp[i][0],sp[i][1]);i++;}}
+  if(typeof propCovers==='function')propCovers();
   G.cur=act[0];G.viewer=act.find(i=>G.nats[i].ctrl==='human')??act[0];
   // 실시간이라 사람은 한 세력만 지휘한다. 나머지 사람 슬롯은 AI가 맡는다.
   for(const i of act)if(G.nats[i].ctrl==='human'&&i!==G.viewer)G.nats[i].ctrl='ai';G.cur=G.viewer;G.hot=false;
