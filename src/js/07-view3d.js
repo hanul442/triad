@@ -492,6 +492,6 @@ function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=
     const life=(tt*.22*sp.sp+sp.ph)%1;sp.o.position.set(sp.x+life*.5,sp.y+.2+life*3,sp.z-life*.3);sp.o.scale.setScalar(.35+life*1.6);sp.o.material.opacity=.55*Math.sin(life*Math.PI);}
   if(V3.rainObj){V3.rainObj.position.set(s.x,0,s.z);const p=V3.rainObj.geometry.attributes.position;const a=p.array,sp=dt*16*V3.rain;for(let i=0;i<a.length;i+=6){a[i+1]-=sp;a[i+4]-=sp;if(a[i+4]<0){a[i+1]+=14;a[i+4]+=14;}}p.needsUpdate=true;}
   if(V3.dust){V3.dust.position.set(s.x,0,s.z);V3.dust.rotation.y=tt*.02;}
-  V3.fx=V3.fx.filter(f=>{const k2=(now-f.t0)/f.dur;if(k2<0){f.o.visible=false;return true;}f.o.visible=true;if(k2>=1){V3.G.fx.remove(f.o);if(f.o.material&&f.o.material!==V3.M.dark&&!f.o.userData.keepMat)f.o.material.dispose();if(f.o.geometry&&!f.o.userData.keepGeo)f.o.geometry.dispose();return false;}f.upd(f.o,k2);return true;});
+  V3.fx=V3.fx.filter(f=>{const k2=(now-f.t0)/f.dur;if(k2<0){f.o.visible=false;return true;}f.o.visible=true;if(k2>=1){V3.G.fx.remove(f.o);if(f.o.material&&f.o.material!==V3.M.dark&&!f.o.userData.keepMat)f.o.material.dispose();if(f.o.geometry&&!f.o.userData.keepGeo)f.o.geometry.dispose();return false;}if(f.upd(f.o,k2)===false){V3.G.fx.remove(f.o);if(f.o.material&&f.o.material!==V3.M.dark&&!f.o.userData.keepMat)f.o.material.dispose();return false;}return true;});   // upd가 false를 돌려주면 끝난 연출
   if(V3.flash.intensity>0){const e=(now-V3.flashT)/400;V3.flash.intensity=e>=1?0:V3.flash.intensity*(1-e*.5);}
   v3PlaceLabels();V3.ren.render(V3.scene,V3.cam);}

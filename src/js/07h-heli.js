@@ -22,7 +22,7 @@ function v3Heli(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const 
     else if(t<FLY+DESC+STAY){py=y0+.06;}
     else if(t<FLY+DESC+STAY+LIFT){const k=(t-FLY-DESC-STAY)/LIFT;py=y0+.06+k*k*2.4;}
     else if(t<TOTAL){const k=(t-FLY-DESC-STAY-LIFT)/OUT,e=k*k;px=x+(x-sx)*e*1.2;pz=z+(z-sz)*e*1.2;py=2.46+e*2.5;tilt=-.25*Math.min(1,k*3);}
-    else{o.visible=false;V3.G.fx.remove(o);return;}
+    else{o.visible=false;return false;}
     o.position.set(px,py,pz);o.rotation.z=tilt;o.rotation.y=t<FLY+DESC+STAY+LIFT?ang:ang+Math.PI;
     // 로터 바람: 낮게 떠 있을 때 바닥에서 먼지가 밀려난다
     if(py-y0<1.6&&now-dustT>140){dustT=now;const a=Math.random()*6.283;const d=.3+Math.random()*.5;dsDust(px+Math.cos(a)*d,pz+Math.sin(a)*d,.55,1600,1,'#9c9283',y0+.05);}}});}
