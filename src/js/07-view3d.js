@@ -303,7 +303,7 @@ function v3SyncUnits(vs,vn){const keep=new Set();
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;keep.add(u.id);let o=V3.uo.get(u.id);
     if(!o){o=v3Model(u);o.position.set(u.x,v3UnitY(u),u.z);V3.G.units.add(o);V3.uo.set(u.id,o);}
     o.userData.k=key(u.r,u.c);o.userData.to=[u.x,v3UnitY(u),u.z];o.userData.id=u.id;o.userData.u=u;
-    const S=o.userData.sold;if(S.length){const nf=Math.max(1,Math.ceil(u.hp/hpMax(u)*S.length));S.forEach((s,i)=>{if(i>=nf&&s.m.visible)v3Corpse(s,o,u.nat);});}
+    const S=o.userData.sold;if(S.length&&u._men)S.forEach((s,i)=>{const m=u._men[i];if(m&&m.dead&&s.m.visible)v3Corpse(s,o,u.nat);});else if(S.length){const nf=Math.max(1,Math.ceil(u.hp/hpMax(u)*S.length));S.forEach((s,i)=>{if(i>=nf&&s.m.visible)v3Corpse(s,o,u.nat);});}
     o.userData.sel.visible=u===UI.sel||(UI.group||[]).includes(u);const gy=o.userData.air?-(v3UnitY(u)-v3Top(u.r,u.c))+.02:.02;o.userData.ring.position.y=gy;o.userData.sel.position.y=gy+.01;if(o.userData.shadow)o.userData.shadow.position.y=gy-.005;}
   for(const [id,o] of V3.uo)if(!keep.has(id)){const dead=!G.units.some(u=>u.id===id);if(dead)for(const s of o.userData.sold)v3Corpse(s,o,o.userData.u?o.userData.u.nat:0);V3.G.units.remove(o);V3.uo.delete(id);}}
 /* 매 프레임 부대 움직임: 부대 중심은 좌표를 따라가고, 병사들은 제각각 흩어져 걷는다 */
@@ -313,6 +313,7 @@ function v3AnimUnits(dt,now){if(!(dt>0))return;for(const o of V3.uo.values()){co
     const fa=(uu.face||0)*Math.PI/180;
     if(!o.userData.inf){const want=-fa;let cur=o.userData.body.rotation.y;let d=want-cur;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;o.userData.body.rotation.y=cur+d*Math.min(1,dt*5);
       if(o.userData.air)o.userData.body.traverse(x=>{if(x.userData.rotor)x.rotation.y+=dt*30;});}
+    else if(uu._men&&typeof v3MenAnim==='function')v3MenAnim(o,uu,dt,now,fa);
     else{const moving=uu.path&&uu.path.length;const tight=cell(uu.r,uu.c).t==='bldg'?.55:1;const cf=Math.cos(fa),sf=Math.sin(fa);const vmax=UT[uu.type].mv*SPD_K*(uu.supp>0?.65:1)*1.2;
       const ud=o.userData;if(!ud.trail)ud.trail=[[tx,tz]];{const lt=ud.trail[0];if(Math.hypot(tx-lt[0],tz-lt[1])>.03){ud.trail.unshift([tx,tz]);if(ud.trail.length>60)ud.trail.pop();}}
       let si=-1;for(const s of o.userData.sold){si++;if(!s.m.visible)continue;const [lx,lz]=s.slot;let gx=tx+(lx*cf-lz*sf)*tight,gz=tz+(lx*sf+lz*cf)*tight;
@@ -404,7 +405,7 @@ function v3Sync(){if(!V3.on||!V3.ren||!G)return;const vn=G.viewer,vs=G.fog?visSe
   v3FowUpd(vs);V3.grid.visible=!!UI.grid;v3SyncUnits(vs,vn);v3SyncHl();v3SyncLabels(vs,vn);}
 
 /* ---------- 연출 ---------- */
-function v3Pos(r,c,u){if(u&&V3.uo.has(u.id)){const o=V3.uo.get(u.id);const S=(o.userData.sold||[]).filter(s=>s.m.visible);
+function v3Pos(r,c,u){if(u&&V3.uo.has(u.id)){const o=V3.uo.get(u.id);const S0=(o.userData.sold||[]).filter(s=>s.m.visible);const sh=(u._sh||[]).map(i=>o.userData.sold[i]).filter(s=>s&&s.m.visible);const S=sh.length?sh:S0;
     if(S.length){const s=S[Math.floor(Math.random()*S.length)];return [s.wx,o.position.y+.1,s.wz];}return [o.position.x,o.position.y+(UT[u.type].fly?0:.12),o.position.z];}
   if(u&&u.x!=null)return [u.x,v3UnitY(u)+.1,u.z];const [x,z]=v3x(r,c);return [x,v3Top(r,c)+.1,z];}
 function v3FxFire(a,r,c){if(typeof sfx==='function')sfx(UT[a.type].ind?'arty':UT[a.type].ex?'hit':'shot',.8);if(!V3.on)return;const T=V3.T;const [x1,y1,z1]=v3Pos(a.r,a.c,a);const d=arguments[3]||unitAt(r,c);const [x2,y2,z2]=v3Pos(r,c,d);

@@ -98,4 +98,4 @@ function v3InSoldier(uu,s,i,dt){const x=cell(uu.r,uu.c);if(UT[uu.type].cls!=='in
     if(ax){gx=cx+Math.sign(fx)*.31;gz=cz+lat;}else{gz=cz+Math.sign(fz)*.31;gx=cx+lat;}
     if(i>=6){gx=cx+(v3Hash(uu.id,90+i)-.5)*.4;gz=cz+(v3Hash(uu.id,95+i)-.5)*.4;}}
   else return {y:(s.fl-ufl)*FLOOR_H};
-  return {x:gx,z:gz,y:(s.fl-ufl)*FLOOR_H};}
+  return {x:gx,z:gz,y:(s.fl-ufl)*FLOOR_H,stair:!!onStair};}

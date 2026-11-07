@@ -321,3 +321,32 @@ test('헬기 투입: 보이는 빈 도로에 요청하면 몇 초 뒤 소총분�
   assert.equal(landed.length, 1);
   assert.ok(!T.canSupport(0, 'heli', 5, 5) || T.cell(5, 5).t !== 'bldg', '건물 위에는 내릴 수 없다');
 });
+
+test('병사 개별 행동: 차례로 출발하고, 따로 흩어져 서고, 체력만큼 쓰러진다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const u = T.mkUnit(0, 'rifle', 10, 10); G.units.push(u); T.bump();
+  T.rtTick(0.1); const M = u._men; assert.ok(M && M.length >= 8, '병사 목록');
+  T.orderMoveTo(u, 18.5, 10.5); T.rtTick(0.1); T.rtTick(0.1);
+  const still = M.filter(m => m.lag > 0).length; assert.ok(still >= 3, '뒤쪽 병사는 아직 출발 전');
+  const xs0 = M.map(m => m.x);
+  for (let i = 0; i < 400 && u.path.length; i++) T.rtTick(0.1);
+  for (let i = 0; i < 60; i++) T.rtTick(0.1);
+  // 모두 도착점 근처에 있지만 한 점에 뭉치지 않는다
+  for (const m of M) assert.ok(Math.hypot(m.x - u.x, m.z - u.z) < .6, '도착점 근처');
+  let minD = 9; for (let i = 0; i < M.length; i++) for (let j = i + 1; j < M.length; j++) minD = Math.min(minD, Math.hypot(M[i].x - M[j].x, M[i].z - M[j].z));
+  assert.ok(minD > .04, '병사끼리 겹치지 않음 ' + minD);
+  assert.ok(M.some((m, i) => Math.abs(m.x - xs0[i]) > 5), '실제로 이동함');
+  // 체력이 반으로 줄면 병사도 절반쯤 쓰러진다
+  u.hp = 5; T.rtTick(0.1);
+  const dead = M.filter(m => m.dead).length; assert.ok(dead >= 4 && dead <= 5, '쓰러진 병사 ' + dead);
+});
+
+test('병사 개별 사격: 분대가 쏘면 몇 명이 실제로 쏘고, 탄창이 비면 재장전한다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const a = T.mkUnit(0, 'rifle', 10, 10), d = T.mkUnit(1, 'rifle', 10, 13); G.units.push(a, d); T.bump();
+  T.rtTick(0.1);
+  for (let i = 0; i < 6; i++) T.rtShoot(a, d);
+  assert.ok(a._sh && a._sh.length >= 1, '쏜 병사 기록');
+  assert.ok(a._men.some(m => m.rl > 0), '누군가는 재장전 중');
+  assert.ok(d._thr, '맞은 쪽은 위협 방향을 안다');
+});
