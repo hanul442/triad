@@ -133,18 +133,30 @@ test('건물은 문으로만 드나들고, 안에서는 계단으로 한 층씩 
   assert.ok(u.path.some(p => p.door === 'b'), '문을 지난다');
   // 걸어 들어가는 동안 매 순간 벽을 넘지 않는다
   let lx = u.x, lz = u.z, inT = null;
-  for (let i = 0; i < 600; i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z), '틱 사이 벽 통과'); lx = u.x; lz = u.z; if (inT == null && u.r === 5 && u.c === 5) inT = G.time; if (u.fl >= 3) break; }
+  for (let i = 0; i < 600; i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z), '틱 사이 벽 통과'); lx = u.x; lz = u.z; if (inT == null && u.r === 5 && u.c === 5) inT = G.time; if (u.fl >= 4) break; }
   assert.ok(inT != null, '건물 가운데 칸에 들어간다');
-  assert.equal(u.fl, 3, '꼭대기 층(4층)까지 오른다');
-  const climb = G.time - inT; assert.ok(climb > 3 * 2.4 - .5, `오르는 데 시간이 걸린다 (${climb.toFixed(1)}초)`);
-  // 꼭대기 층 눈높이는 예전(건물 높이 −0.5)과 같다
-  assert.equal(T.eye(u), 3.5);
+  assert.equal(u.fl, 4, '옥상까지 오른다');
+  assert.ok(u.cd > 0, '계단에서 내려선 직후에는 바로 쏘지 않는다');
+  const climb = G.time - inT; assert.ok(climb > 4 * 2.4 - .5, `오르는 데 시간이 걸린다 (${climb.toFixed(1)}초)`);
+  // 옥상에서는 건물 높이보다 조금 위에서 본다
+  assert.ok(Math.abs(T.eye(u) - 4.3) < 1e-9);
   // 나가라고 하면 먼저 1층까지 내려온 뒤 문으로 나간다
   T.orderMoveTo(u, 1.5, 1.5); T.rtTick(0.1);
-  assert.ok(u.r === 5 && u.c === 5 && u.fl < 3 && u.fl > 0, '계단으로 내려오는 중');
+  assert.ok(u.r === 5 && u.c === 5 && u.fl < 4 && u.fl > 0, '계단으로 내려오는 중');
   lx = u.x; lz = u.z; let outT = 0;
   for (let i = 0; i < 600 && !(u.r === 1 && u.c === 1); i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z)); if (G.map[u.r][u.c].t !== 'bldg' && !outT) { outT = 1; assert.equal(u.fl, 0); } lx = u.x; lz = u.z; }
   assert.ok(u.r === 1 && u.c === 1, '밖으로 나와 목적지에 간다');
+});
+
+test('계단을 오르내리는 동안은 쏘지 않는다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 4); G.map[5][5].blk = 1; T.bump();
+  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; u.fl = 0; u.flK = T.key(5, 5);
+  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; e.hp = 999; e.cd = 999;
+  let shotWhileClimb = false;
+  for (let i = 0; i < 200; i++) { const was = u.climb; const f0 = u.firedT; T.rtTick(0.1); if (u.firedT !== f0 && (was || u.climb)) shotWhileClimb = true; }
+  assert.ok(!shotWhileClimb);
+  assert.ok(u.firedT != null, '옥상에 올라선 뒤에는 쏜다');
 });
 
 test('1층에 막 들어온 보병은 낮게 보고, 위층에 오르면 건물 너머를 본다', () => {
