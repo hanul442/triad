@@ -34,7 +34,8 @@ function airAcc(a,d,dd){const td=UT[d.type];let k=AIR_ACC[a.type]??.1;
 /* 명중 뒤 처리: 헬기는 미사일을 플레어로 피할 수 있고, FPV는 한 발만 맞아도 떨어진다 */
 function airHit(a,d,hits){const td=UT[d.type];if(!hits)return 0;
   if(td.heli&&a.type==='aa'&&(d.flares??0)>0&&Math.random()<.55){d.flares--;d.flareT=G.time;L(`${natName(d.nat)} 공격헬기 플레어로 미사일 회피`);return 0;}
-  if(td.kami)d.hp=0;return hits;}
+  if(td.kami){if(G.units.includes(d))kill(d,a);return 0;}  // FPV는 한 발만 맞아도 바로 떨어진다(피해량이 0으로 반올림돼도)
+  return hits;}
 
 /* ---------- 공격헬기 ---------- */
 // 세력의 지도 가장자리 한 점(아군 집결지 쪽)에서 들어온다
