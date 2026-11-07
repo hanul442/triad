@@ -271,7 +271,7 @@ function checkUnits(T, G, label) {
     const x = G.map[u.r][u.c];
     if (T.UT[u.type].cls === 'veh') assert.notEqual(x.t, 'bldg', `${label}: 차량이 건물 안에`);
     if (!T.UT[u.type].fly) assert.notEqual(x.t, 'water', `${label}: 부대가 물 위에`);
-    assert.ok(u.hp > 0 && u.hp <= 10, `${label}: 체력 범위 밖 ${u.hp}`);
+    assert.ok(u.hp > 0 && u.hp <= (T.UT[u.type].hpMax || 10), `${label}: 체력 범위 밖 ${u.hp}`);
   }
 }
 
@@ -616,4 +616,34 @@ test('참호 안 보병은 사방·포격에 엄폐되고, 바퀴 차량은 참�
   const back = T2.mkUnit(1, 'rifle', 9, 5); back.x = 5.5; back.z = 9.5;
   assert.ok(T2.__get('coverOf')(m, front).cov >= .45, '앞에서 쏘면 엄폐');
   assert.ok(T2.__get('coverOf')(m, back).cov < .2, '뒤에서 쏘면 엄폐 없음');
+});
+
+test('공중전: 하늘의 표적은 소총으로 잘 안 맞고 대공 수단은 잘 맞힌다', () => {
+  const T = loadGame(); const G = setup(T);
+  const d = T.mkUnit(1, 'drone', 5, 8); d.x = 8.5; d.z = 5.5;
+  const a = T.mkUnit(0, 'rifle', 5, 5); a.x = 5.5; a.z = 5.5;
+  const hitP = T.__get('hitP');
+  const rifle = hitP(a, d).p; a.type = 'zu'; const zu = hitP(a, d).p;
+  assert.ok(rifle < 0.15, `소총 명중률 ${rifle}`); assert.ok(zu > rifle * 3, `대공포 ${zu}`);
+});
+
+test('공중전: FPV는 표적에 날아가 터지고, 전파 방해 안에서는 떨어진다', () => {
+  const T = loadGame(); const G = setup(T);
+  const tk = T.mkUnit(1, 'tank', 5, 9); tk.x = 9.5; tk.z = 5.5;
+  const f = T.mkUnit(0, 'fpv', 5, 5); f.x = 5.5; f.z = 5.5; f.tgt = tk.id;
+  T.rtRun(4);
+  assert.ok(!G.units.includes(f), 'FPV는 소모됨'); assert.ok(tk.hp < 10, `전차 피해 ${tk.hp}`);
+  const G2 = setup(T); const ew = T.mkUnit(1, 'ew', 5, 5); ew.x = 5.5; ew.z = 5.5; ew.hold = true;
+  let down = 0; for (let i = 0; i < 20; i++) { const f2 = T.mkUnit(0, 'fpv', 5, 7); f2.x = 7.5; f2.z = 5.5; f2.hold = true; f2.path = []; T.__get('droneTick')(f2, 1); if (!G2.units.includes(f2)) down++; else G2.units = G2.units.filter(u => u !== f2); }
+  assert.ok(down >= 4 && down <= 18, `재머에 떨어진 수 ${down}/20`);
+});
+
+test('공중전: 전투기 폭격은 몇 초 뒤에 떨어지고, 공격헬기는 시간이 끝나면 돌아간다', () => {
+  const T = loadGame(); const G = setup(T);
+  G.nats[1].ctrl = 'human'; const e = T.mkUnit(1, 'rifle', 5, 5); const s = T.mkUnit(0, 'rifle', 5, 2); e.hold = s.hold = true;
+  G.nats[0].cp = 50; G.wx = 'clear'; assert.ok(T.support(0, 'air', 5, 5));
+  assert.equal(e.hp, 10, '바로 떨어지지 않음'); T.rtRun(3.2); assert.ok(e.hp < 10 || !G.units.includes(e), '몇 초 뒤 폭격');
+  const far = T.mkUnit(1, 'rifle', 15, 15); far.hold = true; G.over = null;
+  T.__get('callGunship')(0, 6, 6); const g = G.units.find(u => u.type === 'gunship'); assert.ok(g);
+  T.rtRun(70); assert.ok(!G.units.includes(g), '임무 시간이 끝나면 돌아감'); assert.equal(G.nats[0].losses, 0, '복귀는 손실이 아님');
 });

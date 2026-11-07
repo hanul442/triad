@@ -33,12 +33,13 @@ function aiThink(n){const N2=G.nats[n];
       for(const e of E)for(const [a,b] of supArea(e.r,e.c,1)){let s=0;for(const [p,q] of supArea(a,b,1)){const o=unitAt(p,q);if(!o)continue;s+=o.nat===n?-UT[o.type].cost*1.5:UT[o.type].cost;}if(s>bs){bs=s;best=[a,b];}}
       const tk=E.find(e=>e.type==='tank'&&!inside(e));
       if(tk&&N2.cp>=SUP.air.cost+3&&!WX[G.wx].noAir&&!G.units.some(o=>o.nat===n&&dist(o.r,o.c,tk.r,tk.c)<1))support(n,'air',tk.r,tk.c);
+      else if(typeof aiAirSup==='function'&&aiAirSup(n,E)){}
       else if(best&&bs>=9)support(n,'arty',best[0],best[1]);}}
   // 증원
   {const E=vis();const reserve=E.length>=3&&(N2.supT||0)<=G.time?6:0;let guard=0;
     while(guard++<3&&G.units.filter(u=>u.nat===n).length<unitCap()){const mine=G.units.filter(u=>u.nat===n);const cnt=t=>mine.filter(u=>u.type===t).length;
       const eVeh=E.filter(e=>UT[e.type].cls==='veh').length;
-      const w={rifle:5,mg:2,at:1.5+eVeh*2,sniper:cnt('sniper')<2?1.2:.2,eng:1,mortar:cnt('mortar')<2?1.4:.3,ifv:cnt('ifv')<2?1.2:.3,tank:N2.cp>=10&&cnt('tank')<2?2:0,drone:cnt('drone')<1?1:0,hmv:cnt('hmv')<2?1:.2,spg:N2.cp>=10&&cnt('spg')<1?1.2:0};
+      const w={rifle:5,mg:2,at:1.5+eVeh*2,sniper:cnt('sniper')<2?1.2:.2,eng:1,mortar:cnt('mortar')<2?1.4:.3,ifv:cnt('ifv')<2?1.2:.3,tank:N2.cp>=10&&cnt('tank')<2?2:0,drone:cnt('drone')<1?1:0,hmv:cnt('hmv')<2?1:.2,spg:N2.cp>=10&&cnt('spg')<1?1.2:0};if(typeof aiAirW==='function')Object.assign(w,aiAirW(E,cnt));
       const af=Object.keys(w).filter(t=>w[t]>0&&UT[t].cost<=N2.cp-reserve);if(!af.length)break;
       let tot=af.reduce((a,t)=>a+w[t],0),r=Math.random()*tot,pick=af[0];for(const t of af){r-=w[t];if(r<=0){pick=t;break;}}
       const sp=deploySpots(n,pick);if(!sp.length)break;const goal=aiGoal(n,{r:Math.round((N-1)/2),c:Math.round((N-1)/2)},[]);
@@ -46,7 +47,7 @@ function aiThink(n){const N2=G.nats[n];
       if(!buy(n,pick,kr(sp[0]),kc(sp[0])))break;}}
   // 부대 기동: 가는 중이면 대개 그대로 두고, 멈춘 부대는 다음 자리를 고른다
   const E=vis();
-  for(const u of G.units){if(u.nat!==n||u.job)continue;const t=UT[u.type];
+  for(const u of G.units){if(u.nat!==n||u.job)continue;const t=UT[u.type];if(t.heli)continue;if(t.kami&&typeof aiFpv==='function'&&aiFpv(n,u,E))continue;
     if(u.path&&u.path.length&&Math.random()<.75)continue;
     if(t.ind&&E.some(e=>canHit(u,e))&&Math.random()<.85)continue; // 곡사: 쏠 수 있으면 자리 지킴
     const goal=aiGoal(n,u,E);const R=reach(u);let bestT=key(u.r,u.c),bestS=-1e9;

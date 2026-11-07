@@ -310,6 +310,7 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
     if(tank){B(.46,.1,.26,0,.08,0);for(const z of [-.14,.14])B(.48,.07,.06,0,.045,z,M.dark);const tur=new T.Group();tur.position.set(-.02,.15,0);g.add(tur);B(.2,.07,.18,0,0,0,body,tur);Cy(.013,.016,.36,.25,.01,0,Math.PI/2,M.steel,tur);g.userData.tur=tur;}
     else{B(.42,.11,.22,0,.1,0);B(.12,.04,.18,.15,.16,0);for(const [a,b] of [[-.14,.12],[0,.12],[.14,.12],[-.14,-.12],[0,-.12],[.14,-.12]]){const w=Cy(.045,.045,.035,a,.045,b,0,M.dark);w.rotation.x=Math.PI/2;}
       B(.1,.05,.1,0,.18,0);Cy(.008,.008,.16,.1,.19,0,Math.PI/2,M.steel);}}
+  else if(typeof v3AirModel==='function'&&v3AirModel(u,g)){}// 공격헬기·FPV (07x-air)
   else{const bd=new T.Mesh(new T.BoxGeometry(.08,.025,.08),body);bd.castShadow=true;g.add(bd);
     for(const [a,b] of [[-.07,-.07],[.07,-.07],[-.07,.07],[.07,.07]]){const rt=new T.Mesh(new T.CylinderGeometry(.04,.04,.004,12),V3.M.dark);rt.position.set(a,.02,b);rt.userData.rotor=1;g.add(rt);}}
   const ring=new T.Mesh(new T.CircleGeometry(t.cls==='inf'?.035:.05,12),new T.MeshBasicMaterial({color:mapCol(u.nat),transparent:true,opacity:.9,depthWrite:false}));ring.rotation.x=-Math.PI/2;
@@ -317,7 +318,7 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
   root.add(g);root.add(ring);root.add(sel);root.userData={k:null,body:g,ring,sel,figs:sold.map(s=>s.m),sold,air:!!t.fly,inf:t.cls==='inf'};
   if(t.fly){const sh=new T.Mesh(new T.CircleGeometry(.1,16),new T.MeshBasicMaterial({color:'#000',transparent:true,opacity:.28,depthWrite:false}));sh.rotation.x=-Math.PI/2;root.add(sh);root.userData.shadow=sh;}
   return root;}
-function v3UnitY(u){if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);const iy=v3InY(u);if(iy!=null)return iy;return v3Top(u.r,u.c)+.005;}
+function v3UnitY(u){if(UT[u.type].fly&&typeof v3AirY==='function'){const y=v3AirY(u);if(y!=null)return y;}if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);const iy=v3InY(u);if(iy!=null)return iy;return v3Top(u.r,u.c)+.005;}
 /* 쓰러진 병사: 그 자리에 오래 남는다 */
 function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;const c=v3Soldier(nat,'rifle');c.position.set(s.wx,o.position.y,s.wz);c.rotation.set(0,Math.random()*6.28,0);
   c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;const wrap=new T.Group();wrap.position.copy(c.position);c.position.set(0,0,0);wrap.add(c);c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;
@@ -433,7 +434,7 @@ function v3Sync(){if(!V3.on||!V3.ren||!G)return;const vn=G.viewer,vs=G.fog?visSe
 function v3Pos(r,c,u){if(u&&V3.uo.has(u.id)){const o=V3.uo.get(u.id);const S0=(o.userData.sold||[]).filter(s=>s.m.visible);const sh=(u._sh||[]).map(i=>o.userData.sold[i]).filter(s=>s&&s.m.visible);const S=sh.length?sh:S0;
     if(S.length){const s=S[Math.floor(Math.random()*S.length)];return [s.wx,o.position.y+.1,s.wz];}return [o.position.x,o.position.y+(UT[u.type].fly?0:.12),o.position.z];}
   if(u&&u.x!=null)return [u.x,v3UnitY(u)+.1,u.z];const [x,z]=v3x(r,c);return [x,v3Top(r,c)+.1,z];}
-function v3FxFire(a,r,c){if(typeof sfx==='function')sfx(UT[a.type].ind?'arty':UT[a.type].ex?'hit':'shot',.8);if(!V3.on)return;const T=V3.T;const [x1,y1,z1]=v3Pos(a.r,a.c,a);const d=arguments[3]||unitAt(r,c);const [x2,y2,z2]=v3Pos(r,c,d);
+function v3FxFire(a,r,c){if(typeof v3AirFire==='function'&&v3AirFire(a,r,c,arguments[3],arguments[4]))return;if(typeof sfx==='function')sfx(UT[a.type].ind?'arty':UT[a.type].ex?'hit':'shot',.8);if(!V3.on)return;const T=V3.T;const [x1,y1,z1]=v3Pos(a.r,a.c,a);const d=arguments[3]||unitAt(r,c);const [x2,y2,z2]=v3Pos(r,c,d);
   const ind=UT[a.type].ind,dd=dist(a.r,a.c,r,c);const n=a.type==='mg'||a.type==='ifv'?4:1;const col=UT[a.type].ex?'#ffb060':'#ffe1a0';
   const tc=a.nat===G.viewer?'#8dff6e':'#ff5a3c';
   for(let i=0;i<n;i++){const j=(Math.random()-.5)*.15;let o;
@@ -443,7 +444,7 @@ function v3FxFire(a,r,c){if(typeof sfx==='function')sfx(UT[a.type].ind?'arty':UT
   v3Burst(x1+(x2-x1)*.02,y1,z1+(z2-z1)*.02,UT[a.type].cls==='inf'?.08:.22,'#ffd27a',0,UT[a.type].cls==='inf'?.15:.6);
   if(typeof dsDust==='function'&&(UT[a.type].cls!=='inf'||a.type==='mg')&&Math.random()<.35)dsDust(x1,z1,.3,2600,1,'#8e887e',y1);// 총구 연기가 잠시 머문다
   setTimeout(()=>{if(UT[a.type].ex){v3Burst(x2,y2-.05,z2,.6,'#ff8a3d',3,1.5);dsScar(ind?'crater':'scorch',x2,z2,ind?.14:.11);dsSpray(x2,y2,z2,ind?48:26,ind?.7:.5);dsDust(x2,z2,ind?1.4:.8,ind?9000:5000,ind?6:4);if(ind)dsColumn(x2,z2,.7);}else{v3Impact(x2,y2-.05,z2);if(Math.random()<.25)dsScar('spray',x2,z2,.05);}if(UT[a.type].ex)V3.shake=Math.max(V3.shake,.05);if(typeof sfx==='function')sfx('hit',.6);},ind?650:170);}
-function v3FxKill(u){if(!V3.on||UT[u.type].cls==='inf')return;const [x,y,z]=v3Pos(u.r,u.c,u);if(UT[u.type].cls==='veh')dsWreck(u);setTimeout(()=>{v3Burst(x,y,z,1.3,'#ff7a2a',7,4);dsSpray(x,y+.1,z,50,.8);dsScar('scorch',x,z,.25);V3.shake=Math.max(V3.shake,.14);if(typeof sfx==='function')sfx('boom');},400);}
+function v3FxKill(u){if(UT[u.type].fly&&typeof v3AirKill==='function'){v3AirKill(u);return;}if(!V3.on||UT[u.type].cls==='inf')return;const [x,y,z]=v3Pos(u.r,u.c,u);if(UT[u.type].cls==='veh')dsWreck(u);setTimeout(()=>{v3Burst(x,y,z,1.3,'#ff7a2a',7,4);dsSpray(x,y+.1,z,50,.8);dsScar('scorch',x,z,.25);V3.shake=Math.max(V3.shake,.14);if(typeof sfx==='function')sfx('boom');},400);}
 function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const h=Math.max(1,f||3)*FLOOR_H;
   // 기울어지며 쓰러지는 건물: 밑변 한쪽을 축으로 돌면서 가라앉는다
   const dir=Math.floor(Math.random()*4);const piv=new T.Group();const ax=[[.45,0],[-.45,0],[0,.45],[0,-.45]][dir];piv.position.set(x+ax[0],.06,z+ax[1]);
@@ -458,9 +459,7 @@ function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);
   setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,2.6,26000,22);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sfx==='function')sfx('boom');},700);}
 function v3FxStrike(kind,r,c,n){if(!V3.on)return;const [x,z]=v3x(r,c);if(kind==='heli'){v3Heli(r,c,n);return;}
   if(kind==='smoke'){for(let i=0;i<9;i++)v3Burst(x+(Math.random()-.5)*2.4,.3,z+(Math.random()-.5)*2.4,1.2,'#d6d3c8',2,0);return;}
-  if(kind==='air'){const T=V3.T;const jet=new T.Mesh(new T.ConeGeometry(.12,.7,6),V3.M.dark);jet.rotation.z=-Math.PI/2;V3.G.fx.add(jet);
-    V3.fx.push({o:jet,t0:performance.now(),dur:900,upd:(o,k)=>{o.position.set(x-14+k*28,5.5-Math.sin(k*Math.PI)*1.5,z-3+k*6);}});
-    setTimeout(()=>{v3Burst(x,v3Top(r,c)*.6+.3,z,2.4,'#ff6a1a',10,7);dsColumn(x,z,2.2);dsDust(x,z,3.6,26000,40);dsSpray(x,v3Top(r,c)*.5+.3,z,180,1.7);dsScar('crater',x,z,.45);dsFires(x,z,5,50000,1.2);V3.shake=Math.max(V3.shake,.35);},520);return;}
+  if(kind==='air'||kind==='gunship')return;// 전투기·공격헬기는 07x-air가 그린다
   if(kind==='arty'&&typeof shellBarrage==='function')return;   // 실제 포탄은 v3Shells가 그린다
   dsBarrage(r,c,9,2.8);}
 // 총탄 착탄: 작은 흙먼지
@@ -486,7 +485,7 @@ function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}
-  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof v3FortFrame==='function')v3FortFrame();
+  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3AirFrame==='function')v3AirFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof v3FortFrame==='function')v3FortFrame();
   for(const o of V3.G.sites.children)if(o.userData.flag)o.rotation.y=Math.sin(now/700+o.position.x)*.25;
   const tt=now/1000;for(const sp of V3.smoke){if(sp.kind==='fire'){const f=.75+Math.sin(tt*13+sp.ph*20)*.15+Math.sin(tt*7.3)*.1;sp.o.position.set(sp.x,sp.y+.15,sp.z);sp.o.scale.setScalar(.45*f);sp.o.material.opacity=.75*f;continue;}
     if(sp.kind==='screen'){const l=(tt*.08+sp.ph)%1;sp.o.position.set(sp.x+Math.sin(tt*.3+sp.ph*9)*.15,.4+l*.8,sp.z);sp.o.scale.setScalar(1.5+l*.6);sp.o.material.opacity=.75*Math.sin(l*Math.PI)+.15;continue;}

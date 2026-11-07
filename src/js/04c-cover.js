@@ -43,7 +43,8 @@ function coverOf(d,a){const td=UT[d.type];if(td.fly)return {cov:0,kind:null};con
 function hitP(a,d){const ta=UT[a.type];const rm=ta.rng[1]||1;const dd=udist(a,d);
   const acc=a.type==='sniper'||ta.ind?1:Math.min(1,1.05-.3*Math.pow(dd/rm,2));
   const c=coverOf(d,a);let cov=c.cov;if(ta.ex&&c.kind==='bldg')cov*=.5;
-  return {p:Math.max(0,acc*(1-Math.min(.85,cov))),cov,kind:c.kind};}
+  let p=Math.max(0,acc*(1-Math.min(.85,cov)));if(UT[d.type].fly&&typeof airAcc==='function')p*=airAcc(a,d,dd);  // 하늘의 표적은 대부분 빗나간다(05f-air)
+  return {p,cov,kind:c.kind};}
 /* 기본 화력(명중 시) */
 function rawDmg(a,d,counter){const ta=UT[a.type],td=UT[d.type];let v=ta.atk[td.cls]||0;if(!v)return 0;
   v*=.4+.6*a.hp/hpMax(a);const ax=cell(a.r,a.c);
