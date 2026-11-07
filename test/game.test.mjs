@@ -737,3 +737,23 @@ test('무전: 적 재밍 반경 안에서는 끊기다가 결국 전령이 전�
   T.__get('radioSend')(0, [b], 'move', [b.x + 1, b.z]);
   assert.ok(b.dest, '무전 지연을 끄면 바로 움직인다');
 });
+
+test('미사일: 유도미사일은 날아가서 맞고, 연막에 들어가면 유도가 끊긴다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const a = T.mkUnit(0, 'atgm', 5, 2), tk = T.mkUnit(1, 'tank', 5, 9); a.hold = tk.hold = true; tk.cd = 99; a.cd = 0;
+  T.rtTick(0.1); assert.equal((G.missiles || []).length, 1, '미사일이 날아감'); assert.equal(tk.hp, 10, '쏘는 순간엔 피해 없음');
+  T.rtRun(3); assert.ok(tk.hp < 10 || !G.units.includes(tk), '도착하면 피해');
+  const G2 = setup(T); G2.nats[1].ctrl = 'human';
+  const b = T.mkUnit(0, 'atgm', 5, 2), t2 = T.mkUnit(1, 'tank', 5, 9); b.hold = t2.hold = true; t2.cd = 99; b.cd = 0;
+  T.rtTick(0.1); G2.map[5][9].smoke = 3; T.rtRun(3);
+  assert.ok(G2.log.some(m => m.includes('유도 끊김')));
+});
+
+test('미사일: 다연장 로켓은 로켓 여러 발을 띄우고, 탄도미사일은 몇 초 뒤 떨어진다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const m = T.mkUnit(0, 'mlrs', 15, 2), tg = T.mkUnit(1, 'rifle', 15, 13); m.hold = tg.hold = true; m.cd = 0;
+  T.rtTick(0.1); assert.equal(G.shells.filter(s => s.type === 'mlrs').length, 12);
+  const e = T.mkUnit(1, 'rifle', 20, 8), sp = T.mkUnit(0, 'drone', 20, 4); e.hold = sp.hold = true; G.nats[0].cp = 99; G.nats[0].supT = 0;
+  assert.ok(T.support(0, 'tbm', 20, 8)); const hp0 = e.hp; T.rtRun(4); assert.equal(e.hp, hp0, '아직 안 떨어짐');
+  T.rtRun(5); assert.ok(!G.units.includes(e) || e.hp < hp0, '떨어진 뒤 피해');
+});
