@@ -57,9 +57,9 @@ function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,x:c+.5+(Math.random
 function buy(n,type,r,c){const N2=G.nats[n];const t=UT[type];if(N2.cp<t.cost)return null;if(!deploySpots(n,type).includes(key(r,c)))return null;
   N2.cp-=t.cost;const u=mkUnit(n,type,r,c);u.done=true;N2.bought=(N2.bought||0)+1;L(`${natName(n)} ${t.n} 증원`);sfx('build');return u;}
 function supArea(r,c,rad){const o=[];for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))o.push([a,b]);return o;}
-function canSupport(n,kind,r,c){const N2=G.nats[n];if(N2.cp<SUP[kind].cost||(N2.supT||0)>(G.time||0))return false;if(SUP[kind].air&&WX[G.wx].noAir)return false;if(kind==='heli')return !WX[G.wx].noAir&&heliCanLand(n,r,c)&&visSet(n).has(key(r,c));return kind==='smoke'||visSet(n).has(key(r,c));}
-function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2.supT=(G.time||0)+SUP_CD;FXH.strike(kind,r,c,n);
-  if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch',1,c+.5,r+.5);if(n===G.viewer)sndRadio('support');L(`${natName(n)} 연막 차장`);bump();return true;}
+function canSupport(n,kind,r,c){const N2=G.nats[n];const S=SUP[kind];if(N2.cp<S.cost||(N2[S.cdK||'supT']||0)>(G.time||0)||(S.off&&S.off()))return false;if(S.any)return inb(r,c);if(SUP[kind].air&&WX[G.wx].noAir)return false;if(kind==='heli')return !WX[G.wx].noAir&&heliCanLand(n,r,c)&&visSet(n).has(key(r,c));return kind==='smoke'||visSet(n).has(key(r,c));}
+function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2[SUP[kind].cdK||'supT']=(G.time||0)+(SUP[kind].cd||SUP_CD);FXH.strike(kind,r,c,n);
+  if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch',1,c+.5,r+.5);if(n===G.viewer&&typeof sndRadio==='function')sndRadio('support');L(`${natName(n)} 연막 차장`);bump();return true;}
   if(kind==='heli'){heliInsert(n,r,c);L(`${natName(n)} 헬기 투입 요청`);bump();return true;}
   if(SUP[kind].fn){SUP[kind].fn(n,r,c);bump();return true;}  // 공격헬기·전투기(05f-air)
   if(n===G.viewer&&!isAI(n))sndRadio('support');L(`${natName(n)} ${SUP[kind].n}`);

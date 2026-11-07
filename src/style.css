@@ -292,3 +292,12 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
   .obj{flex-direction:row;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .obj b{flex:none}
 }
+
+/* 야간투시경 화면 (07n-env) */
+.v3d.nvg{filter:grayscale(1) sepia(1) hue-rotate(52deg) saturate(2.6) contrast(1.18) brightness(1.08)}
+.nvg-ov{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 62% 66% at 50% 50%,transparent 58%,rgba(2,8,3,.9) 100%),repeating-linear-gradient(0deg,rgba(0,0,0,.13) 0 1px,transparent 1px 3px)}
+.app:has(.v3d.nvg) .v3d-grain{opacity:.42;animation:nvgn .18s steps(3) infinite}
+@keyframes nvgn{0%{background-position:0 0}33%{background-position:37px 61px}66%{background-position:-53px 19px}}
+@media (prefers-reduced-motion:reduce){.app:has(.v3d.nvg) .v3d-grain{animation:none}}
+.nvg-b svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6}
+.nvg-b[aria-pressed="true"]{color:#9dff8a;border-color:#9dff8a}

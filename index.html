@@ -309,6 +309,15 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
   .obj{flex-direction:row;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .obj b{flex:none}
 }
+
+/* 야간투시경 화면 (07n-env) */
+.v3d.nvg{filter:grayscale(1) sepia(1) hue-rotate(52deg) saturate(2.6) contrast(1.18) brightness(1.08)}
+.nvg-ov{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 62% 66% at 50% 50%,transparent 58%,rgba(2,8,3,.9) 100%),repeating-linear-gradient(0deg,rgba(0,0,0,.13) 0 1px,transparent 1px 3px)}
+.app:has(.v3d.nvg) .v3d-grain{opacity:.42;animation:nvgn .18s steps(3) infinite}
+@keyframes nvgn{0%{background-position:0 0}33%{background-position:37px 61px}66%{background-position:-53px 19px}}
+@media (prefers-reduced-motion:reduce){.app:has(.v3d.nvg) .v3d-grain{animation:none}}
+.nvg-b svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6}
+.nvg-b[aria-pressed="true"]{color:#9dff8a;border-color:#9dff8a}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -317,10 +326,11 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
   <canvas class="v3d" id="v3d" aria-label="시가지 전장 (3D)"></canvas>
   <div class="v3d-grain" id="v3d-grain" aria-hidden="true"></div>
   <div class="v3d-vig" aria-hidden="true"></div>
+  <div class="nvg-ov" id="nvg-ov" aria-hidden="true" hidden></div>
   <div class="v3d-lab" id="v3d-lab" aria-hidden="true"></div>
   <div class="v3d-err" id="v3d-err" role="alert" hidden></div>
   <div class="top">
-    <div class="tl"><button class="ib" data-act="menu" id="b-menu" aria-label="작전 메뉴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="pill" id="hud-clock"></div></div>
+    <div class="tl"><button class="ib" data-act="menu" id="b-menu" aria-label="작전 메뉴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="pill" id="hud-clock"></div><button class="ib nvg-b" data-act="nvg" id="b-nvg" aria-label="야간투시경 (N)" title="야간투시경 (N)" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="13" r="3.5"/><circle cx="16" cy="13" r="3.5"/><path d="M11.5 13h1M6 9.5 8 6h8l2 3.5"/></svg></button></div>
     <div class="plate" id="hud-obj" aria-live="polite"></div>
     <div class="pill res" id="hud-res"></div>
   </div>
@@ -369,6 +379,9 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
     <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 32×32 (거점 4)</option><option value="m" selected>중형 44×44 (거점 12)</option><option value="l">대형 56×56 (거점 16)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
+    <div class="slot"><span></span><label for="opt-hour">시작 시각</label><select id="opt-hour"><option value="day">아침 07시</option><option value="dusk">해질녘 17시</option><option value="night">한밤 22시</option><option value="dawn">새벽 03시</option></select></div>
+    <div class="slot"><span></span><label for="opt-tflow">시간 흐름</label><select id="opt-tflow"><option value="fixed">고정 (시간이 멈춤)</option><option value="real">실시간 (한 판 12분)</option><option value="slow">느리게 (한 판 3시간)</option><option value="normal" selected>보통 (한 판 6시간)</option><option value="fast">빠르게 (한 판 하루)</option></select></div>
+    <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비</option><option value="fog">짙은 안개</option><option value="storm">폭우</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
     <div class="slot"><span></span><label for="opt-radio">무전 지연</label><select id="opt-radio"><option value="1">켜기 (명령이 무전으로 1~3초 늦게 닿음)</option><option value="0">끄기</option></select></div>
     <input type="hidden" id="opt-speed" value="0">
@@ -455,8 +468,8 @@ const mapCol=n=>n==null?'#8b9294':MAPCOL[n];
 const isAI=n=>G.nats[n].ctrl==='ai';
 const hostile=(a,b)=>a!==b;
 const hpMax=u=>UT[u.type].hpMax||10;
-const hourOf=()=>(7+(G.turn-1))%24;
-const isNight=()=>{const h=hourOf();return h>=20||h<5;};
+const hourOf=()=>Math.floor(typeof dayH==='function'?dayH():(7+(G.turn-1))%24);
+const isNight=()=>typeof nightK==='function'?nightK()>=.5:(h=>h>=20||h<5)(hourOf());
 function L(m){G.log.unshift(m);G.log=G.log.slice(0,8);try{if(typeof document!=='undefined'&&(!isAI(G.cur)||m.includes(natName(G.viewer))))toast(m);}catch(e){}}
 function toast(m){if(typeof document==='undefined')return;const el=$('#toast');if(!el)return;el.textContent=m;el.hidden=false;el.classList.remove('in');void el.offsetWidth;el.classList.add('in');clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true;},2600);}
 /* 화면 연출 훅: 3D 화면이 있으면 그쪽에서 바꿔 끼운다. 테스트(노드)에서는 아무것도 하지 않는다. */
@@ -900,9 +913,9 @@ function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,x:c+.5+(Math.random
 function buy(n,type,r,c){const N2=G.nats[n];const t=UT[type];if(N2.cp<t.cost)return null;if(!deploySpots(n,type).includes(key(r,c)))return null;
   N2.cp-=t.cost;const u=mkUnit(n,type,r,c);u.done=true;N2.bought=(N2.bought||0)+1;L(`${natName(n)} ${t.n} 증원`);sfx('build');return u;}
 function supArea(r,c,rad){const o=[];for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))o.push([a,b]);return o;}
-function canSupport(n,kind,r,c){const N2=G.nats[n];if(N2.cp<SUP[kind].cost||(N2.supT||0)>(G.time||0))return false;if(SUP[kind].air&&WX[G.wx].noAir)return false;if(kind==='heli')return !WX[G.wx].noAir&&heliCanLand(n,r,c)&&visSet(n).has(key(r,c));return kind==='smoke'||visSet(n).has(key(r,c));}
-function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2.supT=(G.time||0)+SUP_CD;FXH.strike(kind,r,c,n);
-  if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch',1,c+.5,r+.5);if(n===G.viewer)sndRadio('support');L(`${natName(n)} 연막 차장`);bump();return true;}
+function canSupport(n,kind,r,c){const N2=G.nats[n];const S=SUP[kind];if(N2.cp<S.cost||(N2[S.cdK||'supT']||0)>(G.time||0)||(S.off&&S.off()))return false;if(S.any)return inb(r,c);if(SUP[kind].air&&WX[G.wx].noAir)return false;if(kind==='heli')return !WX[G.wx].noAir&&heliCanLand(n,r,c)&&visSet(n).has(key(r,c));return kind==='smoke'||visSet(n).has(key(r,c));}
+function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2[SUP[kind].cdK||'supT']=(G.time||0)+(SUP[kind].cd||SUP_CD);FXH.strike(kind,r,c,n);
+  if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch',1,c+.5,r+.5);if(n===G.viewer&&typeof sndRadio==='function')sndRadio('support');L(`${natName(n)} 연막 차장`);bump();return true;}
   if(kind==='heli'){heliInsert(n,r,c);L(`${natName(n)} 헬기 투입 요청`);bump();return true;}
   if(SUP[kind].fn){SUP[kind].fn(n,r,c);bump();return true;}  // 공격헬기·전투기(05f-air)
   if(n===G.viewer&&!isAI(n))sndRadio('support');L(`${natName(n)} ${SUP[kind].n}`);
@@ -987,7 +1000,7 @@ function los(r1,c1,h1,r2,c2,h2){return losPt(c1+.5,r1+.5,h1,c2+.5,r2+.5,h2);}
 function losU(a,b){const [ax,az]=posOf(a),[bx,bz]=posOf(b);return losPt(ax,az,eye(a),bx,bz,eye(b));}
 
 function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg'){const f=Math.round(eye(u)+.5);v+=f>=5?2:f>=3?1:0;}
-  if(isNight())v-=t.fly?1:2;v+=WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
+  v+=typeof envVis==='function'?envVis(u):(isNight()?-(t.fly?1:2):0)+WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
 /* 숨은 상태: 쏜 지 얼마 안 됐으면 드러난다 */
 const firedRecently=e=>e.firedT!=null&&(G.time||0)-e.firedT<FIRE_REVEAL;
 function concealed(e){const t=UT[e.type];if(t.fly||t.cls!=='inf')return false;if(firedRecently(e))return false;const x=cell(e.r,e.c);return x.t==='bldg'||x.t==='park'||x.smoke>0;}
@@ -1312,6 +1325,138 @@ function aiFort(n){const N2=G.nats[n];if(N2.cp<6||Math.random()>.35)return;const
     const t=tileAt(x,z);const p=Math.random();const k=u.type==='eng'&&eVeh&&t&&t.t==='road'&&ks.includes('hedgehog')?'hedgehog':u.type==='eng'&&p<.3?'jersey':u.type==='mg'&&p<.6?'nest':t&&t.t!=='road'&&p<.45&&ks.includes('trench')?'trench':'sandbag';
     if(N2.cp-FORT[k].cost<4)return;if(typeof orderFort(u,k,x,z)!=='string')return;}}
 
+/* ---- 04e-env.js ---- */
+/* ===================== 야간전과 날씨 =====================
+   - 시간: 한 라운드(30초) = 1시간. 시작 시각을 고를 수 있고, 밤은 해질녘·새벽에 서서히 온다(nightK 0~1).
+   - 밤 시야: 정규군 보병은 야간투시경(시야 −1), 민병대(홀수 세력) 보병은 맨눈(−2).
+     차량·저격수·정찰드론은 열상 장비라 덜 깎인다. 밤에는 조준도 흔들린다(명중률 감소).
+   - 조명탄: 지정한 곳 위에서 터져 낙하산에 매달려 천천히 내려온다. 비추는 동안은 그 둘레가 낮처럼 보인다(양쪽 모두).
+     불타는 건물도 주변을 비춘다. 밤에 쏘면 총구 불꽃 때문에 더 멀리서 보인다.
+   - 날씨: 맑음·비·짙은 안개·폭우가 몇 라운드씩 이어지며 바뀐다. 비·안개는 시야와 명중을 깎고,
+     드론은 비에 느려지고 카메라가 흐려지며, 안개에는 땅을 거의 못 본다. 폭우에는 드론·헬기가 뜨지 못하고 떠 있던 드론은 바람에 떨어진다. */
+
+const NIGHT_PEN={inf:[1,2],veh:[1,2],sniper:[0,1],drone:[0,0],fpv:[1,1],gunship:[0,0]};   // [정규군, 민병대] 밤 시야 감소
+const NIGHT_ACC={inf:[.85,.7],veh:[.92,.8],sniper:[.95,.85],fly:[.95,.95]};               // 밤에 비추지 않은 표적을 쏠 때 명중 배수
+const WX_FX={
+  clear:{vis:0,fly:0,acc:1,flyAcc:1,spd:1,crash:0},
+  rain:{vis:-1,fly:-2,acc:.92,flyAcc:.85,spd:.75,crash:.004},
+  fog:{vis:-2,fly:-3,acc:.88,flyAcc:.7,spd:.9,crash:0},
+  storm:{vis:-2,fly:-3,acc:.85,flyAcc:.6,spd:.55,crash:.06},
+};
+/* 날씨가 다음 라운드에 바뀔 확률과 바뀐다면 어디로 */
+const WX_STAY={clear:.86,rain:.75,fog:.7,storm:.6};
+const WX_NEXT={clear:{rain:.55,fog:.33,storm:.12},rain:{clear:.5,storm:.32,fog:.18},fog:{clear:.7,rain:.3},storm:{rain:.8,clear:.2}};
+const START_HOURS={day:7,dusk:17,night:22,dawn:3};
+/* 시간 흐름 모드: 게임 속 1시간이 실제 몇 초인가 (0 = 시간이 멈춤). 한 판(12분)에 흐르는 시간: 실시간 12분, 느리게 3시간, 보통 6시간, 빠르게 하루 */
+const TIME_FLOW={fixed:{n:'고정',s:0},real:{n:'실시간',s:3600},slow:{n:'느리게',s:240},normal:{n:'보통',s:120},fast:{n:'빠르게',s:30}};
+const hourSec=()=>{const f=TIME_FLOW[G&&G.tflow];return f?f.s:30;};
+
+const FLARE={up:3.5,top:5.2,dur:42,rad:4.6,drift:.05};   // 터지기까지(초), 터지는 높이(칸), 타는 시간, 비추는 반경(칸)
+Object.assign(SUP,{flare:{n:'조명탄',cost:1,rad:3,any:1,cdK:'flT',cd:10,fn:(n,r,c)=>flareCall(n,c+.5,r+.5),off:()=>nightK()<.3,
+  desc:'박격포 조명탄. 보이지 않는 곳에도 쏠 수 있음. 40초 동안 둘레 4칸을 낮처럼 밝힘(적에게도 보임). 밤에만'}});
+
+/* ---------- 시간 ---------- */
+function dayH(){const s=hourSec();return ((G&&G.h0!=null?G.h0:7)+(s?((G&&G.time)||0)/s:0))%24;}
+const smooth=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
+/* 0 = 낮, 1 = 한밤. 17:30~20:00 저물고, 04:00~06:30 밝아온다 */
+function nightK(){if(!G)return 0;const h=dayH();return h>=12?smooth(17.5,20,h):1-smooth(4,6.5,h);}
+/* 해질녘·새벽의 노을 정도(조명 색에만 쓴다) */
+function duskK(){if(!G)return 0;const h=dayH();const k=Math.max(1-Math.abs(h-18.4)/1.6,1-Math.abs(h-5.4)/1.4,0);return k;}
+
+/* ---------- 빛 ---------- */
+const militia=n=>n%2===1;
+function gearOf(u){const t=UT[u.type];if(t.fly)return NIGHT_PEN[u.type]?u.type:t.heli?'gunship':'drone';if(u.type==='sniper')return 'sniper';return t.cls==='veh'?'veh':'inf';}
+/* 지금 빛나는 것들: 떠 있는 조명탄과 불타는 건물. 0.5초마다 다시 모은다 */
+function lights(){const tq=Math.floor(((G&&G.time)||0)*2);const c=G._lit;if(c&&c.tq===tq&&c.ver===G.ver)return c;
+  const L=[];let sig='';
+  for(const f of G.flares||[]){const k=flareK(f);if(k<=0)continue;const x=Math.round(f.x*2)/2,z=Math.round(f.z*2)/2,rr=Math.round(FLARE.rad*k*2)/2;if(rr<.5)continue;L.push([x,z,rr]);sig+=x+','+z+','+rr+';';}
+  for(const k of G.fires||[]){const r=kr(k),c2=kc(k);const x=G.map[r]&&G.map[r][c2];if(!x||!(x.fire>0))continue;L.push([c2+.5,r+.5,1.8]);sig+=k+';';}
+  return G._lit={tq,ver:G.ver,L,sig};}
+/* 조명탄이 비추는 세기: 터진 직후 밝고, 땅에 가까워질수록 좁아진다 */
+function flareK(f){const t=(G.time||0)-f.t0;if(t<FLARE.up||t>FLARE.up+FLARE.dur)return 0;const a=(t-FLARE.up)/FLARE.dur;return Math.min(1,a*12)*(a>.8?(1-a)/.2:1);}
+function litAt(x,z){if(nightK()<.3)return true;for(const [lx,lz,rr] of lights().L)if((x-lx)*(x-lx)+(z-lz)*(z-lz)<=rr*rr)return true;return false;}
+const litU=u=>litAt(u.x??u.c+.5,u.z??u.r+.5);
+
+/* 시야 보정(04b visRange가 부른다). G._day가 켜져 있으면 밤 보정 없이 계산한다(조명 받은 곳 판정용) */
+function envVis(u){const t=UT[u.type];const W=WX_FX[G.wx]||WX_FX.clear;let v=t.fly?(t.heli?Math.ceil(W.fly/2):W.fly):W.vis;
+  const nk=G._day?0:nightK();if(nk>0){const p=NIGHT_PEN[gearOf(u)]||NIGHT_PEN.inf;v-=Math.round(p[militia(u.nat)?1:0]*nk*2)/2;}
+  return v;}
+function visDay(u){G._day=1;try{return visRange(u);}finally{G._day=0;}}
+
+/* 명중 보정: 밤에 비추지 않은 표적은 잘 안 맞고, 비·안개도 조준을 흐린다 */
+function envHit(a,d){const ta=UT[a.type];if(ta.ind)return 1;const W=WX_FX[G.wx]||WX_FX.clear;let k=ta.fly?W.flyAcc:W.acc;
+  if(G.wx==='fog'&&!ta.fly&&udist(a,d)<2.5)k=1;
+  const nk=nightK();if(nk>0&&!litU(d)){const g=ta.fly?'fly':a.type==='sniper'?'sniper':ta.cls==='veh'?'veh':'inf';const m=NIGHT_ACC[g][militia(a.nat)?1:0];k*=1-(1-m)*nk;}
+  return k;}
+{const _h=hitP;hitP=function(a,d){const r=_h(a,d);r.p*=envHit(a,d);return r;};}
+
+/* 발견: 밤이라 못 봤어도, 표적이 조명 아래 있거나 방금 쏴서 총구 불꽃이 보이면 낮 시야로 다시 따진다 */
+{const _sp=spots;spots=function(u,e){if(_sp(u,e))return true;const nk=nightK();if(nk<.3||UT[e.type].fly)return false;
+  const flash=firedRecently(e)&&(G.time||0)-e.firedT<2;if(!flash&&!litU(e))return false;
+  const t=UT[e.type];let v=Math.min(visDay(u),visRange(u)+(flash?3:9))+(t.cls==='veh'?1:0);
+  if(concealed(e))v*=SPOT_HIDE;if(t.hide&&inside(e)&&!firedRecently(e)&&e.shot!==G.turn)v=Math.min(v,1.5);
+  const d=udist(u,e);if(d>v)return false;return d<.9||losU(u,e);};}
+
+/* 안개(전장의 안개) 점: 밤 시야 밖이라도 조명이 비추는 곳은 보인다 */
+{const _fov=unitFov;unitFov=function(u){const a=_fov(u);if(nightK()<.3)return a;const Ls=lights();if(!Ls.L.length)return a;
+  const [ux,uz]=posOf(u);const vd=visDay(u);if(!Ls.L.some(([x,z,rr])=>Math.hypot(x-ux,z-uz)<vd+rr))return a;
+  const c=u._fovL;if(c&&c.a===a&&c.sig===Ls.sig&&c.vd===vd)return c.p;
+  const keepA=u._fov;u._fov=u._fovD;G._day=1;let b;try{b=_fov(u);}finally{G._day=0;}u._fovD=u._fov;u._fov=keepA;
+  const M=N*FOW_R;const S=new Set(a);const out=a.slice();
+  for(const p of b){if(S.has(p))continue;const i=p%M,j=(p-i)/M;if(litAt((i+.5)/FOW_R,(j+.5)/FOW_R))out.push(p);}
+  u._fovL={a,sig:Ls.sig,vd,p:out};return out;};}
+
+/* ---------- 조명탄 ---------- */
+function flareCall(n,x,z){G.flares=G.flares||[];const f={id:UID++,nat:n,x,z,t0:G.time||0};G.flares.push(f);
+  if(FXH.flare)FXH.flare(f);sfx('launch',.6);L(`${natName(n)} 조명탄 발사`);return f;}
+function flareTick(dt){if(!G.flares||!G.flares.length)return;const w=FLARE.drift*dt;
+  G.flares=G.flares.filter(f=>{const t=(G.time||0)-f.t0;if(t>FLARE.up)f.x=Math.min(N-.1,Math.max(.1,f.x+w)),f.z=Math.min(N-.1,Math.max(.1,f.z+w*.4));return t<=FLARE.up+FLARE.dur;});}
+
+/* ---------- 날씨 ---------- */
+function wxRound(){if(G.wxLock)return;const s=hourSec()||120;if(Math.random()>Math.min(1,60/s))return;   // 시간이 느리게 흐르면 날씨도 드물게 바뀐다
+  const cur=G.wx||'clear';if(Math.random()<WX_STAY[cur])return;
+  const nx=WX_NEXT[cur];let r=Math.random(),k=cur;for(const w in nx){r-=nx[w];if(r<0){k=w;break;}}
+  if(k===cur)return;G.wx=k;const msg={clear:'날씨가 갰습니다',rain:'비가 내리기 시작합니다 · 시야와 드론 운용 감소',fog:'짙은 안개가 깔립니다 · 드론이 땅을 거의 못 봅니다',storm:'폭우와 강풍 · 드론·헬기 비행 불가'}[k];
+  L(`날씨: ${msg}`);if(k==='storm')stormGround();bump();}
+/* 폭우가 오면 공격헬기는 철수한다 */
+function stormGround(){for(const u of G.units.slice())if(UT[u.type].heli&&typeof airRemove==='function'){L(`${natName(u.nat)} 공격헬기 기상 악화로 철수`);airRemove(u);}}
+const airGrounded=type=>!!(G&&WX[G.wx]&&WX[G.wx].noAir&&UT[type]&&(UT[type].fly||UT[type].dteam));
+{const _ds=deploySpots;deploySpots=function(n,type){if(airGrounded(type)&&UT[type].fly)return [];return _ds(n,type);};}
+/* 드론: 바람·비에 느려지고 흔들리며, 폭우엔 떨어진다 */
+function wxFlyK(u){const t=UT[u.type];if(!t.fly||t.heli)return 1;return (WX_FX[G.wx]||WX_FX.clear).spd;}
+{const _mv=rtMove;rtMove=function(u,dt){const k=wxFlyK(u);if(k===1)return _mv(u,dt);const x0=u.x,z0=u.z;_mv(u,dt);if(!G.units.includes(u))return;u.x=x0+(u.x-x0)*k;u.z=z0+(u.z-z0)*k;rtCell(u);};}
+if(typeof droneTick==='function'){const _dt=droneTick;droneTick=function(u,dt){const t=UT[u.type];const W=WX_FX[G.wx]||WX_FX.clear;
+  if(W.crash&&!t.heli&&Math.random()<W.crash*dt){L(`${natName(u.nat)} ${t.n} ${G.wx==='storm'?'강풍에':'비바람에'} 추락`);if(typeof airDown==='function')airDown(u,'wx');FXH.kill(u);if(typeof airRemove==='function')airRemove(u);G.nats[u.nat].losses++;return false;}
+  const k=wxFlyK(u);if(k===1)return _dt(u,dt);const x0=u.x,z0=u.z;const r=_dt(u,dt);if(!G.units.includes(u))return r;
+  u.x=x0+(u.x-x0)*k;u.z=z0+(u.z-z0)*k;rtCell(u);return r;};}
+if(typeof dteamTick==='function'){const _tt=dteamTick;dteamTick=function(u,dt){if(airGrounded('fpv')){u.dsT=0;return;}return _tt(u,dt);};}
+
+/* ---------- AI 조명탄 ---------- */
+/* 밤에 사격을 받는데 쏜 적이 안 보이거나, 거점 근처에서 싸울 때 그 앞을 밝힌다 */
+function aiFlare(n){const N2=G.nats[n];if(nightK()<.6||!canSupport(n,'flare',0,0))return false;
+  if(N2.cp<SUP.flare.cost)return false;
+  if((G.flares||[]).some(f=>f.nat===n&&(G.time||0)-f.t0<FLARE.up+FLARE.dur*.7))return false;
+  const mine=G.units.filter(u=>u.nat===n&&!UT[u.type].fly);
+  const E=G.units.filter(e=>e.nat!==n&&!UT[e.type].fly);
+  let best=null,bs=0;
+  for(const u of mine){const s=(u.supp>.2?2:0)+(G.objs.some(o=>Math.hypot(o.c+.5-u.x,o.r+.5-u.z)<3&&G.map[o.r][o.c].owner!==n)?1:0)+(E.some(e=>Math.hypot(e.x-u.x,e.z-u.z)<6&&!seen(e,n))?1:0);if(!s)continue;
+    if(litU(u))continue;
+    // 가장 가까운 적(보이든 안 보이든 대략 그쪽)으로 2.5칸 앞
+    let tx=N/2,tz=N/2,bd=99;for(const e of E){const d=Math.hypot(e.x-u.x,e.z-u.z);if(d<bd){bd=d;tx=e.x;tz=e.z;}}
+    if(bd>8)continue;const sc=s+Math.random();if(sc>bs){bs=sc;const k=Math.min(2.5,bd*.6)/(bd||1);best=[u.x+(tx-u.x)*k,u.z+(tz-u.z)*k];}}
+  if(!best)return false;const r=Math.min(N-1,Math.max(0,Math.floor(best[1]))),c=Math.min(N-1,Math.max(0,Math.floor(best[0])));
+  return support(n,'flare',r,c);}
+
+/* ---------- 매 틱 ---------- */
+function envTick(dt){flareTick(dt);
+  // AI는 2초마다, 그리고 수입이 막 들어온 직후(지휘점수를 다 쓰기 전)에 조명탄을 따져 본다
+  const fresh=G._envR!==G.turn;G._envR=G.turn;G._envT=(G._envT||0)-dt;if(G._envT<=0||fresh){G._envT=2;for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;if(fresh||Math.random()<.35)try{aiFlare(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}}
+{const _tk=rtTick;rtTick=function(dt){if(G&&!G.over)envTick(dt);return _tk(dt);};}
+
+/* HUD 글: 날씨와 그 효과 */
+function envTag(){const w=WX[G.wx]||WX.clear;const nk=nightK();const s=[w.n];if(w.noAir)s.push('드론 비행 불가');else if(G.wx==='fog')s.push('드론 시야 제한');else if(G.wx==='rain')s.push('드론 느림');
+  if(nk>=.5)s.push(militia(G.viewer)?'맨눈 야간':'야간투시경');if(G.tflow==='fixed')s.push('시간 고정');return s.join(' · ');}
+
 /* ---- 05-flow.js ---- */
 /* ===================== FLOW: 새 게임·승패·저장 ===================== */
 const START_FORCE=['rifle','rifle','rifle','mg','at','sniper','mortar','ifv'];
@@ -1321,12 +1466,13 @@ function newGame(cfg){cfg=cfg||{};const size=SIZES[cfg.size||'m']?cfg.size||'m':
   const seed=cfg.seed??Math.floor(Math.random()*1e9);const slots=cfg.slots||['human','ai','none','none'];
   const {map,objs}=genMap(seed,SIZES[size].obj);UID=1;
   G={seed,size,map,objs,units:[],covers:[],turn:1,cur:0,time:0,spd:1,paused:false,fog:cfg.fog!==false,log:[],ver:1,wx:'clear',diff:cfg.diff||'normal',speed:cfg.speed??140,
-    maxR:cfg.maxR||24,vpWin:cfg.vpWin||objs.length*6+12,hist:[],errs:[],scn:cfg.scn||null,
+    maxR:cfg.maxR||24,h0:START_HOURS[cfg.hour]??(typeof cfg.hour==='number'?cfg.hour:7),wxLock:!!(cfg.wx&&cfg.wx!=='auto'),tflow:TIME_FLOW[cfg.tflow]?cfg.tflow:'normal',flares:[],vpWin:cfg.vpWin||objs.length*6+12,hist:[],errs:[],scn:cfg.scn||null,
     nats:NATS.map((_,i)=>({ctrl:slots[i]||'none',cp:6,vp:0,alive:slots[i]&&slots[i]!=='none',kills:0,losses:0,used:0,dmg:0}))};
   const act=G.nats.map((x,i)=>x.alive?i:-1).filter(i=>i>=0);G.order=act;
   for(const n of act){const sp=zoneSpots(n);const force=cfg.force||START_FORCE;let i=0;
     for(const t of force){while(i<sp.length&&mcost(t,G.map[sp[i][0]][sp[i][1]])===Infinity)i++;if(i>=sp.length)break;mkUnit(n,t,sp[i][0],sp[i][1]);i++;}}
   if(typeof propCovers==='function')propCovers();
+  if(cfg.wx&&WX[cfg.wx])G.wx=cfg.wx;else if(cfg.wx==='auto')G.wx=rollWx();
   G.cur=act[0];G.viewer=act.find(i=>G.nats[i].ctrl==='human')??act[0];
   // 실시간이라 사람은 한 세력만 지휘한다. 나머지 사람 슬롯은 AI가 맡는다.
   for(const i of act)if(G.nats[i].ctrl==='human'&&i!==G.viewer)G.nats[i].ctrl='ai';G.cur=G.viewer;G.hot=false;
@@ -1458,7 +1604,7 @@ function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb||t.kami)ret
   if(!tg)return;rtShoot(u,tg);u.cd=COOL[u.type]*(.85+Math.random()*.3)*(moving?1.5:1);}
 /* 30초마다: 수입·승점·날씨·연막 */
 function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue;G.nats[n].cp+=income(n);G.nats[n].vp+=objCount(n);}
-  if(Math.random()<.35)G.wx=rollWx();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.smoke>0)x.smoke--;}
+  if(typeof wxRound==='function')wxRound();else if(Math.random()<.35)G.wx=rollWx();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.smoke>0)x.smoke--;}
   G.hist.push(G.order.map(k=>G.nats[k].vp));bump();save();}
 function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   while(G.time>=G.turn*ROUND_S&&!G.over)rtRound();
@@ -3315,7 +3461,7 @@ function v3SyncHl(){if(!V3.on||!G)return;const T=V3.T,g=V3.G.hl;v3Clear(g);const
   if(L.length){const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));lg.setAttribute('color',new T.Float32BufferAttribute(LC,3));const ls=new T.LineSegments(lg,V3.M.line);ls.renderOrder=4;g.add(ls);}}
 
 /* ---------- 시간·날씨 ---------- */
-function v3Light(){const h=hourOf(),night=isNight(),dusk=(h===6||h===18||h===20&&false);const s=V3;const wx=G.wx||'clear';
+function v3Light(){if(typeof v3EnvLight==='function'){v3EnvLight();return;}const h=hourOf(),night=isNight(),dusk=(h===6||h===18||h===20&&false);const s=V3;const wx=G.wx||'clear';
   const P=night?{sun:'#7f95c9',si:.5,sky:'#2a3754',gr:'#141210',hi:.42,fog:'#0d131b',em:1.25}:dusk?{sun:'#ff9a5a',si:1.7,sky:'#d6a07a',gr:'#3f3226',hi:.55,fog:'#6f5a50',em:.55}:{sun:'#ffe9cc',si:2.3,sky:'#c9cccb',gr:'#6b6458',hi:1.15,fog:'#9a9183',em:0};
   s.sun.color.set(P.sun);s.sun.intensity=P.si*(wx==='clear'?1:.55);s.hemi.color.set(P.sky);s.hemi.groundColor.set(P.gr);s.hemi.intensity=P.hi;s.M.wall.emissiveIntensity=P.em;
   const fogC=new V3.T.Color(P.fog);if(wx==='rain'||wx==='storm')fogC.lerp(new V3.T.Color('#4a525a'),.5);s.scene.fog.color.copy(fogC);s.scene.background=fogC.clone();
@@ -3389,7 +3535,7 @@ function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);
   setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,2.6,26000,22);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sndCrumble==='function')sndCrumble(x,z,f);},700);}
 function v3FxStrike(kind,r,c,n){if(!V3.on)return;const [x,z]=v3x(r,c);if(kind==='heli'){v3Heli(r,c,n);return;}
   if(kind==='smoke'){for(let i=0;i<9;i++)v3Burst(x+(Math.random()-.5)*2.4,.3,z+(Math.random()-.5)*2.4,1.2,'#d6d3c8',2,0);return;}
-  if(kind==='air'||kind==='gunship')return;// 전투기·공격헬기는 07x-air가 그린다
+  if(kind==='air'||kind==='gunship'||kind==='flare')return;// 전투기·공격헬기는 07x-air가 그린다
   if(kind==='arty'&&typeof shellBarrage==='function')return;   // 실제 포탄은 v3Shells가 그린다
   dsBarrage(r,c,9,2.8);}
 // 총탄 착탄: 작은 흙먼지
@@ -3415,7 +3561,7 @@ function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}
-  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3AirFrame==='function')v3AirFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof sndFrame==='function')sndFrame(now);if(typeof v3FortFrame==='function')v3FortFrame();
+  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3AirFrame==='function')v3AirFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof sndFrame==='function')sndFrame(now);if(typeof v3FortFrame==='function')v3FortFrame();if(typeof v3EnvFrame==='function')v3EnvFrame(now,dt);
   for(const o of V3.G.sites.children)if(o.userData.flag)o.rotation.y=Math.sin(now/700+o.position.x)*.25;
   const tt=now/1000;for(const sp of V3.smoke){if(sp.kind==='fire'){const f=.75+Math.sin(tt*13+sp.ph*20)*.15+Math.sin(tt*7.3)*.1;sp.o.position.set(sp.x,sp.y+.15,sp.z);sp.o.scale.setScalar(.45*f);sp.o.material.opacity=.75*f;continue;}
     if(sp.kind==='screen'){const l=(tt*.08+sp.ph)%1;sp.o.position.set(sp.x+Math.sin(tt*.3+sp.ph*9)*.15,.4+l*.8,sp.z);sp.o.scale.setScalar(1.5+l*.6);sp.o.material.opacity=.75*Math.sin(l*Math.PI)+.15;continue;}
@@ -3989,6 +4135,88 @@ function v3VehBuild(ty){const T=V3.T,mm=v3ModMats(),M=V3.M;const g=new T.Group()
     B(.35*m,.22*m,.5*m,8.0*m,.7*m,0,M.steel,tur);                                            // 포구 제퇴기
     B(.15*m,.6*m,.4*m,3.0*m,.9*m,0,M.dark);}                                                  // 이동 고정대
   return g;}
+
+/* ---- 07n-env.js ---- */
+/* ===================== 야간전과 날씨: 화면 =====================
+   빛과 색은 시각에 따라 매 프레임 조금씩 바뀌고(낮 → 노을 → 밤), 날씨도 몇 초에 걸쳐 스며든다.
+   조명탄은 낙하산에 매달려 흔들리며 내려오고, 아래를 하얗게 비춘다. 밤에는 야간투시경 화면(녹색 단색, 잡음)을 켤 수 있다. */
+const ENVP={
+  day:{sun:'#ffe9cc',si:2.3,sky:'#c9cccb',gr:'#6b6458',hi:1.15,fog:'#9a9183'},
+  dusk:{sun:'#ffa060',si:2.8,sky:'#e0bba0',gr:'#5a4636',hi:1.2,fog:'#8a6c58'},
+  night:{sun:'#7f95c9',si:.35,sky:'#2c3a58',gr:'#141310',hi:.42,fog:'#0b1017'},
+};
+const ENV3={wr:0,wf:0,ws:0,bolt:0,boltT:8,flares:new Map(),pool:[],mist:[],init:false};
+
+/* v3Light 대신: 목표값만 정하고 실제 반영은 v3EnvFrame이 부드럽게 한다 */
+function v3EnvLight(){const wx=G.wx||'clear';V3.rain=wx==='rain'?1:wx==='storm'?1.6:0;}
+
+function v3EnvInit(){const T=V3.T;ENV3.init=true;ENV3.g=new T.Group();V3.scene.add(ENV3.g);
+  // 조명탄 빛: 개수가 바뀌면 셰이더를 다시 만들어야 하므로 처음부터 3개를 꺼 둔 채 둔다
+  for(let i=0;i<3;i++){const l=new T.PointLight('#fff0d8',0,14,1.3);V3.scene.add(l);ENV3.pool.push(l);}
+  ENV3.glowM=new T.SpriteMaterial({map:V3.puff,color:'#fff6e4',blending:T.AdditiveBlending,transparent:true,depthWrite:false});
+  ENV3.haloM=new T.SpriteMaterial({map:V3.puff,color:'#ffe2b0',blending:T.AdditiveBlending,transparent:true,depthWrite:false,opacity:.35});
+  ENV3.chuteM=new T.MeshBasicMaterial({color:'#d8d2c2',side:T.DoubleSide});ENV3.chuteG=new T.SphereGeometry(.09,8,4,0,Math.PI*2,0,Math.PI*.42);
+  ENV3.lineM=new T.LineBasicMaterial({color:'#bdb6a6',transparent:true,opacity:.6});
+  // 낮게 깔리는 안개 덩어리
+  for(let i=0;i<34;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#c3c1ba',transparent:true,depthWrite:false,opacity:0,fog:true}));s.userData={ph:Math.random()*6.28,a:Math.random()*6.28,r:Math.random(),y:.15+Math.random()*.5,sz:2.5+Math.random()*3};ENV3.g.add(s);ENV3.mist.push(s);}
+  ENV3.terrR=V3.M.terr.roughness;ENV3.roofR=V3.M.roof.roughness;}
+
+const _ec=[];function envCol(i,h){if(!_ec[i])_ec[i]=new V3.T.Color();return _ec[i].set(h);}
+function v3EnvFrame(now,dt){if(!G||!V3.on)return;if(!ENV3.init)v3EnvInit();const T=V3.T,s=V3.cs;
+  const nk=nightK(),dk=duskK()*(1-nk*.6);const wx=G.wx||'clear';
+  // 날씨는 몇 초에 걸쳐 바뀐다
+  const ek=ENV3.seed!==G.seed?1:1-Math.exp(-dt/3.5);ENV3.seed=G.seed;ENV3.wr+=((wx==='rain'?1:wx==='storm'?1:0)-ENV3.wr)*ek;ENV3.wf+=((wx==='fog'?1:0)-ENV3.wf)*ek;ENV3.ws+=((wx==='storm'?1:0)-ENV3.ws)*ek;
+  const wr=ENV3.wr,wf=ENV3.wf,ws=ENV3.ws;
+  const D=ENVP.day,K=ENVP.dusk,Nn=ENVP.night;
+  const mix=(k,i)=>envCol(i,D[k]).lerp(envCol(i+1,K[k]),dk).lerp(envCol(i+2,Nn[k]),nk);
+  const num=k=>(D[k]*(1-dk)+K[k]*dk)*(1-nk)+Nn[k]*nk;
+  // 번개
+  if(ws>.5){ENV3.boltT-=dt;if(ENV3.boltT<=0){ENV3.boltT=5+Math.random()*11;ENV3.bolt=1;ENV3.boltAt=now;if(typeof sfx==='function')setTimeout(()=>sfx('boom',.35),400+Math.random()*900);}}
+  let bolt=0;if(ENV3.bolt){const e=(now-ENV3.boltAt)/1000;bolt=e<.08?1:e<.16?.2:e<.24?.8:Math.max(0,1-(e-.24)*4);if(e>.5)ENV3.bolt=0;}
+  V3.sun.color.copy(mix('sun',0));V3.sun.intensity=num('si')*(1-.45*Math.max(wr,wf*.8));
+  V3.hemi.color.copy(mix('sky',3));V3.hemi.groundColor.copy(mix('gr',6));V3.hemi.intensity=num('hi')*(1-.15*wr)+bolt*2.2;
+  V3.M.wall.emissiveIntensity=nk*.75+dk*.2;
+  const fc=mix('fog',9);if(wr>0)fc.lerp(envCol(12,nk>.5?'#151a20':'#4a525a'),.5*wr);if(wf>0)fc.lerp(envCol(13,nk>.5?'#1c2026':'#a7a59d'),.55*wf);if(bolt)fc.lerp(envCol(14,'#9aa6b8'),bolt*.6);
+  V3.scene.fog.color.copy(fc);if(!V3.scene.background||!V3.scene.background.isColor)V3.scene.background=new T.Color();V3.scene.background.copy(fc);
+  V3.fogK=(1-.55*wf)*(1-.3*ws)*(1-.25*nk);const fk=Math.max(wf,ws*.6);V3.scene.fog.near=s.d*.75*V3.fogK*(1-fk)+s.d*.25*fk;V3.scene.fog.far=(s.d*2.8*V3.fogK+10)*(1-fk)+s.d*1.45*fk;
+  const h=dayH();V3.sunAng=nk>.85?.4:Math.max(-.95,Math.min(.95,(h-12)/6.5));
+  // 젖은 땅: 더 어둡고 덜 거칠다(빛을 번들거리게 받는다)
+  V3.M.terr.roughness=ENV3.terrR-.38*wr;V3.M.roof.roughness=ENV3.roofR-.3*wr;const wet=1-.28*wr;V3.M.terr.color.setRGB(wet,wet,wet);
+  if(V3.rainObj){V3.rainObj.material.opacity=.38*wr*(nk>.5?.6:1);V3.rainObj.material.color.set(nk>.5?'#6f8090':'#9fb0bf');}
+  // 안개 덩어리
+  const fo=.45*wf+.1*wr*(1-nk);for(const m of ENV3.mist){const u=m.userData;m.visible=fo>.01;if(!m.visible)continue;const R=s.d*.9;const a=u.a+now/1000*.01;
+    const x=s.x+Math.cos(a)*R*u.r+Math.sin(now/9000+u.ph)*1.5,z=s.z+Math.sin(a)*R*u.r;m.position.set(x,u.y,z);m.scale.setScalar(u.sz*(1+s.d*.03));m.material.opacity=fo*(.6+.4*Math.sin(now/3000+u.ph));m.material.color.set(nk>.5?'#2a3038':'#c3c1ba');}
+  // 야간투시경: 별빛을 증폭하듯 그늘 없이 고르게 밝힌다(색은 CSS 필터가 녹색 단색으로 바꾼다)
+  const q=UI.nvg?Math.min(1,nk*1.4):0;if(q>0){V3.hemi.color.lerp(envCol(15,'#d8dde0'),q);V3.hemi.groundColor.lerp(envCol(16,'#5a5c58'),q);V3.hemi.intensity+=(1.5-V3.hemi.intensity)*q;
+    V3.sun.color.lerp(envCol(17,'#c8d0d8'),q);V3.sun.intensity+=(.9-V3.sun.intensity)*q;V3.M.wall.emissiveIntensity*=1-.5*q;fc.lerp(envCol(18,'#3a3f40'),q);V3.scene.fog.color.copy(fc);V3.scene.background.copy(fc);}
+  v3EnvFlares(now);}
+
+/* 조명탄: G.flares를 그대로 따라 그린다 */
+function v3EnvFlares(now){const T=V3.T;const seen=new Set();const used=[];const tnow=G.time||0;
+  for(const f of G.flares||[]){seen.add(f.id);let o=ENV3.flares.get(f.id);
+    if(!o){o={g:new T.Group(),glow:new T.Sprite(ENV3.glowM),halo:new T.Sprite(ENV3.haloM),chute:new T.Mesh(ENV3.chuteG,ENV3.chuteM),pop:false,trailT:0};
+      const lg=new T.BufferGeometry().setFromPoints([new T.Vector3(-.07,.02,0),new T.Vector3(0,-.16,0),new T.Vector3(.07,.02,0),new T.Vector3(0,-.16,0)]);o.line=new T.LineSegments(lg,ENV3.lineM);
+      o.chute.position.y=.0;o.line.position.y=0;o.glow.position.y=-.17;o.halo.position.y=-.17;o.g.add(o.glow,o.halo,o.chute,o.line);ENV3.g.add(o.g);ENV3.flares.set(f.id,o);}
+    const t=tnow-f.t0;if(t<FLARE.up){o.g.visible=false;continue;}
+    const a=(t-FLARE.up)/FLARE.dur;const k=flareK(f);const y=FLARE.top-(FLARE.top-.35)*a;
+    if(!o.pop){o.pop=true;v3Burst(f.x,y,f.z,.8,'#fff3dd',0,0);}
+    const sw=Math.sin(now/650+f.id)*.12;o.g.visible=k>0;o.g.position.set(f.x+sw*.4,y,f.z);o.g.rotation.z=sw*.5;
+    const fl=.85+Math.sin(now/37+f.id)*.08+Math.sin(now/91)*.07;o.glow.scale.setScalar(.32*fl);o.halo.scale.setScalar(2.2*fl*k);o.halo.material.opacity=.35;
+    // 흰 연기 꼬리
+    if(now>o.trailT&&k>0){o.trailT=now+260;const p=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#b9b4aa',transparent:true,depthWrite:false,opacity:0}));const px=o.g.position.x,py=y-.17,pz=f.z;V3.G.fx.add(p);
+      V3.fx.push({o:p,t0:now,dur:5000,upd:(q,kk)=>{q.position.set(px+kk*.25,py+kk*.35,pz+kk*.1);q.scale.setScalar(.08+kk*.5);q.material.opacity=.32*(1-kk)*(kk<.1?kk*10:1);}});}
+    if(k>0)used.push([o.g.position.x,y-.2,f.z,k*fl]);}
+  for(const [id,o] of ENV3.flares)if(!seen.has(id)){ENV3.g.remove(o.g);o.line.geometry.dispose();ENV3.flares.delete(id);}
+  // 화면 가운데에 가까운 조명탄부터 빛을 준다
+  const s=V3.cs;used.sort((p,q)=>Math.hypot(p[0]-s.x,p[2]-s.z)-Math.hypot(q[0]-s.x,q[2]-s.z));
+  ENV3.pool.forEach((l,i)=>{const u=used[i];if(!u){l.intensity=0;return;}l.position.set(u[0],u[1],u[2]);l.intensity=(UI.nvg?16:45)*u[3];l.distance=FLARE.rad*1.9;});}
+
+function v3Flare(f){}
+FXH.flare=v3Flare;
+
+/* 야간투시경 화면 */
+function nvgSet(on){UI.nvg=!!on;const cv=$('#v3d');if(cv)cv.classList.toggle('nvg',UI.nvg);const ov=$('#nvg-ov');if(ov)ov.hidden=!UI.nvg;const b=$('#b-nvg');if(b)b.setAttribute('aria-pressed',UI.nvg?'true':'false');}
+function nvgHud(){const b=$('#b-nvg');if(!b||!G)return;const nk=nightK();const show=nk>.2;b.hidden=!show;if(!show&&UI.nvg)nvgSet(false);}
 
 /* ---- 07p-props.js ---- */
 /* ===================== 도시 소품 =====================
@@ -4806,7 +5034,8 @@ function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.un
   renderHUD();renderActbar();renderPanel();renderObj();if(typeof renderRoster==='function')renderRoster();if(typeof v3Sync==='function')v3Sync();}
 function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNight();
   const ic=night?`<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M8.5 1.2A5 5 0 1 0 10.8 9 4 4 0 0 1 8.5 1.2Z" fill="#e8ecef"/></svg>`:`<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="2.6" fill="#f0c45a"/></svg>`;
-  $('#hud-clock').innerHTML=`${ic}<b>${String(h).padStart(2,'0')}:00</b><small>${fmtT(G.time||0)} / ${fmtT(G.maxR*ROUND_S)} · ${WX[G.wx].n}${G.paused?' · 일시정지':G.spd!==1?` · ${G.spd}배속`:''}</small>`;
+  $('#hud-clock').innerHTML=`${ic}<b>${String(h).padStart(2,'0')}:${typeof dayH==='function'?String(Math.floor(dayH()%1*6)*10).padStart(2,'0'):'00'}</b><small>${fmtT(G.time||0)} / ${fmtT(G.maxR*ROUND_S)} · ${typeof envTag==='function'?envTag():WX[G.wx].n}${G.paused?' · 일시정지':G.spd!==1?` · ${G.spd}배속`:''}</small>`;
+  if(typeof nvgHud==='function')nvgHud();
   $('#hud-res').innerHTML=`<i class="dot" style="background:${mapCol(vn)}"></i><span class="rv"><b>${N2.cp}</b><small class="lbl">지휘 +${income(vn)}/30초</small></span>${G.scn?'':`<span class="rv"><b>${N2.vp}/${G.vpWin}</b><small class="lbl">승점</small></span>`}<span class="rv"><b>${objCount(vn)}/${G.objs.length}</b><small class="lbl">거점</small></span>`;
   const pl=$('#hud-obj');pl.style.borderColor=mapCol(vn);pl.innerHTML=G.order.map(n=>`<span style="color:${mapCol(n)}">${'■'.repeat(objCount(n))||'·'}</span>`).join(' ')+`<span class="nt"> ${G.objs.length-G.order.reduce((a,n)=>a+objCount(n),0)}</span>`;
   $('#app').classList.toggle('sheet-open',!!UI.sheet);$('#sheet').hidden=!UI.sheet;
@@ -4843,8 +5072,8 @@ function renderPanel(){const p=$('#panel');if(!p||!UI.sheet)return;document.quer
   const n=G.viewer,N2=G.nats[n];let h='';
   if(UI.tab==='cmd'){const myTurn=G.cur===n&&!isAI(n)&&!G.busy&&!G.over;
     h+=`<h3>증원 요청 <span class="stats">지휘 ${N2.cp} · 30초마다 +${income(n)}</span></h3><p>집결지나 우리 거점 바로 옆(적이 2칸 안에 없을 때)에 배치합니다. 배치한 턴에는 움직이지 못합니다.</p><div class="ulist">`+
-      TYPES.map(t=>`<button class="ucard" data-act="buy:${t}" id="buy-${t}" ${myTurn&&N2.cp>=UT[t].cost?'':'disabled'} title="${UT[t].desc}"><b>${UT[t].n}</b><small>${UT[t].cost}</small></button>`).join('')+`</div>`;
-    h+=`<h3>화력 지원 <span class="stats">${SUP_CD}초마다 1회</span></h3><div class="grid">`+Object.keys(SUP).map(k=>`<button class="btn" data-act="sup:${k}" id="sup-${k}" ${myTurn&&N2.cp>=SUP[k].cost&&N2.used!==G.turn&&!(SUP[k].air&&WX[G.wx].noAir)?'':'disabled'}>${SUP[k].n} · ${SUP[k].cost}<small>${SUP[k].air&&WX[G.wx].noAir?'폭우로 출격 불가':SUP[k].desc}</small></button>`).join('')+`</div>`;
+      TYPES.map(t=>`<button class="ucard" data-act="buy:${t}" id="buy-${t}" ${myTurn&&N2.cp>=UT[t].cost&&!(typeof airGrounded==='function'&&airGrounded(t))?'':'disabled'} title="${UT[t].desc}"><b>${UT[t].n}</b><small>${UT[t].cost}</small></button>`).join('')+`</div>`;
+    h+=`<h3>화력 지원 <span class="stats">${SUP_CD}초마다 1회</span></h3><div class="grid">`+Object.keys(SUP).map(k=>`<button class="btn" data-act="sup:${k}" id="sup-${k}" ${myTurn&&N2.cp>=SUP[k].cost&&N2.used!==G.turn&&!(SUP[k].air&&WX[G.wx].noAir)&&!(SUP[k].off&&SUP[k].off())?'':'disabled'}>${SUP[k].n} · ${SUP[k].cost}<small>${SUP[k].air&&WX[G.wx].noAir?'폭우로 출격 불가':SUP[k].desc}</small></button>`).join('')+`</div>`;
     h+=`<h3>병종</h3><div class="tbl"><table><tr><th>병종</th><th>이동</th><th>사거리</th><th>대보병</th><th>대기갑</th><th>특징</th></tr>`+TYPES.map(t=>{const u=UT[t];return `<tr><td>${u.n}</td><td>${u.mv}</td><td>${u.rng[1]?u.rng[0]+'–'+u.rng[1]:'-'}</td><td>${u.atk.inf||'-'}</td><td>${u.atk.veh||'-'}</td><td style="text-align:left;white-space:normal;min-width:160px">${u.desc}</td></tr>`;}).join('')+`</table></div>`;
     h+=`<div class="log">${G.log.map(l=>`<div>${l}</div>`).join('')}</div>`;}
   else if(UI.tab==='world'){if(G.over)h+=`<h3>${G.over.win==null?'무승부':NATS[G.over.win].full+' 승리'}</h3><p>${G.over.why}</p>`;
@@ -4904,7 +5133,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const a=b.dataset.act;const n=G?G.viewer:0;sfx('click',.4);
   if(a==='start'){const slots=NATS.map((_,i)=>$('#slot-'+i).value);const act=slots.filter(s=>s!=='none');
     if(act.length<2){$('#setup-err').textContent='세력을 둘 이상 활성화하세요.';return;}
-    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size:$('#opt-size').value,diff:$('#opt-diff').value,fog:$('#opt-fog').value==='1',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.sheet=false;
+    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size:$('#opt-size').value,diff:$('#opt-diff').value,fog:$('#opt-fog').value==='1',hour:$('#opt-hour')?.value||'day',wx:$('#opt-wx')?.value||'auto',tflow:$('#opt-tflow')?.value||'normal',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.sheet=false;
     render();rtStart();return;}
   if(a.startsWith('scn:')){startScn(a.slice(4));return;}
   if(a==='resume'){const o=loadSave();if(!o)return;N=o.N;G=o.G;UID=o.UID;$('#setup').hidden=true;clearSel();G.paused=false;render();rtStart();return;}
@@ -4922,6 +5151,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='cine'){if(typeof v3Cine==='function')v3Cine();return;}
   if(a==='grid'){UI.grid=!UI.grid;render();return;}
   if(a==='handoff'){G.handoff=false;clearSel();render();if(typeof v3HomeCam==='function')v3HomeCam(false);return;}
+  if(a==='nvg'){if(typeof nvgSet==='function')nvgSet(!UI.nvg);return;}
   if(a==='pause'){G.paused=!G.paused;render();return;}
   if(a==='spd'){G.spd=G.spd===1?2:G.spd===2?.5:1;render();return;}
   if(G.boot||isAI(n)||G.over)return;
@@ -4945,7 +5175,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a.startsWith('fort:')){UI.phase='fort';UI.fortK=a.slice(5);render();return;}
   if(a==='demo'){UI.phase=UI.phase==='demo'?'select':'demo';render();return;}
   if(a==='cancel'){clearSel();render();}});
-document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if(e.key===' '&&G&&!G.boot&&$('#setup').hidden){e.preventDefault();G.paused=!G.paused;render();return;}if((e.key==='c'||e.key==='C')&&G&&typeof v3Cine==='function'){v3Cine();return;}if(e.key==='Escape'){if(UI.sheet){UI.sheet=false;render();}else if(UI.sel||UI.phase||UI.pane){clearSel();UI.pane=null;render();}}});
+document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if(e.key===' '&&G&&!G.boot&&$('#setup').hidden){e.preventDefault();G.paused=!G.paused;render();return;}if((e.key==='c'||e.key==='C')&&G&&typeof v3Cine==='function'){v3Cine();return;}if((e.key==='n'||e.key==='N')&&G&&typeof nvgSet==='function'&&nightK()>.2){nvgSet(!UI.nvg);return;}if(e.key==='Escape'){if(UI.sheet){UI.sheet=false;render();}else if(UI.sel||UI.phase||UI.pane){clearSel();UI.pane=null;render();}}});
 }
 
 /* ---- 09b-touch.js ---- */

@@ -105,7 +105,7 @@ function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb||t.kami)ret
   if(!tg)return;rtShoot(u,tg);u.cd=COOL[u.type]*(.85+Math.random()*.3)*(moving?1.5:1);}
 /* 30초마다: 수입·승점·날씨·연막 */
 function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue;G.nats[n].cp+=income(n);G.nats[n].vp+=objCount(n);}
-  if(Math.random()<.35)G.wx=rollWx();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.smoke>0)x.smoke--;}
+  if(typeof wxRound==='function')wxRound();else if(Math.random()<.35)G.wx=rollWx();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.smoke>0)x.smoke--;}
   G.hist.push(G.order.map(k=>G.nats[k].vp));bump();save();}
 function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   while(G.time>=G.turn*ROUND_S&&!G.over)rtRound();
