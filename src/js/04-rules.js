@@ -10,7 +10,7 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
   const stopAt=(r,c)=>{if(t.fly)return false;for(const [a,b] of nbrs(r,c)){const e=O.get(key(a,b));if(e&&hostile(e.nat,u.nat)&&!UT[e.type].fly&&(!vs||seen(e,u.nat)))return true;}return false;};
   const st=key(u.r,u.c);res.set(st,0);const q=[[0,u.r,u.c]];
   while(q.length){q.sort((a,b)=>a[0]-b[0]);const [d,r,c]=q.shift();if(d>res.get(key(r,c)))continue;if(key(r,c)!==st&&stopAt(r,c))continue;
-    for(const [a,b] of nbrs(r,c)){const x=G.map[a][b];const mc=mcost(u.type,x);if(mc===Infinity)continue;
+    for(const [a,b] of nbrs(r,c)){const x=G.map[a][b];const mc=mcost(u.type,x);if(mc===Infinity)continue;if(!t.fly&&typeof stepPass==='function'&&!stepPass(r,c,a,b))continue;
       if(t.cls==='veh'&&a!==r&&b!==c&&(G.map[a][c].t==='bldg'&&G.map[r][b].t==='bldg'))continue;
       const nd=d+mc;if(nd>mv)continue;const k=key(a,b);const o=O.get(k);if(o&&o.nat!==u.nat)continue;if(o&&UT[o.type].fly!==t.fly&&false)continue;
       if(!res.has(k)||nd<res.get(k)){res.set(k,nd);prev.set(k,key(r,c));q.push([nd,a,b]);}}}

@@ -55,6 +55,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(!s)return;
   const grp=[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));
   if(a==='stop'){grp.forEach(orderStop);render();return;}
+  if(a==='floor'){const up=s.flT===0;grp.forEach(x=>orderFloor(x,up));render();return;}
   if(a==='hold'){const h=!s.hold;grp.forEach(x=>x.hold=h);render();return;}
   if(a==='demo'){UI.phase=UI.phase==='demo'?'select':'demo';render();return;}
   if(a==='cancel'){clearSel();render();}});

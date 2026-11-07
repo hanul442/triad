@@ -11,7 +11,7 @@ const SPD_K=.2;            // 초당 이동 거리(칸) = 이동력 × SPD_K ÷ 
 const tileAt=(x,z)=>{const r=Math.floor(z),c=Math.floor(x);return inb(r,c)?G.map[r][c]:null;};
 function walkable(u,x,z){const t=tileAt(x,z);return !!t&&mcost(u.type,t)<Infinity;}
 /* 두 점 사이를 곧게 걸어갈 수 있는가: 지나는 칸이 모두 갈 수 있고, 양 끝보다 더 느린 지형을 지나지 않는다 */
-function segClear(u,x1,z1,x2,z2){const t1=tileAt(x1,z1),t2=tileAt(x2,z2);if(!t1||!t2)return false;const lim=Math.max(mcost(u.type,t1),mcost(u.type,t2));
+function segClear(u,x1,z1,x2,z2){if(wallCross(u,x1,z1,x2,z2))return false;const t1=tileAt(x1,z1),t2=tileAt(x2,z2);if(!t1||!t2)return false;const lim=Math.max(mcost(u.type,t1),mcost(u.type,t2));
   const n=Math.ceil(Math.hypot(x2-x1,z2-z1)/.2);for(let i=1;i<n;i++){const t=tileAt(x1+(x2-x1)*i/n,z1+(z2-z1)*i/n);if(!t)return false;const m=mcost(u.type,t);if(m===Infinity||m>lim)return false;}
   if(UT[u.type].cls==='veh'){const r=.22;for(const [ox,oz] of [[r,0],[-r,0],[0,r],[0,-r]])for(let i=0;i<=n;i++){const t=tileAt(x1+(x2-x1)*i/n+ox,z1+(z2-z1)*i/n+oz);if(!t||mcost(u.type,t)===Infinity)return false;}}
   return true;}
@@ -20,17 +20,23 @@ function pathTo(u,r2,c2,avoid){const t=UT[u.type];const st=key(u.r,u.c),goal=key
   const D=new Map([[st,0]]),P=new Map();const q=[[0,u.r,u.c]];let best=st,bd=dist(u.r,u.c,r2,c2);
   while(q.length){let mi=0;for(let i=1;i<q.length;i++)if(q[i][0]<q[mi][0])mi=i;const [d,r,c]=q[mi];q[mi]=q[q.length-1];q.pop();
     const k=key(r,c);if(d>D.get(k))continue;if(k===goal){best=k;break;}const h=dist(r,c,r2,c2);if(h<bd){bd=h;best=k;}
-    for(const [a,b] of nbrs(r,c)){const mc=mcost(u.type,G.map[a][b]);if(mc===Infinity)continue;
+    for(const [a,b] of nbrs(r,c)){const mc=mcost(u.type,G.map[a][b]);if(mc===Infinity)continue;if(!t.fly&&!stepPass(r,c,a,b))continue;
       if(a!==r&&b!==c&&!t.fly&&(G.map[a][c].t==='bldg'&&G.map[r][b].t==='bldg'||mcost(u.type,G.map[a][c])===Infinity||mcost(u.type,G.map[r][b])===Infinity))continue;
       const nd=d+mc*(a!==r&&b!==c?1.41:1);const nk=key(a,b);if(avoid&&avoid.has(nk))continue;if(!D.has(nk)||nd<D.get(nk)){D.set(nk,nd);P.set(nk,k);q.push([nd,a,b]);}}}
   const out=[];let k=best;while(k!==st&&k!=null){out.push(k);k=P.get(k);}return out.reverse();}
 /* 지점 경로: 칸 경로를 점으로 바꾸고, 곧게 갈 수 있는 구간은 건너뛰어 자연스럽게 만든다 */
 function pathPts(u,x,z){x=Math.min(N-.05,Math.max(.05,x));z=Math.min(N-.05,Math.max(.05,z));
-  const tiles=pathTo(u,Math.floor(z),Math.floor(x));const pts=tiles.map(k=>[kc(k)+.5,kr(k)+.5]);
+  const tiles=pathTo(u,Math.floor(z),Math.floor(x));const pts=[];let pk=key(u.r,u.c);
+  // 건물 벽을 지날 때는 문 앞(a)·문 안(b) 두 점을 꼭 거친다
+  for(const k of tiles){const r0=kr(pk),c0=kc(pk),r1=kr(k),c1=kc(k);
+    if(!UT[u.type].fly&&(r0===r1||c0===c1)){const d=edgePass(r0,c0,r1,c1);if(Array.isArray(d)){const nx=c1-c0,nz=r1-r0;const a=[d[0]-nx*.16,d[1]-nz*.16],b=[d[0]+nx*.16,d[1]+nz*.16];a.door='a';b.door='b';pts.push(a,b);}}
+    pts.push([c1+.5,r1+.5]);pk=k;}
   const reached=!tiles.length?key(u.r,u.c):tiles[tiles.length-1];
   if(reached===key(Math.floor(z),Math.floor(x))&&walkable(u,x,z)){if(pts.length)pts[pts.length-1]=[x,z];else pts.push([x,z]);}
   const out=[];let cx=u.x,cz=u.z,i=0;
-  while(i<pts.length){let j=pts.length-1;while(j>i&&!segClear(u,cx,cz,pts[j][0],pts[j][1]))j--;out.push(pts[j]);[cx,cz]=pts[j];i=j+1;}
+  while(i<pts.length){if(pts[i].door==='b'){out.push(pts[i]);[cx,cz]=pts[i];i++;continue;}
+    let lim=pts.length-1;for(let q=i;q<pts.length;q++)if(pts[q].door==='a'){lim=q;break;}
+    let j=lim;while(j>i&&!segClear(u,cx,cz,pts[j][0],pts[j][1]))j--;out.push(pts[j]);[cx,cz]=pts[j];i=j+1;}
   return out;}
 /* 명령 */
 function orderMoveTo(u,x,z){[x,z]=coverSnap(u,x,z);u.path=pathPts(u,x,z);u.tgt=null;u.tgtTile=null;u.dest=[x,z];}
@@ -63,20 +69,22 @@ function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);
   const sp=UT[u.type].mv*SPD_K/(t?mcost(u.type,t):1)*(u.supp>0?.65:1);const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);
   if(d>.001)u.face=Math.atan2(dz,dx)*180/Math.PI;
-  if(d<=sp*dt){u.x=tx;u.z=tz;u.path.shift();}else{const nx=u.x+dx/d*sp*dt,nz=u.z+dz/d*sp*dt;if(!walkable(u,nx,nz)){u.path=[];return;}u.x=nx;u.z=nz;}
+  const st=Math.min(d,sp*dt),nx=d>.001?u.x+dx/d*st:tx,nz=d>.001?u.z+dz/d*st:tz;
+  if(!walkable(u,nx,nz)||wallCross(u,u.x,u.z,nx,nz)){const end=u.path[u.path.length-1];u.path=[];if(!u._rp){u._rp=1;u.path=pathPts(u,end[0],end[1]);}return;}
+  u._rp=0;u.x=nx;u.z=nz;if(d<=sp*dt)u.path.shift();
   u.moved=true;rtCell(u);if(!G.units.includes(u))return;
   if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);if(e&&canHit(u,e))u.path=[];}
   if(u.tgtTile!=null&&canHitTile(u,kr(u.tgtTile),kc(u.tgtTile)))u.path=[];}
 /* 서 있는 칸이 바뀌면 시야·점령을 갱신한다 */
 function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c)return;u.r=r;u.c=c;bump();afterMove(u);}
 /* 겹친 부대는 서로 조금씩 밀어낸다 */
-function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];if(UT[b.type].fly)continue;
+function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];if(UT[b.type].fly||a.climb||b.climb)continue;
     const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
-    const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)){u.x=x;u.z=z;}};
+    const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
     const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}}
   for(const u of us.slice())if(G.units.includes(u))rtCell(u);}
-function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0)return;const moving=!!(u.path&&u.path.length);if(t.ind&&moving)return;
+function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb)return;const moving=!!(u.path&&u.path.length);if(t.ind&&moving)return;
   // 명령받은 표적을 쫓는다
   if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);if(!e||(G.fog&&!seen(e,u.nat))){u.tgt=null;}
     else if(!canHit(u,e)&&!moving&&!u.hold){u.path=pathPts(u,e.x,e.z);}}
@@ -90,7 +98,7 @@ function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue
 function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   while(G.time>=G.turn*ROUND_S&&!G.over)rtRound();
   if(typeof heliTick==='function')heliTick();
-  for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
+  for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;if(!flTick(u,dt))rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
   rtSeparate(dt);
   for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;
     if(N2.aiT<=0){N2.aiT=1.6+Math.random()*1.2;try{aiThink(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}
