@@ -260,6 +260,17 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .rc-empty p{margin:0}
 @media (max-width:860px){.rc-grid{grid-template-columns:minmax(0,1fr)}.rc-res{font-size:26px}}
 @media (max-width:420px){.rc-tiles b{font-size:18px}.rc-tiles div{padding:8px}}
+/* 소리 설정 창: 소리 버튼 왼쪽에 뜬다 */
+.sndpop{position:fixed;z-index:6;width:232px;background:rgba(9,13,18,.94);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:10px 12px 8px;font-family:var(--font-m);font-size:12px;color:#e8ecef;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+.sndpop .sp-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sndpop .sp-k{flex:1;color:#8e99a3;font-size:10.5px}
+.sndpop .sp-mute{min-width:52px;height:32px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:var(--raise);color:#e8ecef;font:inherit;cursor:pointer}
+.sndpop .sp-mute[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.sndpop .sp-r{display:grid;grid-template-columns:48px 1fr;align-items:center;gap:8px;min-height:36px}
+.sndpop .sp-r span{color:#b9c2c9}
+.sndpop input[type=range]{width:100%;accent-color:var(--accent);height:24px;margin:0}
+.sndpop input[type=range]:disabled{opacity:.4}
+.sndpop :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -282,8 +293,15 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <button class="ib" data-act="home" id="b-home" aria-label="집결지로 이동"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8H4z"/><path d="M10 19v-5h4v5"/></svg></button>
     <button class="ib" data-act="cine" id="b-cine" aria-label="낮은 시점 (C)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l5 3v6H3z"/><circle cx="8" cy="12" r="2.5"/></svg></button>
     <button class="ib" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
-    <button class="ib" data-act="snd" id="b-snd" aria-label="효과음" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+    <button class="ib" data-act="snd" id="b-snd" aria-label="소리 설정 (M 음소거)" aria-pressed="true" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
     <button class="ib" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </div>
+  <div class="sndpop" id="sndpop" role="dialog" aria-label="소리 설정" hidden>
+    <div class="sp-h"><b>소리</b><span class="sp-k">M 음소거</span><button class="sp-mute" data-act="snd-mute" id="b-smute" aria-pressed="true">켜짐</button></div>
+    <label class="sp-r"><span>전체</span><input type="range" min="0" max="100" step="1" data-snd="master"></label>
+    <label class="sp-r"><span>전투</span><input type="range" min="0" max="100" step="1" data-snd="fx"></label>
+    <label class="sp-r"><span>무전</span><input type="range" min="0" max="100" step="1" data-snd="radio"></label>
+    <label class="sp-r"><span>환경음</span><input type="range" min="0" max="100" step="1" data-snd="amb"></label>
   </div>
   <div class="toast" id="toast" role="status" hidden></div>
   <div class="tip" id="tip" hidden></div>
@@ -405,30 +423,205 @@ function toast(m){if(typeof document==='undefined')return;const el=$('#toast');i
 const FXH={fire(){},kill(){},collapse(){},strike(){},smoke(){},land(){}};
 
 /* ---- 02b-audio.js ---- */
-/* ===================== AUDIO ===================== */
-// 효과음은 파일 없이 Web Audio로 합성한다. 첫 사용자 조작 이후에만 소리가 난다.
-const SFX={ctx:null,on:true,last:{}};
-try{if(typeof localStorage!=='undefined')SFX.on=localStorage.getItem('triad-sound')!=='0';}catch(e){}
-function audio(){if(typeof window==='undefined'||!SFX.on)return null;try{if(!SFX.ctx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;SFX.ctx=new AC();SFX.master=SFX.ctx.createGain();SFX.master.gain.value=.55;SFX.master.connect(SFX.ctx.destination);}
+/* ===================== SOUND =====================
+   소리는 파일 없이 Web Audio로 합성한다(외부 음원 없음). 첫 사용자 조작 이후에만 소리가 난다.
+   전장 소리는 자리가 있다: 카메라가 보는 지점이 귀다.
+   - 멀수록 작아지고 고음이 먼저 사라진다(가까운 총성은 날카롭게 "탁", 먼 총성은 둔하게 "퉁").
+   - 소리는 음속(343m/s, 1칸=12m)만큼 늦게 닿는다. 먼 폭발은 섬광이 먼저 보이고 소리가 뒤따른다.
+   - 좌우로 나뉘어 들린다(카메라 회전을 따른다).
+   - 가까운 건물 벽에서 메아리가 되돌아오고, 건물이 빽빽한 곳일수록 잔향이 길다. 건물 안에서 쏜 총은 둔탁하게 울린다.
+   무전(radio)·환경음(amb)·전투음(fx)은 따로 음량을 조절한다. */
+const SND_M=12,SND_C=343;
+const SFX={ctx:null,on:true,last:{},vol:{master:.8,fx:.9,radio:.7,amb:.5},n:0,loops:new Map(),track:[],radioEnd:0,radioP:0};
+try{if(typeof localStorage!=='undefined'){SFX.on=localStorage.getItem('triad-sound')!=='0';const v=JSON.parse(localStorage.getItem('triad-snd-vol')||'null');if(v)for(const k in SFX.vol)if(typeof v[k]==='number')SFX.vol[k]=Math.min(1,Math.max(0,v[k]));}}catch(e){}
+function sndSave(){try{localStorage.setItem('triad-sound',SFX.on?'1':'0');localStorage.setItem('triad-snd-vol',JSON.stringify(SFX.vol));}catch(e){}}
+function sndApplyVol(){const a=SFX.ctx;if(!a)return;const t=a.currentTime;SFX.master.gain.setTargetAtTime(SFX.on?SFX.vol.master:0,t,.03);
+  for(const k of ['fx','radio','amb'])SFX.bus[k].gain.setTargetAtTime(SFX.vol[k]*(k==='fx'?1:k==='radio'?1.1:.9),t,.03);}
+function audio(){if(typeof window==='undefined'||!SFX.on)return null;try{if(!SFX.ctx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;const a=new AC();SFX.ctx=a;
+    // 마스터 → 리미터 → 스피커. 버스: 전투(fx)·무전(radio)·환경(amb)·조작음(ui)
+    const comp=a.createDynamicsCompressor();comp.threshold.value=-16;comp.knee.value=10;comp.ratio.value=5;comp.attack.value=.002;comp.release.value=.25;comp.connect(a.destination);
+    SFX.master=a.createGain();SFX.master.connect(comp);SFX.bus={};for(const k of ['fx','radio','amb','ui']){const g=a.createGain();g.connect(SFX.master);SFX.bus[k]=g;}SFX.bus.ui.gain.value=.7;
+    SFX.noise=noiseBuf(a,2);SFX.crk=crackleBuf(a);
+    // 도시 잔향: 합성한 임펄스 응답(초반 반사 몇 개 + 1.8초 꼬리)
+    SFX.rev=a.createConvolver();SFX.rev.buffer=urbanIR(a);const rg=a.createGain();rg.gain.value=.55;SFX.rev.connect(rg);rg.connect(SFX.bus.fx);
+    sndApplyVol();}
   if(SFX.ctx.state==='suspended')SFX.ctx.resume();return SFX.ctx;}catch(e){return null;}}
 function noiseBuf(a,dur){const b=a.createBuffer(1,Math.max(1,Math.floor(a.sampleRate*dur)),a.sampleRate);const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return b;}
-function sfx(kind,vol=1){const a=audio();if(!a)return;const now=performance.now();if(now-(SFX.last[kind]||0)<70)return;SFX.last[kind]=now;const t=a.currentTime;
-  const env=(node,peak,dur,attack=.005)=>{const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak*vol,t+attack);g.gain.exponentialRampToValueAtTime(.0001,t+dur);node.connect(g);g.connect(SFX.master);return g;};
-  const noise=(dur,type,freq,q=1)=>{const s=a.createBufferSource();s.buffer=noiseBuf(a,dur);const f=a.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;s.connect(f);s.start(t);return f;};
+// 불타는 소리: 드문드문 튀는 짧은 딱딱 소리를 2초짜리 고리로
+function crackleBuf(a){const n=a.sampleRate*2,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*.04;
+  for(let k=0;k<70;k++){const p=Math.floor(Math.random()*(n-800)),amp=.2+Math.random()*.8,len=80+Math.random()*500;for(let i=0;i<len;i++)d[p+i]+=(Math.random()*2-1)*amp*Math.exp(-i/(len*.25));}return b;}
+function urbanIR(a){const len=Math.floor(a.sampleRate*1.9),b=a.createBuffer(2,len,a.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);let lp=0;
+    for(let i=0;i<len;i++){const t=i/a.sampleRate;lp+=((Math.random()*2-1)-lp)*Math.max(.05,.6-t*.35);d[i]=lp*Math.pow(1-i/len,2.4)*.6;}
+    for(let k=0;k<7;k++){const p=Math.floor(a.sampleRate*(.02+Math.random()*.16));d[p]+=(.5-k*.05)*(Math.random()<.5?-1:1);}}return b;}
+
+/* ---------- 귀의 자리와 거리 ---------- */
+// 귀 = 카메라가 바라보는 땅 지점. 줌아웃할수록 귀가 높이 떠서 모든 소리가 멀어진다.
+function sndEar(){if(typeof V3!=='undefined'&&V3&&V3.cs)return {x:V3.cs.x,z:V3.cs.z,h:Math.max(1,V3.cs.d*.22),yaw:V3.cs.yaw||0};
+  const n=typeof N==='number'?N:30;return {x:n/2,z:n/2,h:6,yaw:0};}
+// 한 점의 소리가 귀에 어떻게 닿는지: gain(크기), cut(저역통과 Hz), delay(초), pan(-1..1), m(미터)
+function sndPlace(x,z,ear,y){const e=ear||sndEar();const dx=x-e.x,dz=z-e.z,hd=Math.hypot(dx,dz);const D=Math.hypot(hd,Math.max(.3,e.h-(y||0)*.5));const m=D*SND_M;
+  const gain=1/(1+Math.pow(m/55,1.2));const cut=Math.max(380,17000*Math.exp(-m/230));const delay=Math.min(1.1,Math.max(0,(m-e.h*SND_M*.8))/SND_C);
+  const rx=dx*Math.cos(e.yaw)-dz*Math.sin(e.yaw);const pan=Math.max(-.9,Math.min(.9,rx/(hd+e.h*.6+.5)));return {gain,cut,delay,pan,m};}
+// 소리 난 곳 주변의 건물: 안쪽인지(ind), 빽빽한 정도(dens 0..1), 메아리를 돌려줄 벽(walls)
+function sndRoom(x,z){const none={ind:0,dens:0,walls:[]};if(typeof G==='undefined'||!G||!G.map)return none;const n=G.map.length;const r0=Math.floor(z),c0=Math.floor(x);if(r0<0||c0<0||r0>=n||c0>=n)return none;
+  const C=SFX.rc||(SFX.rc={g:null,v:null,m:new Map()});const v=G.navV||0;if(C.g!==G||C.v!==v){C.g=G;C.v=v;C.m.clear();}
+  const k=r0*4096+c0;if(C.m.has(k))return C.m.get(k);const B=(r,c)=>r>=0&&c>=0&&r<n&&c<n&&G.map[r][c].t==='bldg'&&(G.map[r][c].f||0)>0;
+  let cnt=0,tot=0;for(let dr=-3;dr<=3;dr++)for(let dc=-3;dc<=3;dc++){if(dr*dr+dc*dc>10)continue;tot++;if(B(r0+dr,c0+dc))cnt++;}
+  const walls=[];for(const [p,q] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]){for(let s=1;s<=9;s++){const r=r0+p*s,c=c0+q*s;if(r<0||c<0||r>=n||c>=n)break;
+      if(B(r,c)){if(s===1&&B(r0,c0))break;const dd=Math.hypot(p,q)*(s-.5);walls.push({x:x+q*(s-.5),z:z+p*(s-.5),h:G.map[r][c].f,d:dd});break;}}}
+  walls.sort((a,b)=>a.d-b.d);const o={ind:B(r0,c0)?1:0,dens:cnt/tot,walls:walls.slice(0,4)};C.m.set(k,o);return o;}
+
+/* ---------- 목소리(voice): 한 지점에서 나는 소리 한 덩어리 ---------- */
+// mix에 원음을 꽂으면 거리 필터·패닝·잔향·벽 메아리가 붙는다. t는 소리가 귀에 닿기 시작하는 시각.
+function sndVoice(x,z,o={}){const a=audio();if(!a)return null;const e=sndEar();const P=sndPlace(x,z,e,o.y);const R=o.dry?{ind:0,dens:0,walls:[]}:sndRoom(x,z);
+  const g=P.gain*(o.vol??1);if(g<.006)return null;if(SFX.n>48&&g<.2||SFX.n>80&&g<.6)return null;
+  const dur=(o.dur||1)+P.delay+2;SFX.n++;setTimeout(()=>{SFX.n--;},dur*1000);
+  const t=a.currentTime+.015+P.delay;const bus=SFX.bus[o.bus||'fx'];const mix=a.createGain();
+  const lp=a.createBiquadFilter();lp.type='lowpass';lp.Q.value=.4;lp.frequency.value=P.cut*(R.ind?.3:1);
+  const dg=a.createGain();dg.gain.value=g*(R.ind?.8:1);mix.connect(lp);lp.connect(dg);
+  if(a.createStereoPanner){const pn=a.createStereoPanner();pn.pan.value=P.pan;dg.connect(pn);pn.connect(bus);}else dg.connect(bus);
+  if(!o.dry){const rs=a.createGain();rs.gain.value=Math.sqrt(g)*(o.wet??1)*(.06+R.dens*.34+(R.ind?.3:0));mix.connect(rs);rs.connect(SFX.rev);
+    const D0=P.m/SND_M;for(const w of R.walls.slice(0,3)){const p1=Math.hypot(w.x-x,w.z-z),Q=sndPlace(w.x,w.z,e,0),p2=Q.m/SND_M;const extra=Math.max(.02,(p1+p2-D0)*SND_M/SND_C);if(extra>1.6)continue;
+      const eg=(o.vol??1)*.6*Math.min(1,w.h/3)/(1+Math.pow((p1+p2)*SND_M/55,1.2))*(R.ind?.5:1);if(eg<.004)continue;
+      const dl=a.createDelay(2);dl.delayTime.value=extra;const el=a.createBiquadFilter();el.type='lowpass';el.frequency.value=Math.min(P.cut,Q.cut)*.55;const eG=a.createGain();eG.gain.value=eg;
+      mix.connect(dl);dl.connect(el);el.connect(eG);if(a.createStereoPanner){const ep=a.createStereoPanner();ep.pan.value=Q.pan;eG.connect(ep);ep.connect(bus);}else eG.connect(bus);}}
+  return {a,t,mix,P,R};}
+// 원음 재료: 잡음 한 토막(필터+엔벨로프), 음 하나(주파수 미끄럼)
+function sndNz(V,t,dur,type,f,q,peak,att=.002,f2){const a=V.a;const s=a.createBufferSource();s.buffer=SFX.noise;const fl=a.createBiquadFilter();fl.type=type;fl.frequency.setValueAtTime(f,t);if(f2)fl.frequency.exponentialRampToValueAtTime(f2,t+dur);fl.Q.value=q;
+  const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+att);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(fl);fl.connect(g);g.connect(V.mix);
+  s.start(t,Math.random()*1.2);s.stop(t+dur+.05);}
+function sndTn(V,t,dur,f0,f1,peak,type='sine',att=.004){const a=V.a;const o=a.createOscillator();o.type=type;o.frequency.setValueAtTime(f0,t);if(f1)o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+  const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+att);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(V.mix);o.start(t);o.stop(t+dur+.05);}
+
+/* ---------- 총성 ---------- */
+// 병종별 총: rd 한 사람이 쏘는 발 수 [최소,최대], gap 발 간격(초), crack 초음속 "딱", body [중심Hz, Q, 길이, 크기], low [시작Hz, 끝Hz, 길이, 크기], vol
+const WPN={
+  rifle:{rd:[1,3],gap:.12,crack:.8,body:[1700,.9,.08,.9],low:[150,60,.05,.3],vol:1.2},
+  eng:{rd:[1,2],gap:.14,crack:.6,body:[1500,.9,.08,.8],low:[140,60,.06,.3],vol:1.15},
+  dteam:{rd:[1,2],gap:.14,crack:.6,body:[1700,.9,.07,.7],low:[150,60,.05,.25],vol:1.05},
+  ew:{rd:[1,2],gap:.14,crack:.6,body:[1700,.9,.07,.7],low:[150,60,.05,.25],vol:1.05},
+  aa:{rd:[1,2],gap:.14,crack:.6,body:[1700,.9,.07,.7],low:[150,60,.05,.25],vol:1.05},
+  at:{rd:[1,2],gap:.14,crack:.6,body:[1600,.9,.07,.7],low:[150,60,.05,.25],vol:1.05},
+  mg:{rd:[5,9],gap:.075,crack:.8,body:[1250,.8,.08,.85],low:[115,50,.07,.45],vol:1},
+  sniper:{rd:[1,1],gap:.2,crack:1.1,body:[950,.7,.17,1],low:[95,38,.16,.65],vol:1.25},
+  hmv:{rd:[4,7],gap:.11,crack:.7,body:[800,.8,.1,.9],low:[90,42,.12,.7],vol:1.2},
+  ifv:{rd:[3,5],gap:.22,crack:.5,body:[620,.7,.13,.9],low:[80,36,.2,.9],vol:1.35},
+  zu:{rd:[6,10],gap:.07,crack:.6,body:[900,.7,.1,.85],low:[95,45,.1,.7],vol:1.25},
+  gunship:{rd:[8,12],gap:.09,crack:.5,body:[720,.7,.1,.85],low:[85,40,.12,.75],vol:1.3},
+  tank:{rd:[1,1],gap:.2,crack:.6,body:[420,.6,.55,1],low:[62,26,.8,1],vol:1.8},
+  spg:{rd:[1,1],gap:.2,crack:.5,body:[360,.6,.7,1],low:[55,22,1,1],vol:1.9},
+  mortar:{rd:[1,1],gap:.2,crack:0,body:[520,.7,.22,.8],low:[210,90,.16,.9],vol:1}};
+function sndRound(V,t,W){if(W.crack)sndNz(V,t,.018,'highpass',3200,.7,W.crack*.9,.001);const b=W.body;sndNz(V,t,b[2],'bandpass',b[0],b[1],b[3],.002,b[0]*.55);
+  if(W.low)sndTn(V,t,W.low[2],W.low[0],W.low[1],W.low[3],'sine',.003);}
+// 부대 하나의 사격 한 번: 쏘는 병사 수만큼 엇갈려 쏜다
+function sndShot(a,tx,tz){const W=WPN[a.type];if(!W||!audio())return;const x=a.x??a.c+.5,z=a.z??a.r+.5;if(a.type==='at'){sndLaunch(x,z,'rocket');}else{const V=sndVoice(x,z,{vol:W.vol,dur:2});if(V){
+  const men=UT[a.type]&&UT[a.type].cls==='inf'?Math.max(1,(a._sh||[]).length):1;let t=V.t;
+  for(let m=0;m<men;m++){let tt=t+(m?Math.random()*.35:0);const n=W.rd[0]+Math.floor(Math.random()*(W.rd[1]-W.rd[0]+1));for(let i=0;i<n;i++){sndRound(V,tt,W);tt+=W.gap*(.85+Math.random()*.3);}}}}
+  if(typeof G!=='undefined'&&G&&a.nat===G.viewer&&!isAI(a.nat)){const wm=SFX.ct||(SFX.ct=new WeakMap());const lt=wm.get(a);if(lt==null||(G.time||0)-lt>20)sndRadio('contact');wm.set(a,G.time||0);}}
+// 총알이 닿은 곳: 가까울 때만 들리는 "퍽", 가끔 도탄음
+function sndImpact(x,z){const V=sndVoice(x,z,{vol:.35,dur:.6,wet:.3});if(!V)return;sndNz(V,V.t,.04,'bandpass',2600,1.2,.6);if(Math.random()<.14)sndTn(V,V.t+.01,.32,3400,1100,.12,'sine',.005);}
+
+/* ---------- 폭발 ---------- */
+// size: .5 작은 탄(RPG·기관포탄) / 1 포탄 / 1.6 항공폭탄·유폭. 앞의 "쾅" + 낮은 울림 + 떨어지는 파편 소리
+function sndBoom(x,z,size=1,o={}){const V=sndVoice(x,z,{vol:(o.vol??1)*(.7+size*.6),dur:3+size,wet:1.3,y:o.y});if(!V)return;const t=V.t;
+  sndNz(V,t,.06,'highpass',1400,.6,.9,.001);sndNz(V,t,.5+size*.9,'lowpass',1100,.6,1,.004,140);sndTn(V,t,.5+size*.6,70,24,1,'sine',.006);
+  if(size>.8)sndNz(V,t+.05,1.4+size*1.2,'lowpass',220,.5,.5,.08,60);
+  const deb=Math.round(4+size*8);for(let i=0;i<deb;i++)sndNz(V,t+.25+Math.random()*(.6+size*.9),.03,'bandpass',1800+Math.random()*2600,1.5,.05+Math.random()*.07,.001);}
+// 건물 붕괴: 길게 무너지는 울림과 쏟아지는 잔해
+function sndCrumble(x,z,f){const V=sndVoice(x,z,{vol:1.4,dur:5,wet:1.4});if(!V)return;const t=V.t;sndNz(V,t,3.2,'lowpass',380,.6,.9,.3,90);sndTn(V,t,2.5,48,26,.8,'sine',.2);
+  for(let i=0;i<26;i++)sndNz(V,t+.2+Math.random()*2.8,.05+Math.random()*.08,'bandpass',700+Math.random()*2500,1.2,.08+Math.random()*.16,.002);}
+// 유폭: 큰 폭발 뒤로 탄약이 튀며 터진다
+function sndCook(x,z,big){sndBoom(x,z,big?1.6:1.1);const V=sndVoice(x,z,{vol:.8,dur:5});if(!V)return;for(let i=0;i<(big?18:9);i++){const tt=V.t+.4+Math.random()*3.5;sndNz(V,tt,.05,'bandpass',900+Math.random()*1500,1,.4,.001);}}
+// 발사음: RPG·대공미사일은 "퍽"하고 쉭 날아간다. 박격포는 "텅", 자주포·전차는 큰 포성
+function sndLaunch(x,z,kind){if(kind==='mortar'){const V=sndVoice(x,z,{vol:1.1,dur:1});if(V)sndRound(V,V.t,WPN.mortar);return;}
+  if(kind==='gun'){const V=sndVoice(x,z,{vol:1.9,dur:3,wet:1.3});if(V)sndRound(V,V.t,WPN.spg);return;}
+  const V=sndVoice(x,z,{vol:kind==='missile'?1:.95,dur:2});if(!V)return;sndNz(V,V.t,.08,'lowpass',900,.7,.9,.002);sndTn(V,V.t,.12,120,50,.7);
+  sndNz(V,V.t+.03,kind==='missile'?1.5:.7,'bandpass',500,2,.5,.06,kind==='missile'?3200:2400);}
+// 포탄이 날아오는 휘파람(포탄 낙하 직전)
+function sndWhistle(x,z,dur){const V=sndVoice(x,z,{vol:.35,dur,dry:1});if(!V)return;sndTn(V,V.t,dur,1900,650,.25,'sine',dur*.5);}
+
+/* ---------- 계속 나는 소리: 헬기 로터, 드론, 전투기, 차량 엔진, 불 ---------- */
+function sndLoopMake(kind){const a=SFX.ctx;const out=a.createGain();out.gain.value=0;const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=8000;const pn=a.createStereoPanner?a.createStereoPanner():null;
+  out.connect(lp);if(pn){lp.connect(pn);pn.connect(SFX.bus.fx);}else lp.connect(SFX.bus.fx);const src=[];
+  const nz=(type,f,q,g)=>{const s=a.createBufferSource();s.buffer=SFX.noise;s.loop=true;const fl=a.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const gg=a.createGain();gg.gain.value=g;s.connect(fl);fl.connect(gg);gg.connect(out);s.start(0,Math.random()*1.5);src.push(s);return gg;};
+  const osc=(type,f,g,to)=>{const o=a.createOscillator();o.type=type;o.frequency.value=f;const gg=a.createGain();gg.gain.value=g;o.connect(gg);gg.connect(to||out);o.start();src.push(o);return o;};
+  const lfo=(rate,param,depth)=>{const o=a.createOscillator();o.frequency.value=rate;const d=a.createGain();d.gain.value=depth;o.connect(d);d.connect(param);o.start();src.push(o);return o;};
+  let base=1;
+  if(kind==='rotor'){const g=nz('lowpass',360,.8,1.4);g.gain.value=.7;lfo(5.4,g.gain,.7);const w=nz('bandpass',1700,6,.12);lfo(5.4,w.gain,.08);osc('sawtooth',58,.12);base=1.3;}
+  else if(kind==='drone'||kind==='fpv'){const f=kind==='fpv'?310:205;const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=kind==='fpv'?1500:1100;bp.Q.value=.8;bp.connect(out);
+    for(const k of [1,1.034,.973,1.061]){const o=osc('sawtooth',f*k,.12,bp);lfo(.3+Math.random()*.6,o.frequency,f*.03);}nz('bandpass',3000,.7,.08);base=kind==='fpv'?.55:.38;}
+  else if(kind==='jet'){nz('lowpass',1300,.5,1);nz('bandpass',3800,1.2,.25);osc('sawtooth',95,.1);base=2.2;}
+  else if(kind==='tracks'||kind==='wheels'){const f=kind==='tracks'?36:52;const o=osc('sawtooth',f,.5);lfo(.2,o.frequency,3);nz('lowpass',200,.6,.5);
+    if(kind==='tracks'){const c=nz('bandpass',2400,3,.0);lfo(8.5,c.gain,.18);}base=kind==='tracks'?.7:.45;out.gain.value=0;}
+  else if(kind==='fire'){const s=a.createBufferSource();s.buffer=SFX.crk;s.loop=true;const hp=a.createBiquadFilter();hp.type='highpass';hp.frequency.value=600;s.connect(hp);hp.connect(out);s.start(0,Math.random()*2);src.push(s);nz('lowpass',240,.5,.25);base=.55;}
+  return {kind,out,lp,pn,src,base};}
+function sndLoopStop(L){const a=SFX.ctx;const t=a.currentTime;L.out.gain.setTargetAtTime(0,t,.12);setTimeout(()=>{for(const s of L.src)try{s.stop();}catch(e){}L.out.disconnect();},900);}
+// 매 화면(07-view3d)에서 부른다. 들릴 만한 소리 8개만 남긴다.
+function sndFrame(now){const a=SFX.ctx;if(!a)return;if(now-(SFX.lf||0)<70)return;SFX.lf=now;const want=new Map();
+  if(SFX.on&&a.state==='running'&&typeof G!=='undefined'&&G&&!G.paused&&!G.over){const e=sndEar();const add=(k,kind,x,z,y,v)=>{const P=sndPlace(x,z,e,y);const g=P.gain*v;if(g>.01)want.set(k,{kind,P,g});};
+    for(const u of G.units){const t=UT[u.type];if(!t||u.x==null)continue;const o=typeof V3!=='undefined'&&V3.uo?V3.uo.get(u.id):null;const y=o?o.position.y:0;
+      if(t.heli)add('u'+u.id,'rotor',u.x,u.z,y,1);else if(u.type==='drone'||u.type==='fpv')add('u'+u.id,u.type,u.x,u.z,y,1);
+      else if(t.cls==='veh'&&u.path&&u.path.length)add('u'+u.id,u.type==='hmv'?'wheels':'tracks',u.x,u.z,0,1);}
+    SFX.track=SFX.track.filter(T=>T.o.parent&&T.o.visible!==false);for(const T of SFX.track)add(T.k,T.kind,T.o.position.x,T.o.position.z,T.o.position.y,1);
+    if(G.fires)for(const k of G.fires)add('f'+k,'fire',kc(k)+.5,kr(k)+.5,0,1);}
+  const L=[...want.entries()].sort((p,q)=>q[1].g-p[1].g).slice(0,8);const keep=new Set(L.map(p=>p[0]));
+  for(const [k,Lp] of SFX.loops)if(!keep.has(k)){sndLoopStop(Lp);SFX.loops.delete(k);}
+  const t=a.currentTime;for(const [k,w] of L){let Lp=SFX.loops.get(k);if(!Lp){Lp=sndLoopMake(w.kind);SFX.loops.set(k,Lp);}
+    Lp.out.gain.setTargetAtTime(w.g*Lp.base,t,.15);Lp.lp.frequency.setTargetAtTime(w.P.cut,t,.15);if(Lp.pn)Lp.pn.pan.setTargetAtTime(w.P.pan,t,.15);}
+  sndAmb(t);}
+// 3D 연출 물체(수송 헬기·전투기)를 따라가는 소리
+function sndTrack(o,kind){if(!SFX.ctx||!o)return;SFX.track.push({o,kind,k:'t'+(SFX.tk=(SFX.tk||0)+1)});}
+
+/* ---------- 환경음: 바람, 비, 멀리서 들리는 전투 ---------- */
+function sndAmb(t){const a=SFX.ctx;let A=SFX.amb;const live=SFX.on&&typeof G!=='undefined'&&G&&!G.over;
+  if(!A){A=SFX.amb={};const mk=(type,f,q)=>{const s=a.createBufferSource();s.buffer=SFX.noise;s.loop=true;const fl=a.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const g=a.createGain();g.gain.value=0;s.connect(fl);fl.connect(g);g.connect(SFX.bus.amb);s.start();return {g,fl};};
+    A.wind=mk('lowpass',420,.9);A.rain=mk('highpass',2200,.5);A.hum=mk('bandpass',140,.8);A.next=0;}
+  const wx=live?G.wx:'clear';const rain=wx==='storm'?1:wx==='rain'?.55:0;const night=live&&typeof isNight==='function'&&isNight();
+  A.wind.g.gain.setTargetAtTime(live?.16+.08*Math.sin(t*.13)+(wx==='storm'?.15:0):0,t,.8);A.wind.fl.frequency.setTargetAtTime(330+160*Math.sin(t*.21),t,.8);
+  A.rain.g.gain.setTargetAtTime(live?rain*.22:0,t,1);A.hum.g.gain.setTargetAtTime(live?(night?.04:.08):0,t,1);
+  // 멀리서 들리는 다른 구역의 교전: 귀에서 먼 곳에 가끔 짧은 연사나 둔한 폭음
+  if(live&&!G.paused&&!G.boot&&t>A.next){A.next=t+4+Math.random()*9;const e=sndEar(),ang=Math.random()*6.28,d=22+Math.random()*18;const x=e.x+Math.cos(ang)*d,z=e.z+Math.sin(ang)*d;
+    if(Math.random()<.65){const V=sndVoice(x,z,{vol:.9,dur:3,bus:'amb',dry:1});if(V){const W=Math.random()<.5?WPN.mg:WPN.rifle;let tt=V.t;for(let i=0;i<3+Math.random()*6;i++){sndRound(V,tt,W);tt+=W.gap*(1+Math.random());}}}
+    else{const V=sndVoice(x,z,{vol:1.4,dur:3,bus:'amb',dry:1});if(V){sndNz(V,V.t,1.4,'lowpass',500,.5,1,.01,90);sndTn(V,V.t,1,55,24,.8);}}}}
+
+/* ---------- 무전 ---------- */
+// 알아들을 수 없는 합성 음성: 성대 톱니파 → 모음 포먼트 두 개 → 무전기 대역(400–2800Hz) → 찌그러짐. 앞뒤로 스켈치 "치익"
+const RVOX={ack:{p:1,syl:[3,5],rate:.12,pitch:110},contact:{p:3,syl:[6,9],rate:.1,pitch:135},casualty:{p:4,syl:[7,10],rate:.09,pitch:150},
+  capture:{p:2,syl:[5,7],rate:.12,pitch:115},lost:{p:3,syl:[6,8],rate:.1,pitch:140},support:{p:2,syl:[5,8],rate:.11,pitch:105},reinforce:{p:1,syl:[4,6],rate:.12,pitch:112},hq:{p:2,syl:[6,9],rate:.12,pitch:98}};
+const VOWEL=[[800,1200],[500,1900],[300,2300],[500,900],[350,800],[650,1700]];
+function sndRadio(kind){const R=RVOX[kind];const a=audio();if(!R||!a)return false;const now=a.currentTime;if(now<SFX.radioEnd&&R.p<=SFX.radioP)return false;if(now<SFX.radioEnd-.3&&R.p>SFX.radioP)SFX.radioCut&&SFX.radioCut();
+  const out=a.createGain();out.gain.value=1;const hp=a.createBiquadFilter();hp.type='highpass';hp.frequency.value=420;const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2700;
+  const sh=a.createWaveShaper();const cv=new Float32Array(256);for(let i=0;i<256;i++){const x=i/128-1;cv[i]=Math.tanh(x*3.2)*.8;}sh.curve=cv;const og=a.createGain();og.gain.value=.55;
+  out.connect(hp);hp.connect(lp);lp.connect(sh);sh.connect(og);og.connect(SFX.bus.radio);SFX.radioCut=()=>{og.gain.setTargetAtTime(0,a.currentTime,.02);};
+  const V={a,mix:out};const t0=now+.05;sndNz(V,t0,.07,'bandpass',2600,.5,.5,.002);sndTn(V,t0+.02,.05,1250,0,.18,'square');
+  const pitch=R.pitch*(.9+Math.random()*.2);const n=R.syl[0]+Math.floor(Math.random()*(R.syl[1]-R.syl[0]+1));let t=t0+.13;
+  for(let i=0;i<n;i++){const d=R.rate*(.7+Math.random()*.7);const [f1,f2]=VOWEL[Math.floor(Math.random()*VOWEL.length)];const f0=pitch*(1+(Math.random()-.5)*.12)*(1-i/n*.12);
+    const o=a.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(f0,t);o.frequency.linearRampToValueAtTime(f0*(.92+Math.random()*.14),t+d);const sg=a.createGain();sg.gain.setValueAtTime(.0001,t);sg.gain.exponentialRampToValueAtTime(.5,t+.015);sg.gain.setValueAtTime(.5,t+d*.7);sg.gain.exponentialRampToValueAtTime(.0001,t+d);
+    for(const [f,q,g] of [[f1,6,1],[f2,9,.6]]){const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f;bp.Q.value=q;const gg=a.createGain();gg.gain.value=g*2.2;o.connect(bp);bp.connect(gg);gg.connect(sg);}
+    sg.connect(out);o.start(t);o.stop(t+d+.02);if(Math.random()<.5)sndNz(V,t,.035,'bandpass',3800,1.5,.25,.002);
+    t+=d+(i%3===2?.07+Math.random()*.08:.012);}
+  sndNz(V,t0,t-t0,'bandpass',1900,.6,.06,.04);sndNz(V,t+.02,.16,'bandpass',2400,.5,.55,.004);
+  SFX.radioEnd=t+.2;SFX.radioP=R.p;return true;}
+
+/* ---------- 조작음과 옛 호출 ---------- */
+// sfx(kind, vol, x, z): 자리(x,z)가 있으면 전장 소리, 없으면 화면 조작음
+function sfx(kind,vol=1,x,z){const a=audio();if(!a)return;if(x!=null&&z!=null){
+    if(kind==='boom')sndBoom(x,z,vol);else if(kind==='hit')sndBoom(x,z,.45*vol);else if(kind==='arty')sndBoom(x,z,1.1*vol);else if(kind==='launch')sndLaunch(x,z,'rocket');else if(kind==='crumble')sndCrumble(x,z);return;}
+  const now=performance.now();if(now-(SFX.last[kind]||0)<70)return;SFX.last[kind]=now;const t=a.currentTime;
+  const env=(node,peak,dur,attack=.005)=>{const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak*vol,t+attack);g.gain.exponentialRampToValueAtTime(.0001,t+dur);node.connect(g);g.connect(SFX.bus.ui);return g;};
+  const noise=(dur,type,freq,q=1)=>{const s=a.createBufferSource();s.buffer=SFX.noise;const f=a.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;s.connect(f);s.start(t,Math.random());s.stop(t+dur+.05);return f;};
   const tone=(freq,dur,type='sine',to)=>{const o=a.createOscillator();o.type=type;o.frequency.setValueAtTime(freq,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);o.start(t);o.stop(t+dur+.05);return o;};
-  if(kind==='shot'){env(noise(.14,'bandpass',1900,.8),.35,.13);}
-  else if(kind==='arty'){env(noise(.35,'lowpass',700),.5,.32);env(tone(110,.25,'sine',50),.3,.25);}
-  else if(kind==='boom'){env(noise(.9,'lowpass',380),.75,.85,.01);env(tone(70,.6,'sine',30),.5,.6);}
-  else if(kind==='hit'){env(noise(.4,'lowpass',600),.35,.35);}
-  else if(kind==='launch'){const f=noise(.9,'bandpass',500,2);f.frequency.exponentialRampToValueAtTime(2600,t+.8);env(f,.35,.85,.06);}
-  else if(kind==='flak'){for(let i=0;i<3;i++){const s=a.createBufferSource();s.buffer=noiseBuf(a,.06);const f=a.createBiquadFilter();f.type='highpass';f.frequency.value=1400;const g=a.createGain();g.gain.setValueAtTime(.0001,t+i*.07);g.gain.exponentialRampToValueAtTime(.3*vol,t+i*.07+.004);g.gain.exponentialRampToValueAtTime(.0001,t+i*.07+.06);s.connect(f);f.connect(g);g.connect(SFX.master);s.start(t+i*.07);}}
-  else if(kind==='radio'){env(noise(.12,'bandpass',2300,4),.22,.11,.002);const o=tone(1250,.05,'square');env(o,.05,.05);}
-  else if(kind==='click'){env(tone(880,.05),.12,.05);}
-  else if(kind==='turn'){const o1=tone(660,.18);env(o1,.18,.2);const o2=a.createOscillator();o2.frequency.value=990;const g=a.createGain();g.gain.setValueAtTime(.0001,t+.14);g.gain.exponentialRampToValueAtTime(.16*vol,t+.16);g.gain.exponentialRampToValueAtTime(.0001,t+.42);o2.connect(g);g.connect(SFX.master);o2.start(t+.14);o2.stop(t+.5);}
+  if(kind==='click'){env(tone(880,.05),.12,.05);}
+  else if(kind==='radio'){env(noise(.12,'bandpass',2300,4),.22,.11,.002);env(tone(1250,.05,'square'),.05,.05);}
   else if(kind==='build'){env(tone(330,.12,'triangle'),.16,.12);}
-  else if(kind==='win'){[523,659,784,1046].forEach((f,i)=>{const o=a.createOscillator();o.type='triangle';o.frequency.value=f;const g=a.createGain();g.gain.setValueAtTime(.0001,t+i*.13);g.gain.exponentialRampToValueAtTime(.18*vol,t+i*.13+.02);g.gain.exponentialRampToValueAtTime(.0001,t+i*.13+.5);o.connect(g);g.connect(SFX.master);o.start(t+i*.13);o.stop(t+i*.13+.6);});}
-}
-function toggleSound(){SFX.on=!SFX.on;try{localStorage.setItem('triad-sound',SFX.on?'1':'0');}catch(e){}if(SFX.on)sfx('click');}
+  else if(kind==='turn'){env(tone(660,.18),.18,.2);}
+  else if(kind==='distant'){env(noise(1.6,'lowpass',260),.5*1,1.5,.05);env(tone(48,1.2,'sine',24),.35,1.2,.05);}
+  else if(kind==='boom'){env(noise(.9,'lowpass',380),.75,.85,.01);env(tone(70,.6,'sine',30),.5,.6);}
+  else if(kind==='win'){[523,659,784,1046].forEach((f,i)=>{const o=a.createOscillator();o.type='triangle';o.frequency.value=f;const g=a.createGain();g.gain.setValueAtTime(.0001,t+i*.13);g.gain.exponentialRampToValueAtTime(.18*vol,t+i*.13+.02);g.gain.exponentialRampToValueAtTime(.0001,t+i*.13+.5);o.connect(g);g.connect(SFX.bus.ui);o.start(t+i*.13);o.stop(t+i*.13+.6);});}
+  else if(kind==='shot'||kind==='hit'||kind==='arty'||kind==='launch'||kind==='flak'){const e=sndEar();if(kind==='launch')sndLaunch(e.x,e.z,'rocket');else sndBoom(e.x,e.z,kind==='arty'?1:.5,{vol:.6});}}
+function toggleSound(){SFX.on=!SFX.on;sndSave();if(SFX.on){audio();sndApplyVol();sfx('click');}else sndApplyVol();sndPopSync();}
+function sndPopSync(){if(typeof document==='undefined')return;const b=document.getElementById('b-smute');if(b){b.setAttribute('aria-pressed',SFX.on?'true':'false');b.textContent=SFX.on?'켜짐':'꺼짐';}
+  document.querySelectorAll('[data-snd]').forEach(i=>{i.value=Math.round(SFX.vol[i.dataset.snd]*100);i.disabled=!SFX.on;});const sn=document.getElementById('b-snd');if(sn)sn.setAttribute('aria-pressed',SFX.on?'true':'false');}
 
 /* ---- 03-mapgen.js ---- */
 /* ===================== MAP GEN =====================
@@ -627,7 +820,7 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
 /* ---------- 전투 ---------- */
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
 function damageBldg(r,c,amt){const x=G.map[r][c];if(x.t!=='bldg'||amt<=0)return;x.bhp-=amt;bump();
-  if(x.bhp<=0){const f0=x.f;x.t='rubble';G.navV=(G.navV||0)+1;x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom');L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
+  if(x.bhp<=0){const f0=x.f;x.t='rubble';G.navV=(G.navV||0)+1;x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom',1.3,c+.5,r+.5);L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
     const u=unitAt(r,c);if(u){u.supp=2;harm(u,5,null,{kind:'crush'});}}}
 /* 부대가 피해를 입는다(체력 단위). 보병은 병사 한 명 한 명이, 차량은 부위별로 다친다(05g-casualty의 harmX). */
 function harm(u,amt,by,o){if(!u||!G.units.includes(u))return 0;if(!(amt>0)){if(u.hp<=0)kill(u,by);return 0;}   // 피해 0이어도 체력이 이미 0이면(FPV 한 발 격추) 없앤다
@@ -667,10 +860,10 @@ function buy(n,type,r,c){const N2=G.nats[n];const t=UT[type];if(N2.cp<t.cost)ret
 function supArea(r,c,rad){const o=[];for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))o.push([a,b]);return o;}
 function canSupport(n,kind,r,c){const N2=G.nats[n];if(N2.cp<SUP[kind].cost||(N2.supT||0)>(G.time||0))return false;if(SUP[kind].air&&WX[G.wx].noAir)return false;if(kind==='heli')return !WX[G.wx].noAir&&heliCanLand(n,r,c)&&visSet(n).has(key(r,c));return kind==='smoke'||visSet(n).has(key(r,c));}
 function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2.supT=(G.time||0)+SUP_CD;FXH.strike(kind,r,c,n);
-  if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch');L(`${natName(n)} 연막 차장`);bump();return true;}
+  if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch',1,c+.5,r+.5);if(n===G.viewer)sndRadio('support');L(`${natName(n)} 연막 차장`);bump();return true;}
   if(kind==='heli'){heliInsert(n,r,c);L(`${natName(n)} 헬기 투입 요청`);bump();return true;}
   if(SUP[kind].fn){SUP[kind].fn(n,r,c);bump();return true;}  // 공격헬기·전투기(05f-air)
-  sfx('arty');L(`${natName(n)} ${SUP[kind].n}`);
+  if(n===G.viewer&&!isAI(n))sndRadio('support');L(`${natName(n)} ${SUP[kind].n}`);
   if(kind==='arty'&&typeof shellBarrage==='function'){shellBarrage(n,r,c,9,2.8);bump();return true;}   // 포격은 실제 포탄으로(05g-shells)
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
     const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:Math.max(TT[x.t].cov*.5,typeof trenchAt==='function'&&UT[u.type].cls==='inf'&&trenchAt(u.x,u.z)?.5:0);/* 참호는 포격도 막는다 */const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
@@ -1440,8 +1633,8 @@ function jetDrop(j){const {n,r,c}=j;
     e.firedT=G.time;e.face=Math.atan2(r+.5-e.z,c+.5-e.x)*180/Math.PI;const p=e.type==='aa'?.3:.12;if(FXH.aaShot)FXH.aaShot(e,j);
     if(Math.random()<p){const a=Math.random()*6.283,d=1.5+Math.random()*2;const x=Math.min(N-.5,Math.max(.5,c+.5+Math.cos(a)*d)),z=Math.min(N-.5,Math.max(.5,r+.5+Math.sin(a)*d));
       L(`${natName(e.nat)} ${UT[e.type].n} 전투기 격추! 폭격 실패`);G.nats[e.nat].kills++;e.kills=(e.kills||0)+1;
-      crashAt({x,z,t:G.time+1.6,big:1,nat:n,kind:'jet'});if(FXH.jetDown)FXH.jetDown(j,x,z);sfx('boom');bump();return;}}
-  if(FXH.bomb)FXH.bomb(r,c);sfx('arty');
+      crashAt({x,z,t:G.time+1.6,big:1,nat:n,kind:'jet'});if(FXH.jetDown)FXH.jetDown(j,x,z);sfx('boom',1.2,x,z);bump();return;}}
+  if(FXH.bomb)FXH.bomb(r,c);
   for(const [a,b] of supArea(r,c,0)){const x=G.map[a][b];const u=unitAt(a,b);
     if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const d=Math.max(1,Math.round(9*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:.6});}
     if(x.t==='bldg'){damageBldg(a,b,24);if(typeof ignite==='function')ignite(a,b,.7);}}
@@ -1457,7 +1650,7 @@ function airDown(u,why){const t=UT[u.type];crashAt({x:u.x,z:u.z,t:(G.time||0)+(t
 function crashTick(){if(!G.crash||!G.crash.length)return;const keep=[];
   for(const cr of G.crash){if(cr.t>G.time){keep.push(cr);continue;}if(FXH.crash)FXH.crash(cr);
     if(!cr.big){if(cr.kind==='fpv')for(const u of G.units)if(!UT[u.type].fly&&Math.hypot(u.x-cr.x,u.z-cr.z)<.45){u.supp=Math.max(u.supp||0,1);harm(u,1,null,{kind:'blast',x:cr.x,z:cr.z,rad:.3});}continue;}
-    sfx('boom');const r=Math.floor(cr.z),c=Math.floor(cr.x);
+    sfx('boom',1.3,cr.x,cr.z);const r=Math.floor(cr.z),c=Math.floor(cr.x);
     for(const u of G.units.slice())if(!UT[u.type].fly&&Math.hypot(u.x-cr.x,u.z-cr.z)<1){u.supp=2;harm(u,4,null,{kind:'blast',x:cr.x,z:cr.z,rad:.6});}
     if(inb(r,c)&&G.map[r][c].t==='bldg'){damageBldg(r,c,8);if(typeof ignite==='function')ignite(r,c,.4);}}
   G.crash=keep;bump();}
@@ -1484,7 +1677,7 @@ function droneTick(u,dt){const t=UT[u.type];u.air=u.air||{born:G.time||0};
 /* 부딪혀 터짐: 표적에 큰 피해(위에서 덮치므로 장갑 무시, 건물 안이면 지붕·벽이 일부 막는다), 주변에 파편 */
 function fpvBoom(u,e){const te=UT[e.type];const ins=cell(e.r,e.c).t==='bldg'&&!te.fly;
   let dmg=te.cls==='veh'?7:4.5;if(ins)dmg*=.45;dmg*=.85+Math.random()*.3;dmg=Math.round(dmg*10)/10;
-  if(FXH.fpvBoom)FXH.fpvBoom(u,e);sfx('hit');airRemove(u);
+  if(FXH.fpvBoom)FXH.fpvBoom(u,e);airRemove(u);
   e.supp=Math.max(e.supp||0,1.5);G.nats[u.nat].dmg=(G.nats[u.nat].dmg||0)+dmg;
   if(ins)damageBldg(e.r,e.c,3);
   L(`${natName(u.nat)} FPV 드론이 ${natName(e.nat)} ${te.n} 타격`);
@@ -1504,7 +1697,7 @@ function dteamTick(u,dt){if(u.dr==null){u.dr=4;u.dsT=0;u.lt=-99;u.rs=G.time;}
     const s=UT[e.type].cost*(UT[e.type].cls==='veh'?2:1)/(3+d)*(cell(e.r,e.c).t==='bldg'?.5:1)*(own.includes(e.id)?.3:1);if(s>bs){bs=s;best=e;}}
   if(!best)return;launchFpv(u,best);}
 function launchFpv(u,e){const f=mkUnit(u.nat,'fpv',u.r,u.c);f.x=u.x;f.z=u.z;f.op=u.id;f.tgt=e?e.id:null;f.air={born:G.time};u.dr--;u.lt=G.time;u.firedT=G.time;
-  if(FXH.fpvLaunch)FXH.fpvLaunch(u,f);sfx('launch',.5);L(`${natName(u.nat)} 드론팀 FPV 이륙`);bump();return f;}
+  if(FXH.fpvLaunch)FXH.fpvLaunch(u,f);sfx('launch',.5,u.x,u.z);L(`${natName(u.nat)} 드론팀 FPV 이륙`);bump();return f;}
 /* 험비·장갑차에서 드론팀 하차 (차량마다 한 번, 지휘 3) */
 const DISMOUNT_CP=3;
 function canDismount(v){return v&&(v.type==='hmv'||v.type==='ifv')&&!v.dis&&G.nats[v.nat].cp>=DISMOUNT_CP;}
@@ -2883,7 +3076,7 @@ function v3Sync(){if(!V3.on||!V3.ren||!G)return;const vn=G.viewer,vs=G.fog?visSe
 function v3Pos(r,c,u){if(u&&V3.uo.has(u.id)){const o=V3.uo.get(u.id);const S0=(o.userData.sold||[]).filter(s=>s.m.visible);const sh=(u._sh||[]).map(i=>o.userData.sold[i]).filter(s=>s&&s.m.visible);const S=sh.length?sh:S0;
     if(S.length){const s=S[Math.floor(Math.random()*S.length)];return [s.wx,o.position.y+.1,s.wz];}return [o.position.x,o.position.y+(UT[u.type].fly?0:.12),o.position.z];}
   if(u&&u.x!=null)return [u.x,v3UnitY(u)+.1,u.z];const [x,z]=v3x(r,c);return [x,v3Top(r,c)+.1,z];}
-function v3FxFire(a,r,c){if(typeof v3AirFire==='function'&&v3AirFire(a,r,c,arguments[3],arguments[4]))return;if(typeof sfx==='function')sfx(UT[a.type].ind?'arty':UT[a.type].ex?'hit':'shot',.8);if(!V3.on)return;const T=V3.T;const [x1,y1,z1]=v3Pos(a.r,a.c,a);const d=arguments[3]||unitAt(r,c);const [x2,y2,z2]=v3Pos(r,c,d);
+function v3FxFire(a,r,c){if(typeof v3AirFire==='function'&&v3AirFire(a,r,c,arguments[3],arguments[4]))return;if(typeof sndShot==='function')sndShot(a);if(!V3.on)return;const T=V3.T;const [x1,y1,z1]=v3Pos(a.r,a.c,a);const d=arguments[3]||unitAt(r,c);const [x2,y2,z2]=v3Pos(r,c,d);
   const ind=UT[a.type].ind,dd=dist(a.r,a.c,r,c);const n=a.type==='mg'||a.type==='ifv'?4:1;const col=UT[a.type].ex?'#ffb060':'#ffe1a0';
   const tc=a.nat===G.viewer?'#8dff6e':'#ff5a3c';
   for(let i=0;i<n;i++){const j=(Math.random()-.5)*.15;let o;
@@ -2892,8 +3085,8 @@ function v3FxFire(a,r,c){if(typeof v3AirFire==='function'&&v3AirFire(a,r,c,argum
     V3.G.fx.add(o);V3.fx.push({o,t0:performance.now()+i*70,dur:ind?650:150+dd*14,upd:(sh,k)=>{sh.position.set(x1+(x2+j-x1)*k,y1+(y2-y1)*k+(ind?Math.sin(k*Math.PI)*(1.5+dd*.35):0),z1+(z2+j-z1)*k);}});}
   v3Burst(x1+(x2-x1)*.02,y1,z1+(z2-z1)*.02,UT[a.type].cls==='inf'?.08:.22,'#ffd27a',0,UT[a.type].cls==='inf'?.15:.6);
   if(typeof dsDust==='function'&&(UT[a.type].cls!=='inf'||a.type==='mg')&&Math.random()<.35)dsDust(x1,z1,.3,2600,1,'#8e887e',y1);// 총구 연기가 잠시 머문다
-  setTimeout(()=>{if(UT[a.type].ex){v3Burst(x2,y2-.05,z2,.6,'#ff8a3d',3,1.5);dsScar(ind?'crater':'scorch',x2,z2,ind?.14:.11);dsSpray(x2,y2,z2,ind?48:26,ind?.7:.5);dsDust(x2,z2,ind?1.4:.8,ind?9000:5000,ind?6:4);if(ind)dsColumn(x2,z2,.7);}else{v3Impact(x2,y2-.05,z2);if(Math.random()<.25)dsScar('spray',x2,z2,.05);}if(UT[a.type].ex)V3.shake=Math.max(V3.shake,.05);if(typeof sfx==='function')sfx('hit',.6);},ind?650:170);}
-function v3FxKill(u){if(UT[u.type].fly&&typeof v3AirKill==='function'){v3AirKill(u);return;}if(!V3.on||UT[u.type].cls==='inf')return;const [x,y,z]=v3Pos(u.r,u.c,u);if(UT[u.type].cls==='veh')dsWreck(u);setTimeout(()=>{v3Burst(x,y,z,1.3,'#ff7a2a',7,4);dsSpray(x,y+.1,z,50,.8);dsScar('scorch',x,z,.25);V3.shake=Math.max(V3.shake,.14);if(typeof sfx==='function')sfx('boom');},400);}
+  setTimeout(()=>{if(UT[a.type].ex){v3Burst(x2,y2-.05,z2,.6,'#ff8a3d',3,1.5);dsScar(ind?'crater':'scorch',x2,z2,ind?.14:.11);dsSpray(x2,y2,z2,ind?48:26,ind?.7:.5);dsDust(x2,z2,ind?1.4:.8,ind?9000:5000,ind?6:4);if(ind)dsColumn(x2,z2,.7);}else{v3Impact(x2,y2-.05,z2);if(Math.random()<.25)dsScar('spray',x2,z2,.05);}if(UT[a.type].ex)V3.shake=Math.max(V3.shake,.05);if(typeof sndBoom==='function'){if(UT[a.type].ex)sndBoom(x2,z2,ind?1:.5);else sndImpact(x2,z2);}},ind?650:170);}
+function v3FxKill(u){if(UT[u.type].fly&&typeof v3AirKill==='function'){v3AirKill(u);return;}if(!V3.on||UT[u.type].cls==='inf')return;const [x,y,z]=v3Pos(u.r,u.c,u);if(UT[u.type].cls==='veh')dsWreck(u);setTimeout(()=>{v3Burst(x,y,z,1.3,'#ff7a2a',7,4);dsSpray(x,y+.1,z,50,.8);dsScar('scorch',x,z,.25);V3.shake=Math.max(V3.shake,.14);if(typeof sfx==='function')sfx('boom',1.2,x,z);},400);}
 function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const h=Math.max(1,f||3)*FLOOR_H;
   // 기울어지며 쓰러지는 건물: 밑변 한쪽을 축으로 돌면서 가라앉는다
   const dir=Math.floor(Math.random()*4);const piv=new T.Group();const ax=[[.45,0],[-.45,0],[0,.45],[0,-.45]][dir];piv.position.set(x+ax[0],.06,z+ax[1]);
@@ -2905,7 +3098,7 @@ function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);
   for(let i=0;i<28;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%3?'#a99a83':'#6c635a',transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*6.28}));const a=Math.random()*6.283,sp=1.2+Math.random()*3.2,y0=.2+Math.random()*h*.6;s.position.set(x,y0,z);V3.G.fx.add(s);
     V3.fx.push({o:s,t0:performance.now()+300+i*30,dur:12000,upd:(o,k)=>{const e=1-Math.pow(1-k,2.6);o.position.set(x+Math.cos(a)*sp*e+DS.wind[0]*k*12,y0+e*1.4,z+Math.sin(a)*sp*e);o.scale.setScalar(.8+e*3.6);o.material.opacity=.6*(1-k)*(k<.06?k/.06:1);}});}
   v3Debris(x,h*.5,z,26,1.4);dsSpray(x,h*.4,z,160,1.5);dsScar('rubble',x,z,.9);
-  setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,2.6,26000,22);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sfx==='function')sfx('boom');},700);}
+  setTimeout(()=>{v3Burst(x,.3,z,1.4,'#ffb070',0,2);dsDust(x,z,2.6,26000,22);dsFires(x,z,4,60000,.9);V3.shake=Math.max(V3.shake,.3);if(typeof sndCrumble==='function')sndCrumble(x,z,f);},700);}
 function v3FxStrike(kind,r,c,n){if(!V3.on)return;const [x,z]=v3x(r,c);if(kind==='heli'){v3Heli(r,c,n);return;}
   if(kind==='smoke'){for(let i=0;i<9;i++)v3Burst(x+(Math.random()-.5)*2.4,.3,z+(Math.random()-.5)*2.4,1.2,'#d6d3c8',2,0);return;}
   if(kind==='air'||kind==='gunship')return;// 전투기·공격헬기는 07x-air가 그린다
@@ -2934,7 +3127,7 @@ function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}
-  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3AirFrame==='function')v3AirFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof v3FortFrame==='function')v3FortFrame();
+  if(G)v3AnimUnits(rdt,now);if(typeof dsFrame==='function')dsFrame(now,dt);if(typeof v3AirFrame==='function')v3AirFrame(now,dt);if(typeof v3WarFrame==='function')v3WarFrame(now,dt);if(typeof sndFrame==='function')sndFrame(now);if(typeof v3FortFrame==='function')v3FortFrame();
   for(const o of V3.G.sites.children)if(o.userData.flag)o.rotation.y=Math.sin(now/700+o.position.x)*.25;
   const tt=now/1000;for(const sp of V3.smoke){if(sp.kind==='fire'){const f=.75+Math.sin(tt*13+sp.ph*20)*.15+Math.sin(tt*7.3)*.1;sp.o.position.set(sp.x,sp.y+.15,sp.z);sp.o.scale.setScalar(.45*f);sp.o.material.opacity=.75*f;continue;}
     if(sp.kind==='screen'){const l=(tt*.08+sp.ph)%1;sp.o.position.set(sp.x+Math.sin(tt*.3+sp.ph*9)*.15,.4+l*.8,sp.z);sp.o.scale.setScalar(1.5+l*.6);sp.o.material.opacity=.75*Math.sin(l*Math.PI)+.15;continue;}
@@ -3016,7 +3209,7 @@ function dsShell(x,z,big){if(!V3.on)return;const T=V3.T;const y0=v3TopAt(x,z);
   V3.fx.push({o:tr,t0:performance.now(),dur:380,upd:(o,k)=>{o.position.set(sx+(x-sx)*k,sy+(y0-sy)*k,sz+(z-sz)*k);}});
   setTimeout(()=>{if(!V3.on)return;const s=big?1.6:1.1;v3Burst(x,y0+.15,z,s*1.1,'#ffb060',0,2.5);dsColumn(x,z,s*1.3);dsDust(x,z,s*2.4,16000+Math.random()*10000,18);
     dsSpray(x,y0+.3,z,big?110:70,s*.9);v3Debris(x,y0+.2,z,big?16:9,1.1);dsScar('crater',x,z,s*.2);if(Math.random()<.5)dsFires(x,z,1+Math.round(Math.random()*2),20000+Math.random()*25000,s*.7,y0+.03);
-    V3.shake=Math.max(V3.shake,big?.2:.12);if(typeof sfx==='function')sfx('boom');},380);}
+    V3.shake=Math.max(V3.shake,big?.2:.12);if(typeof sfx==='function')sfx('arty',big?1.2:1,x,z);},380);}
 function dsBarrage(r,c,n,spread){const [cx,cz]=v3x(r,c);for(let i=0;i<n;i++)setTimeout(()=>{const ox=(Math.random()-.5)*spread,oz=(Math.random()-.5)*spread;dsShell(cx+ox,cz+oz,i===0||Math.random()<.25);},200+i*(260+Math.random()*220));}
 function v3TopAt(x,z){const r=Math.floor(z),c=Math.floor(x);return inb(r,c)?v3Top(r,c):0;}
 /* ---------- 도시 전체의 전쟁 분위기 ----------
@@ -3052,7 +3245,7 @@ function dsFrame(now,dt){if(!V3.plumes)return;const tt=now/1000;const s=V3.cs;
   for(const p of V3.plumes){const n=p.sp.length;for(let i=0;i<n;i++){const l=((tt*.045+p.ph)+i/n)%1;const o=p.sp[i];const w=l*l;
       o.position.set(p.x+DS.wind[0]*l*60+Math.sin(tt*.25+p.ph+i)*.15*l,p.y0+l*p.h,p.z+DS.wind[1]*l*60);o.scale.setScalar((p.big?1.4:.6)*(.3+l*2.6));o.material.opacity=(p.big?.55:.5)*Math.sin(l*Math.PI)*(1-w*.4);}}
   if(V3.ash){V3.ash.position.set(s.x,0,s.z);const a=V3.ash.geometry.attributes.position.array;for(let i=0;i<a.length;i+=3){a[i]+=DS.wind[0]*dt*4+Math.sin(tt+i)*dt*.1;a[i+1]-=dt*.12;a[i+2]+=DS.wind[1]*dt*4;if(a[i+1]<0)a[i+1]=7;if(a[i]>13)a[i]-=26;if(a[i+2]>13)a[i+2]-=26;}V3.ash.geometry.attributes.position.needsUpdate=true;}
-  if(DS.nextRumble&&now>DS.nextRumble&&G&&!G.paused){DS.nextRumble=now+8000+Math.random()*16000;if(typeof sfx==='function')sfx('boom',.22);V3.shake=Math.max(V3.shake,.02);}}
+  if(DS.nextRumble&&now>DS.nextRumble&&G&&!G.paused){DS.nextRumble=now+8000+Math.random()*16000;if(typeof sfx==='function')sfx('distant',.5);V3.shake=Math.max(V3.shake,.02);}}
 
 /* ---- 07f-floors.js ---- */
 /* ===================== 3D: 건물 안 보여 주기 =====================
@@ -3266,7 +3459,7 @@ function v3HeliModel(){const T=V3.T;const g=new T.Group();const body=new T.MeshS
 function v3Heli(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const y0=v3Top(r,c);const h=v3HeliModel();V3.G.fx.add(h);
   const dir=[[-1,0],[1,0],[0,-1],[0,1]][n??0]||[-1,0];const far=N*.9;const sx=x+dir[0]*far,sz=z+dir[1]*far;const ang=Math.atan2(-(z-sz),x-sx);h.rotation.y=ang;
   const t0=G.time,FLY=2.4,DESC=1.6,STAY=HELI_T-FLY-DESC+1.2,LIFT=1.2,OUT=2.6;const TOTAL=FLY+DESC+STAY+LIFT+OUT;let dustT=0;
-  if(typeof sfx==='function')sfx('launch',.9);
+  if(typeof sndTrack==='function')sndTrack(h,'rotor');
   V3.fx.push({o:h,t0:performance.now(),dur:1e9,upd:(o)=>{const t=G.time-t0;const now=performance.now();o.userData.hub.rotation.y=now/14;
     let px=x,pz=z,py=y0+.06,tilt=0;
     if(t<FLY){const k=t/FLY,e=1-Math.pow(1-k,2);px=sx+(x-sx)*e;pz=sz+(z-sz)*e;py=4.2-e*.6;tilt=.25*(1-k);}
@@ -3291,23 +3484,23 @@ function v3Cine(){const s=V3.cs;V3.cine=!V3.cine;if(V3.cine){V3.cineBak={pitch:s
    FXH.boom: 포탄이 땅이나 건물에 터지는 장면. FXH.launch: 박격포·자주포 발사. FXH.breach: 로켓이 벽에 꽂혀 구멍이 나는 장면.
    G.holes: 외벽 구멍(검게 뚫리고 위로 그을음). G.fires: 불난 건물(창마다 불길, 지붕 위 검은 연기 기둥). */
 const v3H=h=>.06+h*FLOOR_H;     // 층 높이 → 화면 높이
-function v3FxLaunch(a){if(typeof sfx==='function')sfx(UT[a.type].cls==='veh'?'boom':'launch',.7);if(!V3.on)return;const [x,y,z]=v3Pos(a.r,a.c,a);
+function v3FxLaunch(a){if(typeof sndLaunch==='function')sndLaunch(a.x??a.c+.5,a.z??a.r+.5,UT[a.type].cls==='veh'?'gun':'mortar');if(!V3.on)return;const [x,y,z]=v3Pos(a.r,a.c,a);
   v3Burst(x,y+.05,z,UT[a.type].cls==='veh'?.7:.35,'#ffd27a',1,UT[a.type].cls==='veh'?1.5:.6);dsDust(x,z,UT[a.type].cls==='veh'?.9:.45,4000,2,'#8e887e',y);}
-function v3FxBoom(x,z,h,onB,s){if(typeof sfx==='function')sfx('boom',onB?.8:.7);if(!V3.on)return;const big=(s&&s.pw||1)>1.2;const sz=big?1.4:1;
+function v3FxBoom(x,z,h,onB,s){if(typeof sndBoom==='function')sndBoom(x,z,(s&&s.pw||1)>1.2?1.3:1,{y:onB?v3H(h):0});if(!V3.on)return;const big=(s&&s.pw||1)>1.2;const sz=big?1.4:1;
   if(onB){const y=v3H(h);v3Burst(x,y,z,sz*1.1,'#ffb060',3,2.2);v3Debris(x,y,z,big?18:12,1.1);dsSpray(x,y,z,big?110:70,sz*.8);dsDust(x,z,sz*1.6,14000,8,'#9c9283',y*.6);
     const r=Math.floor(z),c=Math.floor(x);if(inb(r,c)){const b=bldgBox(r,c);const gx=Math.min(b[1]+.12,Math.max(b[0]-.12,x)),gz=Math.min(b[3]+.12,Math.max(b[2]-.12,z));dsScar('rubble',gx,gz,.22*sz);}}
   else{const y=v3TopAt(x,z);v3Burst(x,y+.15,z,sz*1.1,'#ffb060',0,2.5);dsColumn(x,z,sz*1.2);dsDust(x,z,sz*2.2,15000+Math.random()*9000,14);
     dsSpray(x,y+.3,z,big?110:70,sz*.9);v3Debris(x,y+.2,z,big?14:8,1);dsScar('crater',x,z,sz*.19);if(Math.random()<.35)dsFires(x,z,1+Math.round(Math.random()*2),18000+Math.random()*20000,sz*.6,y+.03);}
   const cs=V3.cs;const dd=cs?Math.hypot(cs.x-x,cs.z-z):5;V3.shake=Math.max(V3.shake,(big?.2:.12)*Math.max(.3,1-dd/14));}
 /* 로켓·전차포가 벽에 꽂힌다: 연기 꼬리를 끌며 날아가 벽에서 터진다 */
-function v3FxBreach(a,P){if(typeof sfx==='function')sfx('launch',.8);if(!V3.on)return;const T=V3.T;const [x1,y1,z1]=v3Pos(a.r,a.c,a);const x2=P.x,z2=P.z,y2=v3H(P.h);
+function v3FxBreach(a,P){if(typeof sndLaunch==='function')sndLaunch(a.x??a.c+.5,a.z??a.r+.5,UT[a.type].cls==='veh'?'gun':'rocket');if(!V3.on)return;const T=V3.T;const [x1,y1,z1]=v3Pos(a.r,a.c,a);const x2=P.x,z2=P.z,y2=v3H(P.h);
   const d=Math.hypot(x2-x1,z2-z1),dur=180+d*90;const tr=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#ffd9a0',blending:T.AdditiveBlending,transparent:true,depthWrite:false}));tr.scale.setScalar(.12);V3.G.fx.add(tr);
   let lastP=0;V3.fx.push({o:tr,t0:performance.now(),dur,upd:(o,k)=>{const x=x1+(x2-x1)*k,y=y1+(y2-y1)*k+Math.sin(k*Math.PI)*.04,z=z1+(z2-z1)*k;o.position.set(x,y,z);
     if(k-lastP>.12){lastP=k;dsDust(x,z,.18,2600,1,'#bdb5a8',y);}}});
   v3Burst(x1,y1,z1,.3,'#ffd27a',1,.6);dsDust(x1-(x2-x1)/d*.25,z1-(z2-z1)/d*.25,.5,3000,2,'#c9c1b3',y1);   // 뒤 폭풍
   setTimeout(()=>{if(!V3.on)return;const nx=P.side===1?1:P.side===3?-1:0,nz=P.side===2?1:P.side===0?-1:0;
     v3Burst(x2+nx*.05,y2,z2+nz*.05,.9,'#ff9a40',3,1.8);v3Debris(x2+nx*.08,y2,z2+nz*.08,12,.9);dsSpray(x2+nx*.1,y2,z2+nz*.1,60,.6);dsDust(x2+nx*.2,z2+nz*.2,.6,7000,3,'#a39a8c',y2);
-    dsScar('rubble',x2+nx*.18,z2+nz*.18,.16);V3.shake=Math.max(V3.shake,.08);if(typeof sfx==='function')sfx('boom',.7);},dur);}
+    dsScar('rubble',x2+nx*.18,z2+nz*.18,.16);V3.shake=Math.max(V3.shake,.08);if(typeof sfx==='function')sfx('hit',1.5,x2,z2);},dur);}
 /* ---------- 매 화면 ---------- */
 function v3WarFrame(now,dt){if(!G)return;v3ShellsDraw();v3HolesSync();v3FiresDraw(now);}
 function v3ShellsDraw(){const T=V3.T;V3.shellO=V3.shellO||new Map();const live=new Set();const gt=(G.time||0)+(typeof RT!=='undefined'?Math.min(RT.acc||0,.1):0);
@@ -3919,7 +4112,7 @@ function v3MenAnim(o,uu,dt,now,fa){const M=uu._men,S=o.userData.sold;const ox=o.
    - 차량: 뚫린 곳에서 불꽃이 튀고, 유폭은 큰 폭발과 불길. */
 FXH.cas=function(u,m,out){if(!V3.on)return;const x=m.x,z=m.z;if(out==='hw'||out==='kia')dsScar('blood',x,z,out==='kia'?.06:.05);if(m.orph)return;};
 FXH.cook=function(x,z,big){if(!V3.on)return;const y=v3TopAt(x,z);setTimeout(()=>{v3Burst(x,y+.1,z,big?1.8:1.1,'#ff7a2a',big?9:5,big?6:3);dsSpray(x,y+.1,z,big?90:50,big?1:.7);dsScar('scorch',x,z,big?.32:.22);dsFires(x,z,big?6:3,60000,.5,.05);dsDust(x,z,1.2,9000,5,'#4a4540');
-  V3.shake=Math.max(V3.shake,big?.22:.12);if(typeof sfx==='function')sfx('boom');},0);};
+  V3.shake=Math.max(V3.shake,big?.22:.12);if(typeof sndCook==='function')sndCook(x,z,big);},0);};
 FXH.vhit=function(u,r){if(!V3.on)return;const o=V3.uo.get(u.id);if(!o)return;const p=o.position;setTimeout(()=>{v3Burst(p.x,p.y+.12,p.z,.35,'#ffd27a',1,1.2);if(r>.78||u.vd&&u.vd.fire)dsFires(p.x,p.z,2,8000,.15,p.y+.1);},180);};
 /* 쓰러진 병사가 시체로 바뀐 것을 기억(후송 중 죽은 병사도 한 번만 시체로) */
 {const _c=v3Corpse;v3Corpse=function(s,o,nat){if(s.cx)return;s.cx=1;return _c(s,o,nat);};}
@@ -4013,9 +4206,9 @@ function v3AirY(u){const top=(x,z)=>{let h=0;const r0=Math.floor(z),c0=Math.floo
 /* ---------- 사격 ---------- */
 // 하늘을 향한 사격·대공미사일·헬기 로켓은 여기서 그린다. 처리했으면 true.
 function v3AirFire(a,r,c,d,shot){if(!V3.on)return false;const ta=UT[a.type];
-  if(a.type==='aa'&&d){v3Missile(a,d,shot&&shot.hits>0);sfx('launch',.8);return true;}
+  if(a.type==='aa'&&d){v3Missile(a,d,shot&&shot.hits>0);sndLaunch(a.x,a.z,'missile');return true;}
   if(a.type==='gunship'&&d){v3Rockets(a,d,shot);return true;}
-  if(d&&UT[d.type].fly){v3FlakTracers(a,d,shot);sfx(a.type==='zu'?'flak':'shot',.7);return true;}
+  if(d&&UT[d.type].fly){v3FlakTracers(a,d,shot);sndShot(a);return true;}
   return false;}
 const v3P=u=>{const o=V3.uo.get(u.id);if(o)return [o.position.x,o.position.y+(UT[u.type].fly?0:.1),o.position.z];return [u.x,v3UnitY(u)+.1,u.z];};
 function v3Trail(x,y,z,col,sz,dur){const T=V3.T;const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:col||'#cfc8bb',transparent:true,depthWrite:false,opacity:.55}));s.position.set(x,y,z);V3.G.fx.add(s);
@@ -4046,11 +4239,11 @@ function v3Flares(d){const T=V3.T;const [x,y,z]=v3P(d);for(let i=0;i<8;i++){cons
   const a=i/8*6.283+Math.random()*.4,v=.5+Math.random()*.5;let last=0;V3.fx.push({o:s,t0:performance.now()+i*40,dur:2200,upd:(o,k)=>{const px=x+Math.cos(a)*v*k*1.6,pz=z+Math.sin(a)*v*k*1.6,py=y-k*k*1.6+k*.3;o.position.set(px,py,pz);o.scale.setScalar(.14*(1-k*.6));o.material.opacity=1-k;
     const now=performance.now();if(now-last>90){last=now;v3Trail(px,py,pz,'#bdb6a8',.05,1400);}}});}}
 // 공격헬기: 로켓 두 발(연기 꼬리)과 기관포 예광탄
-function v3Rockets(a,d,shot){const T=V3.T;const [x1,y1,z1]=v3P(a);const [x2,y2,z2]=v3P(d);sfx('launch',.7);
+function v3Rockets(a,d,shot){const T=V3.T;const [x1,y1,z1]=v3P(a);const [x2,y2,z2]=v3P(d);sndLaunch(x1,z1,'rocket');
   for(let i=0;i<2;i++){const sx=(Math.random()-.5)*.3,sz=(Math.random()-.5)*.3;const hit=shot&&shot.hits>i;const ex=x2+(hit?0:sx*2),ez=z2+(hit?0:sz*2),ey=hit?y2:Math.max(0,y2-.05);
     const m=new T.Mesh(V3.misG||(V3.misG=new T.BoxGeometry(.06,.014,.014)),new T.MeshBasicMaterial({color:'#ffd9a0'}));m.userData.keepGeo=1;V3.G.fx.add(m);let last=0;const L=Math.hypot(ex-x1,ey-y1,ez-z1);
     V3.fx.push({o:m,t0:performance.now()+i*160,dur:250+L*60,upd:(o,k)=>{const x=x1+(ex-x1)*k,y=y1+(ey-y1)*k,z=z1+(ez-z1)*k;o.position.set(x,y,z);o.lookAt(ex,ey,ez);o.rotateY(Math.PI/2);const now=performance.now();if(now-last>30){last=now;v3Trail(x,y,z,'#cfc8bb',.07,1500);}
-      if(k>=.97&&!o.userData.done){o.userData.done=1;v3Burst(ex,ey,ez,.7,'#ff8a3d',3,1.4);dsScar('scorch',ex,ez,.1);dsSpray(ex,ey,ez,22,.5);dsDust(ex,ez,.8,5000,3);V3.shake=Math.max(V3.shake,.05);sfx('hit',.7);}}});}
+      if(k>=.97&&!o.userData.done){o.userData.done=1;v3Burst(ex,ey,ez,.7,'#ff8a3d',3,1.4);dsScar('scorch',ex,ez,.1);dsSpray(ex,ey,ez,22,.5);dsDust(ex,ez,.8,5000,3);V3.shake=Math.max(V3.shake,.05);sfx('hit',1.3,ex,ez);}}});}
   for(let i=0;i<3;i++){const o=new T.Mesh(V3.tracerG||(V3.tracerG=new T.BoxGeometry(.012,.012,.35)),new T.MeshBasicMaterial({color:'#ffcf7a',blending:T.AdditiveBlending,transparent:true,depthWrite:false}));o.userData.keepGeo=1;
     const ex=x2+(Math.random()-.5)*.3,ez=z2+(Math.random()-.5)*.3;o.lookAt(ex-x1,y2-y1,ez-z1);V3.G.fx.add(o);V3.fx.push({o,t0:performance.now()+300+i*80,dur:220,upd:(sh,k)=>{sh.position.set(x1+(ex-x1)*k,y1+(y2-y1)*k,z1+(ez-z1)*k);if(k>.95)v3Impact(ex,y2-.05,ez);}});}
   v3Burst(x1,y1-.05,z1,.25,'#ffd27a',0,.5);}
@@ -4059,7 +4252,7 @@ function v3Rockets(a,d,shot){const T=V3.T;const [x1,y1,z1]=v3P(a);const [x2,y2,z
 function v3AirKill(u){if(!V3.on)return;const o=V3.uo.get(u.id);if(!o)return;const T=V3.T;const heli=!!UT[u.type].heli;const w=o.userData.body.clone();
   w.traverse(m=>{if(m.isMesh){m.userData.keepGeo=1;m.userData.keepMat=1;}});const x0=o.position.x,y0=o.position.y,z0=o.position.z;w.position.set(x0,y0,z0);w.rotation.y=o.userData.body.rotation.y;
   V3.G.fx.add(w);const t0=G.time||0,fall=heli?2.2:1;const gy=v3TopAt(x0,z0)+(heli?.08:.02);const dx=(Math.random()-.5)*(heli?.8:.4),dz=(Math.random()-.5)*(heli?.8:.4);let last=0,landed=false;
-  v3Burst(x0,y0,z0,heli?1:.35,'#ff8a3d',heli?3:1,heli?3:.6);if(heli){V3.shake=Math.max(V3.shake,.08);sfx('boom',.8);}
+  v3Burst(x0,y0,z0,heli?1:.35,'#ff8a3d',heli?3:1,heli?3:.6);if(heli){V3.shake=Math.max(V3.shake,.08);sfx('boom',1.1,x0,z0);}
   V3.fx.push({o:w,t0:performance.now(),dur:heli?120000:fall*1000+400,upd:(ob)=>{const t=(G.time||0)-t0;const k=Math.min(1,t/fall);const now=performance.now();
     if(!landed){ob.position.set(x0+dx*k,y0+(gy-y0)*k*k,z0+dz*k);if(heli){ob.rotation.y+=.016*(3+k*10);ob.rotation.z=k*.5;}else{ob.rotation.x+=.2;ob.rotation.z+=.13;}
       if(now-last>(heli?50:80)){last=now;v3Trail(ob.position.x,ob.position.y,ob.position.z,heli?'#3b3833':'#5a554d',heli?.16:.06,heli?3200:1500);if(heli&&Math.random()<.5)v3Burst(ob.position.x,ob.position.y,ob.position.z,.3,'#ff7a2a',0,0);}
@@ -4080,7 +4273,7 @@ function v3JetModel(){const T=V3.T,M=v3AirMats();const g=new T.Group();const add
   add(new T.BoxGeometry(.2,.05,.07),.35,.07,0,M.glass);return g;}
 // 전투기: 세력 쪽 가장자리에서 낮게 들어와 G.time이 j.t일 때 목표 위를 지나며 폭탄을 놓는다
 function v3Jet(j){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(j.r,j.c);const e=airEdge(j.n,x,z);let ux=x-e[0],uz=z-e[1];const L=Math.hypot(ux,uz)||1;ux/=L;uz/=L;
-  const V=9,H=4.2;const g=v3JetModel();g.rotation.y=Math.atan2(-uz,ux);V3.G.fx.add(g);sfx('launch',.5);let last=0,bomb=null,boomed=false;
+  const V=9,H=4.2;const g=v3JetModel();g.rotation.y=Math.atan2(-uz,ux);V3.G.fx.add(g);sndTrack(g,'jet');let last=0,bomb=null,boomed=false;
   V3.fx.push({o:g,t0:performance.now(),dur:1e9,upd:(o)=>{const t=(G.time||0)-j.t;let px=x+ux*V*t,pz=z+uz*V*t,py=H+Math.max(0,-t)*.25;
       if(j.down&&t>0){const k=Math.min(1,t/1.6);const [cx,cz]=j.down;px=x+(cx-x)*k;pz=z+(cz-z)*k;py=H-(H-v3TopAt(cx,cz))*k*k;o.rotation.x+=.12;
         const now=performance.now();if(now-last>40){last=now;v3Trail(px,py,pz,'#2f2c28',.18,3000);if(Math.random()<.6)v3Burst(px,py,pz,.4,'#ff7a2a',0,0);}if(k>=1){o.visible=false;return false;}}
@@ -4090,13 +4283,13 @@ function v3Jet(j){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(j.r,j.c);const e
       if(bomb){const k=Math.min(1,(t+.8)/.8);const [bx,by,bz]=bomb.userData.p;bomb.position.set(bx+(x-bx)*k,by+(v3TopAt(x,z)-by)*k*k,bz+(z-bz)*k);if(k>=1||j.down){V3.G.fx.remove(bomb);bomb.geometry.dispose();bomb=null;}}
       if(Math.hypot(px-x,pz-z)>N*1.2&&t>0){o.visible=false;if(bomb){V3.G.fx.remove(bomb);bomb.geometry.dispose();bomb=null;}return false;}}});}
 function v3Bomb(r,c){if(!V3.on)return;const [x,z]=v3x(r,c);
-  v3Burst(x,v3Top(r,c)*.6+.3,z,2.4,'#ff6a1a',10,7);dsColumn(x,z,2.2);dsDust(x,z,3.6,26000,40);dsSpray(x,v3Top(r,c)*.5+.3,z,180,1.7);dsScar('crater',x,z,.45);dsFires(x,z,5,50000,1.2);V3.shake=Math.max(V3.shake,.35);sfx('boom');}
+  v3Burst(x,v3Top(r,c)*.6+.3,z,2.4,'#ff6a1a',10,7);dsColumn(x,z,2.2);dsDust(x,z,3.6,26000,40);dsSpray(x,v3Top(r,c)*.5+.3,z,180,1.7);dsScar('crater',x,z,.45);dsFires(x,z,5,50000,1.2);V3.shake=Math.max(V3.shake,.35);sfx('boom',1.8,x,z);}
 // 대공 사격이 지나가는 전투기를 노린다
 function v3AaAtJet(e,j){if(!V3.on)return;const [x,z]=v3x(j.r,j.c);const T=V3.T;
   const [x1,y1,z1]=v3P(e);const m=new T.Mesh(V3.misG||(V3.misG=new T.BoxGeometry(.06,.014,.014)),new T.MeshBasicMaterial({color:'#fff1c8'}));m.userData.keepGeo=1;V3.G.fx.add(m);let last=0;
   const ex=x+(Math.random()-.5)*2,ez=z+(Math.random()-.5)*2,ey=4.4;V3.fx.push({o:m,t0:performance.now(),dur:1300,upd:(o,k)=>{const px=x1+(ex-x1)*k,py=y1+(ey-y1)*Math.sqrt(k),pz=z1+(ez-z1)*k;o.position.set(px,py,pz);const now=performance.now();if(now-last>35){last=now;v3Trail(px,py,pz,'#d8d2c4',.06,2000);}if(k>.97&&!o.userData.d){o.userData.d=1;v3Burst(px,py,pz,.5,'#ffc070',1,1);}}});}
 function v3FpvBoom(u,e){if(!V3.on)return;const o=V3.uo.get(e.id);const x=o?o.position.x:e.x,z=o?o.position.z:e.z;const y=(o?o.position.y:v3UnitY(e))+.05;
-  v3Burst(x,y,z,.9,'#ff8a3d',3,2.2);dsSpray(x,y,z,40,.6);dsScar('scorch',x,z,.12);dsDust(x,z,1,6000,4);V3.shake=Math.max(V3.shake,.08);sfx('boom',.6);}
+  v3Burst(x,y,z,.9,'#ff8a3d',3,2.2);dsSpray(x,y,z,40,.6);dsScar('scorch',x,z,.12);dsDust(x,z,1,6000,4);V3.shake=Math.max(V3.shake,.08);sfx('boom',.7,x,z);}
 
 /* ---------- 매 프레임: 헬기 기울기, 플레어, 전파 방해 반경, 흔들리는 드론 ---------- */
 function v3AirFrame(now,dt){if(!G)return;const T=V3.T;v3Reticles(now);v3Links();
@@ -4187,6 +4380,32 @@ function v3MsBoom(x,z,R){if(!V3.on)return;const T=V3.T;const y=v3TopAt(x,z);cons
   V3.shake=Math.max(V3.shake,big?.6:.45);}
 /* 매 화면 (v3AirFrame에 붙인다) */
 {const _f=v3AirFrame;v3AirFrame=function(now,dt){_f(now,dt);if(G)v3MissilesDraw();};}
+
+/* ---- 07z-sound.js ---- */
+/* ===================== 소리: 게임 사건 연결과 소리 설정 창 =====================
+   - 내 편 무전: 병사가 다치면 위생병 호출, 거점 확보·상실, 증원 도착.
+   - 소리 버튼은 작은 설정 창을 연다: 켜기/끄기와 전체·전투·무전·환경음 음량. M 키로 음소거. */
+(function(){
+  // 다친 병사: 내 편이면 다급한 무전
+  const cas0=FXH.cas;FXH.cas=function(u,m,out){if(typeof G!=='undefined'&&G&&u&&u.nat===G.viewer&&!isAI(u.nat)&&(out==='hw'||out==='kia'||out==='lw'))sndRadio('casualty');return cas0&&cas0.apply(this,arguments);};
+})();
+// 전황 기록에서 내 편 사건을 골라 무전으로 알린다
+function sndLog(m){if(typeof G==='undefined'||!G||G.boot||typeof m!=='string')return;const me=natName(G.viewer);if(isAI(G.viewer))return;
+  if(m.includes('확보')&&m.includes(me+'에게서'))sndRadio('lost');else if(m.startsWith(me)&&m.includes('확보'))sndRadio('capture');
+  else if(m.startsWith(me)&&(m.includes('증원')||m.includes('헬기 투입')))sndRadio('reinforce');}
+if(typeof document!=='undefined'){
+  const L0=L;L=function(m){L0(m);try{sndLog(m);}catch(e){}};
+  // 브라우저는 첫 조작 전에 소리를 막는다: 첫 터치·키 입력에서 깨운다
+  const wake=()=>{if(SFX.on)audio();};document.addEventListener('pointerdown',wake,{passive:true});document.addEventListener('keydown',wake);
+  document.addEventListener('input',e=>{const i=e.target.closest&&e.target.closest('[data-snd]');if(!i)return;SFX.vol[i.dataset.snd]=Math.min(1,Math.max(0,+i.value/100));audio();sndApplyVol();sndSave();
+    if(i.dataset.snd==='radio'&&performance.now()-(SFX.lastTest||0)>900){SFX.lastTest=performance.now();SFX.radioEnd=0;sndRadio('ack');}});
+  document.addEventListener('click',e=>{const p=document.getElementById('sndpop');if(!p||p.hidden)return;if(e.target.closest('#sndpop,#b-snd'))return;p.hidden=true;},true);
+  document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;
+    if(e.key==='Escape'){const p=document.getElementById('sndpop');if(p&&!p.hidden){p.hidden=true;e.stopImmediatePropagation();const b=document.getElementById('b-snd');if(b)b.focus();}}
+    else if(e.key==='m'||e.key==='M'){toggleSound();if(typeof toast==='function')toast(SFX.on?'소리 켬':'소리 끔');if(G)render();}},true);}
+function sndPop(){const p=document.getElementById('sndpop'),b=document.getElementById('b-snd');if(!p||!b)return;if(!p.hidden){p.hidden=true;return;}
+  sndPopSync();p.hidden=false;const r=b.getBoundingClientRect(),w=p.offsetWidth||232,h=p.offsetHeight||220;
+  p.style.left=Math.max(8,r.left-w-8)+'px';p.style.top=Math.max(8,Math.min(innerHeight-h-8,r.top+r.height/2-h/2))+'px';const f=p.querySelector('button,input');if(f)f.focus();}
 
 /* ---- 08-ui.js ---- */
 /* ===================== UI: HUD·하단 바·메뉴 ===================== */
@@ -4285,8 +4504,8 @@ function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),
     UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
   if(s&&UI.phase==='fort'&&typeof fortTap==='function'){fortTap(grp,pt[0],pt[1]);render();return;}
   if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){radioSend(n,[s],'bldg',[r,c]);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
-  if(grp.length){if(u&&u.nat!==n){radioSend(n,grp.filter(g=>UT[g.type].rng[1]),'atk',[u.id]);sfx('click',.6);render();return;}
-    radioSend(n,grp,'move',[pt[0],pt[1]]);sfx('click',.4);render();return;}
+  if(grp.length){if(u&&u.nat!==n){radioSend(n,grp.filter(g=>UT[g.type].rng[1]),'atk',[u.id]);sfx('click',.6);if(typeof sndRadio==='function')sndRadio('ack');render();return;}
+    radioSend(n,grp,'move',[pt[0],pt[1]]);sfx('click',.4);if(typeof sndRadio==='function'&&Math.random()<.6)sndRadio('ack');render();return;}
   clearSel();UI.pane={r,c};render();}
 function doSupport(){const n=G.viewer;const k=UI.st;if(k==null)return;if(support(n,UI.supK,kr(k),kc(k))){clearSel();render();if(typeof scnAfterAct==='function')scnAfterAct();}}
 if(typeof document!=='undefined'){
@@ -4299,7 +4518,8 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a.startsWith('scn:')){startScn(a.slice(4));return;}
   if(a==='resume'){const o=loadSave();if(!o)return;N=o.N;G=o.G;UID=o.UID;$('#setup').hidden=true;clearSel();G.paused=false;render();rtStart();return;}
   if(a==='new'){showSetup();return;}
-  if(a==='snd'){SFX.on=!SFX.on;try{localStorage.setItem('triad-sound',SFX.on?'1':'0');}catch(e){}if(G)render();return;}
+  if(a==='snd'){sndPop();return;}
+  if(a==='snd-mute'){toggleSound();if(G)render();return;}
   if(a==='fs'){const el=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});return;}
   if(!G)return;
   if(a==='menu'){UI.sheet=!UI.sheet;render();return;}

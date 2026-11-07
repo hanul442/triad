@@ -771,3 +771,43 @@ test('전투 기록: 붕괴·격파·거점·탄흔이 남고, 끝나면 통계�
   assert.equal(rec.fin.t[bk[0] * T.N + bk[1]], 'x', '무너진 칸은 잔해');
   assert.ok(Array.isArray(rec.moments) && rec.moments.some(m => m.k === 'fall'), '주요 장면');
 });
+
+test('소리: 멀수록 작고 둔하고 늦게 들리며, 좌우로 갈린다', () => {
+  const T = loadGame();
+  const place = T.sndPlace;
+  const ear = { x: 10, z: 10, h: 2, yaw: 0 };
+  const near = place(11, 10, ear), far = place(30, 10, ear);
+  assert.ok(near.gain > far.gain * 3, '먼 소리가 충분히 작지 않다');
+  assert.ok(near.cut > far.cut, '먼 소리의 고음이 깎이지 않는다');
+  assert.ok(far.delay > near.delay && far.delay > .4, '먼 소리가 늦게 닿지 않는다');
+  assert.ok(place(14, 10, ear).pan > .3 && place(6, 10, ear).pan < -.3, '좌우 패닝이 맞지 않다');
+  const turned = place(14, 10, { ...ear, yaw: Math.PI });
+  assert.ok(turned.pan < -.3, '카메라를 돌려도 좌우가 그대로다');
+});
+
+test('소리: 건물 사이 골목은 메아리 벽을 찾고, 건물 안은 안쪽으로 안다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['ai', 'ai', 'none', 'none'], size: 'm', seed: 5 });
+  const G = T.G, N = T.N, room = T.sndRoom;
+  let street = null, inside = null;
+  for (let r = 3; r < N - 3 && !(street && inside); r++) for (let c = 3; c < N - 3; c++) {
+    const x = G.map[r][c];
+    if (!inside && x.t === 'bldg' && x.f > 0) inside = [c + .5, r + .5];
+    if (!street && x.t === 'road' && G.map[r][c - 1].t === 'bldg' && G.map[r][c - 1].f > 0) street = [c + .5, r + .5];
+  }
+  assert.ok(street && inside);
+  const s = room(...street);
+  assert.equal(s.ind, 0);
+  assert.ok(s.walls.length > 0 && s.walls[0].d < 2, '바로 옆 건물 벽을 못 찾았다');
+  assert.ok(s.dens > 0);
+  assert.equal(room(...inside).ind, 1);
+});
+
+test('소리: 총을 쏘는 모든 병종에 총성이 있다', () => {
+  const T = loadGame();
+  const W = T.WPN;
+  for (const t of T.TYPES) {
+    const u = T.UT[t];
+    if (u.rng[1] > 0 && !u.kami) assert.ok(W[t], `${t} 총성 없음`);
+  }
+});
