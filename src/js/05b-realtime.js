@@ -71,7 +71,8 @@ function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0
   const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.supp=Math.max(u.supp||0,1);harm(u,amt*.2,a,{kind:'frag'});}}
 /* 자동 표적: 가장 이득이 큰 적 */
 function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
-  for(const e of G.units){if(e.nat===u.nat||(vs&&!seen(e,u.nat)))continue;if(Math.hypot(u.x-e.x,u.z-e.z)>UT[u.type].rng[1]+.6)continue;if(!canHit(u,e))continue;
+  const R=UT[u.type].rng[1]+.6;
+  for(const e of G.units){if(e.nat===u.nat)continue;const dx=u.x-e.x,dz=u.z-e.z;if(dx*dx+dz*dz>R*R)continue;if(vs&&!seen(e,u.nat))continue;if(!canHit(u,e))continue;   // 싼 사거리 검사를 먼저(성능)
     const s=calcDmg(u,e,false)*UT[e.type].cost/Math.max(1,e.hp)+(u.tgt===e.id?99:0);if(s>bs){bs=s;best=e;}}
   return best;}
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);
@@ -89,8 +90,9 @@ function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];
 /* 서 있는 칸이 바뀌면 시야·점령을 갱신한다 */
 function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c)return;u.r=r;u.c=c;bump();afterMove(u);}
 /* 겹친 부대는 서로 조금씩 밀어낸다 */
-function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 건물 안·문간에서는 서로 밀지 않는다(문에서 막히지 않게)
-    const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
+function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];const dx=b.x-a.x,dz=b.z-a.z;if(dx>.75||dx<-.75||dz>.75||dz<-.75)continue;   // 먼 쌍은 바로 건너뛴다(성능)
+    if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 건물 안·문간에서는 서로 밀지 않는다(문에서 막히지 않게)
+    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
     const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
     const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}}

@@ -725,10 +725,15 @@ function spots(u,e){const t=UT[e.type];let v=visRange(u)+(t.cls==='veh'?1:t.fly?
   if(concealed(e))v*=SPOT_HIDE;
   if(t.hide&&inside(e)&&!firedRecently(e)&&e.shot!==G.turn)v=Math.min(v,1.5);
   const d=udist(u,e);if(d>v)return false;return d<.9||losU(u,e);}
+/* spots()가 쓰는 시야 거리의 상한: 가장 먼 병종 시야 + 고층 보너스 2 + 차량·항공 1 + 날씨 */
+function visMax(){const w=G.wx;if(G._vmx&&G._vmx.w===w)return G._vmx.v;let m=0;for(const k in UT)m=Math.max(m,UT[k].vis||0);
+  const v=m+3+Math.max(0,WX[w].vis);Object.defineProperty(G,'_vmx',{value:{w,v},writable:true,configurable:true,enumerable:false});return v;}
 function seen(e,n,vs){if(!G.fog||e.nat===n)return true;
   const ck='s'+n;G._sc=G._sc||{};const tq=Math.floor((G.time||0)*4);let c=G._sc[ck];if(!c||c.ver!==G.ver||c.tq!==tq){c=G._sc[ck]={ver:G.ver,tq,m:new Map()};}
   const pk=e.id+':'+e.r+','+e.c;if(c.m.has(pk))return c.m.get(pk);
-  let ok=false;for(const u of G.units){if(u.nat!==n)continue;if(spots(u,e)){ok=true;break;}}
+  // 시야 거리가 아무리 길어도 닿지 않는 부대는 시야선 계산 없이 건너뛴다(성능)
+  const [ex,ez]=posOf(e),V=visMax()+1.5;
+  let ok=false;for(const u of G.units){if(u.nat!==n)continue;const [ux,uz]=posOf(u);if(Math.abs(ux-ex)>V||Math.abs(uz-ez)>V)continue;if(spots(u,e)){ok=true;break;}}
   c.m.set(pk,ok);return ok;}
 
 /* ---------- 사격 가능 판정 ---------- */
@@ -1112,7 +1117,8 @@ function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0
   const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.supp=Math.max(u.supp||0,1);harm(u,amt*.2,a,{kind:'frag'});}}
 /* 자동 표적: 가장 이득이 큰 적 */
 function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
-  for(const e of G.units){if(e.nat===u.nat||(vs&&!seen(e,u.nat)))continue;if(Math.hypot(u.x-e.x,u.z-e.z)>UT[u.type].rng[1]+.6)continue;if(!canHit(u,e))continue;
+  const R=UT[u.type].rng[1]+.6;
+  for(const e of G.units){if(e.nat===u.nat)continue;const dx=u.x-e.x,dz=u.z-e.z;if(dx*dx+dz*dz>R*R)continue;if(vs&&!seen(e,u.nat))continue;if(!canHit(u,e))continue;   // 싼 사거리 검사를 먼저(성능)
     const s=calcDmg(u,e,false)*UT[e.type].cost/Math.max(1,e.hp)+(u.tgt===e.id?99:0);if(s>bs){bs=s;best=e;}}
   return best;}
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);
@@ -1130,8 +1136,9 @@ function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];
 /* 서 있는 칸이 바뀌면 시야·점령을 갱신한다 */
 function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c)return;u.r=r;u.c=c;bump();afterMove(u);}
 /* 겹친 부대는 서로 조금씩 밀어낸다 */
-function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 건물 안·문간에서는 서로 밀지 않는다(문에서 막히지 않게)
-    const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
+function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];const dx=b.x-a.x,dz=b.z-a.z;if(dx>.75||dx<-.75||dz>.75||dz<-.75)continue;   // 먼 쌍은 바로 건너뛴다(성능)
+    if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 건물 안·문간에서는 서로 밀지 않는다(문에서 막히지 않게)
+    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
     const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
     const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}}
@@ -1216,7 +1223,7 @@ const breached=x=>isB(x)&&x.bhp/x.bmax<.4;
 function wallBetween(a,b){if(!isB(a)&&!isB(b))return false;if(sameBlk(a,b))return false;return true;}
 /* 건물 칸 (r,c)의 s쪽 벽에 문이 있는가. 바깥(건물 아님, 물 아님)과 맞닿은 면 중에서 고르고, 칸마다 하나는 꼭 있다. */
 function doorSides(r,c){const x=G.map[r][c];if(!isB(x))return null;
-  const sig=SIDES.map(([a,b])=>{const r2=r+a,c2=c+b;if(!inb(r2,c2))return 0;const y=G.map[r2][c2];return !isB(y)&&y.t!=='water'?1:0;}).join('');
+  let sig='';for(let s=0;s<4;s++){const r2=r+SIDES[s][0],c2=c+SIDES[s][1];let v=0;if(inb(r2,c2)){const y=G.map[r2][c2];v=!isB(y)&&y.t!=='water'?1:0;}sig+=v;}
   if(x._dk===sig)return x._ds;const k=key(r,c);const out=[0,0,0,0];let any=false;
   for(let s=0;s<4;s++)if(sig[s]==='1'&&dHash(k,s)<.42){out[s]=1;any=true;}
   if(!any){const st=Math.floor(dHash(k,9)*4);for(let i=0;i<4;i++){const s=(st+i)%4;const [a,b]=SIDES[s];const y=inb(r+a,c+b)?G.map[r+a][c+b]:null;if(sig[s]==='1'&&y&&y.t==='road'){out[s]=1;any=true;break;}}
@@ -1237,7 +1244,8 @@ function diagPass(r,c,a,b){const P=[G.map[r][c],G.map[a][b],G.map[a][c],G.map[r]
   if(P.every(x=>!isB(x)))return true;return P.every(x=>sameBlk(x,P[0]));}
 function stepPass(r,c,a,b){if(a!==r&&b!==c)return diagPass(r,c,a,b);return edgePass(r,c,a,b)!=null;}
 /* 선분이 문이 아닌 곳으로 벽을 지나가는가 (자유 이동·밀어내기·경로 다듬기에서 쓴다) */
-function wallCross(u,x1,z1,x2,z2){if(UT[u.type].fly)return false;const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.08));
+function wallCross(u,x1,z1,x2,z2){if(UT[u.type].fly)return false;if(Math.floor(x1)===Math.floor(x2)&&Math.floor(z1)===Math.floor(z2))return false;   // 한 칸 안: 지날 경계가 없다(성능)
+  const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.08));
   let pr=Math.floor(z1),pc=Math.floor(x1),px=x1,pz=z1;
   for(let i=1;i<=n;i++){const x=x1+(x2-x1)*i/n,z=z1+(z2-z1)*i/n;const r=Math.floor(z),c=Math.floor(x);
     if(r!==pr||c!==pc){if(!inb(r,c)||!inb(pr,pc))return true;
@@ -3453,6 +3461,43 @@ function v3Launch(u,f){if(!V3.on)return;const o=V3.uo.get(u.id);const x=o?o.posi
 function v3Links(){const T=V3.T,vn=G.viewer;const L=[];for(const f of G.units){if(f.op==null||f.nat!==vn)continue;const a=V3.uo.get(f.op),b=V3.uo.get(f.id);if(a&&b)L.push(a.position.x,a.position.y+.12,a.position.z,b.position.x,b.position.y,b.position.z);}
   let ln=V3.linkLn;if(!ln||!ln.parent){ln=V3.linkLn=new T.LineSegments(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#8dff6e',dashSize:.08,gapSize:.06,transparent:true,opacity:.45,depthWrite:false}));ln.userData.keepGeo=1;ln.renderOrder=7;V3.G.fx.add(ln);}
   ln.geometry.setAttribute('position',new T.Float32BufferAttribute(L,3));ln.computeLineDistances();ln.visible=L.length>0;}
+
+/* ---- 07z-perf.js ---- */
+/* ===================== 3D: 큰 지도 성능 =====================
+   지형·소품·잔해는 종류마다 지도 전체를 덮는 인스턴스 메시 하나로 그린다. 그러면 메시 하나가 지도 전체 크기라서
+   카메라 밖에 있어도 잘리지 않고(시야 절두체 컬링), 그림자 패스에서도 지도 전체를 다시 그린다.
+   v3BuildWorld·v3BuildCity가 끝난 뒤, 큰 인스턴스 메시를 지도 구역(조각)별로 나눠 화면·그림자 범위 밖 조각은 아예 그리지 않게 한다.
+   모양·색·클릭(userData.keys)은 그대로다. 단면(07f-floors)이 직접 고치는 메시(V3.cityM)는 건드리지 않는다. */
+const PERF={triPer:3000,maxPer:4};
+/* 한 줄에 몇 조각으로 나눌지: 조각 하나에 삼각형이 3000개쯤 되게(그리기 호출 수가 너무 늘지 않게), 많아야 4×4.
+   작은 메시는 나누지 않는다. */
+const perfPer=tris=>Math.max(1,Math.min(PERF.maxPer,Math.floor(Math.sqrt(tris/PERF.triPer))));
+function v3Chunk(g,skip){if(!g||!V3.T)return;const T=V3.T;
+  for(const o of [...g.children]){if(!o.isInstancedMesh||skip.has(o)||o.count<2||o.userData.chunk)continue;
+    const geo=o.geometry;const tri=(geo.index?geo.index.count:geo.attributes.position.count)/3;const per=perfPer(tri*o.count);if(per<2)continue;const CH=N/per;
+    o.updateMatrix();const A=o.instanceMatrix.array,B=new Map();
+    for(let i=0;i<o.count;i++){const cx=Math.min(per-1,Math.max(0,Math.floor(A[i*16+12]/CH))),cz=Math.min(per-1,Math.max(0,Math.floor(A[i*16+14]/CH)));const k=cz*per+cx;let b=B.get(k);if(!b)B.set(k,b=[]);b.push(i);}
+    if(B.size<2)continue;
+    const keys=Array.isArray(o.userData.keys)?o.userData.keys:null,IC=o.instanceColor;
+    for(const idx of B.values()){const m=new T.InstancedMesh(geo,o.material,idx.length);
+      idx.forEach((i,j)=>{for(let q=0;q<16;q++)m.instanceMatrix.array[j*16+q]=A[i*16+q];if(IC){m.setColorAt(j,new T.Color().fromArray(IC.array,i*3));}});
+      if(IC)m.instanceColor.needsUpdate=true;
+      m.castShadow=o.castShadow;m.receiveShadow=o.receiveShadow;m.renderOrder=o.renderOrder;m.frustumCulled=o.frustumCulled;m.visible=o.visible;m.name=o.name;
+      m.position.copy(o.position);m.quaternion.copy(o.quaternion);m.scale.copy(o.scale);
+      m.userData={...o.userData,chunk:1};if(keys)m.userData.keys=idx.map(i=>keys[i]);
+      m.computeBoundingSphere();g.add(m);}
+    g.remove(o);if(o.dispose)o.dispose();}}   // 형상·재질은 조각들이 같이 쓰므로 버리지 않는다
+/* 원래 함수를 감싼다: 다른 파일을 고치지 않고 덧붙인다 */
+if(typeof v3BuildWorld==='function'){const f=v3BuildWorld;v3BuildWorld=function(){const r=f.apply(this,arguments);v3Chunk(V3.G.world,new Set());return r;};}
+if(typeof v3BuildCity==='function'){const f=v3BuildCity;v3BuildCity=function(){const r=f.apply(this,arguments);const C=V3.cityM||{};v3Chunk(V3.G.city,new Set([C.w,C.r,C.ac,C.gab].filter(Boolean)));return r;};}
+/* 성능 표시: 주소 끝에 ?fps 를 붙이면 왼쪽 아래에 초당 프레임·그리기 호출·삼각형·시뮬 시간을 보여 준다 */
+function perfHud(){if(typeof document==='undefined'||!/[?&]fps\b/.test(location.search)||!V3.ren||V3.hud)return;
+  const el=document.createElement('div');el.style.cssText='position:fixed;left:8px;bottom:8px;z-index:99;font:600 11px/1.4 "IBM Plex Mono",monospace;color:#e8e4da;background:rgba(13,18,23,.78);padding:4px 7px;border-radius:4px;pointer-events:none;white-space:pre';document.body.appendChild(el);
+  const H=V3.hud={el,n:0,t0:performance.now(),calls:0,tris:0,sim:0,ticks:0};const R=V3.ren,r0=R.render.bind(R);
+  R.render=(s,c)=>{r0(s,c);H.n++;H.calls+=R.info.render.calls;H.tris+=R.info.render.triangles;const now=performance.now();
+    if(now-H.t0>=1000){const k=H.n||1;el.textContent=`${(H.n*1000/(now-H.t0)).toFixed(0)} fps  ${Math.round(H.calls/k)} draws  ${Math.round(H.tris/k/1000)}k tris\nsim ${(H.sim/Math.max(1,H.ticks)).toFixed(1)} ms/tick  ${G?G.units.length:0} units`;H.n=H.calls=H.tris=H.sim=H.ticks=0;H.t0=now;}};
+  const tk=rtTick;rtTick=function(dt){const t=performance.now();const r=tk.apply(this,arguments);H.sim+=performance.now()-t;H.ticks++;return r;};}
+if(typeof startView==='function'){const f=startView;startView=async function(){const r=await f.apply(this,arguments);try{perfHud();}catch(e){}return r;};}
 
 /* ---- 08-ui.js ---- */
 /* ===================== UI: HUD·하단 바·메뉴 ===================== */
