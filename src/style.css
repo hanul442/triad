@@ -169,3 +169,41 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .v3u .pp b.aw{background:#8a96a3;opacity:.7}.v3u .pp b.ev{background:#8a96a3;opacity:.3}.v3u .pp b.kia{background:#151515;opacity:.8}
 .v3u em.sh{background:#c88a2a}.v3u em.br{background:#8a2a8a}
 .cas-tbl td{font-variant-numeric:tabular-nums}
+
+/* ===== 터치 지휘: 부대 목록·범위 선택·접는 지도 버튼 ===== */
+.app{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.sheet .panel{-webkit-user-select:text;user-select:text}
+.selbox{position:absolute;z-index:2;border:1.5px solid #e8ecef;background:rgba(232,236,239,.12);border-radius:3px;pointer-events:none}
+.mapctl .more{display:none}
+.roster{display:none}
+@media (max-width:760px),(pointer:coarse){
+  .ib{width:44px;height:44px}
+  .mapctl .x{display:none}
+  .mapctl .more{display:grid}
+  .mapctl.open .x{display:grid}
+  .mapctl.open{display:grid;grid-template-columns:repeat(2,44px);background:rgba(9,13,18,.6);border-radius:8px;padding:4px;margin-right:-4px}
+  .roster:not([hidden]){display:flex;pointer-events:auto;width:100%;max-width:760px;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;margin-bottom:6px;padding:1px}
+  .roster::-webkit-scrollbar{display:none}
+  .rc{flex:none;position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;min-width:76px;min-height:48px;padding:5px 10px 8px;background:rgba(9,13,18,.88);color:#e8ecef;border:1px solid rgba(255,255,255,.16);border-radius:6px;font:inherit;font-size:12.5px;font-weight:600;line-height:1.2;cursor:pointer;overflow:hidden}
+  .rc small{font-family:var(--font-m);font-size:10px;font-weight:500;color:#aab4bc}
+  .rc i{position:absolute;left:0;bottom:0;height:3px;width:calc(var(--f)*100%);background:var(--c)}
+  .rc[aria-pressed="true"]{border-color:#e8ecef;background:rgba(40,52,62,.95);box-shadow:inset 0 0 0 1px #e8ecef}
+  .actbar{padding:6px 6px 6px 10px}
+  .actbar span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex-basis:100%}
+  .actbar .ab{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none;margin-left:0}
+  .actbar .ab::-webkit-scrollbar{display:none}
+  .actbar .btn,.actbar .btn.sm{min-height:44px;flex:none}
+  .obj{font-size:12px;padding:6px 10px}
+}
+/* 가로로 눕힌 휴대폰: 높이가 낮으니 아래 패널을 얇게 */
+@media (max-height:500px) and (orientation:landscape){
+  .mapctl{top:calc(56px + env(safe-area-inset-top,0px));transform:none;gap:4px}
+  .mapctl.open{display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;max-width:calc(100vw - 24px)}
+  .rc{min-height:40px}
+  .actbar{flex-wrap:nowrap}
+  .actbar span{flex:1 1 auto;-webkit-line-clamp:1;min-width:60px}
+  .actbar b{flex:none;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+  .dock .actbar,.roster:not([hidden]),.dock .obj{max-width:calc(100% - 64px);align-self:flex-start}
+  .obj{flex-direction:row;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .obj b{flex:none}
+}

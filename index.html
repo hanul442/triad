@@ -186,6 +186,44 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .v3u .pp b.aw{background:#8a96a3;opacity:.7}.v3u .pp b.ev{background:#8a96a3;opacity:.3}.v3u .pp b.kia{background:#151515;opacity:.8}
 .v3u em.sh{background:#c88a2a}.v3u em.br{background:#8a2a8a}
 .cas-tbl td{font-variant-numeric:tabular-nums}
+
+/* ===== 터치 지휘: 부대 목록·범위 선택·접는 지도 버튼 ===== */
+.app{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.sheet .panel{-webkit-user-select:text;user-select:text}
+.selbox{position:absolute;z-index:2;border:1.5px solid #e8ecef;background:rgba(232,236,239,.12);border-radius:3px;pointer-events:none}
+.mapctl .more{display:none}
+.roster{display:none}
+@media (max-width:760px),(pointer:coarse){
+  .ib{width:44px;height:44px}
+  .mapctl .x{display:none}
+  .mapctl .more{display:grid}
+  .mapctl.open .x{display:grid}
+  .mapctl.open{display:grid;grid-template-columns:repeat(2,44px);background:rgba(9,13,18,.6);border-radius:8px;padding:4px;margin-right:-4px}
+  .roster:not([hidden]){display:flex;pointer-events:auto;width:100%;max-width:760px;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;margin-bottom:6px;padding:1px}
+  .roster::-webkit-scrollbar{display:none}
+  .rc{flex:none;position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;min-width:76px;min-height:48px;padding:5px 10px 8px;background:rgba(9,13,18,.88);color:#e8ecef;border:1px solid rgba(255,255,255,.16);border-radius:6px;font:inherit;font-size:12.5px;font-weight:600;line-height:1.2;cursor:pointer;overflow:hidden}
+  .rc small{font-family:var(--font-m);font-size:10px;font-weight:500;color:#aab4bc}
+  .rc i{position:absolute;left:0;bottom:0;height:3px;width:calc(var(--f)*100%);background:var(--c)}
+  .rc[aria-pressed="true"]{border-color:#e8ecef;background:rgba(40,52,62,.95);box-shadow:inset 0 0 0 1px #e8ecef}
+  .actbar{padding:6px 6px 6px 10px}
+  .actbar span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex-basis:100%}
+  .actbar .ab{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none;margin-left:0}
+  .actbar .ab::-webkit-scrollbar{display:none}
+  .actbar .btn,.actbar .btn.sm{min-height:44px;flex:none}
+  .obj{font-size:12px;padding:6px 10px}
+}
+/* 가로로 눕힌 휴대폰: 높이가 낮으니 아래 패널을 얇게 */
+@media (max-height:500px) and (orientation:landscape){
+  .mapctl{top:calc(56px + env(safe-area-inset-top,0px));transform:none;gap:4px}
+  .mapctl.open{display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;max-width:calc(100vw - 24px)}
+  .rc{min-height:40px}
+  .actbar{flex-wrap:nowrap}
+  .actbar span{flex:1 1 auto;-webkit-line-clamp:1;min-width:60px}
+  .actbar b{flex:none;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+  .dock .actbar,.roster:not([hidden]),.dock .obj{max-width:calc(100% - 64px);align-self:flex-start}
+  .obj{flex-direction:row;gap:8px;align-items:baseline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .obj b{flex:none}
+}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -201,19 +239,21 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div class="plate" id="hud-obj" aria-live="polite"></div>
     <div class="pill res" id="hud-res"></div>
   </div>
-  <div class="mapctl">
+  <div class="mapctl" id="mapctl">
     <button class="ib" data-act="rot:1" id="b-rot" aria-label="시점 회전 (Q/E)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
-    <button class="ib" data-act="zoom:1" id="z-in" aria-label="확대">+</button>
-    <button class="ib" data-act="zoom:-1" id="z-out" aria-label="축소">−</button>
+    <button class="ib x" data-act="zoom:1" id="z-in" aria-label="확대">+</button>
+    <button class="ib x" data-act="zoom:-1" id="z-out" aria-label="축소">−</button>
     <button class="ib" data-act="home" id="b-home" aria-label="집결지로 이동"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8H4z"/><path d="M10 19v-5h4v5"/></svg></button>
-    <button class="ib" data-act="cine" id="b-cine" aria-label="낮은 시점 (C)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l5 3v6H3z"/><circle cx="8" cy="12" r="2.5"/></svg></button>
-    <button class="ib" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
-    <button class="ib" data-act="snd" id="b-snd" aria-label="효과음" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
-    <button class="ib" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="ib x" data-act="cine" id="b-cine" aria-label="낮은 시점 (C)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l5 3v6H3z"/><circle cx="8" cy="12" r="2.5"/></svg></button>
+    <button class="ib x" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
+    <button class="ib x" data-act="snd" id="b-snd" aria-label="효과음" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+    <button class="ib x" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="ib more" data-act="more" id="b-more" aria-label="지도 버튼 더 보기" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg></button>
   </div>
+  <div class="selbox" id="selbox" hidden></div>
   <div class="toast" id="toast" role="status" hidden></div>
   <div class="tip" id="tip" hidden></div>
-  <div class="dock"><div class="obj" id="obj" role="status" hidden></div><div class="actbar" id="actbar" hidden></div></div>
+  <div class="dock"><div class="obj" id="obj" role="status" hidden></div><div class="roster" id="roster" aria-label="부대 목록" hidden></div><div class="actbar" id="actbar" hidden></div></div>
   <aside class="sheet" id="sheet" aria-label="작전 메뉴" hidden>
     <div class="sheet-h">
       <div class="tabs" role="tablist" id="tabs">
@@ -2095,42 +2135,62 @@ function v3Focus(r,c){const [x,z]=v3x(r,c);V3.cs.gx=x;V3.cs.gz=z;}
 function camFollow(r,c){if(!V3.on)return;const s=V3.cs;const [x,z]=v3x(r,c);if(Math.hypot(x-s.gx,z-s.gz)>s.d*.35)v3Focus(r,c);}
 function v3HomeCam(now){if(!G)return;const n=G.viewer;const sp=zoneSpots(n);const s=V3.cs;const m=(N-1)/2;
   const [r,c]=sp.length?sp[0]:[m,m];const [x,z]=v3x(r,c);const [mx,mz]=v3x(m,m);
-  s.gx=x+(mx-x)*.45;s.gz=z+(mz-z)*.45;s.gyaw=[ -Math.PI/2, Math.PI/2, Math.PI, 0 ][n]??0;
+  const f=V3.cam&&(V3.cam.aspect<1||(V3.cv&&V3.cv.clientHeight<560))?0:.45;s.gx=x+(mx-x)*f;s.gz=z+(mz-z)*f;s.gyaw=[ -Math.PI/2, Math.PI/2, Math.PI, 0 ][n]??0;
   if(now){s.x=s.gx;s.z=s.gz;s.yaw=s.gyaw;}}
 function v3Zoom(f){const s=V3.cs;s.gd=Math.min(Math.max(48,N*1.35),Math.max(4,s.gd*f));}
 function v3Rot(dir){V3.cs.gyaw+=dir*Math.PI/4;}
 function v3Pan(dx,dy){const s=V3.cs,h=V3.cv.clientHeight||600;const k=2*s.d*Math.tan(V3.cam.fov*Math.PI/360)/h;
   const cy=Math.cos(s.yaw),sy=Math.sin(s.yaw);const fx=-dx*k,fz=-dy*k/Math.max(.5,Math.sin(s.pitch));
   s.gx+=fx*cy+fz*sy;s.gz+=-fx*sy+fz*cy;s.gx=Math.min(N,Math.max(0,s.gx));s.gz=Math.min(N,Math.max(0,s.gz));s.x=s.gx;s.z=s.gz;}
-function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,last2=null;const pos=e=>[e.clientX,e.clientY];
+/* 화면 지점 아래 땅 위치 */
+function v3Ground(cx,cy){const T=V3.T,p=new T.Vector3();return v3Ray(cx,cy).ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0),0),p)?p:null;}
+/* 손가락(커서) 아래 지점을 고정한 채 확대·축소 */
+function v3ZoomAt(f,cx,cy,now){const s=V3.cs,o=s.gd;const p=cx!=null?v3Ground(cx,cy):null;v3Zoom(f);if(now)s.d=s.gd;if(!p)return;const k=1-s.gd/o;
+  s.gx=Math.min(N,Math.max(0,s.gx+(p.x-s.gx)*k));s.gz=Math.min(N,Math.max(0,s.gz+(p.z-s.gz)*k));if(now){s.x=s.gx;s.z=s.gz;}}
+/* 터치 조작: 한 손가락 드래그 이동(관성), 두 손가락 확대·회전·기울기, 짧게 탭 명령, 길게 눌러 끌기 범위 선택, 두 손가락 탭 선택 해제 */
+const LP_MS=420;
+function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,last2=null,lp=null,lpT=0,vel=[0,0],lastMv=0,inertia=0;const pos=e=>[e.clientX,e.clientY];
+  const box=$('#selbox');
+  const stopInertia=()=>{if(inertia){cancelAnimationFrame(inertia);inertia=0;}};
+  const fling=()=>{let [vx,vy]=vel;if(Math.hypot(vx,vy)<.25)return;let t0=performance.now();
+    const st=now=>{const dt=Math.min(40,now-t0);t0=now;v3Pan(vx*dt,vy*dt);const d=Math.exp(-dt/260);vx*=d;vy*=d;inertia=Math.hypot(vx,vy)>.02?requestAnimationFrame(st):0;};inertia=requestAnimationFrame(st);};
+  const drawBox=(a,b)=>{if(!box)return;const x=Math.min(a[0],b[0]),y=Math.min(a[1],b[1]);box.style.left=x+'px';box.style.top=y+'px';box.style.width=Math.abs(a[0]-b[0])+'px';box.style.height=Math.abs(a[1]-b[1])+'px';box.hidden=false;};
   cv.addEventListener('contextmenu',e=>e.preventDefault());
-  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,{p:pos(e),b:e.button,mod:e.shiftKey||e.ctrlKey||e.altKey});
-    if(P.size===1){start={p:pos(e),t:performance.now()};moved=0;multi=false;}else{multi=true;last2=null;}});
+  cv.addEventListener('pointerdown',e=>{stopInertia();if(typeof closeMore==='function')closeMore();try{cv.setPointerCapture(e.pointerId);}catch(_){}P.set(e.pointerId,{p:pos(e),b:e.button,mod:e.shiftKey||e.ctrlKey||e.altKey});
+    if(P.size===1){start={p:pos(e),t:performance.now(),touch:e.pointerType!=='mouse'};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
+      if(e.button===0&&!P.get(e.pointerId).mod)lpT=setTimeout(()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}},LP_MS);}
+    else{multi=true;last2=null;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}}});
   cv.addEventListener('pointermove',e=>{const q=P.get(e.pointerId);if(!q){if(e.pointerType==='mouse')v3Hover(e);return;}
     const np=pos(e),dx=np[0]-q.p[0],dy=np[1]-q.p[1];q.p=np;moved+=Math.abs(dx)+Math.abs(dy);
-    if(P.size===1){if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}else v3Pan(dx,dy);}
+    if(P.size===1){if(lp){lp.b=np;drawBox(lp.a,lp.b);return;}
+      if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}
+      else if(moved>(start&&start.touch?10:4)){v3Pan(dx,dy);const now=performance.now(),dt=Math.max(1,now-lastMv);lastMv=now;const k=Math.min(1,dt/40);vel=[vel[0]*(1-k)+dx/dt*k,vel[1]*(1-k)+dy/dt*k];}}
     else if(P.size===2){const [a,b]=[...P.values()];const mx=(a.p[0]+b.p[0])/2,my=(a.p[1]+b.p[1])/2,dd=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]),an=Math.atan2(b.p[1]-a.p[1],b.p[0]-a.p[0]);
       if(last2){const s=V3.cs;const pinch=Math.abs(dd-last2.dd)>1.5;let da=an-last2.an;if(da>Math.PI)da-=2*Math.PI;if(da<-Math.PI)da+=2*Math.PI;
         if(!pinch&&Math.abs(da)<.01)s.pitch=Math.min(1.5,Math.max(.2,s.pitch+(my-last2.my)*.005));else v3Pan(mx-last2.mx,my-last2.my);
-        s.gd=Math.min(48,Math.max(4,s.gd*last2.dd/Math.max(10,dd)));s.d=s.gd;s.gyaw-=da;s.yaw=s.gyaw;}
+        v3ZoomAt(last2.dd/Math.max(10,dd),mx,my,true);s.gyaw-=da;s.yaw=s.gyaw;}
       last2={mx,my,dd,an};}});
-  const up=e=>{const had=P.has(e.pointerId);P.delete(e.pointerId);if(P.size<2)last2=null;
-    if(had&&P.size===0&&!multi&&start&&moved<8&&performance.now()-start.t<700&&e.button!==2){const k=v3Pick(e.clientX,e.clientY);if(k!=null&&typeof tap==='function')tap(k);}
+  const up=e=>{const had=P.has(e.pointerId);P.delete(e.pointerId);if(P.size<2)last2=null;clearTimeout(lpT);
+    if(had&&P.size===0&&start){const dur=performance.now()-start.t;
+      if(lp){if(box)box.hidden=true;const a=lp.a,b=lp.b;lp=null;if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>16){if(typeof boxSelect==='function')boxSelect(a,b);}else{const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof holdTap==='function')holdTap(k);}}
+      else if(multi){if(moved<24&&dur<450&&typeof twoTap==='function')twoTap();}
+      else if(moved<(start.touch?12:8)&&dur<LP_MS&&e.button!==2){const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof tap==='function')tap(k);}
+      else if(performance.now()-lastMv<80)fling();}
     if(P.size===0)start=null;};
-  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{P.delete(e.pointerId);multi=true;});
+  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{P.delete(e.pointerId);multi=true;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}if(P.size===0)start=null;});
   cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&UI.hk!=null){UI.hk=null;v3SyncHl();}});
-  cv.addEventListener('wheel',e=>{e.preventDefault();v3Zoom(Math.exp(e.deltaY*.0012));},{passive:false});
+  cv.addEventListener('wheel',e=>{e.preventDefault();stopInertia();v3ZoomAt(Math.exp(e.deltaY*.0012),e.clientX,e.clientY,false);},{passive:false});
   document.addEventListener('keydown',e=>{if(!V3.on||e.target.closest('input,select,textarea'))return;const k=e.key.toLowerCase();
     if(k==='q')v3Rot(1);else if(k==='e')v3Rot(-1);else if(k==='r')V3.cs.pitch=Math.min(1.5,V3.cs.pitch+.12);else if(k==='f')V3.cs.pitch=Math.max(.2,V3.cs.pitch-.12);
     else if(k==='w'||k==='arrowup')v3Pan(0,60);else if(k==='s'||k==='arrowdown')v3Pan(0,-60);else if(k==='a'||k==='arrowleft')v3Pan(60,0);else if(k==='d'||k==='arrowright')v3Pan(-60,0);});}
 function v3Ray(cx,cy){const T=V3.T,rc=V3.ray||(V3.ray=new T.Raycaster());const b=V3.cv.getBoundingClientRect();rc.setFromCamera(new T.Vector2((cx-b.left)/b.width*2-1,-(cy-b.top)/b.height*2+1),V3.cam);return rc;}
 /* 화면 지점 → 칸 키. 부가로 V3.pickPt(땅 위 정확한 지점), V3.pickId(탭한 부대)를 남긴다. 작은 병사도 잘 집히게 가까운 부대를 찾아 준다. */
-function v3Pick(cx,cy){if(!G)return null;V3.pickId=null;V3.pickPt=null;const rc=v3Ray(cx,cy);const hits=rc.intersectObjects([V3.G.units,V3.G.city,V3.G.world],true);let k=null;
+function v3Pick(cx,cy,rad){if(!G)return null;V3.pickId=null;V3.pickPt=null;const rc=v3Ray(cx,cy);const hits=rc.intersectObjects([V3.G.units,V3.G.city,V3.G.world],true);let k=null;
   for(const h of hits){let o=h.object;if(!o.visible)continue;while(o&&o.userData.k==null&&o.parent)o=o.parent;if(o&&o.userData.k!=null){V3.pickId=o.userData.id;V3.pickPt=[h.point.x,h.point.z];return o.userData.k;}
     const m=h.object.userData;V3.pickPt=[h.point.x,h.point.z];if(m.keys&&h.instanceId!=null){k=m.keys[h.instanceId];break;}if(m.tri&&h.faceIndex!=null){k=m.tri[h.faceIndex];break;}if(h.object.parent===V3.G.world){k=key(Math.floor(h.point.z),Math.floor(h.point.x));break;}}
   if(k==null){const p=new V3.T.Vector3();if(rc.ray.intersectPlane(new V3.T.Plane(new V3.T.Vector3(0,1,0),0),p)){V3.pickPt=[p.x,p.z];const r=Math.floor(p.z),c=Math.floor(p.x);if(inb(r,c))k=key(r,c);}}
   // 가까운 부대(화면에서 28px 안) 우선
-  {const v=new V3.T.Vector3();const b=V3.cv.getBoundingClientRect();let best=null,bd=28;for(const [id,o] of V3.uo){v.copy(o.position);v.y+=.08;v.project(V3.cam);const sx=(v.x+1)/2*b.width+b.left,sy=(1-v.y)/2*b.height+b.top;const d=Math.hypot(sx-cx,sy-cy);if(d<bd){bd=d;best=o;}}
+  {const v=new V3.T.Vector3();const b=V3.cv.getBoundingClientRect();let best=null,bd=rad||28;for(const [id,o] of V3.uo){v.copy(o.position);v.y+=.08;v.project(V3.cam);const sx=(v.x+1)/2*b.width+b.left,sy=(1-v.y)/2*b.height+b.top;const d=Math.hypot(sx-cx,sy-cy);if(d<bd){bd=d;best=o;}}
     if(best){V3.pickId=best.userData.id;return best.userData.k;}}
   return k;}
 let v3HovRaf=0;
@@ -3459,7 +3519,7 @@ function v3Links(){const T=V3.T,vn=G.viewer;const L=[];for(const f of G.units){i
 function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.units.includes(UI.sel))UI.targets=targetsOf(UI.sel,false);else clearSel();}if(typeof scnCheck==='function')scnCheck();
   if(G.over&&!G._rep){G._rep=true;UI.sheet=true;UI.tab='world';sfx(G.over.win===G.viewer?'win':'boom');}
   const ho=$('#handoff');if(ho)ho.hidden=true;
-  renderHUD();renderActbar();renderPanel();renderObj();if(typeof v3Sync==='function')v3Sync();}
+  renderHUD();renderActbar();renderPanel();renderObj();if(typeof renderRoster==='function')renderRoster();if(typeof v3Sync==='function')v3Sync();}
 function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNight();
   const ic=night?`<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M8.5 1.2A5 5 0 1 0 10.8 9 4 4 0 0 1 8.5 1.2Z" fill="#e8ecef"/></svg>`:`<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="2.6" fill="#f0c45a"/></svg>`;
   $('#hud-clock').innerHTML=`${ic}<b>${String(h).padStart(2,'0')}:00</b><small>${fmtT(G.time||0)} / ${fmtT(G.maxR*ROUND_S)} · ${WX[G.wx].n}${G.paused?' · 일시정지':G.spd!==1?` · ${G.spd}배속`:''}</small>`;
@@ -3528,7 +3588,7 @@ const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로
 <h3>증원과 화력 지원</h3><ul class="rules"><li>지휘점수로 집결지나 거점 옆에 증원을 부릅니다</li><li>포병 사격(3×3), 근접 항공 지원(한 칸, 건물 붕괴), 연막(3×3 시야 차단), 헬기 투입, 공격헬기는 ${SUP_CD}초마다 하나씩, 연막 말고는 보이는 곳에만 씁니다</li></ul>
 <h3>방어물</h3><ul class="rules"><li>보병을 고르고 [축성]을 누르면 모래주머니(엄폐 40%)·철조망(보병 차단)·참호(안에 들어가면 사방 엄폐 50%)를, 기관총팀은 기관총 진지를, 공병은 콘크리트 방벽·대전차 장애물(차량 차단)까지 지휘점수로 쌓습니다</li><li>도로 위에 놓으면 길을 가로질러 놓입니다. 차량은 주차된 차·방벽·장애물을 넘지 못하고 돌아가며, 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다</li></ul>
 <h3>공중전</h3><ul class="rules"><li>드론과 헬기는 쏜다고 다 맞지 않습니다. 소총·기관총은 대부분 빗나가고, 대공팀(휴대용 대공미사일)과 대공포 차량이 잘 맞힙니다. 보병은 아주 가까이 온 드론에 산탄총을 씁니다</li><li>전자전팀은 반경 3.5칸 안 적 드론의 신호를 끊어 떨어뜨립니다(헬기·전투기에는 효과 없음)</li><li>드론팀은 멈춰서 3초 자리를 잡으면 보이는 적(10칸 안)에게 FPV를 띄웁니다. 한 번에 2대까지, 드론 4대를 들고 25초마다 1대씩 보급받습니다. 조종수가 쓰러지거나 10칸 밖으로 나가면 드론이 떨어집니다. 험비·장갑차를 고르고 [드론팀 하차]로 내려놓을 수도 있습니다</li><li>FPV 자폭드론은 적에게 날아가 부딪혀 터집니다. 위에서 덮쳐 장갑을 무시하지만 한 발만 맞아도 떨어집니다</li><li>공격헬기는 지정한 곳 위를 45초 동안 선회하며 쏩니다. 탭해서 선회 지점을 옮길 수 있고, 대공미사일은 플레어로 두 번까지 피하기도 합니다</li><li>근접 항공 지원은 전투기가 몇 초 뒤 와서 폭탄을 떨어뜨리고, 목표 근처 적 대공이 먼저 격추할 수 있습니다. 폭우에는 헬기·전투기가 뜨지 못합니다</li><li>격추된 헬기는 떨어진 곳 주변에 피해를 줍니다</li></ul>
-<h3>화면</h3><ul class="rules"><li>드래그: 이동 · 두 손가락: 확대·회전 · 마우스 휠: 확대 · 오른쪽 드래그 또는 Shift+드래그: 회전·기울기</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지</li></ul>`;
+<h3>화면</h3><ul class="rules"><li>드래그: 이동(튕기면 미끄러짐) · 두 손가락: 확대·회전·기울기 · 마우스 휠: 커서 위치로 확대 · 오른쪽 드래그 또는 Shift+드래그: 회전·기울기</li><li>휴대폰: 아래 부대 목록을 탭하면 그 부대를 고르고 카메라가 따라갑니다 · 길게 누른 채 끌면 범위 안 아군을 한꺼번에 선택 · 길게 누르면 그 지점 정보 · 두 손가락으로 톡 치면 선택 해제 · ⋯ 버튼에 나머지 지도 버튼</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지</li></ul>`;
 function showSetup(){const sl=$('#scn-list');if(sl&&typeof scnButtons==='function')sl.innerHTML=scnButtons();
   const box=$('#slots');box.innerHTML=NATS.map((N2,i)=>`<div class="slot"><i class="sw" style="background:${N2.col}"></i><label for="slot-${i}">${N2.full} <small>${N2.edge}</small></label><select id="slot-${i}"><option value="human">사람</option><option value="ai">AI</option>${i>1?'<option value="none">없음</option>':''}</select></div>`).join('');
   NATS.forEach((_,i)=>{$('#slot-'+i).value=UI.setupSlots[i]||'none';});$('#b-resume').hidden=!loadSave();$('#setup').hidden=false;}
@@ -3550,8 +3610,8 @@ function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),
     UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
   if(s&&UI.phase==='fort'&&typeof fortTap==='function'){fortTap(grp,pt[0],pt[1]);render();return;}
   if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){orderBldg(s,r,c);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
-  if(grp.length){if(u&&u.nat!==n){for(const g of grp)if(UT[g.type].rng[1])orderAttack(g,u);sfx('click',.6);render();return;}
-    orderGroupMove(grp,pt[0],pt[1]);sfx('click',.4);render();return;}
+  if(grp.length){if(u&&u.nat!==n){for(const g of grp)if(UT[g.type].rng[1])orderAttack(g,u);if(typeof v3Ping==='function')v3Ping(u.x,u.z,'#ff5a3c');sfx('click',.6);render();return;}
+    orderGroupMove(grp,pt[0],pt[1]);if(typeof v3Ping==='function')v3Ping(pt[0],pt[1]);sfx('click',.4);render();return;}
   clearSel();UI.pane={r,c};render();}
 function doSupport(){const n=G.viewer;const k=UI.st;if(k==null)return;if(support(n,UI.supK,kr(k),kc(k))){clearSel();render();if(typeof scnAfterAct==='function')scnAfterAct();}}
 if(typeof document!=='undefined'){
@@ -3601,6 +3661,52 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='cancel'){clearSel();render();}});
 document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if(e.key===' '&&G&&!G.boot&&$('#setup').hidden){e.preventDefault();G.paused=!G.paused;render();return;}if((e.key==='c'||e.key==='C')&&G&&typeof v3Cine==='function'){v3Cine();return;}if(e.key==='Escape'){if(UI.sheet){UI.sheet=false;render();}else if(UI.sel||UI.phase||UI.pane){clearSel();UI.pane=null;render();}}});
 }
+
+/* ---- 09b-touch.js ---- */
+/* ===================== 터치 지휘 =====================
+   휴대폰에서 작은 병사를 손가락으로 집기 어렵기 때문에:
+   - 부대 목록(화면 아래 칩): 탭하면 고르고 카메라가 그 부대로 간다. 다시 탭하면 해제
+   - 길게 누른 채 끌기: 범위 안의 아군을 한꺼번에 선택
+   - 길게 누르기(끌지 않음): 그 지점 정보
+   - 두 손가락 탭: 선택·명령 모드 취소
+   - 명령을 내린 지점에 잠깐 표시가 뜬다 */
+function canCmd(){return G&&!G.over&&!G.boot&&!isAI(G.viewer)&&$('#setup').hidden;}
+function boxSelect(a,b){if(!canCmd()||typeof V3==='undefined'||!V3.cam)return;const n=G.viewer;const r=V3.cv.getBoundingClientRect();
+  const x0=Math.min(a[0],b[0]),x1=Math.max(a[0],b[0]),y0=Math.min(a[1],b[1]),y1=Math.max(a[1],b[1]);const v=new V3.T.Vector3();
+  const us=G.units.filter(u=>{if(u.nat!==n)return false;const o=V3.uo.get(u.id);if(!o)return false;v.copy(o.position);v.project(V3.cam);
+    const sx=(v.x+1)/2*r.width+r.left,sy=(1-v.y)/2*r.height+r.top;return sx>=x0-10&&sx<=x1+10&&sy>=y0-10&&sy<=y1+10;});
+  if(!us.length){toast('범위 안에 아군이 없습니다');return;}
+  clearSel();select(us[0]);UI.group=us.slice(1);toast(`${us.length}개 부대 선택`);render();}
+function holdTap(k){if(!G)return;const r=kr(k),c=kc(k),x=cell(r,c),n=G.viewer;const pid=V3.pickId;const u0=pid!=null?G.units.find(z=>z.id===pid):null;
+  const u=u0&&(!G.fog||seen(u0,n))?u0:null;const vis=!G.fog||visSet(n).has(k);
+  let s=x.obj!=null?`${G.objs[x.obj].name} · ${natName(x.owner)} · `:'';s+=x.t==='bldg'?`${x.f}층 건물 ${Math.ceil(x.bhp)}/${x.bmax}`:TT[x.t].n;
+  if(u)s=`${natName(u.nat)} ${UT[u.type].n} · ${uHealth(u)}`;if(!vis)s+=' · 시야 밖';toast(s);}
+function twoTap(){if(!G||(!UI.sel&&!UI.phase&&!UI.pane))return;clearSel();UI.pane=null;toast('선택 해제');render();}
+/* 명령 지점 표시: 땅 위에 퍼지는 고리 */
+function v3Ping(x,z,col){if(typeof V3==='undefined'||!V3.on||!V3.T)return;const T=V3.T;
+  const m=new T.Mesh(new T.RingGeometry(.12,.2,28),new T.MeshBasicMaterial({color:col||'#f2efe6',transparent:true,depthWrite:false,side:T.DoubleSide}));
+  m.rotation.x=-Math.PI/2;m.position.set(x,.08,z);m.renderOrder=5;V3.G.fx.add(m);
+  V3.fx.push({o:m,t0:performance.now(),dur:650,upd:(o,k)=>{o.scale.setScalar(1+k*2.2);o.material.opacity=1-k;}});}
+/* 부대 목록 */
+let rosterSig='',rosterSel=null;
+function renderRoster(){const el=$('#roster');if(!el)return;const n=G.viewer;
+  const show=canCmd()&&!UI.phase?.match?.(/^(buy|sup)$/);const us=show?G.units.filter(u=>u.nat===n):[];
+  const sel=new Set([UI.sel,...(UI.group||[])].filter(Boolean).map(u=>u.id));
+  const hp=u=>{const c=typeof casSummary==='function'?casSummary(u):null;return c?(c.ok+c.lw)/Math.max(1,u.ws.length):u.hp/hpMax(u);};
+  const sig=us.map(u=>`${u.id}${sel.has(u.id)?'*':''}${Math.round(hp(u)*8)}${u.path&&u.path.length?'m':''}${u.tgt!=null?'t':''}${u.brk?'b':''}`).join(',');
+  if(sig===rosterSig)return;rosterSig=sig;el.hidden=!us.length;
+  el.innerHTML=us.map(u=>{const f=Math.max(0,Math.min(1,hp(u)));const st=u.brk?'공황':u.path&&u.path.length?'이동':u.tgt!=null?'교전':'';
+    return `<button class="rc" data-act="pick:${u.id}" id="rc-${u.id}" aria-pressed="${sel.has(u.id)}"><b>${UT[u.type].n}</b>${st?`<small>${st}</small>`:''}<i style="--f:${f};--c:${f>.6?'#5cd18a':f>.3?'#f0c45a':'#ff6a3d'}"></i></button>`;}).join('');
+  const sid=UI.sel?UI.sel.id:null;if(sid!==rosterSel){rosterSel=sid;const on=$('#rc-'+sid);if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center'});}}
+function rosterPick(id){if(!canCmd())return;const u=G.units.find(x=>x.id===id&&x.nat===G.viewer);if(!u)return;
+  if(UI.sel===u&&!(UI.group||[]).length){clearSel();render();return;}
+  UI.group=[];select(u);if(typeof V3!=='undefined'&&V3.cs){V3.cs.gx=u.x;V3.cs.gz=u.z;}}
+if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+  if(a==='more'){const m=$('#mapctl');const o=!m.classList.contains('open');m.classList.toggle('open',o);b.setAttribute('aria-expanded',o?'true':'false');return;}
+  // 지도 버튼 밖의 버튼을 누르면 펼친 지도 버튼은 접는다
+  if(!b.closest('#mapctl'))closeMore();
+  if(a.startsWith('pick:'))rosterPick(+a.slice(5));});
+function closeMore(){const m=$('#mapctl');if(m&&m.classList.contains('open')){m.classList.remove('open');const mb=$('#b-more');if(mb)mb.setAttribute('aria-expanded','false');}}
 
 /* ---- 10-scenario.js ---- */
 /* ===================== SCENARIOS ===================== */

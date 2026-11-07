@@ -9,19 +9,21 @@
     <div class="plate" id="hud-obj" aria-live="polite"></div>
     <div class="pill res" id="hud-res"></div>
   </div>
-  <div class="mapctl">
+  <div class="mapctl" id="mapctl">
     <button class="ib" data-act="rot:1" id="b-rot" aria-label="시점 회전 (Q/E)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
-    <button class="ib" data-act="zoom:1" id="z-in" aria-label="확대">+</button>
-    <button class="ib" data-act="zoom:-1" id="z-out" aria-label="축소">−</button>
+    <button class="ib x" data-act="zoom:1" id="z-in" aria-label="확대">+</button>
+    <button class="ib x" data-act="zoom:-1" id="z-out" aria-label="축소">−</button>
     <button class="ib" data-act="home" id="b-home" aria-label="집결지로 이동"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8H4z"/><path d="M10 19v-5h4v5"/></svg></button>
-    <button class="ib" data-act="cine" id="b-cine" aria-label="낮은 시점 (C)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l5 3v6H3z"/><circle cx="8" cy="12" r="2.5"/></svg></button>
-    <button class="ib" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
-    <button class="ib" data-act="snd" id="b-snd" aria-label="효과음" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
-    <button class="ib" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="ib x" data-act="cine" id="b-cine" aria-label="낮은 시점 (C)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l5 3v6H3z"/><circle cx="8" cy="12" r="2.5"/></svg></button>
+    <button class="ib x" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
+    <button class="ib x" data-act="snd" id="b-snd" aria-label="효과음" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+    <button class="ib x" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="ib more" data-act="more" id="b-more" aria-label="지도 버튼 더 보기" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg></button>
   </div>
+  <div class="selbox" id="selbox" hidden></div>
   <div class="toast" id="toast" role="status" hidden></div>
   <div class="tip" id="tip" hidden></div>
-  <div class="dock"><div class="obj" id="obj" role="status" hidden></div><div class="actbar" id="actbar" hidden></div></div>
+  <div class="dock"><div class="obj" id="obj" role="status" hidden></div><div class="roster" id="roster" aria-label="부대 목록" hidden></div><div class="actbar" id="actbar" hidden></div></div>
   <aside class="sheet" id="sheet" aria-label="작전 메뉴" hidden>
     <div class="sheet-h">
       <div class="tabs" role="tablist" id="tabs">

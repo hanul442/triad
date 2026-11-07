@@ -2,7 +2,7 @@
 function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.units.includes(UI.sel))UI.targets=targetsOf(UI.sel,false);else clearSel();}if(typeof scnCheck==='function')scnCheck();
   if(G.over&&!G._rep){G._rep=true;UI.sheet=true;UI.tab='world';sfx(G.over.win===G.viewer?'win':'boom');}
   const ho=$('#handoff');if(ho)ho.hidden=true;
-  renderHUD();renderActbar();renderPanel();renderObj();if(typeof v3Sync==='function')v3Sync();}
+  renderHUD();renderActbar();renderPanel();renderObj();if(typeof renderRoster==='function')renderRoster();if(typeof v3Sync==='function')v3Sync();}
 function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNight();
   const ic=night?`<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M8.5 1.2A5 5 0 1 0 10.8 9 4 4 0 0 1 8.5 1.2Z" fill="#e8ecef"/></svg>`:`<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="2.6" fill="#f0c45a"/></svg>`;
   $('#hud-clock').innerHTML=`${ic}<b>${String(h).padStart(2,'0')}:00</b><small>${fmtT(G.time||0)} / ${fmtT(G.maxR*ROUND_S)} · ${WX[G.wx].n}${G.paused?' · 일시정지':G.spd!==1?` · ${G.spd}배속`:''}</small>`;
@@ -71,7 +71,7 @@ const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로
 <h3>증원과 화력 지원</h3><ul class="rules"><li>지휘점수로 집결지나 거점 옆에 증원을 부릅니다</li><li>포병 사격(3×3), 근접 항공 지원(한 칸, 건물 붕괴), 연막(3×3 시야 차단), 헬기 투입, 공격헬기는 ${SUP_CD}초마다 하나씩, 연막 말고는 보이는 곳에만 씁니다</li></ul>
 <h3>방어물</h3><ul class="rules"><li>보병을 고르고 [축성]을 누르면 모래주머니(엄폐 40%)·철조망(보병 차단)·참호(안에 들어가면 사방 엄폐 50%)를, 기관총팀은 기관총 진지를, 공병은 콘크리트 방벽·대전차 장애물(차량 차단)까지 지휘점수로 쌓습니다</li><li>도로 위에 놓으면 길을 가로질러 놓입니다. 차량은 주차된 차·방벽·장애물을 넘지 못하고 돌아가며, 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다</li></ul>
 <h3>공중전</h3><ul class="rules"><li>드론과 헬기는 쏜다고 다 맞지 않습니다. 소총·기관총은 대부분 빗나가고, 대공팀(휴대용 대공미사일)과 대공포 차량이 잘 맞힙니다. 보병은 아주 가까이 온 드론에 산탄총을 씁니다</li><li>전자전팀은 반경 3.5칸 안 적 드론의 신호를 끊어 떨어뜨립니다(헬기·전투기에는 효과 없음)</li><li>드론팀은 멈춰서 3초 자리를 잡으면 보이는 적(10칸 안)에게 FPV를 띄웁니다. 한 번에 2대까지, 드론 4대를 들고 25초마다 1대씩 보급받습니다. 조종수가 쓰러지거나 10칸 밖으로 나가면 드론이 떨어집니다. 험비·장갑차를 고르고 [드론팀 하차]로 내려놓을 수도 있습니다</li><li>FPV 자폭드론은 적에게 날아가 부딪혀 터집니다. 위에서 덮쳐 장갑을 무시하지만 한 발만 맞아도 떨어집니다</li><li>공격헬기는 지정한 곳 위를 45초 동안 선회하며 쏩니다. 탭해서 선회 지점을 옮길 수 있고, 대공미사일은 플레어로 두 번까지 피하기도 합니다</li><li>근접 항공 지원은 전투기가 몇 초 뒤 와서 폭탄을 떨어뜨리고, 목표 근처 적 대공이 먼저 격추할 수 있습니다. 폭우에는 헬기·전투기가 뜨지 못합니다</li><li>격추된 헬기는 떨어진 곳 주변에 피해를 줍니다</li></ul>
-<h3>화면</h3><ul class="rules"><li>드래그: 이동 · 두 손가락: 확대·회전 · 마우스 휠: 확대 · 오른쪽 드래그 또는 Shift+드래그: 회전·기울기</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지</li></ul>`;
+<h3>화면</h3><ul class="rules"><li>드래그: 이동(튕기면 미끄러짐) · 두 손가락: 확대·회전·기울기 · 마우스 휠: 커서 위치로 확대 · 오른쪽 드래그 또는 Shift+드래그: 회전·기울기</li><li>휴대폰: 아래 부대 목록을 탭하면 그 부대를 고르고 카메라가 따라갑니다 · 길게 누른 채 끌면 범위 안 아군을 한꺼번에 선택 · 길게 누르면 그 지점 정보 · 두 손가락으로 톡 치면 선택 해제 · ⋯ 버튼에 나머지 지도 버튼</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지</li></ul>`;
 function showSetup(){const sl=$('#scn-list');if(sl&&typeof scnButtons==='function')sl.innerHTML=scnButtons();
   const box=$('#slots');box.innerHTML=NATS.map((N2,i)=>`<div class="slot"><i class="sw" style="background:${N2.col}"></i><label for="slot-${i}">${N2.full} <small>${N2.edge}</small></label><select id="slot-${i}"><option value="human">사람</option><option value="ai">AI</option>${i>1?'<option value="none">없음</option>':''}</select></div>`).join('');
   NATS.forEach((_,i)=>{$('#slot-'+i).value=UI.setupSlots[i]||'none';});$('#b-resume').hidden=!loadSave();$('#setup').hidden=false;}

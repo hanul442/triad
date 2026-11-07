@@ -14,8 +14,8 @@ function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),
     UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
   if(s&&UI.phase==='fort'&&typeof fortTap==='function'){fortTap(grp,pt[0],pt[1]);render();return;}
   if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){orderBldg(s,r,c);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
-  if(grp.length){if(u&&u.nat!==n){for(const g of grp)if(UT[g.type].rng[1])orderAttack(g,u);sfx('click',.6);render();return;}
-    orderGroupMove(grp,pt[0],pt[1]);sfx('click',.4);render();return;}
+  if(grp.length){if(u&&u.nat!==n){for(const g of grp)if(UT[g.type].rng[1])orderAttack(g,u);if(typeof v3Ping==='function')v3Ping(u.x,u.z,'#ff5a3c');sfx('click',.6);render();return;}
+    orderGroupMove(grp,pt[0],pt[1]);if(typeof v3Ping==='function')v3Ping(pt[0],pt[1]);sfx('click',.4);render();return;}
   clearSel();UI.pane={r,c};render();}
 function doSupport(){const n=G.viewer;const k=UI.st;if(k==null)return;if(support(n,UI.supK,kr(k),kc(k))){clearSel();render();if(typeof scnAfterAct==='function')scnAfterAct();}}
 if(typeof document!=='undefined'){
