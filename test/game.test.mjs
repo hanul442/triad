@@ -660,3 +660,40 @@ test('드론팀: 차량에서 내리고, 멈춰서 FPV를 띄우며, 조종수�
   const f = T.__get('launchFpv')(d, null); f.hold = true; G.units = G.units.filter(u => u !== d); T.rtRun(0.3);
   assert.ok(!G.units.includes(f), '조종수가 없으면 추락');
 });
+
+test('경험치: 적을 쓰러뜨리면 분대가 진급하고, 전과를 쌓은 병사는 이름 붙은 베테랑이 된다', () => {
+  const T = loadGame(); const G = setup(T);
+  const a = T.mkUnit(0, 'rifle', 5, 5); a.hold = true;
+  const give = T.__get('giveXp'), credit = T.__get('creditMan');
+  give(a, 30); assert.equal(a.rank, 1, '숙련'); assert.ok(G.log.some(m => m.includes('숙련')));
+  give(a, 50); assert.equal(a.rank, 2, '노련'); assert.ok(a.vn[0], '노련이 되면 분대장 이름');
+  a._sh = [3]; for (let i = 0; i < 3; i++) credit(a);
+  assert.ok(a.vn[3] && a.vk[3] === 3, '전과 셋이면 베테랑'); assert.ok(G.log.some(m => m.includes('베테랑이 됨')));
+  const e = T.mkUnit(1, 'tank', 5, 8); const x0 = a.xp; const r0 = a.rank;
+  T.__get('kill')(e, a); assert.ok(a.xp >= x0 + 30, '차량 격파 경험'); assert.ok(a.rank >= r0, 'kill()의 옛 전과식이 계급을 깎지 않음');
+  const info = T.__get('vetInfo')(a); assert.match(info, /베테랑/);
+});
+
+test('경험치: 계급이 오르면 화력이 세지고 베테랑이 쓰러지면 기록된다', () => {
+  const T = loadGame(); const G = setup(T);
+  const a = T.mkUnit(0, 'rifle', 5, 5), d = T.mkUnit(1, 'rifle', 5, 8);
+  const v0 = T.calcDmg(a, d); a.rank = 3; assert.ok(T.calcDmg(a, d) > v0 * 1.25, '정예 화력');
+  const b = T.mkUnit(1, 'rifle', 9, 9); b.hold = true; T.rtRun(0.2); b.vn = null; T.__get('vetArr')(b); b.vn[2] = '한도윤'; b.vk[2] = 4;
+  b.ws[2].s = 'kia'; T.rtRun(0.2);
+  assert.equal(G.vetFallen.length, 1); assert.ok(G.log.some(m => m.includes('한도윤') && m.includes('전사')));
+});
+
+test('고참 명부: 살아남은 숙련 분대가 다음 작전 같은 병종 부대로 돌아온다', () => {
+  const T = loadGame(); const store = {}; T.__set('localStorage', { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); } });
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, fog: false });
+  const G = T.G; const mg = G.units.find(u => u.nat === 0 && u.type === 'mg');
+  T.__get('giveXp')(mg, 70); T.__get('vetArr')(mg); mg.vn[1] = '오지후'; mg.vk[1] = 5;
+  G.over = { win: 0, why: 'test' }; T.__get('vetEnd')();
+  const S = JSON.parse(store['triad-vets']); assert.equal(S.roster.length, 1); assert.equal(S.roster[0].type, 'mg');
+  assert.ok(S.roster[0].men.some(m => m.n === '오지후'));
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 6, fog: false });
+  T.__get('vetDeploy')(0); const mg2 = T.G.units.find(u => u.nat === 0 && u.type === 'mg');
+  assert.ok(mg2.rid && mg2.rank >= 2 && mg2.vn[1] === '오지후', '같은 병종으로 복귀');
+  T.G.units = T.G.units.filter(u => u !== mg2); T.G.vetLost = [mg2.rid]; T.G.over = { win: 1, why: 'test' }; T.__get('vetEnd')();
+  assert.equal(JSON.parse(store['triad-vets']).roster.length, 0, '전멸한 고참 분대는 명부에서 빠짐');
+});
