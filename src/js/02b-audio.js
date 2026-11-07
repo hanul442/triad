@@ -76,6 +76,8 @@ const WPN={
   dteam:{rd:[1,2],gap:.14,crack:.6,body:[1700,.9,.07,.7],low:[150,60,.05,.25],vol:1.05},
   ew:{rd:[1,2],gap:.14,crack:.6,body:[1700,.9,.07,.7],low:[150,60,.05,.25],vol:1.05},
   aa:{rd:[1,2],gap:.14,crack:.6,body:[1700,.9,.07,.7],low:[150,60,.05,.25],vol:1.05},
+  atgm:{rd:[1,1],gap:.2,crack:0,body:[600,.8,.1,.6],low:[90,40,.2,.5],vol:1,ms:1},
+  mlrs:{rd:[1,1],gap:.2,crack:0,body:[500,.8,.1,.6],low:[80,40,.2,.5],vol:1,ms:1},
   at:{rd:[1,2],gap:.14,crack:.6,body:[1600,.9,.07,.7],low:[150,60,.05,.25],vol:1.05},
   mg:{rd:[5,9],gap:.075,crack:.8,body:[1250,.8,.08,.85],low:[115,50,.07,.45],vol:1},
   sniper:{rd:[1,1],gap:.2,crack:1.1,body:[950,.7,.17,1],low:[95,38,.16,.65],vol:1.25},
@@ -89,7 +91,7 @@ const WPN={
 function sndRound(V,t,W){if(W.crack)sndNz(V,t,.018,'highpass',3200,.7,W.crack*.9,.001);const b=W.body;sndNz(V,t,b[2],'bandpass',b[0],b[1],b[3],.002,b[0]*.55);
   if(W.low)sndTn(V,t,W.low[2],W.low[0],W.low[1],W.low[3],'sine',.003);}
 // 부대 하나의 사격 한 번: 쏘는 병사 수만큼 엇갈려 쏜다
-function sndShot(a,tx,tz){const W=WPN[a.type];if(!W||!audio())return;const x=a.x??a.c+.5,z=a.z??a.r+.5;if(a.type==='at'){sndLaunch(x,z,'rocket');}else{const V=sndVoice(x,z,{vol:W.vol,dur:2});if(V){
+function sndShot(a,tx,tz){const W=WPN[a.type];if(!W||W.ms||!audio())return;const x=a.x??a.c+.5,z=a.z??a.r+.5;if(a.type==='at'){sndLaunch(x,z,'rocket');}else{const V=sndVoice(x,z,{vol:W.vol,dur:2});if(V){
   const men=UT[a.type]&&UT[a.type].cls==='inf'?Math.max(1,(a._sh||[]).length):1;let t=V.t;
   for(let m=0;m<men;m++){let tt=t+(m?Math.random()*.35:0);const n=W.rd[0]+Math.floor(Math.random()*(W.rd[1]-W.rd[0]+1));for(let i=0;i<n;i++){sndRound(V,tt,W);tt+=W.gap*(.85+Math.random()*.3);}}}}
   if(typeof G!=='undefined'&&G&&a.nat===G.viewer&&!isAI(a.nat)){const wm=SFX.ct||(SFX.ct=new WeakMap());const lt=wm.get(a);if(lt==null||(G.time||0)-lt>20)sndRadio('contact');wm.set(a,G.time||0);}}

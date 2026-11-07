@@ -20,7 +20,7 @@ let MS_ID=1;
 function atgmShoot(a,d){if(a.path&&a.path.length)return 0;   // 움직이면서는 못 쏜다
   a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(d.z-a.z,d.x-a.x)*180/Math.PI;const [ax,az]=posOf(a);
   const m={id:MS_ID++,x:ax,z:az,h:eye(a)+.2,tgt:d.id,tx:d.x,tz:d.z,n:a.nat,src:a.id,born:G.time||0,lock:1};(G.missiles=G.missiles||[]).push(m);
-  a.lastShot={t:G.time||0,hits:0,k:1,tgt:d.id,shell:1};if(FXH.atgm)FXH.atgm(a,m);sfx('launch',.9);return 0;}
+  a.lastShot={t:G.time||0,hits:0,k:1,tgt:d.id,shell:1};if(FXH.atgm)FXH.atgm(a,m);sfx('launch',.9,a.x,a.z);return 0;}
 {const _s=rtShoot;rtShoot=function(a,d){const t=UT[a.type];if(t.guided)return atgmShoot(a,d);if(t.salvo)return mlrsShoot(a,d);return _s(a,d);};}
 // 표적이 서 있는 높이(층): 차량·밖의 보병은 땅, 건물 안이면 지붕
 function msTgtH(e){const X=cell(e.r,e.c);return X.t==='bldg'?bldgH(X):UT[e.type].cls==='veh'?.5:.2;}
@@ -39,7 +39,7 @@ function msTick(dt){if(!G.missiles||!G.missiles.length)return;const keep=[];
     if(G.time-m.born>12){msHit(m,null,null,null);continue;}
     keep.push(m);}
   G.missiles=keep;}
-function msHit(m,e,r,c){const by=G.units.find(u=>u.id===m.src)||null;if(FXH.msHit)FXH.msHit(m,r!=null);sfx('boom',.75);
+function msHit(m,e,r,c){const by=G.units.find(u=>u.id===m.src)||null;if(FXH.msHit)FXH.msHit(m,r!=null);sfx('boom',.75,m.x,m.z);
   if(r!=null){damageBldg(r,c,6);if(typeof ignite==='function')ignite(r,c,.15);}
   if(e){const te=UT[e.type];const ins=cell(e.r,e.c).t==='bldg';
     // 위에서 내리꽂혀 장갑이 얇은 윗면을 친다
@@ -54,7 +54,7 @@ function mlrsShoot(a,d){a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(d.z-a
   for(let i=0;i<t.salvo;i++){const o=(i/t.salvo-.5)*1.6;const ux=(d.x-ax)/(dd||1),uz=(d.z-az)/(dd||1);
     // 로켓마다 흩어진다(사거리 방향으로 길게)
     const s=shellLaunch({x0:ax,z0:az,h0:eye(a)+.3,tx:d.x+ux*o*.8+(Math.random()-.5)*1.2,tz:d.z+uz*o*.8+(Math.random()-.5)*1.2,n:a.nat,src:a.id,type:'mlrs',pw:.1,spread:.9,delay:i*.14,T:.9+dd*.1,ap:1.2+dd*.22});s.rk=1;}
-  a.lastShot={t:G.time||0,hits:0,k:1,tgt:d.id,shell:1};if(FXH.mlrs)FXH.mlrs(a);sfx('launch',1);L(`${natName(a.nat)} 다연장 로켓 일제 사격`);return 0;}
+  a.lastShot={t:G.time||0,hits:0,k:1,tgt:d.id,shell:1};if(FXH.mlrs)FXH.mlrs(a);sfx('launch',1,a.x,a.z);L(`${natName(a.nat)} 다연장 로켓 일제 사격`);return 0;}
 
 /* ---------- 미사일 타격 ---------- */
 function msStrike(n,r,c,kind){const j={id:MS_ID++,kind,n,r,c,x:c+.5,z:r+.5,t:(G.time||0)+(kind==='tbm'?8:4.5),t0:G.time||0};(G.strikes=G.strikes||[]).push(j);
@@ -71,7 +71,7 @@ function strikeTick(){if(!G.strikes||!G.strikes.length)return;const keep=[];
     else msBlast(j.x,j.z,2.2,14,j.n,60,16);}
   G.strikes=keep;}
 /* 큰 폭발: 반경 R, 중심 피해 base. 중심 건물 bc, 주변 건물 br만큼 부순다 */
-function msBlast(x,z,R,base,n,bc,br){if(FXH.msBoom)FXH.msBoom(x,z,R);sfx('boom');sfx('arty');
+function msBlast(x,z,R,base,n,bc,br){if(FXH.msBoom)FXH.msBoom(x,z,R);sfx('boom',1.1,x,z);
   const r0=Math.floor(z),c0=Math.floor(x);
   for(let r=r0-Math.ceil(R);r<=r0+Math.ceil(R);r++)for(let c=c0-Math.ceil(R);c<=c0+Math.ceil(R);c++){if(!inb(r,c))continue;const d=Math.hypot(c+.5-x,r+.5-z);if(d>R)continue;
     if(G.map[r][c].t==='bldg'){damageBldg(r,c,Math.round(r===r0&&c===c0?bc:br*(1-d/R*.6)));if(typeof ignite==='function'&&G.map[r][c].t==='bldg')ignite(r,c,.3);}}
