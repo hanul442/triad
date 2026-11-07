@@ -14,8 +14,8 @@ function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),
     UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
   if(s&&UI.phase==='fort'&&typeof fortTap==='function'){fortTap(grp,pt[0],pt[1]);render();return;}
   if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){radioSend(n,[s],'bldg',[r,c]);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
-  if(grp.length){if(u&&u.nat!==n){radioSend(n,grp.filter(g=>UT[g.type].rng[1]),'atk',[u.id]);sfx('click',.6);if(typeof sndRadio==='function')sndRadio('ack');render();return;}
-    radioSend(n,grp,'move',[pt[0],pt[1]]);sfx('click',.4);if(typeof sndRadio==='function'&&Math.random()<.6)sndRadio('ack');render();return;}
+  if(grp.length){if(u&&u.nat!==n){radioSend(n,grp.filter(g=>UT[g.type].rng[1]),'atk',[u.id]);if(typeof v3Ping==='function')v3Ping(u.x,u.z,'#ff5a3c');sfx('click',.6);if(typeof sndRadio==='function')sndRadio('ack');render();return;}
+    radioSend(n,grp,'move',[pt[0],pt[1]]);if(typeof v3Ping==='function')v3Ping(pt[0],pt[1]);sfx('click',.4);if(typeof sndRadio==='function'&&Math.random()<.6)sndRadio('ack');render();return;}
   clearSel();UI.pane={r,c};render();}
 function doSupport(){const n=G.viewer;const k=UI.st;if(k==null)return;if(support(n,UI.supK,kr(k),kc(k))){clearSel();render();if(typeof scnAfterAct==='function')scnAfterAct();}}
 if(typeof document!=='undefined'){

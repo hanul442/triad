@@ -92,42 +92,62 @@ function v3Focus(r,c){const [x,z]=v3x(r,c);V3.cs.gx=x;V3.cs.gz=z;}
 function camFollow(r,c){if(!V3.on)return;const s=V3.cs;const [x,z]=v3x(r,c);if(Math.hypot(x-s.gx,z-s.gz)>s.d*.35)v3Focus(r,c);}
 function v3HomeCam(now){if(!G)return;const n=G.viewer;const sp=zoneSpots(n);const s=V3.cs;const m=(N-1)/2;
   const [r,c]=sp.length?sp[0]:[m,m];const [x,z]=v3x(r,c);const [mx,mz]=v3x(m,m);
-  s.gx=x+(mx-x)*.45;s.gz=z+(mz-z)*.45;s.gyaw=[ -Math.PI/2, Math.PI/2, Math.PI, 0 ][n]??0;
+  const f=V3.cam&&(V3.cam.aspect<1||(V3.cv&&V3.cv.clientHeight<560))?0:.45;s.gx=x+(mx-x)*f;s.gz=z+(mz-z)*f;s.gyaw=[ -Math.PI/2, Math.PI/2, Math.PI, 0 ][n]??0;
   if(now){s.x=s.gx;s.z=s.gz;s.yaw=s.gyaw;}}
 function v3Zoom(f){const s=V3.cs;s.gd=Math.min(Math.max(48,N*1.35),Math.max(4,s.gd*f));}
 function v3Rot(dir){V3.cs.gyaw+=dir*Math.PI/4;}
 function v3Pan(dx,dy){const s=V3.cs,h=V3.cv.clientHeight||600;const k=2*s.d*Math.tan(V3.cam.fov*Math.PI/360)/h;
   const cy=Math.cos(s.yaw),sy=Math.sin(s.yaw);const fx=-dx*k,fz=-dy*k/Math.max(.5,Math.sin(s.pitch));
   s.gx+=fx*cy+fz*sy;s.gz+=-fx*sy+fz*cy;s.gx=Math.min(N,Math.max(0,s.gx));s.gz=Math.min(N,Math.max(0,s.gz));s.x=s.gx;s.z=s.gz;}
-function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,last2=null;const pos=e=>[e.clientX,e.clientY];
+/* 화면 지점 아래 땅 위치 */
+function v3Ground(cx,cy){const T=V3.T,p=new T.Vector3();return v3Ray(cx,cy).ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0),0),p)?p:null;}
+/* 손가락(커서) 아래 지점을 고정한 채 확대·축소 */
+function v3ZoomAt(f,cx,cy,now){const s=V3.cs,o=s.gd;const p=cx!=null?v3Ground(cx,cy):null;v3Zoom(f);if(now)s.d=s.gd;if(!p)return;const k=1-s.gd/o;
+  s.gx=Math.min(N,Math.max(0,s.gx+(p.x-s.gx)*k));s.gz=Math.min(N,Math.max(0,s.gz+(p.z-s.gz)*k));if(now){s.x=s.gx;s.z=s.gz;}}
+/* 터치 조작: 한 손가락 드래그 이동(관성), 두 손가락 확대·회전·기울기, 짧게 탭 명령, 길게 눌러 끌기 범위 선택, 두 손가락 탭 선택 해제 */
+const LP_MS=420;
+function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,last2=null,lp=null,lpT=0,vel=[0,0],lastMv=0,inertia=0;const pos=e=>[e.clientX,e.clientY];
+  const box=$('#selbox');
+  const stopInertia=()=>{if(inertia){cancelAnimationFrame(inertia);inertia=0;}};
+  const fling=()=>{let [vx,vy]=vel;if(Math.hypot(vx,vy)<.25)return;let t0=performance.now();
+    const st=now=>{const dt=Math.min(40,now-t0);t0=now;v3Pan(vx*dt,vy*dt);const d=Math.exp(-dt/260);vx*=d;vy*=d;inertia=Math.hypot(vx,vy)>.02?requestAnimationFrame(st):0;};inertia=requestAnimationFrame(st);};
+  const drawBox=(a,b)=>{if(!box)return;const x=Math.min(a[0],b[0]),y=Math.min(a[1],b[1]);box.style.left=x+'px';box.style.top=y+'px';box.style.width=Math.abs(a[0]-b[0])+'px';box.style.height=Math.abs(a[1]-b[1])+'px';box.hidden=false;};
   cv.addEventListener('contextmenu',e=>e.preventDefault());
-  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,{p:pos(e),b:e.button,mod:e.shiftKey||e.ctrlKey||e.altKey});
-    if(P.size===1){start={p:pos(e),t:performance.now()};moved=0;multi=false;}else{multi=true;last2=null;}});
+  cv.addEventListener('pointerdown',e=>{stopInertia();if(typeof closeMore==='function')closeMore();try{cv.setPointerCapture(e.pointerId);}catch(_){}P.set(e.pointerId,{p:pos(e),b:e.button,mod:e.shiftKey||e.ctrlKey||e.altKey});
+    if(P.size===1){start={p:pos(e),t:performance.now(),touch:e.pointerType!=='mouse'};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
+      if(e.button===0&&!P.get(e.pointerId).mod)lpT=setTimeout(()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}},LP_MS);}
+    else{multi=true;last2=null;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}}});
   cv.addEventListener('pointermove',e=>{const q=P.get(e.pointerId);if(!q){if(e.pointerType==='mouse')v3Hover(e);return;}
     const np=pos(e),dx=np[0]-q.p[0],dy=np[1]-q.p[1];q.p=np;moved+=Math.abs(dx)+Math.abs(dy);
-    if(P.size===1){if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}else v3Pan(dx,dy);}
+    if(P.size===1){if(lp){lp.b=np;drawBox(lp.a,lp.b);return;}
+      if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}
+      else if(moved>(start&&start.touch?10:4)){v3Pan(dx,dy);const now=performance.now(),dt=Math.max(1,now-lastMv);lastMv=now;const k=Math.min(1,dt/40);vel=[vel[0]*(1-k)+dx/dt*k,vel[1]*(1-k)+dy/dt*k];}}
     else if(P.size===2){const [a,b]=[...P.values()];const mx=(a.p[0]+b.p[0])/2,my=(a.p[1]+b.p[1])/2,dd=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]),an=Math.atan2(b.p[1]-a.p[1],b.p[0]-a.p[0]);
       if(last2){const s=V3.cs;const pinch=Math.abs(dd-last2.dd)>1.5;let da=an-last2.an;if(da>Math.PI)da-=2*Math.PI;if(da<-Math.PI)da+=2*Math.PI;
         if(!pinch&&Math.abs(da)<.01)s.pitch=Math.min(1.5,Math.max(.2,s.pitch+(my-last2.my)*.005));else v3Pan(mx-last2.mx,my-last2.my);
-        s.gd=Math.min(48,Math.max(4,s.gd*last2.dd/Math.max(10,dd)));s.d=s.gd;s.gyaw-=da;s.yaw=s.gyaw;}
+        v3ZoomAt(last2.dd/Math.max(10,dd),mx,my,true);s.gyaw-=da;s.yaw=s.gyaw;}
       last2={mx,my,dd,an};}});
-  const up=e=>{const had=P.has(e.pointerId);P.delete(e.pointerId);if(P.size<2)last2=null;
-    if(had&&P.size===0&&!multi&&start&&moved<8&&performance.now()-start.t<700&&e.button!==2){const k=v3Pick(e.clientX,e.clientY);if(k!=null&&typeof tap==='function')tap(k);}
+  const up=e=>{const had=P.has(e.pointerId);P.delete(e.pointerId);if(P.size<2)last2=null;clearTimeout(lpT);
+    if(had&&P.size===0&&start){const dur=performance.now()-start.t;
+      if(lp){if(box)box.hidden=true;const a=lp.a,b=lp.b;lp=null;if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>16){if(typeof boxSelect==='function')boxSelect(a,b);}else{const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof holdTap==='function')holdTap(k);}}
+      else if(multi){if(moved<24&&dur<450&&typeof twoTap==='function')twoTap();}
+      else if(moved<(start.touch?12:8)&&dur<LP_MS&&e.button!==2){const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof tap==='function')tap(k);}
+      else if(performance.now()-lastMv<80)fling();}
     if(P.size===0)start=null;};
-  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{P.delete(e.pointerId);multi=true;});
+  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{P.delete(e.pointerId);multi=true;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}if(P.size===0)start=null;});
   cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&UI.hk!=null){UI.hk=null;v3SyncHl();}});
-  cv.addEventListener('wheel',e=>{e.preventDefault();v3Zoom(Math.exp(e.deltaY*.0012));},{passive:false});
+  cv.addEventListener('wheel',e=>{e.preventDefault();stopInertia();v3ZoomAt(Math.exp(e.deltaY*.0012),e.clientX,e.clientY,false);},{passive:false});
   document.addEventListener('keydown',e=>{if(!V3.on||e.target.closest('input,select,textarea'))return;const k=e.key.toLowerCase();
     if(k==='q')v3Rot(1);else if(k==='e')v3Rot(-1);else if(k==='r')V3.cs.pitch=Math.min(1.5,V3.cs.pitch+.12);else if(k==='f')V3.cs.pitch=Math.max(.2,V3.cs.pitch-.12);
     else if(k==='w'||k==='arrowup')v3Pan(0,60);else if(k==='s'||k==='arrowdown')v3Pan(0,-60);else if(k==='a'||k==='arrowleft')v3Pan(60,0);else if(k==='d'||k==='arrowright')v3Pan(-60,0);});}
 function v3Ray(cx,cy){const T=V3.T,rc=V3.ray||(V3.ray=new T.Raycaster());const b=V3.cv.getBoundingClientRect();rc.setFromCamera(new T.Vector2((cx-b.left)/b.width*2-1,-(cy-b.top)/b.height*2+1),V3.cam);return rc;}
 /* 화면 지점 → 칸 키. 부가로 V3.pickPt(땅 위 정확한 지점), V3.pickId(탭한 부대)를 남긴다. 작은 병사도 잘 집히게 가까운 부대를 찾아 준다. */
-function v3Pick(cx,cy){if(!G)return null;V3.pickId=null;V3.pickPt=null;const rc=v3Ray(cx,cy);const hits=rc.intersectObjects([V3.G.units,V3.G.city,V3.G.world],true);let k=null;
+function v3Pick(cx,cy,rad){if(!G)return null;V3.pickId=null;V3.pickPt=null;const rc=v3Ray(cx,cy);const hits=rc.intersectObjects([V3.G.units,V3.G.city,V3.G.world],true);let k=null;
   for(const h of hits){let o=h.object;if(!o.visible)continue;while(o&&o.userData.k==null&&o.parent)o=o.parent;if(o&&o.userData.k!=null){V3.pickId=o.userData.id;V3.pickPt=[h.point.x,h.point.z];return o.userData.k;}
     const m=h.object.userData;V3.pickPt=[h.point.x,h.point.z];if(m.keys&&h.instanceId!=null){k=m.keys[h.instanceId];break;}if(m.tri&&h.faceIndex!=null){k=m.tri[h.faceIndex];break;}if(h.object.parent===V3.G.world){k=key(Math.floor(h.point.z),Math.floor(h.point.x));break;}}
   if(k==null){const p=new V3.T.Vector3();if(rc.ray.intersectPlane(new V3.T.Plane(new V3.T.Vector3(0,1,0),0),p)){V3.pickPt=[p.x,p.z];const r=Math.floor(p.z),c=Math.floor(p.x);if(inb(r,c))k=key(r,c);}}
   // 가까운 부대(화면에서 28px 안) 우선
-  {const v=new V3.T.Vector3();const b=V3.cv.getBoundingClientRect();let best=null,bd=28;for(const [id,o] of V3.uo){v.copy(o.position);v.y+=.08;v.project(V3.cam);const sx=(v.x+1)/2*b.width+b.left,sy=(1-v.y)/2*b.height+b.top;const d=Math.hypot(sx-cx,sy-cy);if(d<bd){bd=d;best=o;}}
+  {const v=new V3.T.Vector3();const b=V3.cv.getBoundingClientRect();let best=null,bd=rad||28;for(const [id,o] of V3.uo){v.copy(o.position);v.y+=.08;v.project(V3.cam);const sx=(v.x+1)/2*b.width+b.left,sy=(1-v.y)/2*b.height+b.top;const d=Math.hypot(sx-cx,sy-cy);if(d<bd){bd=d;best=o;}}
     if(best){V3.pickId=best.userData.id;return best.userData.k;}}
   return k;}
 let v3HovRaf=0;
