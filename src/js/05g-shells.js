@@ -49,6 +49,7 @@ function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.sr
     if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
     const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
     dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by);else u.supp=Math.max(u.supp||0,1);}
+  if(typeof fortBlast==='function')fortBlast(x,z,r!=null?.5:.9,Math.round(14*s.pw));   // 바리케이드·참호도 부서진다(04d-fort)
   if(typeof FXH.boom==='function')FXH.boom(x,z,h,r!=null,s);
   bump();}
 /* 곡사 화기의 한 발: 즉시 피해 대신 포탄을 띄운다 */

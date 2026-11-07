@@ -1454,6 +1454,7 @@ function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.sr
     if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
     const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
     dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by);else u.supp=Math.max(u.supp||0,1);}
+  if(typeof fortBlast==='function')fortBlast(x,z,r!=null?.5:.9,Math.round(14*s.pw));   // 바리케이드·참호도 부서진다(04d-fort)
   if(typeof FXH.boom==='function')FXH.boom(x,z,h,r!=null,s);
   bump();}
 /* 곡사 화기의 한 발: 즉시 피해 대신 포탄을 띄운다 */
@@ -1529,7 +1530,7 @@ function breach(a,P){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face
     let m;if(u.r===P.r&&u.c===P.c)m=1;else if(Math.abs(u.r-P.r)+Math.abs(u.c-P.c)===1&&Y.blk!=null&&Y.blk===X.blk)m=.3;else continue;
     const df=Math.abs(curFl(u)-P.fl);m*=df<.5?1:df<1.5?.35:.06;if(eye(u)>=bldgH(Y)-.05)m*=.4;   // 옥상은 덜 다친다
     blastHurt(u,Math.round(base*m*(.8+Math.random()*.4)*10)/10,a);}
-  damageBldg(P.r,P.c,Math.max(2,Math.round((ta.atk.veh||4)*ta.ex*.5+2)));
+  damageBldg(P.r,P.c,Math.max(2,Math.round((ta.atk.veh||4)*ta.ex*.25+1.5)));
   if(typeof ignite==='function')ignite(P.r,P.c,.28*ta.ex);
   bump();}
 
@@ -2454,7 +2455,7 @@ function v3FxBreach(a,P){if(typeof sfx==='function')sfx('launch',.8);if(!V3.on)r
     if(k-lastP>.12){lastP=k;dsDust(x,z,.18,2600,1,'#bdb5a8',y);}}});
   v3Burst(x1,y1,z1,.3,'#ffd27a',1,.6);dsDust(x1-(x2-x1)/d*.25,z1-(z2-z1)/d*.25,.5,3000,2,'#c9c1b3',y1);   // 뒤 폭풍
   setTimeout(()=>{if(!V3.on)return;const nx=P.side===1?1:P.side===3?-1:0,nz=P.side===2?1:P.side===0?-1:0;
-    v3Burst(x2+nx*.05,y2,z2+nz*.05,.9,'#ff9a40',3,1.8);v3Debris(x2+nx*.08,y2,z2+nz*.08,12,.9);dsSpray(x2+nx*.1,y2,z2+nz*.1,60,.6);dsDust(x2+nx*.2,z2+nz*.2,1,10000,6,'#a39a8c',y2);
+    v3Burst(x2+nx*.05,y2,z2+nz*.05,.9,'#ff9a40',3,1.8);v3Debris(x2+nx*.08,y2,z2+nz*.08,12,.9);dsSpray(x2+nx*.1,y2,z2+nz*.1,60,.6);dsDust(x2+nx*.2,z2+nz*.2,.6,7000,3,'#a39a8c',y2);
     dsScar('rubble',x2+nx*.18,z2+nz*.18,.16);V3.shake=Math.max(V3.shake,.08);if(typeof sfx==='function')sfx('boom',.7);},dur);}
 /* ---------- 매 화면 ---------- */
 function v3WarFrame(now,dt){if(!G)return;v3ShellsDraw();v3HolesSync();v3FiresDraw(now);}
@@ -2487,15 +2488,16 @@ function v3FireBuild(k){const T=V3.T;const r=kr(k),c=kc(k);const X=G.map[r][c];c
   for(let f=0;f<X.f;f++)for(const fc of faces){const o=(v3Hash(k,f*7+fc[2]*3+fc[3])-.5)*.5;const x=fc[0]!=null?fc[0]:c+.5+o,z=fc[1]!=null?fc[1]:r+.5+o;
     const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:v3Hash(k,f+40)<.4?'#ffd27a':'#ff7a24',blending:T.AdditiveBlending,transparent:true,depthWrite:false,opacity:0}));s.position.set(x,v3H(f+.45),z);g.add(s);F.push({s,f,ph:v3Hash(k,f+60)*20});}
   const S=[];const top=v3H(X.f);for(let i=0;i<10;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%3?'#26221f':'#3a332d',transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*6.28}));g.add(s);S.push({s,ph:i/10});}
-  const light=new T.PointLight('#ff7a2a',0,2.2,2);light.position.set(c+.5,top*.5,r+.5);g.add(light);
+  // 불빛: 조명을 늘리면 모든 재질이 다시 컴파일되므로 큰 가산 스프라이트로 대신한다
+  const light=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#ff7a2a',blending:T.AdditiveBlending,transparent:true,depthWrite:false,opacity:0}));light.position.set(c+.5,top*.6,r+.5);light.scale.setScalar(1.6);g.add(light);
   V3.scene.add(g);return {g,F,S,top,x:c+.5,z:r+.5,light};}
 function v3FiresDraw(now){V3.fireO=V3.fireO||new Map();const want=new Set(G.fires||[]);
   for(const [k,o] of V3.fireO){const X=G.map[kr(k)][kc(k)];if(!want.has(k)||X.t!=='bldg'||V3.fireSeed!==V3.seed){V3.scene.remove(o.g);o.g.traverse(q=>{if(q.material)q.material.dispose();});V3.fireO.delete(k);}}
   V3.fireSeed=V3.seed;const t=now/1000;
   for(const k of want){let o=V3.fireO.get(k);if(!o){o=v3FireBuild(k);V3.fireO.set(k,o);}const X=G.map[kr(k)][kc(k)];const I=X.fire||0;
-    for(const f of o.F){const on=f.f<=(X.fireFl||0)+.3;const fl=.7+Math.sin(t*15+f.ph)*.2+Math.sin(t*8.7+f.ph*2)*.1;const sz=.12+.1*I;f.s.material.opacity=on?.9*fl*Math.min(1,I*1.6):0;f.s.scale.set(sz*fl,sz*fl*1.5,1);}
+    for(const f of o.F){const on=f.f<=(X.fireFl||0)+.3;const fl=.7+Math.sin(t*15+f.ph)*.2+Math.sin(t*8.7+f.ph*2)*.1;const sz=.16+.12*I;f.s.material.opacity=on?.9*fl*Math.min(1,I*1.6):0;f.s.scale.set(sz*fl,sz*fl*1.5,1);}
     for(const p of o.S){const l=(t*.12+p.ph)%1;p.s.position.set(o.x+DS.wind[0]*l*40+Math.sin(t*.4+p.ph*9)*.1,o.top+l*3.2,o.z+DS.wind[1]*l*40);p.s.scale.setScalar(.3+l*1.6);p.s.material.opacity=.6*I*Math.sin(l*Math.PI);}
-    o.light.intensity=1.2*I*(.8+Math.sin(t*11)*.2);}}
+    o.light.material.opacity=.22*I*(.8+Math.sin(t*11)*.2);}}
 
 /* ---- 07m-units.js ---- */
 /* ===================== 현대 부대 모형 =====================
@@ -2852,7 +2854,7 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.
   else if(UI.phase==='sup'){const S=SUP[UI.supK];h=`<b>${S.n}</b><span>${UI.st!=null?'같은 칸을 다시 탭하거나 실행':'목표 지점을 탭하세요'} · ${S.desc}</span><div class="ab">${UI.st!=null?`<button class="btn sm primary" data-act="sup-fire" id="ab-sf">실행</button>`:''}<button class="btn sm" data-act="sup-cancel" id="ab-sc">취소</button></div>`;}
   else if(s){const t=UT[s.type];const x0=cell(s.r,s.c);
     const ng=(UI.group||[]).filter(x=>G.units.includes(x)).length;const tip=(typeof fortTip==='function'&&fortTip())||(UI.phase==='demo'?'부술 건물을 탭하세요':(ng?`외 ${ng}개 부대 · `:'')+'탭: 이동 · 적 탭: 공격');
-    h=`<b style="color:${mapCol(n)}">${t.n}</b><span>${uInfo(s)} · ${tip}</span><div class="ab">${t.ex?`<button class="btn sm${UI.phase==='demo'?' primary':''}" data-act="demo" id="ab-demo">건물 사격</button>`:''}${t.cls==='inf'&&x0.t==='bldg'?`<button class="btn sm" data-act="floor" id="ab-floor">${s.flT===0?'옥상으로':'1층으로'}</button>`:''}${typeof fortBar==='function'?fortBar(s):''}<button class="btn sm${s.hold?' primary':''}" data-act="hold" id="ab-hold">고수</button><button class="btn sm" data-act="stop" id="ab-stop">정지</button><button class="btn sm" data-act="cancel" id="ab-cancel">해제</button></div>`;}
+    h=`<b style="color:${mapCol(n)}">${t.n}</b><span>${uInfo(s)} · ${tip}</span><div class="ab">${t.ex?`<button class="btn sm${UI.phase==='demo'?' primary':''}" data-act="demo" id="ab-demo">건물 사격</button>`:''}${t.cls==='inf'&&x0.t==='bldg'?`<button class="btn sm" data-act="floor" id="ab-floor">${s.flT===0?'위층으로':'1층으로'}</button>`:''}${typeof fortBar==='function'?fortBar(s):''}<button class="btn sm${s.hold?' primary':''}" data-act="hold" id="ab-hold">고수</button><button class="btn sm" data-act="stop" id="ab-stop">정지</button><button class="btn sm" data-act="cancel" id="ab-cancel">해제</button></div>`;}
   else if(UI.pane){const {r,c}=UI.pane;const x=cell(r,c);const u=unitAt(r,c);const vis=!G.fog||visSet(n).has(key(r,c));
     const nm=x.obj!=null?G.objs[x.obj].name+' · ':'';const own=x.obj!=null?` · ${natName(x.owner)} 거점`:'';
     const what=x.t==='bldg'?`${x.f}층 건물 · 내구 ${Math.ceil(x.bhp)}/${x.bmax} · 엄폐 40%`:`${TT[x.t].n}${TT[x.t].cov?` · 엄폐 ${Math.round(TT[x.t].cov*100)}%`:''}`;
