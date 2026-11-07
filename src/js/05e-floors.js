@@ -46,6 +46,10 @@ function wallCross(u,x1,z1,x2,z2){if(UT[u.type].fly)return false;const n=Math.ma
           if(Math.hypot(cx-d[0],cz-d[1])>DOOR_W)return true;}}}
     pr=r;pc=c;px=x;pz=z;}
   return false;}
+/* 서로 밀어내지 않는 자리: 건물 안이거나 문에서 0.35칸 안 */
+function sepFree(u){if(UT[u.type].cls!=='inf')return false;const x=cell(u.r,u.c);if(isB(x))return true;
+  for(let s=0;s<4;s++){const [a,b]=SIDES[s];const r=u.r+a,c=u.c+b;if(!inb(r,c)||!isB(G.map[r][c]))continue;const ds=doorSides(r,c);const o=(s+2)%4;if(!ds||!ds[o])continue;const d=doorPos(r,c,o);if(Math.hypot(d[0]-u.x,d[1]-u.z)<.35)return true;}
+  return false;}
 /* 계단 자리: 칸마다 한 모서리 */
 function stairPos(r,c){const h=dHash(key(r,c),40);const sx=h<.5?-1:1,sz=(h*4|0)%2?-1:1;return [c+.5+sx*.27,r+.5+sz*.27];}
 /* 칸에서 오를 수 있는 가장 높은 곳: 실내 층은 0..f-1, f는 옥상. 부서져 낮아진 만큼 줄어든다. */
