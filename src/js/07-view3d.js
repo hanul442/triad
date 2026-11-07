@@ -208,16 +208,16 @@ function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
 function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=[],R1=[],RU=[],RC=[],wt=[],rt=[],rub=[],ac=[];const col=new T.Color();
   // 위가 트인 상자: 네 벽(외벽 무늬) + 지붕. 경계 좌표로 받아 같은 블록 칸끼리 이어 붙인다.
   const quad=(A,B,C2,D,cl,k)=>{for(const p of [A,B,C2,A,C2,D]){R1.push(p[0],p[1],p[2]);RU.push(p[0]+p[1]*.7,p[2]+p[1]*.7);RC.push(cl.r,cl.g,cl.b);}rt.push(k,k);};
-  const box=(x0,x1,z0,z1,y0,h,k,shade,u0,v0,rim)=>{const c4=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];const y1=y0+h;const lens=[x1-x0,z1-z0,x1-x0,z1-z0];
+  const box=(x0,x1,z0,z1,y0,h,k,shade,u0,v0,rim,open)=>{const c4=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];const y1=y0+h;const lens=[x1-x0,z1-z0,x1-x0,z1-z0];
     for(let s=0;s<4;s++){const [ax,az]=c4[(s+1)%4],[bx,bz]=c4[s];const U=lens[s]/.21/8,V=h/FLOOR_H/8;const uu=u0+(s%2?z0:x0)/.21/8;
       W1.push(ax,y0,az,bx,y0,bz,bx,y1,bz, ax,y0,az,bx,y1,bz,ax,y1,az);U1.push(uu,v0,uu+U,v0,uu+U,v0+V, uu,v0,uu+U,v0+V,uu,v0+V);
       for(let v=0;v<6;v++)C1.push(shade.r,shade.g,shade.b);wt.push(k,k);}
-    const rcol=new T.Color('#b9b7b2').lerp(shade,.35).multiplyScalar(1-(1-shade.g)*.4);quad([x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],rcol,k);
+    const rcol=new T.Color('#b9b7b2').lerp(shade,.35).multiplyScalar(1-(1-shade.g)*.4);if(!open)quad([x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],rcol,k);
     // 옥상 난간
     if(rim){const pc=shade.clone().multiplyScalar(.95),t=.035,ph=.05,yt=y1+ph;
       const wall=(xa,za,xb,zb,ox,oz)=>{quad([xa,y1,za],[xb,y1,zb],[xb,yt,zb],[xa,yt,za],pc,k);quad([xa+ox,y1,za+oz],[xb+ox,y1,zb+oz],[xb+ox,yt,zb+oz],[xa+ox,yt,za+oz],pc,k);quad([xa,yt,za],[xb,yt,zb],[xb+ox,yt,zb+oz],[xa+ox,yt,za+oz],pc,k);};
       if(rim[0])wall(x0,z0,x1,z0,0,t);if(rim[2])wall(x0,z1,x1,z1,0,-t);if(rim[3])wall(x0,z0,x0,z1,t,0);if(rim[1])wall(x1,z0,x1,z1,-t,0);}};
-  const TONES=['#bdbbb6','#a9a8a4','#c8c5be','#9c9b98','#b4afa6','#c2bdb3','#a3a19c','#8f8e8b'];const IN=.08;
+  const FD={P:[],C:[],K:[]},FL=[];const TONES=['#bdbbb6','#a9a8a4','#c8c5be','#9c9b98','#b4afa6','#c2bdb3','#a3a19c','#8f8e8b'];const IN=.08;
   const GLASS=['#7d8790','#6a737b','#8a9096','#5f676e','#9a9a94'];const gab=[];// 고층은 유리 외벽 톤, 주택은 박공 지붕
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
     if(x.t==='bldg'){const dmg=1-x.bhp/x.bmax;let h=x.f*FLOOR_H;if(dmg>.5)h*=1-(dmg-.5)*.6;
@@ -225,16 +225,18 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
       const same=(a,b)=>inb(a,b)&&G.map[a][b].t==='bldg'&&x.blk!=null&&G.map[a][b].blk===x.blk&&G.map[a][b].bhp/G.map[a][b].bmax>.5&&dmg<.5;
       const sN=same(r-1,c),sE=same(r,c+1),sS=same(r+1,c),sW=same(r,c-1);
       const x0=cx-.5+(sW?0:IN),x1=cx+.5-(sE?0:IN),z0=cz-.5+(sN?0:IN),z1=cz+.5-(sS?0:IN);
-      const fl=(bt*8|0);box(x0,x1,z0,z1,.06,h,k,col,fl*.37,Math.floor(v3Hash(x.blk??k,8)*8),dmg<.4?[!sN,!sE,!sS,!sW]:null);
-      if(x.dist==='res'&&x.f<=2&&dmg<.4){const rd2=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const ew=rd2(r-1,c)||rd2(r+1,c);gab.push({x:(x0+x1)/2,y:.06+h,z:(z0+z1)/2,sx:x1-x0,sz:z1-z0,ry:ew?0:Math.PI/2,k,col:ROOFC[Math.floor(v3Hash(x.blk??k,13)*ROOFC.length)]});}
-      if(x.f>=4&&v3Hash(k,9)<.4&&dmg<.5){const sw=.22+v3Hash(k,10)*.14,ox=cx+(v3Hash(k,11)-.5)*.3,oz=cz+(v3Hash(k,12)-.5)*.3;box(ox-sw/2,ox+sw/2,oz-sw/2,oz+sw/2,.06+h,FLOOR_H*.9,k,col.clone().multiplyScalar(.85),0,0,null);}
-      for(let i=0;i<3;i++)if(v3Hash(k,20+i)<.5&&dmg<.4)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6,v3Hash(k,26+i)]);
+      const cut=V3.cut?V3.cut.get(k):null;const hc=cut!=null?Math.min(h,cut*FLOOR_H+FLOOR_H*CUT_SILL):h;
+      const fl=(bt*8|0);box(x0,x1,z0,z1,.06,hc,k,col,fl*.37,Math.floor(v3Hash(x.blk??k,8)*8),dmg<.4&&cut==null?[!sN,!sE,!sS,!sW]:null,cut!=null);
+      if(cut!=null)v3CutTile(FD,FL,r,c,x,x0,x1,z0,z1,cut,h,col);v3Doors(FD,r,c,x0,x1,z0,z1,dmg);
+      if(cut==null&&x.dist==='res'&&x.f<=2&&dmg<.4){const rd2=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const ew=rd2(r-1,c)||rd2(r+1,c);gab.push({x:(x0+x1)/2,y:.06+h,z:(z0+z1)/2,sx:x1-x0,sz:z1-z0,ry:ew?0:Math.PI/2,k,col:ROOFC[Math.floor(v3Hash(x.blk??k,13)*ROOFC.length)]});}
+      if(cut!=null){}else if(x.f>=4&&v3Hash(k,9)<.4&&dmg<.5){const sw=.22+v3Hash(k,10)*.14,ox=cx+(v3Hash(k,11)-.5)*.3,oz=cz+(v3Hash(k,12)-.5)*.3;box(ox-sw/2,ox+sw/2,oz-sw/2,oz+sw/2,.06+h,FLOOR_H*.9,k,col.clone().multiplyScalar(.85),0,0,null);}
+      for(let i=0;i<3;i++)if(v3Hash(k,20+i)<.5&&dmg<.4&&cut==null)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6,v3Hash(k,26+i)]);
       if(dmg>.25)for(let i=0;i<Math.round(dmg*8);i++){const a=v3Hash(k,30+i)*6.283;rub.push([cx+Math.cos(a)*.5,.03,cz+Math.sin(a)*.5,.08+v3Hash(k,40+i)*.08,v3Hash(k,50+i)*3,k]);}}
     else if(x.t==='rubble'){for(let i=0;i<34;i++){const a=v3Hash(k,60+i)*6.283,rr=Math.sqrt(v3Hash(k,70+i))*.46;rub.push([cx+Math.cos(a)*rr,.01,cz+Math.sin(a)*rr,.025+Math.pow(v3Hash(k,80+i),2)*.09,v3Hash(k,90+i)*3,k]);}
       if(v3Hash(k,99)<.7){const ox=cx+(v3Hash(k,98)-.5)*.4,oz=cz+(v3Hash(k,97)-.5)*.4,w=.12+v3Hash(k,96)*.14;box(ox-w,ox+w,oz-.1,oz+.1,.02,FLOOR_H*(.5+v3Hash(k,95)*1.4),k,col.set('#8b857a'),v3Hash(k,94)*8,0,null);}}}
   const mk=(P,UV,C,mat,tri)=>{if(!P.length)return;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));if(UV)geo.setAttribute('uv',new T.Float32BufferAttribute(UV,2));
     geo.setAttribute('color',new T.Float32BufferAttribute(C,3));geo.computeVertexNormals();const m=new T.Mesh(geo,mat);m.castShadow=m.receiveShadow=true;m.userData.tri=tri;g.add(m);};
-  mk(W1,U1,C1,V3.M.wall,wt);mk(R1,RU,RC,V3.M.roof,rt);
+  mk(W1,U1,C1,V3.M.wall,wt);mk(R1,RU,RC,V3.M.roof,rt);v3FloorMesh(g,FD,FL);
   const m4=new T.Matrix4(),q=new T.Quaternion(),s=new T.Vector3(),p=new T.Vector3();
   if(rub.length){const im=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),V3.M.rubble,rub.length);im.castShadow=im.receiveShadow=true;
     rub.forEach(([x,y,z,sz,rot],i)=>{p.set(x,y,z);q.setFromEuler(new T.Euler(rot,rot*2,0));s.set(sz,sz*.5,sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);});im.userData.keys=rub.map(r=>r[5]);g.add(im);}
@@ -291,7 +293,7 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
   root.add(g);root.add(ring);root.add(sel);root.userData={k:null,body:g,ring,sel,figs:sold.map(s=>s.m),sold,air:!!t.fly,inf:t.cls==='inf'};
   if(t.fly){const sh=new T.Mesh(new T.CircleGeometry(.1,16),new T.MeshBasicMaterial({color:'#000',transparent:true,opacity:.28,depthWrite:false}));sh.rotation.x=-Math.PI/2;root.add(sh);root.userData.shadow=sh;}
   return root;}
-function v3UnitY(u){if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);return v3Top(u.r,u.c)+.005;}
+function v3UnitY(u){if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);const iy=v3InY(u);if(iy!=null)return iy;return v3Top(u.r,u.c)+.005;}
 /* 쓰러진 병사: 그 자리에 오래 남는다 */
 function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;const c=v3Soldier(nat,'rifle');c.position.set(s.wx,o.position.y,s.wz);c.rotation.set(0,Math.random()*6.28,0);
   c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;const wrap=new T.Group();wrap.position.copy(c.position);c.position.set(0,0,0);wrap.add(c);c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;
@@ -312,10 +314,14 @@ function v3AnimUnits(dt,now){if(!(dt>0))return;for(const o of V3.uo.values()){co
     if(!o.userData.inf){const want=-fa;let cur=o.userData.body.rotation.y;let d=want-cur;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;o.userData.body.rotation.y=cur+d*Math.min(1,dt*5);
       if(o.userData.air)o.userData.body.traverse(x=>{if(x.userData.rotor)x.rotation.y+=dt*30;});}
     else{const moving=uu.path&&uu.path.length;const tight=cell(uu.r,uu.c).t==='bldg'?.55:1;const cf=Math.cos(fa),sf=Math.sin(fa);const vmax=UT[uu.type].mv*SPD_K*(uu.supp>0?.65:1)*1.2;
-      for(const s of o.userData.sold){if(!s.m.visible)continue;const [lx,lz]=s.slot;const gx=tx+(lx*cf-lz*sf)*tight,gz=tz+(lx*sf+lz*cf)*tight;
+      const ud=o.userData;if(!ud.trail)ud.trail=[[tx,tz]];{const lt=ud.trail[0];if(Math.hypot(tx-lt[0],tz-lt[1])>.03){ud.trail.unshift([tx,tz]);if(ud.trail.length>60)ud.trail.pop();}}
+      let si=-1;for(const s of o.userData.sold){si++;if(!s.m.visible)continue;const [lx,lz]=s.slot;let gx=tx+(lx*cf-lz*sf)*tight,gz=tz+(lx*sf+lz*cf)*tight;
+        const ins=v3InSoldier(uu,s,si,dt);if(ins&&ins.x!=null){gx=ins.x;gz=ins.z;}
+        else if(moving){// 이동 중에는 한 줄로 앞사람 발자국을 따른다(문·골목을 같은 길로 지나도록)
+          const tp=ud.trail[Math.min(ud.trail.length-1,Math.round(si*2.3))];gx=tp[0];gz=tp[1];}
         const dx=gx-s.wx,dz=gz-s.wz,d=Math.hypot(dx,dz);const step=Math.min(d,vmax*dt*(d>.4?3:d>.15?1.6:1.1));
         if(d>.004){s.wx+=dx/d*step;s.wz+=dz/d*step;}s.spd+=((d>.01?step/dt:0)-s.spd)*Math.min(1,dt*8);
-        const m=s.m;m.position.set(s.wx-o.position.x,0,s.wz-o.position.z);
+        const m=s.m;m.position.set(s.wx-o.position.x,ins?ins.y:0,s.wz-o.position.z);
         const head=s.spd>.05?Math.atan2(dz,dx):fa+Math.sin(now/1900+s.ph)*.25;let cur=m.rotation.y,want=-head,dd=want-cur;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;m.rotation.y=cur+dd*Math.min(1,dt*8);
         const sw=Math.min(1,s.spd/.4)*Math.sin(now/70+s.ph)*.7;m.userData.legL.rotation.z=sw;m.userData.legR.rotation.z=-sw;
         const crouch=!moving&&(uu.supp>0||uu.tgt!=null||uu.shot===G.turn)?.75:1;m.scale.y+=(crouch-m.scale.y)*Math.min(1,dt*6);}}
@@ -391,7 +397,7 @@ function v3PlaceLabels(){const v=V3.tmpV||(V3.tmpV=new V3.T.Vector3());const w=V
 function v3Sync(){if(!V3.on||!V3.ren||!G)return;const vn=G.viewer,vs=G.fog?visSet(vn):null;
   const tag=G.seed+'|'+N+'|'+G.map.map(row=>row.map(x=>x.t[0]).join('')).join('');
   if(V3.tag!==tag){const fresh=V3.seed!==G.seed+'|'+N;V3.seed=G.seed+'|'+N;V3.tag=tag;V3.ctag=null;v3BuildWorld();if(fresh){V3.uo.forEach(o=>V3.G.units.remove(o));V3.uo.clear();v3HomeCam(true);}}
-  const ctag=tag+G.map.map(row=>row.map(x=>x.t==='bldg'?Math.round(x.bhp/x.bmax*6):'').join(',')).join('');if(V3.ctag!==ctag){V3.ctag=ctag;v3BuildCity();}
+  const ctag=tag+G.map.map(row=>row.map(x=>x.t==='bldg'?Math.round(x.bhp/x.bmax*6):'').join(',')).join('');V3.cut=v3CutMap(vs,vn);const cutTag=[...V3.cut].sort((a,b)=>a[0]-b[0]).join(';');if(V3.ctag!==ctag||V3.cutTag!==cutTag){V3.ctag=ctag;V3.cutTag=cutTag;v3BuildCity();}
   const stag=tag+G.objs.map(o=>G.map[o.r][o.c].owner).join(',');if(V3.stag!==stag){V3.stag=stag;v3BuildSites();}
   const smk=ctag+'|'+G.wx+'|'+G.map.map(row=>row.map(x=>x.smoke?1:0).join('')).join('');
   v3Light();if(V3.smk!==smk){V3.smk=smk;v3SyncSmoke();}

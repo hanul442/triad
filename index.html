@@ -488,7 +488,7 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
   const stopAt=(r,c)=>{if(t.fly)return false;for(const [a,b] of nbrs(r,c)){const e=O.get(key(a,b));if(e&&hostile(e.nat,u.nat)&&!UT[e.type].fly&&(!vs||seen(e,u.nat)))return true;}return false;};
   const st=key(u.r,u.c);res.set(st,0);const q=[[0,u.r,u.c]];
   while(q.length){q.sort((a,b)=>a[0]-b[0]);const [d,r,c]=q.shift();if(d>res.get(key(r,c)))continue;if(key(r,c)!==st&&stopAt(r,c))continue;
-    for(const [a,b] of nbrs(r,c)){const x=G.map[a][b];const mc=mcost(u.type,x);if(mc===Infinity)continue;
+    for(const [a,b] of nbrs(r,c)){const x=G.map[a][b];const mc=mcost(u.type,x);if(mc===Infinity)continue;if(!t.fly&&typeof stepPass==='function'&&!stepPass(r,c,a,b))continue;
       if(t.cls==='veh'&&a!==r&&b!==c&&(G.map[a][c].t==='bldg'&&G.map[r][b].t==='bldg'))continue;
       const nd=d+mc;if(nd>mv)continue;const k=key(a,b);const o=O.get(k);if(o&&o.nat!==u.nat)continue;if(o&&UT[o.type].fly!==t.fly&&false)continue;
       if(!res.has(k)||nd<res.get(k)){res.set(k,nd);prev.set(k,key(r,c));q.push([nd,a,b]);}}}
@@ -559,7 +559,8 @@ const udist=(a,b)=>{const [ax,az]=posOf(a),[bx,bz]=posOf(b);return Math.hypot(ax
 
 /* 눈높이 (층 단위). 건물 안 보병은 그 건물 높이에서 본다. */
 function eyeAt(type,r,c){const t=UT[type];if(t.fly)return 9;const x=cell(r,c);if(x.t==='bldg')return Math.max(.5,x.f-.5);return t.cls==='veh'?.8:.5;}
-const eye=u=>eyeAt(u.type,u.r,u.c);
+/* 실제 부대: 건물 안이면 지금 서 있는 층에서 본다(05e-floors). */
+const eye=u=>{const e=eyeAt(u.type,u.r,u.c);if(UT[u.type].cls!=='inf'||cell(u.r,u.c).t!=='bldg'||typeof curFl!=='function')return e;return Math.min(e,curFl(u)+.5);};
 /* 건물 높이(층). 많이 부서지면 낮아진다(화면과 같은 식). */
 function bldgH(x){if(x.t!=='bldg')return 0;const dmg=1-x.bhp/x.bmax;return dmg>.5?x.f*(1-(dmg-.5)*.6):x.f;}
 function blockH(x){if(x.smoke>0)return 99;return bldgH(x);}
@@ -592,7 +593,7 @@ function los(r1,c1,h1,r2,c2,h2){return losPt(c1+.5,r1+.5,h1,c2+.5,r2+.5,h2);}
 /* 부대 a가 부대 b를 시야선으로 보는가 */
 function losU(a,b){const [ax,az]=posOf(a),[bx,bz]=posOf(b);return losPt(ax,az,eye(a),bx,bz,eye(b));}
 
-function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg')v+=x.f>=5?2:x.f>=3?1:0;
+function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg'){const f=Math.round(eye(u)+.5);v+=f>=5?2:f>=3?1:0;}
   if(isNight())v-=t.fly?1:2;v+=WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
 /* 숨은 상태: 쏜 지 얼마 안 됐으면 드러난다 */
 const firedRecently=e=>e.firedT!=null&&(G.time||0)-e.firedT<FIRE_REVEAL;
@@ -804,6 +805,12 @@ function navOk(u,x,z){const c=navCls(u);return !c||navCost(c,x,z)>0;}
 /* 선분이 막힌 칸을 지나지 않나 (segClear가 부른다) */
 function navSegOk(u,x1,z1,x2,z2){const c=navCls(u);if(!c)return true;const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/(.5/NAV_R)));
   for(let i=1;i<=n;i++){if(!navCost(c,x1+(x2-x1)*i/n,z1+(z2-z1)*i/n))return false;}return true;}
+/* 보병: 작은 칸에서 옆 작은 칸으로 갈 때 칸 경계에 건물 벽이 있으면 문으로만 지난다 (05e-floors의 edgePass·diagPass) */
+function navWallOk(i,j,ni,nj){const R=NAV_R,tr=(i/R)|0,tc=(j/R)|0,nr=(ni/R)|0,nc=(nj/R)|0;if(tr===nr&&tc===nc)return true;
+  if(tr!==nr&&tc!==nc)return diagPass(tr,tc,nr,nc);
+  const d=edgePass(tr,tc,nr,nc);if(d==null)return false;if(d===true)return true;
+  if(i!==ni&&j!==nj)return false;// 문은 곧게 지난다
+  const cx=tr!==nr?(j+.5)/R:Math.max(tc,nc),cz=tr!==nr?Math.max(tr,nr):(i+.5)/R;return Math.hypot(cx-d[0],cz-d[1])<=DOOR_W;}
 /* A* 경로: 작은 칸 단위. 목표에 못 가면 가장 가까운 곳까지. 반환: 작은 칸 중심점 목록(꺾이는 곳만) */
 function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(cls),W=g.W,C=g.cost;
   const cl=v=>Math.max(0,Math.min(W-1,v));let s=cl(Math.floor(u.z*NAV_R))*W+cl(Math.floor(u.x*NAV_R));const gi=cl(Math.floor(z*NAV_R)),gj=cl(Math.floor(x*NAV_R)),goal=gi*W+gj;
@@ -816,17 +823,24 @@ function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(
   const H=k=>{const i=(k/W)|0,di=i>gi?i-gi:gi-i,j=k-i*W,dj=j>gj?j-gj:gj-j;return (di>dj?di+.414*dj:dj+.414*di)*1.15;};
   const hk=[],hf=[];const push=(k,f)=>{hk.push(k);hf.push(f);let i=hk.length-1;while(i>0){const p=(i-1)>>1;if(hf[p]<=hf[i])break;[hk[p],hk[i]]=[hk[i],hk[p]];[hf[p],hf[i]]=[hf[i],hf[p]];i=p;}};
   const pop=()=>{const k=hk[0];const lk=hk.pop(),lf=hf.pop();if(hk.length){hk[0]=lk;hf[0]=lf;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<hk.length&&hf[l]<hf[m])m=l;if(r<hk.length&&hf[r]<hf[m])m=r;if(m===i)break;[hk[m],hk[i]]=[hk[i],hk[m]];[hf[m],hf[i]]=[hf[i],hf[m]];i=m;}}return k;};
+  const walls=(cls==='inf'||cls==='eng')&&typeof edgePass==='function';
   D[s]=0;push(s,H(s));let best=s,bh=H(s),n=0;
   while(hk.length&&n++<120000){const k=pop();if(done[k])continue;done[k]=1;if(k===goal){best=k;break;}const h=H(k);if(h<bh){bh=h;best=k;}
     const i=Math.floor(k/W),j=k%W;
     for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){if(!a&&!b)continue;const ni=i+a,nj=j+b;if(ni<0||nj<0||ni>=W||nj>=W)continue;const nk=ni*W+nj;const c=C[nk];if(!c||done[nk])continue;
       if(a&&b&&(!C[i*W+nj]||!C[ni*W+j]))continue;
+      if(walls&&!navWallOk(i,j,ni,nj))continue;
       const nd=D[k]+c*(a&&b?1.414:1);if(nd<D[nk]){D[nk]=nd;P[nk]=k;push(nk,nd+H(nk));}}}
   const cells=[];let k=best;while(k!==s&&k>=0){cells.push(k);k=P[k];}cells.reverse();
   // 방향이 바뀌는 곳만 남긴다
   const out=pre.slice();let pd=null;const pt=c=>[(c%W+.5)/NAV_R,(Math.floor(c/W)+.5)/NAV_R];
-  for(let q=0;q<cells.length;q++){const pv=q?cells[q-1]:s;const d=cells[q]-pv;if(q&&d!==pd)out.push(pt(pv));pd=d;}
-  if(cells.length)out.push(pt(cells[cells.length-1]));
+  const tileOf=c=>[((c/W|0)/NAV_R)|0,((c%W)/NAV_R)|0];
+  for(let q=0;q<cells.length;q++){const pv=q?cells[q-1]:s;const d=cells[q]-pv;
+    if(walls){const [r0,c0]=tileOf(pv),[r1,c1]=tileOf(cells[q]);// 문을 지나는 곳은 문 앞(a)·문 안(b) 두 점으로 꼭 남긴다
+      if((r0!==r1||c0!==c1)&&Array.isArray(edgePass(r0,c0,r1,c1))){const A=pt(pv),B=pt(cells[q]);A.door='a';B.door='b';
+        if(out.length&&out[out.length-1][0]===A[0]&&out[out.length-1][1]===A[1])out.pop();out.push(A,B);pd=null;continue;}}
+    if(q&&d!==pd&&pd!==null)out.push(pt(pv));pd=d;}
+  if(cells.length){const L=pt(cells[cells.length-1]),e=out[out.length-1];if(!e||e[0]!==L[0]||e[1]!==L[1])out.push(L);}
   out.reached=best===goal;return out;}
 
 /* ---------- 방어물 ---------- */
@@ -940,7 +954,7 @@ const SPD_K=.2;            // 초당 이동 거리(칸) = 이동력 × SPD_K ÷ 
 const tileAt=(x,z)=>{const r=Math.floor(z),c=Math.floor(x);return inb(r,c)?G.map[r][c]:null;};
 function walkable(u,x,z){const t=tileAt(x,z);return !!t&&mcost(u.type,t)<Infinity&&(typeof navOk!=='function'||navOk(u,x,z));}
 /* 두 점 사이를 곧게 걸어갈 수 있는가: 지나는 칸이 모두 갈 수 있고, 양 끝보다 더 느린 지형을 지나지 않는다 */
-function segClear(u,x1,z1,x2,z2){const t1=tileAt(x1,z1),t2=tileAt(x2,z2);if(!t1||!t2)return false;const lim=Math.max(mcost(u.type,t1),mcost(u.type,t2));
+function segClear(u,x1,z1,x2,z2){if(wallCross(u,x1,z1,x2,z2))return false;const t1=tileAt(x1,z1),t2=tileAt(x2,z2);if(!t1||!t2)return false;const lim=Math.max(mcost(u.type,t1),mcost(u.type,t2));
   if(typeof navSegOk==='function'&&!navSegOk(u,x1,z1,x2,z2))return false;// 차·방벽·방어물 (04d-fort)
   const n=Math.ceil(Math.hypot(x2-x1,z2-z1)/.2);for(let i=1;i<n;i++){const t=tileAt(x1+(x2-x1)*i/n,z1+(z2-z1)*i/n);if(!t)return false;const m=mcost(u.type,t);if(m===Infinity||m>lim)return false;}
   if(UT[u.type].cls==='veh'){const r=.22;for(const [ox,oz] of [[r,0],[-r,0],[0,r],[0,-r]])for(let i=0;i<=n;i++){const t=tileAt(x1+(x2-x1)*i/n+ox,z1+(z2-z1)*i/n+oz);if(!t||mcost(u.type,t)===Infinity)return false;}}
@@ -950,20 +964,28 @@ function pathTo(u,r2,c2,avoid){const t=UT[u.type];const st=key(u.r,u.c),goal=key
   const D=new Map([[st,0]]),P=new Map();const q=[[0,u.r,u.c]];let best=st,bd=dist(u.r,u.c,r2,c2);
   while(q.length){let mi=0;for(let i=1;i<q.length;i++)if(q[i][0]<q[mi][0])mi=i;const [d,r,c]=q[mi];q[mi]=q[q.length-1];q.pop();
     const k=key(r,c);if(d>D.get(k))continue;if(k===goal){best=k;break;}const h=dist(r,c,r2,c2);if(h<bd){bd=h;best=k;}
-    for(const [a,b] of nbrs(r,c)){const mc=mcost(u.type,G.map[a][b]);if(mc===Infinity)continue;
+    for(const [a,b] of nbrs(r,c)){const mc=mcost(u.type,G.map[a][b]);if(mc===Infinity)continue;if(!t.fly&&!stepPass(r,c,a,b))continue;
       if(a!==r&&b!==c&&!t.fly&&(G.map[a][c].t==='bldg'&&G.map[r][b].t==='bldg'||mcost(u.type,G.map[a][c])===Infinity||mcost(u.type,G.map[r][b])===Infinity))continue;
       const nd=d+mc*(a!==r&&b!==c?1.41:1);const nk=key(a,b);if(avoid&&avoid.has(nk))continue;if(!D.has(nk)||nd<D.get(nk)){D.set(nk,nd);P.set(nk,k);q.push([nd,a,b]);}}}
   const out=[];let k=best;while(k!==st&&k!=null){out.push(k);k=P.get(k);}return out.reverse();}
 /* 지점 경로: 칸 경로를 점으로 바꾸고, 곧게 갈 수 있는 구간은 건너뛰어 자연스럽게 만든다 */
 function pathPts(u,x,z){x=Math.min(N-.05,Math.max(.05,x));z=Math.min(N-.05,Math.max(.05,z));
-  // 지상 부대는 장애물을 아는 세밀한 격자(04d-fort navPath)로, 드론은 칸 경로로
+  // 지상 부대는 장애물과 문을 아는 세밀한 격자(04d-fort navPath)로, 드론은 칸 경로로
   const np=typeof navPath==='function'?navPath(u,x,z):null;let pts;
   if(np){pts=np;if(np.reached&&walkable(u,x,z)){if(pts.length)pts[pts.length-1]=[x,z];else pts.push([x,z]);}}
-  else{const tiles=pathTo(u,Math.floor(z),Math.floor(x));pts=tiles.map(k=>[kc(k)+.5,kr(k)+.5]);
-    const reached=!tiles.length?key(u.r,u.c):tiles[tiles.length-1];
-    if(reached===key(Math.floor(z),Math.floor(x))&&walkable(u,x,z)){if(pts.length)pts[pts.length-1]=[x,z];else pts.push([x,z]);}}
+  else{
+  const tiles=pathTo(u,Math.floor(z),Math.floor(x));pts=[];let pk=key(u.r,u.c);
+  // 건물 벽을 지날 때는 문 앞(a)·문 안(b) 두 점을 꼭 거친다
+  for(const k of tiles){const r0=kr(pk),c0=kc(pk),r1=kr(k),c1=kc(k);
+    if(!UT[u.type].fly&&(r0===r1||c0===c1)){const d=edgePass(r0,c0,r1,c1);if(Array.isArray(d)){const nx=c1-c0,nz=r1-r0;const a=[d[0]-nx*.16,d[1]-nz*.16],b=[d[0]+nx*.16,d[1]+nz*.16];a.door='a';b.door='b';pts.push(a,b);}}
+    pts.push([c1+.5,r1+.5]);pk=k;}
+  const reached=!tiles.length?key(u.r,u.c):tiles[tiles.length-1];
+  if(reached===key(Math.floor(z),Math.floor(x))&&walkable(u,x,z)){if(pts.length)pts[pts.length-1]=[x,z];else pts.push([x,z]);}
+  }
   const out=[];let cx=u.x,cz=u.z,i=0;
-  while(i<pts.length){let j=pts.length-1;while(j>i&&!segClear(u,cx,cz,pts[j][0],pts[j][1]))j--;out.push(pts[j]);[cx,cz]=pts[j];i=j+1;}
+  while(i<pts.length){if(pts[i].door==='b'){out.push(pts[i]);[cx,cz]=pts[i];i++;continue;}
+    let lim=pts.length-1;for(let q=i;q<pts.length;q++)if(pts[q].door==='a'){lim=q;break;}
+    let j=lim;while(j>i&&!segClear(u,cx,cz,pts[j][0],pts[j][1]))j--;out.push(pts[j]);[cx,cz]=pts[j];i=j+1;}
   return out;}
 /* 명령 */
 function orderMoveTo(u,x,z){[x,z]=coverSnap(u,x,z);u.path=pathPts(u,x,z);u.tgt=null;u.tgtTile=null;u.dest=[x,z];}
@@ -997,23 +1019,22 @@ function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);
   const sp=UT[u.type].mv*SPD_K/(t?mcost(u.type,t):1)*(u.supp>0?.65:1);const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);
   if(d>.001)u.face=Math.atan2(dz,dx)*180/Math.PI;
-  if(d<=sp*dt){u.x=tx;u.z=tz;u.path.shift();}else{const nx=u.x+dx/d*sp*dt,nz=u.z+dz/d*sp*dt;
-    if(!walkable(u,nx,nz)&&walkable(u,u.x,u.z)){// 길이 새로 막혔으면(방어물·잔해) 한 번 다시 찾고, 그래도 막히면 멈춘다
-      const fin=u.path[u.path.length-1];if((u.rpT||0)<=(G.time||0)){u.rpT=(G.time||0)+1.5;u.path=pathPts(u,fin[0],fin[1]);}else u.path=[];return;}
-    u.x=nx;u.z=nz;}
+  const st=Math.min(d,sp*dt),nx=d>.001?u.x+dx/d*st:tx,nz=d>.001?u.z+dz/d*st:tz;
+  if(!walkable(u,nx,nz)||wallCross(u,u.x,u.z,nx,nz)){const end=u.path[u.path.length-1];u.path=[];if(!u._rp){u._rp=1;u.path=pathPts(u,end[0],end[1]);}return;}
+  u._rp=0;u.x=nx;u.z=nz;if(d<=sp*dt)u.path.shift();
   u.moved=true;if(typeof fortCrush==='function')fortCrush(u);rtCell(u);if(!G.units.includes(u))return;
   if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);if(e&&canHit(u,e))u.path=[];}
   if(u.tgtTile!=null&&canHitTile(u,kr(u.tgtTile),kc(u.tgtTile)))u.path=[];}
 /* 서 있는 칸이 바뀌면 시야·점령을 갱신한다 */
 function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c)return;u.r=r;u.c=c;bump();afterMove(u);}
 /* 겹친 부대는 서로 조금씩 밀어낸다 */
-function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];if(UT[b.type].fly)continue;
+function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];if(UT[b.type].fly||a.climb||b.climb)continue;
     const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
-    const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)){u.x=x;u.z=z;}};
+    const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
     const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}}
   for(const u of us.slice())if(G.units.includes(u))rtCell(u);}
-function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0)return;const moving=!!(u.path&&u.path.length);if(t.ind&&moving)return;
+function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb)return;const moving=!!(u.path&&u.path.length);if(t.ind&&moving)return;
   // 명령받은 표적을 쫓는다
   if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);if(!e||(G.fog&&!seen(e,u.nat))){u.tgt=null;}
     else if(!canHit(u,e)&&!moving&&!u.hold){u.path=pathPts(u,e.x,e.z);}}
@@ -1028,7 +1049,7 @@ function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   while(G.time>=G.turn*ROUND_S&&!G.over)rtRound();
   if(typeof heliTick==='function')heliTick();
   if(typeof fortTick==='function')fortTick(dt);
-  for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
+  for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;if(!flTick(u,dt))rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
   rtSeparate(dt);
   for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;
     if(N2.aiT<=0){N2.aiT=1.6+Math.random()*1.2;try{aiThink(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}
@@ -1071,6 +1092,90 @@ function heliInsert(n,r,c){G.pending=G.pending||[];G.pending.push({t:(G.time||0)
 function heliTick(){if(!G.pending||!G.pending.length)return;const keep=[];
   for(const p of G.pending){if(p.t>G.time){keep.push(p);continue;}const u=mkUnit(p.n,p.type,p.r,p.c);u.face=Math.random()*360;L(`${natName(p.n)} ${UT[p.type].n} 헬기 투입`);if(typeof FXH.land==='function')FXH.land(u);}
   G.pending=keep;}
+
+/* ---- 05e-floors.js ---- */
+/* ===================== FLOORS: 문으로 들어가 계단으로 오르기 =====================
+   보병은 건물 외벽을 넘지 못한다. 칸마다 바깥쪽 벽 몇 곳에 출입문이 있고, 그 문으로만 드나든다.
+   (많이 부서진 건물은 벽이 뚫려 어디로든 드나든다.) 같은 블록 건물 칸끼리는 안에서 이어진다.
+   건물 안 부대는 u.fl(층, 0 = 1층)을 가진다. 들어오면 1층이고, 멈춰 있으면 계단 자리로 가서
+   한 층에 FLOOR_S초씩 걸려 꼭대기 층까지 오른다. 나가거나 낮은 건물 칸으로 옮길 때는 먼저 내려온다.
+   눈높이(eye)는 지금 층을 따른다: 1층이면 길에 선 것과 같고, 꼭대기 층이면 예전처럼 건물 높이에서 본다. */
+const FLOOR_S=2.4;             // 한 층 오르내리는 데 걸리는 시간(초)
+const DOOR_W=.13;              // 문 너비 절반(칸): 이 안쪽으로 벽을 지나야 한다
+const SIDES=[[-1,0],[0,1],[1,0],[0,-1]];   // 북 동 남 서 (dr,dc)
+const isB=x=>!!x&&x.t==='bldg';
+const sameBlk=(a,b)=>isB(a)&&isB(b)&&a.blk!=null&&a.blk===b.blk;
+const breached=x=>isB(x)&&x.bhp/x.bmax<.4;
+/* 두 칸 사이에 벽이 있는가 (건물 안팎, 또는 서로 다른 건물) */
+function wallBetween(a,b){if(!isB(a)&&!isB(b))return false;if(sameBlk(a,b))return false;return true;}
+/* 건물 칸 (r,c)의 s쪽 벽에 문이 있는가. 바깥(건물 아님, 물 아님)과 맞닿은 면 중에서 고르고, 칸마다 하나는 꼭 있다. */
+function doorSides(r,c){const x=G.map[r][c];if(!isB(x))return null;
+  const sig=SIDES.map(([a,b])=>{const r2=r+a,c2=c+b;if(!inb(r2,c2))return 0;const y=G.map[r2][c2];return !isB(y)&&y.t!=='water'?1:0;}).join('');
+  if(x._dk===sig)return x._ds;const k=key(r,c);const out=[0,0,0,0];let any=false;
+  for(let s=0;s<4;s++)if(sig[s]==='1'&&dHash(k,s)<.42){out[s]=1;any=true;}
+  if(!any){const st=Math.floor(dHash(k,9)*4);for(let i=0;i<4;i++){const s=(st+i)%4;const [a,b]=SIDES[s];const y=inb(r+a,c+b)?G.map[r+a][c+b]:null;if(sig[s]==='1'&&y&&y.t==='road'){out[s]=1;any=true;break;}}
+    if(!any)for(let i=0;i<4;i++){const s=(st+i)%4;if(sig[s]==='1'){out[s]=1;break;}}}
+  x._dk=sig;x._ds=out;return out;}
+function dHash(k,s){let h=(k*2654435761^(s+1)*40503)>>>0;h=Math.imul(h^h>>>15,2246822507)>>>0;h=Math.imul(h^h>>>13,3266489909)>>>0;return ((h^h>>>16)>>>0)/4294967296;}
+/* 문 위치: s쪽 벽 가운데에서 벽을 따라 조금 비킨 점 [x,z] */
+function doorPos(r,c,s){const o=(dHash(key(r,c),20+s)-.5)*.36;const cx=c+.5,cz=r+.5;
+  return s===0?[cx+o,r]:s===1?[c+1,cz+o]:s===2?[cx+o,r+1]:[c,cz+o];}
+/* 칸 (r,c)에서 옆 칸 (a,b)로 (가로·세로로) 넘어갈 수 있는가, 넘어간다면 지나야 할 문 [x,z] (벽이 없으면 true) */
+function edgePass(r,c,a,b){const A=G.map[r][c],B=G.map[a][b];if(!wallBetween(A,B))return true;
+  if(isB(A)&&isB(B))return breached(A)&&breached(B)?true:null;   // 다른 건물끼리는 벽을 못 뚫는다(둘 다 무너지기 직전이면 통과)
+  const bi=isB(A)?[r,c]:[a,b],s=SIDES.findIndex(([p,q])=>bi[0]+p===(isB(A)?a:r)&&bi[1]+q===(isB(A)?b:c));
+  if(breached(G.map[bi[0]][bi[1]]))return true;
+  const ds=doorSides(bi[0],bi[1]);if(!ds||!ds[s])return null;return doorPos(bi[0],bi[1],s);}
+/* 대각선 이동: 네 칸이 모두 같은 공간(모두 바깥, 또는 모두 같은 건물)일 때만 */
+function diagPass(r,c,a,b){const P=[G.map[r][c],G.map[a][b],G.map[a][c],G.map[r][b]];
+  if(P.every(x=>!isB(x)))return true;return P.every(x=>sameBlk(x,P[0]));}
+function stepPass(r,c,a,b){if(a!==r&&b!==c)return diagPass(r,c,a,b);return edgePass(r,c,a,b)!=null;}
+/* 선분이 문이 아닌 곳으로 벽을 지나가는가 (자유 이동·밀어내기·경로 다듬기에서 쓴다) */
+function wallCross(u,x1,z1,x2,z2){if(UT[u.type].fly)return false;const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.08));
+  let pr=Math.floor(z1),pc=Math.floor(x1),px=x1,pz=z1;
+  for(let i=1;i<=n;i++){const x=x1+(x2-x1)*i/n,z=z1+(z2-z1)*i/n;const r=Math.floor(z),c=Math.floor(x);
+    if(r!==pr||c!==pc){if(!inb(r,c)||!inb(pr,pc))return true;
+      if(r!==pr&&c!==pc){if(!diagPass(pr,pc,r,c))return true;}
+      else{const d=edgePass(pr,pc,r,c);if(d==null)return true;
+        if(d!==true){// 경계를 지난 점이 문 안쪽이어야 한다
+          const t=r!==pr?((r>pr?r:pr)-pz)/((z-pz)||1e-9):((c>pc?c:pc)-px)/((x-px)||1e-9);const cx=px+(x-px)*t,cz=pz+(z-pz)*t;
+          if(Math.hypot(cx-d[0],cz-d[1])>DOOR_W)return true;}}}
+    pr=r;pc=c;px=x;pz=z;}
+  return false;}
+/* 계단 자리: 칸마다 한 모서리 */
+function stairPos(r,c){const h=dHash(key(r,c),40);const sx=h<.5?-1:1,sz=(h*4|0)%2?-1:1;return [c+.5+sx*.27,r+.5+sz*.27];}
+/* 칸의 꼭대기 층 번호(0부터). 부서져 낮아진 만큼 줄어든다. */
+function topFl(x){if(!isB(x))return 0;return Math.max(0,Math.ceil(bldgH(x)-.05)-1);}
+/* 지금 층을 아는가: 실제 서 있는 칸이 층을 기록한 칸과 같을 때만 (AI가 가상 칸에 옮겨 놓고 계산할 때는 꼭대기로 본다) */
+function curFl(u){const x=cell(u.r,u.c);if(!isB(x))return 0;if(u.fl==null||u.flK!==key(u.r,u.c))return topFl(x);return Math.min(u.fl,topFl(x));}
+/* 남은 경로를 걷는 동안 머물 수 있는 가장 높은 층: 건물을 나가면 0, 같은 블록 안이면 지나는 칸 중 가장 낮은 꼭대기 */
+function pathFlLim(u){const here=cell(u.r,u.c);let lim=topFl(here);let px=u.x,pz=u.z;
+  for(const p of u.path){const n=Math.max(1,Math.ceil(Math.hypot(p[0]-px,p[1]-pz)/.25));
+    for(let i=1;i<=n;i++){const t=tileAt(px+(p[0]-px)*i/n,pz+(p[1]-pz)*i/n);if(!t||!sameBlk(t,here)&&t!==here)return 0;lim=Math.min(lim,topFl(t));}
+    px=p[0];pz=p[1];if(lim<=0)return 0;}
+  return lim;}
+/* 계단으로 한 걸음: 계단 자리로 걸어가서 목표 층까지 오르내린다. 계단에 있는 동안은 u.climb=1 */
+function stairStep(u,dt,goal){const [sx,sz]=stairPos(u.r,u.c);const dx=sx-u.x,dz=sz-u.z,d=Math.hypot(dx,dz);
+  const sp=UT[u.type].mv*SPD_K*.5*(u.supp>0?.65:1);
+  if(d>.04){const k=Math.min(1,sp*dt/d);u.x+=dx*k;u.z+=dz*k;u.face=Math.atan2(dz,dx)*180/Math.PI;u.climb=0;return;}
+  const rate=dt/FLOOR_S*(u.supp>0?.6:1);u.climb=1;
+  if(u.fl<goal)u.fl=Math.min(goal,u.fl+rate);else u.fl=Math.max(goal,u.fl-rate);
+  if(Math.abs(u.fl-goal)<1e-6){u.fl=goal;u.climb=0;}
+  const ef=Math.floor(u.fl+1e-6);if(ef!==u._efl){u._efl=ef;bump();}}
+/* 매 틱: 층 기록을 서 있는 칸에 맞추고, 멈춰 있으면 원하는 층(u.flT, 없으면 꼭대기)으로 오른다.
+   이동 중에 지금 층에서는 못 가는 곳이 남아 있으면 true(먼저 내려와야 하니 걷지 않는다). */
+function flTick(u,dt){if(UT[u.type].cls!=='inf'){u.fl=0;return false;}const k=key(u.r,u.c),x=cell(u.r,u.c);
+  if(u.flK!==k){const was=u.flK!=null&&inb(kr(u.flK),kc(u.flK))?G.map[kr(u.flK)][kc(u.flK)]:null;
+    u.fl=u.fl==null&&isB(x)?topFl(x):isB(x)&&sameBlk(was,x)?Math.min(u.fl||0,topFl(x)):0;u.flK=k;u._efl=Math.floor(u.fl);bump();}
+  if(!isB(x)){u.fl=0;u.climb=0;return false;}
+  if(u.fl>topFl(x))u.fl=topFl(x);
+  const moving=u.path&&u.path.length;
+  if(moving){const lim=pathFlLim(u);if(u.fl>lim+1e-6){stairStep(u,dt,lim);return true;}u.climb=0;return false;}
+  const goal=Math.min(topFl(x),u.flT==null?99:u.flT);
+  if(Math.abs(u.fl-goal)>1e-6){stairStep(u,dt,goal);return true;}
+  u.climb=0;return false;}
+/* 층 명령: 꼭대기로 / 1층으로 (UI 버튼) */
+function orderFloor(u,up){u.flT=up?null:0;}
 
 /* ---- 06-ai.js ---- */
 /* ===================== AI (실시간) ===================== */
@@ -1344,16 +1449,16 @@ function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
 function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=[],R1=[],RU=[],RC=[],wt=[],rt=[],rub=[],ac=[];const col=new T.Color();
   // 위가 트인 상자: 네 벽(외벽 무늬) + 지붕. 경계 좌표로 받아 같은 블록 칸끼리 이어 붙인다.
   const quad=(A,B,C2,D,cl,k)=>{for(const p of [A,B,C2,A,C2,D]){R1.push(p[0],p[1],p[2]);RU.push(p[0]+p[1]*.7,p[2]+p[1]*.7);RC.push(cl.r,cl.g,cl.b);}rt.push(k,k);};
-  const box=(x0,x1,z0,z1,y0,h,k,shade,u0,v0,rim)=>{const c4=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];const y1=y0+h;const lens=[x1-x0,z1-z0,x1-x0,z1-z0];
+  const box=(x0,x1,z0,z1,y0,h,k,shade,u0,v0,rim,open)=>{const c4=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];const y1=y0+h;const lens=[x1-x0,z1-z0,x1-x0,z1-z0];
     for(let s=0;s<4;s++){const [ax,az]=c4[(s+1)%4],[bx,bz]=c4[s];const U=lens[s]/.21/8,V=h/FLOOR_H/8;const uu=u0+(s%2?z0:x0)/.21/8;
       W1.push(ax,y0,az,bx,y0,bz,bx,y1,bz, ax,y0,az,bx,y1,bz,ax,y1,az);U1.push(uu,v0,uu+U,v0,uu+U,v0+V, uu,v0,uu+U,v0+V,uu,v0+V);
       for(let v=0;v<6;v++)C1.push(shade.r,shade.g,shade.b);wt.push(k,k);}
-    const rcol=new T.Color('#b9b7b2').lerp(shade,.35).multiplyScalar(1-(1-shade.g)*.4);quad([x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],rcol,k);
+    const rcol=new T.Color('#b9b7b2').lerp(shade,.35).multiplyScalar(1-(1-shade.g)*.4);if(!open)quad([x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],rcol,k);
     // 옥상 난간
     if(rim){const pc=shade.clone().multiplyScalar(.95),t=.035,ph=.05,yt=y1+ph;
       const wall=(xa,za,xb,zb,ox,oz)=>{quad([xa,y1,za],[xb,y1,zb],[xb,yt,zb],[xa,yt,za],pc,k);quad([xa+ox,y1,za+oz],[xb+ox,y1,zb+oz],[xb+ox,yt,zb+oz],[xa+ox,yt,za+oz],pc,k);quad([xa,yt,za],[xb,yt,zb],[xb+ox,yt,zb+oz],[xa+ox,yt,za+oz],pc,k);};
       if(rim[0])wall(x0,z0,x1,z0,0,t);if(rim[2])wall(x0,z1,x1,z1,0,-t);if(rim[3])wall(x0,z0,x0,z1,t,0);if(rim[1])wall(x1,z0,x1,z1,-t,0);}};
-  const TONES=['#bdbbb6','#a9a8a4','#c8c5be','#9c9b98','#b4afa6','#c2bdb3','#a3a19c','#8f8e8b'];const IN=.08;
+  const FD={P:[],C:[],K:[]},FL=[];const TONES=['#bdbbb6','#a9a8a4','#c8c5be','#9c9b98','#b4afa6','#c2bdb3','#a3a19c','#8f8e8b'];const IN=.08;
   const GLASS=['#7d8790','#6a737b','#8a9096','#5f676e','#9a9a94'];const gab=[];// 고층은 유리 외벽 톤, 주택은 박공 지붕
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
     if(x.t==='bldg'){const dmg=1-x.bhp/x.bmax;let h=x.f*FLOOR_H;if(dmg>.5)h*=1-(dmg-.5)*.6;
@@ -1361,16 +1466,18 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
       const same=(a,b)=>inb(a,b)&&G.map[a][b].t==='bldg'&&x.blk!=null&&G.map[a][b].blk===x.blk&&G.map[a][b].bhp/G.map[a][b].bmax>.5&&dmg<.5;
       const sN=same(r-1,c),sE=same(r,c+1),sS=same(r+1,c),sW=same(r,c-1);
       const x0=cx-.5+(sW?0:IN),x1=cx+.5-(sE?0:IN),z0=cz-.5+(sN?0:IN),z1=cz+.5-(sS?0:IN);
-      const fl=(bt*8|0);box(x0,x1,z0,z1,.06,h,k,col,fl*.37,Math.floor(v3Hash(x.blk??k,8)*8),dmg<.4?[!sN,!sE,!sS,!sW]:null);
-      if(x.dist==='res'&&x.f<=2&&dmg<.4){const rd2=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const ew=rd2(r-1,c)||rd2(r+1,c);gab.push({x:(x0+x1)/2,y:.06+h,z:(z0+z1)/2,sx:x1-x0,sz:z1-z0,ry:ew?0:Math.PI/2,k,col:ROOFC[Math.floor(v3Hash(x.blk??k,13)*ROOFC.length)]});}
-      if(x.f>=4&&v3Hash(k,9)<.4&&dmg<.5){const sw=.22+v3Hash(k,10)*.14,ox=cx+(v3Hash(k,11)-.5)*.3,oz=cz+(v3Hash(k,12)-.5)*.3;box(ox-sw/2,ox+sw/2,oz-sw/2,oz+sw/2,.06+h,FLOOR_H*.9,k,col.clone().multiplyScalar(.85),0,0,null);}
-      for(let i=0;i<3;i++)if(v3Hash(k,20+i)<.5&&dmg<.4)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6,v3Hash(k,26+i)]);
+      const cut=V3.cut?V3.cut.get(k):null;const hc=cut!=null?Math.min(h,cut*FLOOR_H+FLOOR_H*CUT_SILL):h;
+      const fl=(bt*8|0);box(x0,x1,z0,z1,.06,hc,k,col,fl*.37,Math.floor(v3Hash(x.blk??k,8)*8),dmg<.4&&cut==null?[!sN,!sE,!sS,!sW]:null,cut!=null);
+      if(cut!=null)v3CutTile(FD,FL,r,c,x,x0,x1,z0,z1,cut,h,col);v3Doors(FD,r,c,x0,x1,z0,z1,dmg);
+      if(cut==null&&x.dist==='res'&&x.f<=2&&dmg<.4){const rd2=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const ew=rd2(r-1,c)||rd2(r+1,c);gab.push({x:(x0+x1)/2,y:.06+h,z:(z0+z1)/2,sx:x1-x0,sz:z1-z0,ry:ew?0:Math.PI/2,k,col:ROOFC[Math.floor(v3Hash(x.blk??k,13)*ROOFC.length)]});}
+      if(cut!=null){}else if(x.f>=4&&v3Hash(k,9)<.4&&dmg<.5){const sw=.22+v3Hash(k,10)*.14,ox=cx+(v3Hash(k,11)-.5)*.3,oz=cz+(v3Hash(k,12)-.5)*.3;box(ox-sw/2,ox+sw/2,oz-sw/2,oz+sw/2,.06+h,FLOOR_H*.9,k,col.clone().multiplyScalar(.85),0,0,null);}
+      for(let i=0;i<3;i++)if(v3Hash(k,20+i)<.5&&dmg<.4&&cut==null)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6,v3Hash(k,26+i)]);
       if(dmg>.25)for(let i=0;i<Math.round(dmg*8);i++){const a=v3Hash(k,30+i)*6.283;rub.push([cx+Math.cos(a)*.5,.03,cz+Math.sin(a)*.5,.08+v3Hash(k,40+i)*.08,v3Hash(k,50+i)*3,k]);}}
     else if(x.t==='rubble'){for(let i=0;i<34;i++){const a=v3Hash(k,60+i)*6.283,rr=Math.sqrt(v3Hash(k,70+i))*.46;rub.push([cx+Math.cos(a)*rr,.01,cz+Math.sin(a)*rr,.025+Math.pow(v3Hash(k,80+i),2)*.09,v3Hash(k,90+i)*3,k]);}
       if(v3Hash(k,99)<.7){const ox=cx+(v3Hash(k,98)-.5)*.4,oz=cz+(v3Hash(k,97)-.5)*.4,w=.12+v3Hash(k,96)*.14;box(ox-w,ox+w,oz-.1,oz+.1,.02,FLOOR_H*(.5+v3Hash(k,95)*1.4),k,col.set('#8b857a'),v3Hash(k,94)*8,0,null);}}}
   const mk=(P,UV,C,mat,tri)=>{if(!P.length)return;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));if(UV)geo.setAttribute('uv',new T.Float32BufferAttribute(UV,2));
     geo.setAttribute('color',new T.Float32BufferAttribute(C,3));geo.computeVertexNormals();const m=new T.Mesh(geo,mat);m.castShadow=m.receiveShadow=true;m.userData.tri=tri;g.add(m);};
-  mk(W1,U1,C1,V3.M.wall,wt);mk(R1,RU,RC,V3.M.roof,rt);
+  mk(W1,U1,C1,V3.M.wall,wt);mk(R1,RU,RC,V3.M.roof,rt);v3FloorMesh(g,FD,FL);
   const m4=new T.Matrix4(),q=new T.Quaternion(),s=new T.Vector3(),p=new T.Vector3();
   if(rub.length){const im=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),V3.M.rubble,rub.length);im.castShadow=im.receiveShadow=true;
     rub.forEach(([x,y,z,sz,rot],i)=>{p.set(x,y,z);q.setFromEuler(new T.Euler(rot,rot*2,0));s.set(sz,sz*.5,sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);});im.userData.keys=rub.map(r=>r[5]);g.add(im);}
@@ -1427,7 +1534,7 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
   root.add(g);root.add(ring);root.add(sel);root.userData={k:null,body:g,ring,sel,figs:sold.map(s=>s.m),sold,air:!!t.fly,inf:t.cls==='inf'};
   if(t.fly){const sh=new T.Mesh(new T.CircleGeometry(.1,16),new T.MeshBasicMaterial({color:'#000',transparent:true,opacity:.28,depthWrite:false}));sh.rotation.x=-Math.PI/2;root.add(sh);root.userData.shadow=sh;}
   return root;}
-function v3UnitY(u){if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);return v3Top(u.r,u.c)+.005;}
+function v3UnitY(u){if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);const iy=v3InY(u);if(iy!=null)return iy;return v3Top(u.r,u.c)+.005;}
 /* 쓰러진 병사: 그 자리에 오래 남는다 */
 function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;const c=v3Soldier(nat,'rifle');c.position.set(s.wx,o.position.y,s.wz);c.rotation.set(0,Math.random()*6.28,0);
   c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;const wrap=new T.Group();wrap.position.copy(c.position);c.position.set(0,0,0);wrap.add(c);c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;
@@ -1448,10 +1555,14 @@ function v3AnimUnits(dt,now){if(!(dt>0))return;for(const o of V3.uo.values()){co
     if(!o.userData.inf){const want=-fa;let cur=o.userData.body.rotation.y;let d=want-cur;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;o.userData.body.rotation.y=cur+d*Math.min(1,dt*5);
       if(o.userData.air)o.userData.body.traverse(x=>{if(x.userData.rotor)x.rotation.y+=dt*30;});}
     else{const moving=uu.path&&uu.path.length;const tight=cell(uu.r,uu.c).t==='bldg'?.55:1;const cf=Math.cos(fa),sf=Math.sin(fa);const vmax=UT[uu.type].mv*SPD_K*(uu.supp>0?.65:1)*1.2;
-      for(const s of o.userData.sold){if(!s.m.visible)continue;const [lx,lz]=s.slot;const gx=tx+(lx*cf-lz*sf)*tight,gz=tz+(lx*sf+lz*cf)*tight;
+      const ud=o.userData;if(!ud.trail)ud.trail=[[tx,tz]];{const lt=ud.trail[0];if(Math.hypot(tx-lt[0],tz-lt[1])>.03){ud.trail.unshift([tx,tz]);if(ud.trail.length>60)ud.trail.pop();}}
+      let si=-1;for(const s of o.userData.sold){si++;if(!s.m.visible)continue;const [lx,lz]=s.slot;let gx=tx+(lx*cf-lz*sf)*tight,gz=tz+(lx*sf+lz*cf)*tight;
+        const ins=v3InSoldier(uu,s,si,dt);if(ins&&ins.x!=null){gx=ins.x;gz=ins.z;}
+        else if(moving){// 이동 중에는 한 줄로 앞사람 발자국을 따른다(문·골목을 같은 길로 지나도록)
+          const tp=ud.trail[Math.min(ud.trail.length-1,Math.round(si*2.3))];gx=tp[0];gz=tp[1];}
         const dx=gx-s.wx,dz=gz-s.wz,d=Math.hypot(dx,dz);const step=Math.min(d,vmax*dt*(d>.4?3:d>.15?1.6:1.1));
         if(d>.004){s.wx+=dx/d*step;s.wz+=dz/d*step;}s.spd+=((d>.01?step/dt:0)-s.spd)*Math.min(1,dt*8);
-        const m=s.m;m.position.set(s.wx-o.position.x,0,s.wz-o.position.z);
+        const m=s.m;m.position.set(s.wx-o.position.x,ins?ins.y:0,s.wz-o.position.z);
         const head=s.spd>.05?Math.atan2(dz,dx):fa+Math.sin(now/1900+s.ph)*.25;let cur=m.rotation.y,want=-head,dd=want-cur;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;m.rotation.y=cur+dd*Math.min(1,dt*8);
         const sw=Math.min(1,s.spd/.4)*Math.sin(now/70+s.ph)*.7;m.userData.legL.rotation.z=sw;m.userData.legR.rotation.z=-sw;
         const crouch=!moving&&(uu.supp>0||uu.tgt!=null||uu.shot===G.turn)?.75:1;m.scale.y+=(crouch-m.scale.y)*Math.min(1,dt*6);}}
@@ -1527,7 +1638,7 @@ function v3PlaceLabels(){const v=V3.tmpV||(V3.tmpV=new V3.T.Vector3());const w=V
 function v3Sync(){if(!V3.on||!V3.ren||!G)return;const vn=G.viewer,vs=G.fog?visSet(vn):null;
   const tag=G.seed+'|'+N+'|'+G.map.map(row=>row.map(x=>x.t[0]).join('')).join('');
   if(V3.tag!==tag){const fresh=V3.seed!==G.seed+'|'+N;V3.seed=G.seed+'|'+N;V3.tag=tag;V3.ctag=null;v3BuildWorld();if(fresh){V3.uo.forEach(o=>V3.G.units.remove(o));V3.uo.clear();v3HomeCam(true);}}
-  const ctag=tag+G.map.map(row=>row.map(x=>x.t==='bldg'?Math.round(x.bhp/x.bmax*6):'').join(',')).join('');if(V3.ctag!==ctag){V3.ctag=ctag;v3BuildCity();}
+  const ctag=tag+G.map.map(row=>row.map(x=>x.t==='bldg'?Math.round(x.bhp/x.bmax*6):'').join(',')).join('');V3.cut=v3CutMap(vs,vn);const cutTag=[...V3.cut].sort((a,b)=>a[0]-b[0]).join(';');if(V3.ctag!==ctag||V3.cutTag!==cutTag){V3.ctag=ctag;V3.cutTag=cutTag;v3BuildCity();}
   const stag=tag+G.objs.map(o=>G.map[o.r][o.c].owner).join(',');if(V3.stag!==stag){V3.stag=stag;v3BuildSites();}
   const smk=ctag+'|'+G.wx+'|'+G.map.map(row=>row.map(x=>x.smoke?1:0).join('')).join('');
   v3Light();if(V3.smk!==smk){V3.smk=smk;v3SyncSmoke();}
@@ -1708,6 +1819,109 @@ function dsFrame(now,dt){if(!V3.plumes)return;const tt=now/1000;const s=V3.cs;
       o.position.set(p.x+DS.wind[0]*l*60+Math.sin(tt*.25+p.ph+i)*.15*l,p.y0+l*p.h,p.z+DS.wind[1]*l*60);o.scale.setScalar((p.big?1.4:.6)*(.3+l*2.6));o.material.opacity=(p.big?.55:.5)*Math.sin(l*Math.PI)*(1-w*.4);}}
   if(V3.ash){V3.ash.position.set(s.x,0,s.z);const a=V3.ash.geometry.attributes.position.array;for(let i=0;i<a.length;i+=3){a[i]+=DS.wind[0]*dt*4+Math.sin(tt+i)*dt*.1;a[i+1]-=dt*.12;a[i+2]+=DS.wind[1]*dt*4;if(a[i+1]<0)a[i+1]=7;if(a[i]>13)a[i]-=26;if(a[i+2]>13)a[i+2]-=26;}V3.ash.geometry.attributes.position.needsUpdate=true;}
   if(DS.nextRumble&&now>DS.nextRumble&&G&&!G.paused){DS.nextRumble=now+8000+Math.random()*16000;if(typeof sfx==='function')sfx('boom',.22);V3.shake=Math.max(V3.shake,.02);}}
+
+/* ---- 07f-floors.js ---- */
+/* ===================== 3D: 건물 안 보여 주기 =====================
+   보이는 보병이 들어 있는 건물 칸은 그 부대가 선 층에서 잘라 그린다(단면도):
+   그 층 바닥, 허리 높이까지의 벽(창턱), 벽 단면, 안쪽 벽면, 칸막이, 계단실(아래층으로 내려가는 계단).
+   잘린 위쪽은 옅은 윤곽선으로만 남겨 원래 높이를 알 수 있게 한다.
+   모든 건물 칸에는 출입문(05e doorSides)을 그린다. 병사들은 계단 자리에 줄지어 한 명씩 오르내리고,
+   층에 도착하면 쏘는 쪽 창가로 흩어진다. */
+const CUT_SILL=.42;            // 잘린 벽 높이(층 높이 대비): 창턱쯤
+const STAIR_L=.18,STAIR_W=.085;
+/* 보이는 보병이 서 있는 건물 칸 → 잘라 보일 층 */
+function v3CutMap(vs,vn){const m=new Map();if(!G)return m;
+  for(const u of G.units){if(UT[u.type].cls!=='inf')continue;if(G.fog&&!seen(u,vn,vs))continue;const x=cell(u.r,u.c);if(x.t!=='bldg')continue;
+    const lv=Math.min(topFl(x),Math.max(0,Math.ceil(curFl(u)-.05)));const k=key(u.r,u.c);if(!m.has(k)||m.get(k)<lv)m.set(k,lv);}
+  return m;}
+/* 계단 자리와 계단 방향(칸 가운데 쪽, x축) */
+function v3Stair(r,c){const [sx,sz]=stairPos(r,c);const ax=sx>c+.5?-1:1;return {sx,sz,ax};}
+/* 사각형 한 면을 배열에 넣는다 (D: {P,C,K} 위치·색·칸 키) */
+function v3DQuad(D,A,B,C2,E,col,k){for(const p of [A,B,C2,A,C2,E]){D.P.push(p[0],p[1],p[2]);D.C.push(col.r,col.g,col.b);}D.K.push(k,k);}
+function v3DBox(D,x0,x1,y0,y1,z0,z1,col,k,noBottom){const c2=col.clone().multiplyScalar(.82),c3=col.clone().multiplyScalar(.68);
+  v3DQuad(D,[x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],col,k);
+  v3DQuad(D,[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1],c2,k);v3DQuad(D,[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0],c3,k);
+  v3DQuad(D,[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1],c2,k);v3DQuad(D,[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0],c3,k);}
+/* 잘린 건물 칸의 속 */
+function v3CutTile(D,L,r,c,x,x0,x1,z0,z1,lvl,hFull,shade){const T=V3.T,k=key(r,c);const y=.06+lvl*FLOOR_H,yt=Math.min(.06+hFull,y+FLOOR_H*CUT_SILL),t=.03;
+  const floorC=new T.Color('#7a7266').lerp(shade,.15),wallC=new T.Color('#c9c2b4').lerp(shade,.3),cutC=new T.Color('#5d574e'),dark=new T.Color('#1f1d1a');
+  const st=v3Stair(r,c);const hx0=Math.min(st.sx,st.sx+st.ax*STAIR_L),hx1=Math.max(st.sx,st.sx+st.ax*STAIR_L),hz0=st.sz-STAIR_W,hz1=st.sz+STAIR_W;
+  // 바닥: 계단실 구멍만 비우고 네 조각으로
+  const fy=y+.002;const slab=(a0,a1,b0,b1)=>{if(a1-a0>.001&&b1-b0>.001)v3DQuad(D,[a0,fy,b0],[a0,fy,b1],[a1,fy,b1],[a1,fy,b0],floorC,k);};
+  slab(x0,x1,z0,hz0);slab(x0,x1,hz1,z1);slab(x0,hx0,hz0,hz1);slab(hx1,x1,hz0,hz1);
+  // 바닥 얼룩·타일 줄
+  const tl=floorC.clone().multiplyScalar(.9);for(let i=1;i<4;i++){const zz=z0+(z1-z0)*i/4;v3DQuad(D,[x0,fy+.0005,zz-.002],[x0,fy+.0005,zz+.002],[x1,fy+.0005,zz+.002],[x1,fy+.0005,zz-.002],tl,k);}
+  // 계단실: 아래층으로 내려가는 계단(구멍 속), 구멍 둘레 난간
+  if(lvl>0){const n=7,dir=((lvl-1)%2===0)?1:-1;   // 짝수 층에서 출발하는 계단은 계단 자리에서 ax쪽으로 오른다
+    for(let i=0;i<n;i++){const f=(i+1)/n;const hy=y-FLOOR_H*(1-f);const a=dir>0?st.sx+st.ax*STAIR_L*(i/n):st.sx+st.ax*STAIR_L*(1-(i+1)/n),b=a+st.ax*STAIR_L/n;
+      v3DBox(D,Math.min(a,b),Math.max(a,b),hy-.012,hy,hz0+.004,hz1-.004,new T.Color('#8a8377').multiplyScalar(.75+.25*f),k);}
+    v3DQuad(D,[hx0,y-FLOOR_H+.003,hz0],[hx0,y-FLOOR_H+.003,hz1],[hx1,y-FLOOR_H+.003,hz1],[hx1,y-FLOOR_H+.003,hz0],dark,k);}
+  else v3DQuad(D,[hx0,fy+.001,hz0],[hx0,fy+.001,hz1],[hx1,fy+.001,hz1],[hx1,fy+.001,hz0],new T.Color('#4c463e'),k);
+  const rl=new T.Color('#3a3631');v3DBox(D,hx0,hx1,y,y+.045,hz1,hz1+.006,rl,k);
+  // 계단실 벽(한쪽)
+  v3DBox(D,hx0,hx1,y,yt,hz0-.012,hz0,wallC.clone().multiplyScalar(.9),k);
+  // 칸막이 벽 하나(문틈 있음)
+  if(v3Hash(k,300+lvl)<.75){const vert=v3Hash(k,310+lvl)<.5;const p=.35+v3Hash(k,320+lvl)*.3,g0=.3+v3Hash(k,330+lvl)*.25;
+    if(vert){const xx=x0+(x1-x0)*p;if(xx<hx0-.03||xx>hx1+.03){v3DBox(D,xx-.008,xx+.008,y,yt,z0,z0+(z1-z0)*g0,wallC,k);v3DBox(D,xx-.008,xx+.008,y,yt,z0+(z1-z0)*(g0+.2),z1,wallC,k);}}
+    else{const zz=z0+(z1-z0)*p;if(zz<hz0-.03||zz>hz1+.03){v3DBox(D,x0,x0+(x1-x0)*g0,y,yt,zz-.008,zz+.008,wallC,k);v3DBox(D,x0+(x1-x0)*(g0+.2),x1,y,yt,zz-.008,zz+.008,wallC,k);}}}
+  // 가구 몇 개(넘어진 책상·매트리스)
+  for(let i=0;i<3;i++)if(v3Hash(k,340+i+lvl*7)<.6){const px=x0+.08+(x1-x0-.16)*v3Hash(k,350+i+lvl*7),pz=z0+.08+(z1-z0-.16)*v3Hash(k,360+i+lvl*7);if(px>hx0-.06&&px<hx1+.06&&pz>hz0-.06&&pz<hz1+.06)continue;
+    const w=.03+v3Hash(k,370+i)*.04;v3DBox(D,px-w,px+w,y,y+.012+v3Hash(k,380+i)*.02,pz-.025,pz+.025,new T.Color(['#5b5248','#6d6a63','#4a4f52'][i]),k);}
+  // 안쪽 벽면과 벽 단면(두께)
+  const inner=(ax,az,bx,bz,nx,nz)=>{v3DQuad(D,[ax+nx*t,y,az+nz*t],[bx+nx*t,y,bz+nz*t],[bx+nx*t,yt,bz+nz*t],[ax+nx*t,yt,az+nz*t],wallC,k);
+    v3DQuad(D,[ax,yt,az],[bx,yt,bz],[bx+nx*t,yt,bz+nz*t],[ax+nx*t,yt,az+nz*t],cutC,k);};
+  inner(x0,z0,x1,z0,0,1);inner(x1,z1,x0,z1,0,-1);inner(x0,z1,x0,z0,1,0);inner(x1,z0,x1,z1,-1,0);
+  // 창 자리: 벽 단면 위에 짧은 기둥(창틀)
+  const pc=new T.Color('#8e877b');for(const [ax,az,bx,bz,nx,nz] of [[x0,z0,x1,z0,0,1],[x0,z1,x1,z1,0,-1],[x0,z0,x0,z1,1,0],[x1,z0,x1,z1,-1,0]]){const len=Math.hypot(bx-ax,bz-az),n=Math.max(2,Math.round(len/.21));
+    for(let i=0;i<=n;i++){const f=i/n,px=ax+(bx-ax)*f,pz=az+(bz-az)*f;v3DBox(D,px-.01+nx*.0,px+.01+nx*t,yt,yt+.02,pz-.01,pz+.01+nz*t,pc,k);}}
+  // 잘린 위쪽: 옅은 윤곽선
+  const top=.06+hFull;if(top>yt+.02){for(const [a,b] of [[x0,z0],[x1,z0],[x1,z1],[x0,z1]])L.push(a,yt,b,a,top,b);
+    for(const yy of [top])for(const [a,b,c2,d] of [[x0,z0,x1,z0],[x1,z0,x1,z1],[x1,z1,x0,z1],[x0,z1,x0,z0]])L.push(a,yy,b,c2,yy,d);
+    for(let f=lvl+2;f<x.f;f++){const yy=.06+f*FLOOR_H;if(yy>=top)break;for(const [a,b,c2,d] of [[x0,z0,x1,z0],[x1,z0,x1,z1],[x1,z1,x0,z1],[x0,z1,x0,z0]])L.push(a,yy,b,c2,yy,d);}}}
+/* 출입문: 바깥 벽면에 어두운 문, 문틀, 작은 차양 */
+function v3Doors(D,r,c,x0,x1,z0,z1,dmg){const ds=doorSides(r,c);if(!ds)return;const T=V3.T,k=key(r,c);const dk=new T.Color('#191714'),fr=new T.Color('#4a453d'),cn=new T.Color('#7d776d');
+  const w=.055,h=.17,o=.004,y0=.06;
+  for(let s=0;s<4;s++){if(!ds[s])continue;const [dx,dz]=doorPos(r,c,s);
+    if(s===0||s===2){const z=s===0?z0-o:z1+o,sg=s===0?-1:1;
+      v3DBox(D,dx-w-.012,dx+w+.012,y0,y0+h+.012,Math.min(z,z-sg*o),Math.max(z,z-sg*o)+.001,fr,k);
+      v3DQuad(D,[dx-w,y0,z+sg*.001],[dx+w,y0,z+sg*.001],[dx+w,y0+h,z+sg*.001],[dx-w,y0+h,z+sg*.001],dk,k);
+      if(dmg<.4)v3DBox(D,dx-w-.03,dx+w+.03,y0+h+.02,y0+h+.032,Math.min(z,z+sg*.06),Math.max(z,z+sg*.06),cn,k);
+      v3DBox(D,dx-w-.02,dx+w+.02,0,y0+.012,Math.min(z,z+sg*.05),Math.max(z,z+sg*.05),cn,k);}
+    else{const x=s===3?x0-o:x1+o,sg=s===3?-1:1;
+      v3DBox(D,Math.min(x,x-sg*o),Math.max(x,x-sg*o)+.001,y0,y0+h+.012,dz-w-.012,dz+w+.012,fr,k);
+      v3DQuad(D,[x+sg*.001,y0,dz+w],[x+sg*.001,y0,dz-w],[x+sg*.001,y0+h,dz-w],[x+sg*.001,y0+h,dz+w],dk,k);
+      if(dmg<.4)v3DBox(D,Math.min(x,x+sg*.06),Math.max(x,x+sg*.06),y0+h+.02,y0+h+.032,dz-w-.03,dz+w+.03,cn,k);
+      v3DBox(D,Math.min(x,x+sg*.05),Math.max(x,x+sg*.05),0,y0+.012,dz-w-.02,dz+w+.02,cn,k);}}}
+function v3FloorMesh(g,D,L){const T=V3.T;
+  if(D.P.length){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(D.P,3));geo.setAttribute('color',new T.Float32BufferAttribute(D.C,3));geo.computeVertexNormals();
+    const m=new T.Mesh(geo,V3.M.inner||(V3.M.inner=new T.MeshStandardMaterial({vertexColors:true,roughness:.95,side:T.DoubleSide})));m.castShadow=m.receiveShadow=true;m.userData.tri=D.K;g.add(m);}
+  if(L.length){const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));
+    g.add(new T.LineSegments(lg,V3.M.ghost||(V3.M.ghost=new T.LineBasicMaterial({color:'#e8e2d4',transparent:true,opacity:.28,depthWrite:false}))));}}
+/* 건물 안 보병의 높이: 지금 층 바닥 */
+function v3InY(u){const x=cell(u.r,u.c);if(UT[u.type].cls!=='inf'||x.t!=='bldg')return null;const f=u.fl!=null&&u.flK===key(u.r,u.c)?u.fl:topFl(x);return .06+f*FLOOR_H+.005;}
+/* 건물 안 병사 한 명이 갈 자리와 그 병사의 층.
+   계단을 오르내리는 중이면 계단 자리로 모여 한 명씩 계단을 타고, 멈춰 있으면 쏘는 쪽 창가에 붙는다. */
+function v3InSoldier(uu,s,i,dt){const x=cell(uu.r,uu.c);if(UT[uu.type].cls!=='inf'||x.t!=='bldg'){s.fl=null;return null;}
+  const k=key(uu.r,uu.c);const ufl=uu.fl!=null&&uu.flK===k?uu.fl:topFl(x);
+  if(s.fl==null||s.flK!==k){s.fl=ufl;s.flK=k;}
+  const st=v3Stair(uu.r,uu.c);const moving=uu.path&&uu.path.length;
+  const d=Math.hypot(s.wx-st.sx,s.wz-st.sz);
+  // 이 병사의 층: 계단 근처에 와야 따라 오르내린다
+  if(Math.abs(s.fl-ufl)>1e-3){if(d<.12||Math.abs(s.fl-ufl)<.02){const rate=dt/FLOOR_S*1.7;s.fl=s.fl<ufl?Math.min(ufl,s.fl+rate):Math.max(ufl,s.fl-rate);}}
+  const onStair=Math.abs(s.fl-ufl)>1e-3||uu.climb;
+  let gx,gz;
+  if(onStair){// 계단 위: 층의 소수 부분만큼 계단을 따라 간다(층마다 꺾어 올라감)
+    const f=s.fl-Math.floor(s.fl),even=Math.floor(s.fl)%2===0;const p=Math.abs(s.fl-ufl)>1e-3||f>1e-3?(even?f:1-f):0;
+    gx=st.sx+st.ax*STAIR_L*p+(i%2?.012:-.012);gz=st.sz+(i%3-1)*.02;
+    if(Math.abs(s.fl-ufl)<1e-3&&uu.climb){// 계단 앞에 줄을 선다(칸 가운데 쪽으로)
+      const zs=st.sz>uu.r+.5?-1:1;gx=st.sx+st.ax*(i%2?.06:.02);gz=st.sz+zs*(.05+i*.035);}}
+  else if(!moving){// 창가: 쏘는 방향 벽을 따라 늘어선다
+    const fa=(uu.face||0)*Math.PI/180,fx=Math.cos(fa),fz=Math.sin(fa);const n=(SQUAD[uu.type]||4);
+    const ax=Math.abs(fx)>Math.abs(fz);const cx=uu.c+.5,cz=uu.r+.5;const lat=(i-(n-1)/2)/Math.max(1,n-1)*.62;
+    if(ax){gx=cx+Math.sign(fx)*.31;gz=cz+lat;}else{gz=cz+Math.sign(fz)*.31;gx=cx+lat;}
+    if(i>=6){gx=cx+(v3Hash(uu.id,90+i)-.5)*.4;gz=cz+(v3Hash(uu.id,95+i)-.5)*.4;}}
+  else return {y:(s.fl-ufl)*FLOOR_H};
+  return {x:gx,z:gz,y:(s.fl-ufl)*FLOOR_H};}
 
 /* ---- 07f-fort.js ---- */
 /* ===================== 3D: 설치형 방어물 =====================
@@ -2123,7 +2337,7 @@ function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNi
   const pl=$('#hud-obj');pl.style.borderColor=mapCol(vn);pl.innerHTML=G.order.map(n=>`<span style="color:${mapCol(n)}">${'■'.repeat(objCount(n))||'·'}</span>`).join(' ')+`<span class="nt"> ${G.objs.length-G.order.reduce((a,n)=>a+objCount(n),0)}</span>`;
   $('#app').classList.toggle('sheet-open',!!UI.sheet);$('#sheet').hidden=!UI.sheet;
   const g=$('#b-grid');if(g)g.setAttribute('aria-pressed',UI.grid?'true':'false');const sn=$('#b-snd');if(sn)sn.setAttribute('aria-pressed',SFX.on?'true':'false');}
-function uInfo(u){const t=UT[u.type];const x=cell(u.r,u.c);const where=x.t==='bldg'?`건물 ${x.f}층`:TT[x.t].n;
+function uInfo(u){const t=UT[u.type];const x=cell(u.r,u.c);const where=x.t==='bldg'?(t.cls==='inf'?`건물 안 ${Math.floor(curFl(u)+1e-6)+1}/${topFl(x)+1}층${u.climb?' · 계단 이동 중':''}`:`건물 ${x.f}층`):TT[x.t].n;
   const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';const cv=coverOf(u);const cvt=cv.cov>0&&cv.kind!=='bldg'?` · 엄폐 ${(COVK[cv.kind]||{n:'연막'}).n} ${Math.round(cv.cov*100)}%`:'';return `체력 ${Math.ceil(u.hp)}/${hpMax(u)} · ${where}${cvt} · ${st}${u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${u.job?' · 축성 중 '+Math.round(((G.forts||[]).find(f=>f.id===u.job.id)||{prog:0}).prog*100)+'%':''}${u.rank?' · 숙련 '+u.rank:''}`;}
 function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.hidden=false;let h='';const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;if(UI.sel&&!s)clearSel();
   if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':NATS[w].full+' 승리'}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
@@ -2131,9 +2345,9 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.
   const pz=`<button class="btn sm${G.paused?' primary':''}" data-act="pause" id="ab-pause">${G.paused?'재개':'일시정지'}</button>`;
   if(UI.phase==='buy'){const t=UT[UI.buyT];h=`<b>${t.n} 배치</b><span>초록 칸을 탭하세요 · 지휘 ${t.cost}</span><div class="ab"><button class="btn sm" data-act="buy-cancel" id="ab-bc">취소</button></div>`;}
   else if(UI.phase==='sup'){const S=SUP[UI.supK];h=`<b>${S.n}</b><span>${UI.st!=null?'같은 칸을 다시 탭하거나 실행':'목표 지점을 탭하세요'} · ${S.desc}</span><div class="ab">${UI.st!=null?`<button class="btn sm primary" data-act="sup-fire" id="ab-sf">실행</button>`:''}<button class="btn sm" data-act="sup-cancel" id="ab-sc">취소</button></div>`;}
-  else if(s){const t=UT[s.type];
+  else if(s){const t=UT[s.type];const x0=cell(s.r,s.c);
     const ng=(UI.group||[]).filter(x=>G.units.includes(x)).length;const tip=(typeof fortTip==='function'&&fortTip())||(UI.phase==='demo'?'부술 건물을 탭하세요':(ng?`외 ${ng}개 부대 · `:'')+'탭: 이동 · 적 탭: 공격');
-    h=`<b style="color:${mapCol(n)}">${t.n}</b><span>${uInfo(s)} · ${tip}</span><div class="ab">${t.ex?`<button class="btn sm${UI.phase==='demo'?' primary':''}" data-act="demo" id="ab-demo">건물 사격</button>`:''}${typeof fortBar==='function'?fortBar(s):''}<button class="btn sm${s.hold?' primary':''}" data-act="hold" id="ab-hold">고수</button><button class="btn sm" data-act="stop" id="ab-stop">정지</button><button class="btn sm" data-act="cancel" id="ab-cancel">해제</button></div>`;}
+    h=`<b style="color:${mapCol(n)}">${t.n}</b><span>${uInfo(s)} · ${tip}</span><div class="ab">${t.ex?`<button class="btn sm${UI.phase==='demo'?' primary':''}" data-act="demo" id="ab-demo">건물 사격</button>`:''}${t.cls==='inf'&&x0.t==='bldg'?`<button class="btn sm" data-act="floor" id="ab-floor">${s.flT===0?'위층으로':'1층으로'}</button>`:''}${typeof fortBar==='function'?fortBar(s):''}<button class="btn sm${s.hold?' primary':''}" data-act="hold" id="ab-hold">고수</button><button class="btn sm" data-act="stop" id="ab-stop">정지</button><button class="btn sm" data-act="cancel" id="ab-cancel">해제</button></div>`;}
   else if(UI.pane){const {r,c}=UI.pane;const x=cell(r,c);const u=unitAt(r,c);const vis=!G.fog||visSet(n).has(key(r,c));
     const nm=x.obj!=null?G.objs[x.obj].name+' · ':'';const own=x.obj!=null?` · ${natName(x.owner)} 거점`:'';
     const what=x.t==='bldg'?`${x.f}층 건물 · 내구 ${Math.ceil(x.bhp)}/${x.bmax} · 엄폐 40%`:`${TT[x.t].n}${TT[x.t].cov?` · 엄폐 ${Math.round(TT[x.t].cov*100)}%`:''}`;
@@ -2166,7 +2380,7 @@ function vpChart(){const W2=320,H2=120;const mx=Math.max(G.vpWin,...G.hist.flat(
   return `<h3>승점 추이</h3><svg viewBox="-4 -4 ${W2+8} ${H2+8}" style="width:100%;max-width:360px" role="img" aria-label="라운드별 승점"><line x1="0" x2="${W2}" y1="${H2-G.vpWin/mx*H2}" y2="${H2-G.vpWin/mx*H2}" stroke="#555" stroke-dasharray="4 3"/>${lines}</svg>`;}
 const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로 흐릅니다. 30초마다 거점 하나당 승점 +1, 지휘점수 +2가 들어옵니다(기본 지휘 +3)</li><li>승점을 먼저 채우거나, 제한 시간이 끝났을 때 승점이 많은 쪽이 이깁니다. 적을 전멸시켜도 승리</li><li>거점은 소총분대·공병이 들어가면 점령됩니다</li></ul>
 <h3>지휘</h3><ul class="rules"><li>아군을 탭해 고른 뒤 땅을 탭하면 그곳으로 이동, 적을 탭하면 쫓아가 공격합니다</li><li>부대는 사거리 안에 보이는 적을 알아서 쏩니다. 움직이면서 쏘면 연사가 느려지고, 박격포는 멈춰야 쏩니다</li><li>고수: 적을 쫓지 않고 자리를 지킵니다 · 정지: 명령 취소 · 건물 사격: 폭발물 부대로 건물을 부숩니다</li><li>Space 또는 일시정지 버튼으로 멈추고 생각할 수 있습니다. 배속은 0.5×·1×·2×</li></ul>
-<h3>이동과 시야</h3><ul class="rules"><li>건물은 시야를 가립니다. 높은 건물 안에 있으면 더 멀리, 낮은 건물 너머까지 봅니다</li><li>차량은 건물에 못 들어가고 잔해·공원에서 느립니다. 보병은 건물·잔해를 지날 때 느려집니다</li><li>밤에는 시야 −2, 비 −1, 안개·폭우 −2</li></ul>
+<h3>이동과 시야</h3><ul class="rules"><li>건물은 시야를 가립니다. 높은 건물 안에 있으면 더 멀리, 낮은 건물 너머까지 봅니다</li><li>보병은 건물 출입문(어두운 문)으로만 드나들고, 안에서는 계단으로 한 층씩 오릅니다. 멈추면 꼭대기 층까지 올라가고, 나갈 때는 먼저 1층으로 내려옵니다</li><li>차량은 건물에 못 들어가고 잔해·공원에서 느립니다. 보병은 건물·잔해를 지날 때 느려집니다</li><li>밤에는 시야 −2, 비 −1, 안개·폭우 −2</li></ul>
 <h3>전투</h3><ul class="rules"><li>엄폐: 건물 40%, 잔해 25%, 공원 15%만큼 피해가 줄어듭니다. 폭발물(전차·대전차·공병·박격포)은 건물 엄폐를 절반만 받습니다</li><li>기관총·폭발물에 맞으면 제압: 잠시 느려지고 공격 −30%</li><li>전차는 장갑이 두꺼워 대전차팀·공병·전차 말고는 피해 −35%</li><li>건물 안 대전차팀은 기갑에 +25%, 차량에 붙은 보병은 +20%. 2층 이상 높은 곳에서 쏘면 +15%</li><li>저격수는 건물 안에 있으면 붙어 있는 적에게만 보입니다(쏘면 잠시 드러남)</li></ul>
 <h3>건물 파괴</h3><ul class="rules"><li>폭발물은 건물 자체를 쏠 수 있고, 안에 숨은 적도 함께 피해를 입습니다</li><li>내구가 0이 되면 건물이 무너져 잔해가 되고, 안에 있던 부대는 큰 피해를 입습니다</li></ul>
 <h3>증원과 화력 지원</h3><ul class="rules"><li>지휘점수로 집결지나 거점 옆에 증원을 부릅니다</li><li>포병 사격(3×3), 근접 항공 지원(한 칸, 건물 붕괴), 연막(3×3 시야 차단)은 ${SUP_CD}초마다 하나씩, 연막 말고는 보이는 곳에만 씁니다</li></ul>
@@ -2235,6 +2449,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(!s)return;
   const grp=[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));
   if(a==='stop'){grp.forEach(orderStop);render();return;}
+  if(a==='floor'){const up=s.flT===0;grp.forEach(x=>orderFloor(x,up));render();return;}
   if(a==='hold'){const h=!s.hold;grp.forEach(x=>x.hold=h);render();return;}
   if(a==='fort'){UI.phase=UI.phase==='fortmenu'||UI.phase==='fort'?'select':'fortmenu';render();return;}
   if(a.startsWith('fort:')){UI.phase='fort';UI.fortK=a.slice(5);render();return;}

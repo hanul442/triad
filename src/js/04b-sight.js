@@ -14,7 +14,8 @@ const udist=(a,b)=>{const [ax,az]=posOf(a),[bx,bz]=posOf(b);return Math.hypot(ax
 
 /* 눈높이 (층 단위). 건물 안 보병은 그 건물 높이에서 본다. */
 function eyeAt(type,r,c){const t=UT[type];if(t.fly)return 9;const x=cell(r,c);if(x.t==='bldg')return Math.max(.5,x.f-.5);return t.cls==='veh'?.8:.5;}
-const eye=u=>eyeAt(u.type,u.r,u.c);
+/* 실제 부대: 건물 안이면 지금 서 있는 층에서 본다(05e-floors). */
+const eye=u=>{const e=eyeAt(u.type,u.r,u.c);if(UT[u.type].cls!=='inf'||cell(u.r,u.c).t!=='bldg'||typeof curFl!=='function')return e;return Math.min(e,curFl(u)+.5);};
 /* 건물 높이(층). 많이 부서지면 낮아진다(화면과 같은 식). */
 function bldgH(x){if(x.t!=='bldg')return 0;const dmg=1-x.bhp/x.bmax;return dmg>.5?x.f*(1-(dmg-.5)*.6):x.f;}
 function blockH(x){if(x.smoke>0)return 99;return bldgH(x);}
@@ -47,7 +48,7 @@ function los(r1,c1,h1,r2,c2,h2){return losPt(c1+.5,r1+.5,h1,c2+.5,r2+.5,h2);}
 /* 부대 a가 부대 b를 시야선으로 보는가 */
 function losU(a,b){const [ax,az]=posOf(a),[bx,bz]=posOf(b);return losPt(ax,az,eye(a),bx,bz,eye(b));}
 
-function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg')v+=x.f>=5?2:x.f>=3?1:0;
+function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg'){const f=Math.round(eye(u)+.5);v+=f>=5?2:f>=3?1:0;}
   if(isNight())v-=t.fly?1:2;v+=WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
 /* 숨은 상태: 쏜 지 얼마 안 됐으면 드러난다 */
 const firedRecently=e=>e.firedT!=null&&(G.time||0)-e.firedT<FIRE_REVEAL;

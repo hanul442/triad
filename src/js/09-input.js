@@ -56,6 +56,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(!s)return;
   const grp=[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));
   if(a==='stop'){grp.forEach(orderStop);render();return;}
+  if(a==='floor'){const up=s.flT===0;grp.forEach(x=>orderFloor(x,up));render();return;}
   if(a==='hold'){const h=!s.hold;grp.forEach(x=>x.hold=h);render();return;}
   if(a==='fort'){UI.phase=UI.phase==='fortmenu'||UI.phase==='fort'?'select':'fortmenu';render();return;}
   if(a.startsWith('fort:')){UI.phase='fort';UI.fortK=a.slice(5);render();return;}

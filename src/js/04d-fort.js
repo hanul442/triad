@@ -73,6 +73,12 @@ function navOk(u,x,z){const c=navCls(u);return !c||navCost(c,x,z)>0;}
 /* 선분이 막힌 칸을 지나지 않나 (segClear가 부른다) */
 function navSegOk(u,x1,z1,x2,z2){const c=navCls(u);if(!c)return true;const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/(.5/NAV_R)));
   for(let i=1;i<=n;i++){if(!navCost(c,x1+(x2-x1)*i/n,z1+(z2-z1)*i/n))return false;}return true;}
+/* 보병: 작은 칸에서 옆 작은 칸으로 갈 때 칸 경계에 건물 벽이 있으면 문으로만 지난다 (05e-floors의 edgePass·diagPass) */
+function navWallOk(i,j,ni,nj){const R=NAV_R,tr=(i/R)|0,tc=(j/R)|0,nr=(ni/R)|0,nc=(nj/R)|0;if(tr===nr&&tc===nc)return true;
+  if(tr!==nr&&tc!==nc)return diagPass(tr,tc,nr,nc);
+  const d=edgePass(tr,tc,nr,nc);if(d==null)return false;if(d===true)return true;
+  if(i!==ni&&j!==nj)return false;// 문은 곧게 지난다
+  const cx=tr!==nr?(j+.5)/R:Math.max(tc,nc),cz=tr!==nr?Math.max(tr,nr):(i+.5)/R;return Math.hypot(cx-d[0],cz-d[1])<=DOOR_W;}
 /* A* 경로: 작은 칸 단위. 목표에 못 가면 가장 가까운 곳까지. 반환: 작은 칸 중심점 목록(꺾이는 곳만) */
 function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(cls),W=g.W,C=g.cost;
   const cl=v=>Math.max(0,Math.min(W-1,v));let s=cl(Math.floor(u.z*NAV_R))*W+cl(Math.floor(u.x*NAV_R));const gi=cl(Math.floor(z*NAV_R)),gj=cl(Math.floor(x*NAV_R)),goal=gi*W+gj;
@@ -85,17 +91,24 @@ function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(
   const H=k=>{const i=(k/W)|0,di=i>gi?i-gi:gi-i,j=k-i*W,dj=j>gj?j-gj:gj-j;return (di>dj?di+.414*dj:dj+.414*di)*1.15;};
   const hk=[],hf=[];const push=(k,f)=>{hk.push(k);hf.push(f);let i=hk.length-1;while(i>0){const p=(i-1)>>1;if(hf[p]<=hf[i])break;[hk[p],hk[i]]=[hk[i],hk[p]];[hf[p],hf[i]]=[hf[i],hf[p]];i=p;}};
   const pop=()=>{const k=hk[0];const lk=hk.pop(),lf=hf.pop();if(hk.length){hk[0]=lk;hf[0]=lf;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<hk.length&&hf[l]<hf[m])m=l;if(r<hk.length&&hf[r]<hf[m])m=r;if(m===i)break;[hk[m],hk[i]]=[hk[i],hk[m]];[hf[m],hf[i]]=[hf[i],hf[m]];i=m;}}return k;};
+  const walls=(cls==='inf'||cls==='eng')&&typeof edgePass==='function';
   D[s]=0;push(s,H(s));let best=s,bh=H(s),n=0;
   while(hk.length&&n++<120000){const k=pop();if(done[k])continue;done[k]=1;if(k===goal){best=k;break;}const h=H(k);if(h<bh){bh=h;best=k;}
     const i=Math.floor(k/W),j=k%W;
     for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){if(!a&&!b)continue;const ni=i+a,nj=j+b;if(ni<0||nj<0||ni>=W||nj>=W)continue;const nk=ni*W+nj;const c=C[nk];if(!c||done[nk])continue;
       if(a&&b&&(!C[i*W+nj]||!C[ni*W+j]))continue;
+      if(walls&&!navWallOk(i,j,ni,nj))continue;
       const nd=D[k]+c*(a&&b?1.414:1);if(nd<D[nk]){D[nk]=nd;P[nk]=k;push(nk,nd+H(nk));}}}
   const cells=[];let k=best;while(k!==s&&k>=0){cells.push(k);k=P[k];}cells.reverse();
   // 방향이 바뀌는 곳만 남긴다
   const out=pre.slice();let pd=null;const pt=c=>[(c%W+.5)/NAV_R,(Math.floor(c/W)+.5)/NAV_R];
-  for(let q=0;q<cells.length;q++){const pv=q?cells[q-1]:s;const d=cells[q]-pv;if(q&&d!==pd)out.push(pt(pv));pd=d;}
-  if(cells.length)out.push(pt(cells[cells.length-1]));
+  const tileOf=c=>[((c/W|0)/NAV_R)|0,((c%W)/NAV_R)|0];
+  for(let q=0;q<cells.length;q++){const pv=q?cells[q-1]:s;const d=cells[q]-pv;
+    if(walls){const [r0,c0]=tileOf(pv),[r1,c1]=tileOf(cells[q]);// 문을 지나는 곳은 문 앞(a)·문 안(b) 두 점으로 꼭 남긴다
+      if((r0!==r1||c0!==c1)&&Array.isArray(edgePass(r0,c0,r1,c1))){const A=pt(pv),B=pt(cells[q]);A.door='a';B.door='b';
+        if(out.length&&out[out.length-1][0]===A[0]&&out[out.length-1][1]===A[1])out.pop();out.push(A,B);pd=null;continue;}}
+    if(q&&d!==pd&&pd!==null)out.push(pt(pv));pd=d;}
+  if(cells.length){const L=pt(cells[cells.length-1]),e=out[out.length-1];if(!e||e[0]!==L[0]||e[1]!==L[1])out.push(L);}
   out.reached=best===goal;return out;}
 
 /* ---------- 방어물 ---------- */

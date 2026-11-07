@@ -116,7 +116,45 @@ test('차량은 건물에 못 들어가고, 보병은 들어간다', () => {
   bldg(G, 5, 3, 2);
   const t = T.mkUnit(0, 'tank', 5, 2), i = T.mkUnit(0, 'rifle', 6, 2);
   assert.ok(!T.reach(t).has(T.key(5, 3)));
-  assert.ok(T.reach(i).has(T.key(5, 3)));
+  const tp = T.pathTo(i, 5, 3); assert.equal(tp[tp.length - 1], T.key(5, 3));
+});
+
+test('건물은 문으로만 드나들고, 안에서는 계단으로 한 층씩 오른다', () => {
+  const T = loadGame(); const G = setup(T);
+  for (let r = 4; r <= 6; r++) for (let c = 4; c <= 6; c++) { bldg(G, r, c, 4); G.map[r][c].blk = 7; }
+  T.bump();
+  const dp = T.__get('doorSides'), wc = T.__get('wallCross');
+  // 문은 바깥 면에만 있고, 블록 둘레 칸마다 적어도 하나
+  for (let r = 4; r <= 6; r++) for (let c = 4; c <= 6; c++) { const d = dp(r, c); if (r === 5 && c === 5) assert.equal(d.join(''), '0000'); else assert.ok(d.some(Boolean)); }
+  const u = T.mkUnit(0, 'rifle', 2, 2); u.x = 2.5; u.z = 2.5;
+  T.orderMoveTo(u, 5.5, 5.5);
+  // 경로의 어느 구간도 문이 아닌 곳으로 벽을 넘지 않는다
+  let px = u.x, pz = u.z; for (const p of u.path) { assert.ok(!wc(u, px, pz, p[0], p[1]), `벽 통과 ${px},${pz}→${p}`); px = p[0]; pz = p[1]; }
+  assert.ok(u.path.some(p => p.door === 'b'), '문을 지난다');
+  // 걸어 들어가는 동안 매 순간 벽을 넘지 않는다
+  let lx = u.x, lz = u.z, inT = null;
+  for (let i = 0; i < 600; i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z), '틱 사이 벽 통과'); lx = u.x; lz = u.z; if (inT == null && u.r === 5 && u.c === 5) inT = G.time; if (u.fl >= 3) break; }
+  assert.ok(inT != null, '건물 가운데 칸에 들어간다');
+  assert.equal(u.fl, 3, '꼭대기 층(4층)까지 오른다');
+  const climb = G.time - inT; assert.ok(climb > 3 * 2.4 - .5, `오르는 데 시간이 걸린다 (${climb.toFixed(1)}초)`);
+  // 꼭대기 층 눈높이는 예전(건물 높이 −0.5)과 같다
+  assert.equal(T.eye(u), 3.5);
+  // 나가라고 하면 먼저 1층까지 내려온 뒤 문으로 나간다
+  T.orderMoveTo(u, 1.5, 1.5); T.rtTick(0.1);
+  assert.ok(u.r === 5 && u.c === 5 && u.fl < 3 && u.fl > 0, '계단으로 내려오는 중');
+  lx = u.x; lz = u.z; let outT = 0;
+  for (let i = 0; i < 600 && !(u.r === 1 && u.c === 1); i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z)); if (G.map[u.r][u.c].t !== 'bldg' && !outT) { outT = 1; assert.equal(u.fl, 0); } lx = u.x; lz = u.z; }
+  assert.ok(u.r === 1 && u.c === 1, '밖으로 나와 목적지에 간다');
+});
+
+test('1층에 막 들어온 보병은 낮게 보고, 위층에 오르면 건물 너머를 본다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 4); G.map[5][5].blk = 1; bldg(G, 5, 7, 1); G.map[5][7].blk = 2; T.bump();
+  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
+  u.fl = 0; u.flK = T.key(5, 5); T.bump();
+  assert.ok(!T.canHit(u, e), '1층에서는 앞 건물에 가린다');
+  u.fl = 3; T.bump();
+  assert.ok(T.canHit(u, e), '4층에서는 넘겨 쏜다');
 });
 
 test('거점 점령과 지휘점수 수입', () => {
