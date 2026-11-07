@@ -769,23 +769,35 @@ function navObstacles(){const O=[];
   return O;}
 /* 점이 상자(+여유 c) 안에 있나 */
 function inBox(o,px,pz,c){const dx=px-o.x,dz=pz-o.z,cs=Math.cos(o.ry),sn=Math.sin(o.ry);const lx=dx*cs-dz*sn,lz=dx*sn+dz*cs;return Math.abs(lx)<=o.hl+c&&Math.abs(lz)<=o.hw+c;}
-/* 이동 격자. cost: 0 = 막힘, 그 밖 = 지형 이동 비용(부수고 지나가는 칸은 +4) */
-const NAV={g:null,grids:{}};
-/* 지형이 바뀌면(건물 붕괴: damageBldg) G.navV가 오른다. 지도를 직접 고친 뒤에는 G.navV를 올려야 한다 */
-function navGrid(cls){const cl=G.covers?G.covers.length:0,fl=G.forts?G.forts.length:0,pl=G.props?G.props.length:0;
-  if(NAV.g!==G||NAV.nv!==(G.navV||0)||NAV.cl!==cl||NAV.fl!==fl||NAV.pl!==pl||NAV.n!==N){
-    NAV.g=G;NAV.nv=G.navV||0;NAV.cl=cl;NAV.fl=fl;NAV.pl=pl;NAV.n=N;NAV.grids={};NAV.obs=navObstacles();}
-  if(NAV.grids[cls])return NAV.grids[cls];
-  const W=N*NAV_R,cost=new Uint8Array(W*W),cs=1/NAV_R,clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':'ifv';
-  for(let i=0;i<W;i++)for(let j=0;j<W;j++){const px=(j+.5)*cs,pz=(i+.5)*cs;const t=tileAt(px,pz);let m=t?mcost(ty,t):Infinity;
-    if(m!==Infinity&&clr>.05){// 차량: 차폭만큼 건물·물 칸에서 떨어진다
-      for(const [ox,oz] of [[clr+.08,0],[-clr-.08,0],[0,clr+.08],[0,-clr-.08]]){const q=tileAt(px+ox,pz+oz);if(!q||mcost(ty,q)===Infinity){m=Infinity;break;}}}
-    cost[i*W+j]=m===Infinity?0:Math.min(250,m);}
-  for(const o of NAV.obs){const rule=NAV_RULE[o.k];const v=rule?rule[cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
+/* 이동 격자. cost: 0 = 막힘, 그 밖 = 지형 이동 비용(부수고 지나가는 칸은 +4)
+   바탕(지형 + 소품 + 잔해 차량)과 방어물 층을 따로 둔다. 방어물이 생기거나 부서지면 바탕을 복사해 방어물만 다시 얹는다.
+   지형이 바뀌면(건물 붕괴: damageBldg) G.navV가, 방어물이 바뀌면 G.fortNV가 오른다. 지도를 직접 고친 뒤에는 G.navV를 올려야 한다 */
+const NAV={g:null,grids:{},base:{}};
+const navWreckN=()=>{let n=0;for(const c of G.covers||[])if(c.kind==='wreck'&&c.cov!=null&&!c.fort)n++;return n;};
+function navStamp(cost,W,list,cls){const cs=1/NAV_R,clr=NAV_CLR[cls];
+  for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
     const j0=Math.max(0,Math.floor((o.x-R)*NAV_R)),j1=Math.min(W-1,Math.floor((o.x+R)*NAV_R)),i0=Math.max(0,Math.floor((o.z-R)*NAV_R)),i1=Math.min(W-1,Math.floor((o.z+R)*NAV_R));
     for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*W+j;if(!cost[k])continue;if(!inBox(o,(j+.5)*cs,(i+.5)*cs,clr))continue;
-      if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}
-  return NAV.grids[cls]={W,cost};}
+      if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}}
+function navBase(cls){if(NAV.base[cls])return NAV.base[cls];
+  const W=N*NAV_R,cost=new Uint8Array(W*W),clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':'ifv';
+  const TC=new Uint8Array(N*N);for(let r=0;r<N;r++)for(let c=0;c<N;c++){const m=mcost(ty,G.map[r][c]);TC[r*N+c]=m===Infinity?0:Math.min(250,m);}
+  const tc=(x,z)=>{if(x<0||z<0||x>=N||z>=N)return 0;return TC[(z|0)*N+(x|0)];};const d=clr+.08;
+  for(let i=0;i<W;i++){const pz=(i+.5)/NAV_R;for(let j=0;j<W;j++){const px=(j+.5)/NAV_R;let m=tc(px,pz);
+    // 차량: 차폭만큼 건물·물 칸에서 떨어진다
+    if(m&&clr>.05&&(!tc(px+d,pz)||!tc(px-d,pz)||!tc(px,pz+d)||!tc(px,pz-d)))m=0;
+    cost[i*W+j]=m;}}
+  navStamp(cost,W,NAV.obs.filter(o=>!o.fort),cls);
+  return NAV.base[cls]={W,cost};}
+function navGrid(cls){const q=NAV.grids[cls];
+  if(q&&NAV.g===G&&NAV.nv===(G.navV||0)&&NAV.fv===(G.fortNV||0)&&NAV.cl===(G.covers?G.covers.length:0)&&NAV.pl===(G.props?G.props.length:0))return q;
+  const wn=navWreckN(),pl=G.props?G.props.length:0;
+  if(NAV.g!==G||NAV.nv!==(G.navV||0)||NAV.wn!==wn||NAV.pl!==pl||NAV.n!==N){NAV.g=G;NAV.nv=G.navV||0;NAV.wn=wn;NAV.pl=pl;NAV.n=N;NAV.base={};NAV.grids={};NAV.fv=null;}
+  if(NAV.fv!==(G.fortNV||0)){NAV.fv=G.fortNV||0;NAV.grids={};}
+  NAV.cl=G.covers?G.covers.length:0;
+  if(NAV.grids[cls])return NAV.grids[cls];
+  NAV.obs=navObstacles();const b=navBase(cls);const cost=b.cost.slice();navStamp(cost,b.W,NAV.obs.filter(o=>o.fort),cls);
+  return NAV.grids[cls]={W:b.W,cost};}
 function navCost(cls,x,z){const g=navGrid(cls);const j=Math.floor(x*NAV_R),i=Math.floor(z*NAV_R);if(i<0||j<0||i>=g.W||j>=g.W)return 0;return g.cost[i*g.W+j];}
 /* walkable()가 부른다: 이 점에 서 있을 수 있나 */
 function navOk(u,x,z){const c=navCls(u);return !c||navCost(c,x,z)>0;}
@@ -841,7 +853,7 @@ function orderFort(u,k,x,z){const d=FORT[k];if(!d||!fortKinds(u.type).includes(k
   if(u.job)fortCancel(u);u.tgt=null;u.tgtTile=null;u.dest=[sx,sz];u.path=pathPts(u,sx,sz);u.job={id:f.id,x:sx,z:sz};G.fortV=(G.fortV||0)+1;bump();return f;}
 function fortCancel(u){const j=u.job;u.job=null;if(!j)return;const f=(G.forts||[]).find(o=>o.id===j.id);
   if(f&&f.prog<1&&!G.units.some(o=>o!==u&&o.job&&o.job.id===f.id)){if(f.prog<.05)G.nats[f.nat].cp+=f.paid||0;fortRemove(f);}}
-function fortRemove(f,why){const was=G.forts.includes(f);G.forts=G.forts.filter(o=>o!==f);if(!was)return;if(f.prog>=1){fortCovers();G.navV=(G.navV||0)+1;}
+function fortRemove(f,why){const was=G.forts.includes(f);G.forts=G.forts.filter(o=>o!==f);if(!was)return;if(f.prog>=1){fortCovers();G.fortNV=(G.fortNV||0)+1;}
   G.fortV=(G.fortV||0)+1;if(why&&FXH.fortGone)FXH.fortGone(f,why);bump();}
 /* 다 지은 방어물을 엄폐 목록(G.covers)에 넣는다. 길이 방향으로 원 세 개 */
 function fortCovers(){G.covers=(G.covers||[]).filter(c=>!c.fort);
@@ -854,7 +866,7 @@ function fortTick(dt){if(!G.forts)G.forts=[];
     const near=Math.hypot(u.x-j.x,u.z-j.z)<.3;const moving=u.path&&u.path.length;
     if(!near){if(!moving)fortCancel(u);continue;}if(moving)continue;
     const d=FORT[f.k];f.prog=Math.min(1,f.prog+dt/d.bt*(u.type==='eng'?1.8:1)*(u.supp>0?.4:1));u.face=Math.atan2(f.z-u.z,f.x-u.x)*180/Math.PI;
-    if(f.prog>=1){u.job=null;fortCovers();G.navV=(G.navV||0)+1;G.fortV=(G.fortV||0)+1;bump();if(!isAI(u.nat)||!G.fog)L(`${natName(u.nat)} ${d.n} 설치 완료`);try{sfx('build');}catch(e){}
+    if(f.prog>=1){u.job=null;fortCovers();G.fortNV=(G.fortNV||0)+1;G.fortV=(G.fortV||0)+1;bump();if(!isAI(u.nat)||!G.fog)L(`${natName(u.nat)} ${d.n} 설치 완료`);try{sfx('build');}catch(e){}
       // 방어물 자리에 걸친 부대는 살짝 밀어낸다
       for(const o of G.units)if(!navOk(o,o.x,o.z)&&o.path&&!o.path.length){const p=navPath(o,o.x,o.z);if(p&&p.length)o.path=[p[0]];}}}}
 /* 차량이 가벼운 방어물을 깔고 지나가면 부서진다. 공병은 철조망을 끊는다 */
