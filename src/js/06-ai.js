@@ -47,7 +47,7 @@ function aiThink(n){const N2=G.nats[n];
       if(!buy(n,pick,kr(sp[0]),kc(sp[0])))break;}}
   // 부대 기동: 가는 중이면 대개 그대로 두고, 멈춘 부대는 다음 자리를 고른다
   const E=vis();
-  for(const u of G.units){if(u.nat!==n||u.job)continue;const t=UT[u.type];if(t.heli)continue;if(t.kami&&typeof aiFpv==='function'&&aiFpv(n,u,E))continue;if(t.dteam&&E.some(e=>Math.hypot(e.x-u.x,e.z-u.z)<9)&&Math.random()<.85)continue;
+  for(const u of G.units){if(u.nat!==n||u.job||u.post)continue;const t=UT[u.type];if(t.heli)continue;if(t.kami&&typeof aiFpv==='function'&&aiFpv(n,u,E))continue;if(t.dteam&&E.some(e=>Math.hypot(e.x-u.x,e.z-u.z)<9)&&Math.random()<.85)continue;
     if(u.path&&u.path.length&&Math.random()<.75)continue;
     if(t.ind&&E.some(e=>canHit(u,e))&&Math.random()<.85)continue; // 곡사: 쏠 수 있으면 자리 지킴
     const goal=aiGoal(n,u,E);const R=reach(u);let bestT=key(u.r,u.c),bestS=-1e9;

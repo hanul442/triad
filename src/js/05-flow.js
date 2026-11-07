@@ -18,15 +18,15 @@ function newGame(cfg){cfg=cfg||{};const size=SIZES[cfg.size||'m']?cfg.size||'m':
   for(const i of act)if(G.nats[i].ctrl==='human'&&i!==G.viewer)G.nats[i].ctrl='ai';G.cur=G.viewer;G.hot=false;
   bump();checkOver();return G;}
 function rollWx(){const r=Math.random();let a=0;for(const k in WX){a+=WX[k].p;if(r<a)return k;}return 'clear';}
-function income(n){let cp=BASE_CP;for(const o of G.objs)if(G.map[o.r][o.c].owner===n)cp+=OBJ_CP;
+function income(n){if(G.camp&&typeof CAMP!=='undefined'&&CAMP[G.camp.id]&&CAMP[G.camp.id].income)return CAMP[G.camp.id].income(n);let cp=BASE_CP;for(const o of G.objs)if(G.map[o.r][o.c].owner===n)cp+=OBJ_CP;
   const k={easy:.75,normal:1,hard:1.3}[G.diff]||1;return isAI(n)&&G.nats.some(x=>x.ctrl==='human')?Math.round(cp*k):cp;}
 const objCount=n=>G.objs.filter(o=>G.map[o.r][o.c].owner===n).length;
 function checkOver(){if(G.over)return G.over;const act=G.order.filter(i=>G.nats[i].alive);
-  for(const n of act){const N2=G.nats[n];const empty=!G.units.some(u=>u.nat===n)&&!objCount(n);
+  for(const n of act){const N2=G.nats[n];if(G.camp&&n!==G.viewer)continue;const empty=!G.units.some(u=>u.nat===n)&&!objCount(n);
     // 실시간: 부대도 거점도 없이 한 단계(30초)를 넘기고 다시 부를 지휘점수도 없으면 전멸
     if(!empty){N2.emptyT=null;continue;}N2.emptyT=N2.emptyT??(G.time||0);if((G.time||0)-N2.emptyT>=ROUND_S&&N2.cp<3||G.time==null){N2.alive=false;L(`${NATS[n].full} 전멸`);}}
   const alive=G.order.filter(i=>G.nats[i].alive);
-  if(alive.length<=1){G.over={win:alive[0]??null,why:'적 전멸'};return G.over;}
+  if(alive.length<=1){G.over={win:alive[0]??null,why:G.camp?'아군 전멸':'적 전멸'};return G.over;}
   if(G.scn){if(typeof scnCheck==='function')scnCheck();return G.over||null;}
   const top=alive.slice().sort((a,b)=>G.nats[b].vp-G.nats[a].vp);
   if(G.nats[top[0]].vp>=G.vpWin){G.over={win:top[0],why:`승점 ${G.vpWin} 달성`};return G.over;}

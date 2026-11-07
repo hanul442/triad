@@ -26,6 +26,10 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
     $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size:$('#opt-size').value,diff:$('#opt-diff').value,fog:$('#opt-fog').value==='1',hour:$('#opt-hour')?.value||'day',wx:$('#opt-wx')?.value||'auto',tflow:$('#opt-tflow')?.value||'normal',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.sheet=false;
     render();rtStart();return;}
   if(a.startsWith('scn:')){startScn(a.slice(4));return;}
+  if(a.startsWith('camp:')){const d=$('#debrief');if(d)d.hidden=true;campBrief(a.slice(5));return;}
+  if(a==='camp-go'){campGo();return;}
+  if(a==='camp-back'||a==='camp-list'){showSetup();return;}
+  if(a==='camp-retry'){campGo(G&&G.camp?G.camp.id:UI.campSel);return;}
   if(a==='resume'){const o=loadSave();if(!o)return;N=o.N;G=o.G;UID=o.UID;$('#setup').hidden=true;clearSel();G.paused=false;render();rtStart();return;}
   if(a==='new'){showSetup();return;}
   if(a==='snd'){sndPop();return;}

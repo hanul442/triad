@@ -301,3 +301,28 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 @media (prefers-reduced-motion:reduce){.app:has(.v3d.nvg) .v3d-grain{animation:none}}
 .nvg-b svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6}
 .nvg-b[aria-pressed="true"]{color:#9dff8a;border-color:#9dff8a}
+
+/* 캠페인 */
+.csub{font-size:13px}
+.clist{display:flex;flex-direction:column;gap:8px}
+.cmis{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 12px}
+.cmis .cno{font-family:var(--font-m);font-size:20px;font-weight:700;color:#f0c45a;min-width:20px;text-align:center}
+.cmis .cbody{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.cmis .cbody small{font-family:var(--font-m);color:var(--muted);font-weight:500;font-size:11.5px}
+.cmis .cst{white-space:nowrap}
+.cstar{font-style:normal;color:#4a525a;font-size:14px;margin-left:1px}
+.cstar.on{color:#f0c45a}
+.ccard{max-width:560px}
+.ccard p{font-size:13.5px;line-height:1.55}
+.ccard .ckick{font-family:var(--font-m);font-size:11.5px;letter-spacing:.08em;color:#f0c45a;margin:0}
+.ccard .cwhen{font-family:var(--font-m);font-size:12px;margin-top:-6px}
+.ccard h2.cwin{color:#5cd18a}.ccard h2.close{color:#ff6a5e}
+.cgoal,.cstars{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.cstars{list-style:none;padding-left:0}
+.cstars li{color:var(--muted)}.cstars li.on{color:var(--ink)}
+.crow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.crow .btn{flex:1 1 120px}
+.cobj{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:1px}
+.cobj li::before{content:'○ ';color:#8e99a3}
+.cobj li.ok{color:#9fe3b5}.cobj li.ok::before{content:'✓ ';color:#5cd18a}
+.cobj li.bad{color:#ffb3aa}.cobj li.bad::before{content:'! ';color:#ff5a4e;font-weight:700}
