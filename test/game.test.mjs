@@ -98,7 +98,7 @@ test('폭발물로 건물을 쏘면 숨은 적도 맞는다', () => {
 
 test('건물 안 저격수는 붙어 있는 적에게만 보인다', () => {
   const T = loadGame(); const G = setup(T); G.fog = true;
-  bldg(G, 5, 5, 2); const s = T.mkUnit(1, 'sniper', 5, 5); const e = T.mkUnit(0, 'rifle', 5, 2); T.bump();
+  bldg(G, 5, 5, 2); const s = T.mkUnit(1, 'sniper', 5, 5); s.x = 5.22; s.z = 5.5; const e = T.mkUnit(0, 'rifle', 5, 2); T.bump();
   assert.equal(T.seen(s, 0), false);
   e.c = 4; T.bump();
   assert.equal(T.seen(s, 0), true);

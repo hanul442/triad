@@ -22,6 +22,11 @@ function genProps(){const P=[];const t=(r,c)=>inb(r,c)?G.map[r][c].t:'void';cons
       const H2=me.ro==='h';if(H(k,260)<.35)P.push({k:'bin',x:H2?cx+(H(k,261)-.5)*.6:cx+(H(k,262)<.5?-.36:.36),z:H2?cz+(H(k,262)<.5?-.36:.36):cz+(H(k,261)-.5)*.6,ry:H2?0:Math.PI/2});
       if(H(k,263)<.08){const burnt=H(k,264)<.5;P.push({k:'car',kind:'sedan',x:cx+(H2?(H(k,265)-.5)*.4:0),z:cz+(H2?0:(H(k,265)-.5)*.4),ry:(H2?0:Math.PI/2)+(H(k,266)-.5)*.3,burnt,flip:false,col:burnt?'#2b2723':PROP_COLS[Math.floor(H(k,267)*PROP_COLS.length)]});}
       continue;}
+    if(rd(r,c)&&(me.ro==='d'||me.ro==='c')){// 대각선·곡선 도로: 가로등과 가끔 버려진 차만 (줄 맞춘 주차는 없다)
+      const sides=[[-1,0],[1,0],[0,-1],[0,1]].filter(([a,b])=>curb(r+a,c+b));
+      sides.forEach(([a,b],si)=>{if(H(k,10+si)<.28)P.push({k:'lamp',x:cx+b*.42,z:cz+a*.42,ry:Math.atan2(a,-b)});});
+      if(H(k,270)<.1){const burnt=H(k,271)<.5;P.push({k:'car',kind:['suv','sedan','pickup'][Math.floor(H(k,272)*3)],x:cx+(H(k,273)-.5)*.4,z:cz+(H(k,274)-.5)*.4,ry:(me.ro==='d'?(me.dd>0?Math.PI/4:-Math.PI/4):H(k,275)*6.28)+(H(k,276)-.5)*.5,burnt,flip:burnt&&H(k,277)<.3,col:burnt?'#2b2723':PROP_COLS[Math.floor(H(k,278)*PROP_COLS.length)]});}
+      continue;}
     if(rd(r,c)){const ro=me.ro||((rd(r,c-1)||rd(r,c+1))&&(rd(r-1,c)||rd(r+1,c))?'x':(rd(r,c-1)||rd(r,c+1))?'h':'v');const h=ro==='h';
       if(ro==='x'){// 교차로: 막힌 길모퉁이 두 곳에 신호등
         [[-1,-1],[1,1],[-1,1],[1,-1]].filter(([a,b])=>curb(r+a,c+b)).slice(0,2).forEach(([a,b])=>P.push({k:'light',x:cx+b*.43,z:cz+a*.43,dx:-b*Math.SQRT1_2,dz:-a*Math.SQRT1_2,red:H(k,1+a+b*3)<.5}));
