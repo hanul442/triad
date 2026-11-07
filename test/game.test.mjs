@@ -514,8 +514,8 @@ test('사상자: 피해는 병사 한 명씩 다치게 하고, 분대 화력은 
   const u = T.mkUnit(1, 'rifle', 10, 10); T.rtTick(0.1);
   assert.equal(u.ws.length, 9); assert.ok(u.ws.every(w => w.s === 'ok'));
   F(T, 'harm')(u, 3, null, { kind: 'bullet' });
-  const bad = u.ws.filter(w => w.s !== 'ok').length;
-  assert.ok(bad >= 1 && bad <= 5, `다친 병사 ${bad}`);
+  const bad = u.ws.filter(w => w.s !== 'ok').length, stop = u._men.filter(m => m.pr > 0).length; // 방탄판이 막은 탄도 병사 한 명이 맞은 것
+  assert.ok(bad + stop >= 1 && bad <= 5, `다친 병사 ${bad}, 방탄판 ${stop}`);
   assert.ok(G.units.includes(u), '분대는 남아 있음');
   const able = u.ws.filter(w => w.s === 'ok' || w.s === 'lw').length;
   assert.ok(u.hp <= 10 * able / 9 + .05, `화력 ${u.hp} ≤ 가용 ${able}/9`);
