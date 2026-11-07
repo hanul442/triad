@@ -220,3 +220,49 @@ for (const [slots, size] of [[['ai', 'ai', 'none', 'none'], 's'], [['ai', 'ai', 
     });
   }
 }
+
+test('칸 없는 시야: 같은 칸 쌍이라도 실제 위치에 따라 건물 모서리 너머가 보이거나 가린다', () => {
+  const T = loadGame(); const G = setup(T); G.fog = true;
+  bldg(G, 5, 5, 3); T.bump();
+  const a = T.mkUnit(0, 'rifle', 5, 3), e = T.mkUnit(1, 'rifle', 5, 7);
+  a.x = 3.5; a.z = 5.5; e.x = 7.5; e.z = 5.5; T.bump();
+  assert.equal(T.seen(e, 0), false, '건물 정면 너머는 안 보임');
+  a.x = 3.5; a.z = 5.02; e.x = 7.5; e.z = 5.02; G.time = 1; T.bump();
+  assert.equal(T.seen(e, 0), true, '같은 칸이라도 건물 외벽 바깥 틈으로는 보임');
+});
+
+test('숨은 보병은 가까이 와야 발견되고, 쏘면 드러난다', () => {
+  const T = loadGame(); const G = setup(T); G.fog = true;
+  G.map[5][9] = { t: 'park', owner: null, obj: null, smoke: 0 };
+  const a = T.mkUnit(0, 'rifle', 5, 4), e = T.mkUnit(1, 'rifle', 5, 9);
+  a.x = 4.5; a.z = 5.5; e.x = 9.5; e.z = 5.5; T.bump();
+  assert.equal(T.seen(e, 0), false, '공원 속 5칸 거리는 안 보임');
+  e.firedT = 0; G.time = 1; T.bump();
+  assert.equal(T.seen(e, 0), true, '쏜 직후엔 보임');
+});
+
+test('방향 엄폐: 쏘는 쪽에 벽이 있으면 명중률이 떨어지고, 옆에서 쏘면 엄폐가 없다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 6, 2); T.bump();
+  const d = T.mkUnit(1, 'rifle', 5, 5); d.x = 5.8; d.z = 5.5;          // 동쪽 건물 벽에 붙음
+  const east = T.mkUnit(0, 'rifle', 3, 9); east.x = 9.5; east.z = 5.5; // 건물 너머 동쪽 (보이진 않아도 계산은 됨)
+  const north = T.mkUnit(0, 'rifle', 2, 5); north.x = 5.8; north.z = 2.5;
+  const cov = T.__get('coverOf');
+  assert.equal(cov(d, east).kind, 'wall');
+  assert.equal(cov(d, north).cov, 0, '옆(북쪽)에서는 벽 엄폐 없음');
+  assert.ok(T.calcDmg(north, d, false) > T.calcDmg(east, d, false));
+});
+
+test('차량과 소품도 엄폐가 되고, 이동 명령은 근처 엄폐 자리로 붙는다', () => {
+  const T = loadGame(); const G = setup(T);
+  const d = T.mkUnit(1, 'rifle', 5, 5); d.x = 5.5; d.z = 5.5;
+  const a = T.mkUnit(0, 'rifle', 5, 1); a.x = 1.5; a.z = 5.5;
+  const open = T.calcDmg(a, d, false);
+  G.covers.push({ x: 5.15, z: 5.5, r: .25, kind: 'car' });
+  const c = T.__get('coverOf')(d, a);
+  assert.equal(c.kind, 'car');
+  assert.ok(T.calcDmg(a, d, false) < open * 0.75);
+  const u = T.mkUnit(0, 'rifle', 8, 8);
+  const [x, z] = T.__get('coverSnap')(u, 5.5, 5.75);
+  assert.ok(Math.hypot(x - 5.15, z - 5.5) < Math.hypot(5.5 - 5.15, 5.75 - 5.5) + 1e-9, '엄폐물 쪽으로 붙음');
+});

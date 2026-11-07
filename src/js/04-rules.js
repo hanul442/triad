@@ -3,30 +3,11 @@ function mcost(type,x){const t=UT[type];if(t.fly)return 1;if(x.t==='water')retur
   if(t.cls==='veh'){if(x.t==='bldg')return Infinity;return x.t==='rubble'?3:x.t==='park'?2:1;}
   return x.t==='rubble'||x.t==='bldg'?2:1;}
 const inside=u=>!UT[u.type].fly&&cell(u.r,u.c).t==='bldg';
-/* 눈높이 (층 단위). 건물 안 보병은 그 건물 높이에서 본다. */
-function eyeAt(type,r,c){const t=UT[type];if(t.fly)return 9;const x=cell(r,c);if(x.t==='bldg')return Math.max(.5,x.f-.5);return t.cls==='veh'?.8:.5;}
-const eye=u=>eyeAt(u.type,u.r,u.c);
-function blockH(x){if(x.smoke>0)return 99;if(x.t==='bldg')return x.f;return 0;}
-/* 시야선: 두 칸 사이를 잘게 따라가며, 중간 칸의 건물이 선보다 높으면 막힌다. */
-function los(r1,c1,h1,r2,c2,h2){const d=dist(r1,c1,r2,c2);if(d<=1)return true;const steps=d*4;
-  for(let i=1;i<steps;i++){const t=i/steps;const r=Math.round(r1+(r2-r1)*t),c=Math.round(c1+(c2-c1)*t);if((r===r1&&c===c1)||(r===r2&&c===c2))continue;
-    const b=blockH(G.map[r][c]);if(b>0&&b>=h1+(h2-h1)*t-.05)return false;}
-  return true;}
-function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg')v+=x.f>=5?2:x.f>=3?1:0;
-  if(isNight())v-=t.fly?1:2;v+=WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
-/* 세력 n이 보는 칸 (G.ver로 캐시) */
-function visSet(n){const ck='v'+n;G._vc=G._vc||{};const c0=G._vc[ck];if(c0&&c0.ver===G.ver)return c0.s;const s=new Set();
-  for(const u of G.units){if(u.nat!==n)continue;const v=visRange(u),h=eye(u);
-    for(let r=Math.max(0,u.r-v);r<=Math.min(N-1,u.r+v);r++)for(let c=Math.max(0,u.c-v);c<=Math.min(N-1,u.c+v);c++){const k=key(r,c);if(s.has(k))continue;
-      const tx=G.map[r][c];const th=tx.t==='bldg'?Math.max(.5,tx.f-.5):.5;if(los(u.r,u.c,h,r,c,th))s.add(k);}}
-  G._vc[ck]={ver:G.ver,s};return s;}
-/* 세력 n이 부대 e를 보는가. 건물 안 저격수는 붙어 있어야 보인다(사격한 라운드에는 드러남). */
-function seen(e,n,vs){if(!G.fog||e.nat===n)return true;vs=vs||visSet(n);if(!vs.has(key(e.r,e.c)))return false;
-  if(UT[e.type].hide&&inside(e)&&e.shot!==G.turn&&!G.units.some(u=>u.nat===n&&dist(u.r,u.c,e.r,e.c)<=1))return false;return true;}
+/* 시야·사격 판정(eye, los, visSet, seen, canHit…)은 04b-sight.js, 엄폐·피해(calcDmg)는 04c-cover.js */
 const bump=()=>{G.ver=(G.ver||0)+1;};
 /* 이동 가능 칸 (다익스트라). 아군은 지나갈 수 있고 적은 막는다. 보이는 적 지상 부대 옆에 들어서면 거기서 멈춘다. */
-function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(),prev=new Map();const O=occ();const vs=G.fog?visSet(u.nat):null;
-  const stopAt=(r,c)=>{if(t.fly)return false;for(const [a,b] of nbrs(r,c)){const e=O.get(key(a,b));if(e&&hostile(e.nat,u.nat)&&!UT[e.type].fly&&(!vs||seen(e,u.nat,vs)))return true;}return false;};
+function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(),prev=new Map();const O=occ();const vs=G.fog?1:null;
+  const stopAt=(r,c)=>{if(t.fly)return false;for(const [a,b] of nbrs(r,c)){const e=O.get(key(a,b));if(e&&hostile(e.nat,u.nat)&&!UT[e.type].fly&&(!vs||seen(e,u.nat)))return true;}return false;};
   const st=key(u.r,u.c);res.set(st,0);const q=[[0,u.r,u.c]];
   while(q.length){q.sort((a,b)=>a[0]-b[0]);const [d,r,c]=q.shift();if(d>res.get(key(r,c)))continue;if(key(r,c)!==st&&stopAt(r,c))continue;
     for(const [a,b] of nbrs(r,c)){const x=G.map[a][b];const mc=mcost(u.type,x);if(mc===Infinity)continue;
@@ -36,22 +17,6 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
   for(const k of [...res.keys()]){const o=O.get(k);if(o&&o!==u)res.delete(k);}
   res.prev=prev;return res;}
 /* ---------- 전투 ---------- */
-function canHit(a,d,fromR,fromC,moved){const t=UT[a.type];if(!t.rng[1])return false;const r=fromR??a.r,c=fromC??a.c;const dd=fromR==null&&a.x!=null&&d.x!=null?Math.hypot(a.x-d.x,a.z-d.z):dist(r,c,d.r,d.c);
-  if(dd<t.rng[0]-.4||dd>t.rng[1]+.6)return false;if(!(t.atk[UT[d.type].cls]>0))return false;if(t.ind&&moved)return false;if(t.ind&&UT[d.type].fly)return false;
-  if(t.ind){return visSet(a.nat).has(key(d.r,d.c));}
-  return los(r,c,eyeAt(a.type,r,c),d.r,d.c,eye(d));}
-function canHitTile(a,r2,c2,fromR,fromC,moved){const t=UT[a.type];if(!t.ex||!t.rng[1])return false;const r=fromR??a.r,c=fromC??a.c;const dd=dist(r,c,r2,c2);
-  if(dd<t.rng[0]||dd>t.rng[1])return false;if(t.ind&&moved)return false;const x=G.map[r2][c2];if(x.t!=='bldg')return false;
-  if(t.ind)return visSet(a.nat).has(key(r2,c2));return los(r,c,eyeAt(a.type,r,c),r2,c2,Math.max(.5,x.f-.5));}
-function calcDmg(a,d,counter){const ta=UT[a.type],td=UT[d.type];let v=ta.atk[td.cls]||0;if(!v)return 0;
-  v*=.4+.6*a.hp/hpMax(a);const x=cell(d.r,d.c);let cov=td.fly?0:TT[x.t].cov;if(ta.ex&&x.t==='bldg')cov*=.5;if(x.smoke>0)cov+=.15;v*=1-cov;
-  const ax=cell(a.r,a.c);
-  if(a.type==='at'&&td.cls==='veh'&&(ax.t==='bldg'||ax.t==='rubble'))v*=1.25;
-  if(td.cls==='veh'&&ta.cls==='inf'&&dist(a.r,a.c,d.r,d.c)<=1)v*=1.2;
-  if(td.armor&&a.type!=='at'&&a.type!=='eng'&&a.type!=='tank')v*=.65;
-  if(eye(a)>=eye(d)+2&&!ta.ind)v*=1.15;
-  if(a.supp)v*=.7;v*=1+.1*(a.rank||0);if(counter)v*=.6;
-  return v;}
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
 function damageBldg(r,c,amt){const x=G.map[r][c];if(x.t!=='bldg'||amt<=0)return;x.bhp-=amt;bump();
   if(x.bhp<=0){const f0=x.f;x.t='rubble';x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom');L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
@@ -73,8 +38,8 @@ function afterMove(u){const x=cell(u.r,u.c);if(UT[u.type].cap&&x.obj!=null&&x.ow
     if(u.hp<=0){kill(u,w);break;}}
   bump();}
 function moveUnit(u,r,c){u.r=r;u.c=c;u.x=c+.5;u.z=r+.5;u.moved=true;bump();afterMove(u);}
-function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const vs=G.fog?visSet(u.nat):null;
-  for(const e of G.units){if(e.nat===u.nat)continue;if(vs&&!seen(e,u.nat,vs))continue;if(canHit(u,e,null,null,moved))out.push(key(e.r,e.c));}
+function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const vs=G.fog?1:null;
+  for(const e of G.units){if(e.nat===u.nat)continue;if(vs&&!seen(e,u.nat))continue;if(canHit(u,e,null,null,moved))out.push(key(e.r,e.c));}
   if(UT[u.type].ex){const R2=UT[u.type].rng[1];for(let r=Math.max(0,u.r-R2);r<=Math.min(N-1,u.r+R2);r++)for(let c=Math.max(0,u.c-R2);c<=Math.min(N-1,u.c+R2);c++){const k=key(r,c);if(out.includes(k))continue;
     const o=unitAt(r,c);if(o&&o.nat===u.nat)continue;if(canHitTile(u,r,c,null,null,moved))out.push(k);}}
   return out;}

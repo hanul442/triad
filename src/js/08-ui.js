@@ -11,7 +11,7 @@ function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNi
   $('#app').classList.toggle('sheet-open',!!UI.sheet);$('#sheet').hidden=!UI.sheet;
   const g=$('#b-grid');if(g)g.setAttribute('aria-pressed',UI.grid?'true':'false');const sn=$('#b-snd');if(sn)sn.setAttribute('aria-pressed',SFX.on?'true':'false');}
 function uInfo(u){const t=UT[u.type];const x=cell(u.r,u.c);const where=x.t==='bldg'?`건물 ${x.f}층`:TT[x.t].n;
-  const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';return `체력 ${Math.ceil(u.hp)}/${hpMax(u)} · ${where} · ${st}${u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${u.rank?' · 숙련 '+u.rank:''}`;}
+  const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';const cv=coverOf(u);const cvt=cv.cov>0&&cv.kind!=='bldg'?` · 엄폐 ${(COVK[cv.kind]||{n:'연막'}).n} ${Math.round(cv.cov*100)}%`:'';return `체력 ${Math.ceil(u.hp)}/${hpMax(u)} · ${where}${cvt} · ${st}${u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${u.rank?' · 숙련 '+u.rank:''}`;}
 function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.hidden=false;let h='';const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;if(UI.sel&&!s)clearSel();
   if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':NATS[w].full+' 승리'}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
   if(G.boot||isAI(n)){el.innerHTML=`<b>관전</b><span>AI끼리 싸우는 중</span>`;return;}

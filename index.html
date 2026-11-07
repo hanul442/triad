@@ -389,30 +389,11 @@ function mcost(type,x){const t=UT[type];if(t.fly)return 1;if(x.t==='water')retur
   if(t.cls==='veh'){if(x.t==='bldg')return Infinity;return x.t==='rubble'?3:x.t==='park'?2:1;}
   return x.t==='rubble'||x.t==='bldg'?2:1;}
 const inside=u=>!UT[u.type].fly&&cell(u.r,u.c).t==='bldg';
-/* 눈높이 (층 단위). 건물 안 보병은 그 건물 높이에서 본다. */
-function eyeAt(type,r,c){const t=UT[type];if(t.fly)return 9;const x=cell(r,c);if(x.t==='bldg')return Math.max(.5,x.f-.5);return t.cls==='veh'?.8:.5;}
-const eye=u=>eyeAt(u.type,u.r,u.c);
-function blockH(x){if(x.smoke>0)return 99;if(x.t==='bldg')return x.f;return 0;}
-/* 시야선: 두 칸 사이를 잘게 따라가며, 중간 칸의 건물이 선보다 높으면 막힌다. */
-function los(r1,c1,h1,r2,c2,h2){const d=dist(r1,c1,r2,c2);if(d<=1)return true;const steps=d*4;
-  for(let i=1;i<steps;i++){const t=i/steps;const r=Math.round(r1+(r2-r1)*t),c=Math.round(c1+(c2-c1)*t);if((r===r1&&c===c1)||(r===r2&&c===c2))continue;
-    const b=blockH(G.map[r][c]);if(b>0&&b>=h1+(h2-h1)*t-.05)return false;}
-  return true;}
-function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg')v+=x.f>=5?2:x.f>=3?1:0;
-  if(isNight())v-=t.fly?1:2;v+=WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
-/* 세력 n이 보는 칸 (G.ver로 캐시) */
-function visSet(n){const ck='v'+n;G._vc=G._vc||{};const c0=G._vc[ck];if(c0&&c0.ver===G.ver)return c0.s;const s=new Set();
-  for(const u of G.units){if(u.nat!==n)continue;const v=visRange(u),h=eye(u);
-    for(let r=Math.max(0,u.r-v);r<=Math.min(N-1,u.r+v);r++)for(let c=Math.max(0,u.c-v);c<=Math.min(N-1,u.c+v);c++){const k=key(r,c);if(s.has(k))continue;
-      const tx=G.map[r][c];const th=tx.t==='bldg'?Math.max(.5,tx.f-.5):.5;if(los(u.r,u.c,h,r,c,th))s.add(k);}}
-  G._vc[ck]={ver:G.ver,s};return s;}
-/* 세력 n이 부대 e를 보는가. 건물 안 저격수는 붙어 있어야 보인다(사격한 라운드에는 드러남). */
-function seen(e,n,vs){if(!G.fog||e.nat===n)return true;vs=vs||visSet(n);if(!vs.has(key(e.r,e.c)))return false;
-  if(UT[e.type].hide&&inside(e)&&e.shot!==G.turn&&!G.units.some(u=>u.nat===n&&dist(u.r,u.c,e.r,e.c)<=1))return false;return true;}
+/* 시야·사격 판정(eye, los, visSet, seen, canHit…)은 04b-sight.js, 엄폐·피해(calcDmg)는 04c-cover.js */
 const bump=()=>{G.ver=(G.ver||0)+1;};
 /* 이동 가능 칸 (다익스트라). 아군은 지나갈 수 있고 적은 막는다. 보이는 적 지상 부대 옆에 들어서면 거기서 멈춘다. */
-function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(),prev=new Map();const O=occ();const vs=G.fog?visSet(u.nat):null;
-  const stopAt=(r,c)=>{if(t.fly)return false;for(const [a,b] of nbrs(r,c)){const e=O.get(key(a,b));if(e&&hostile(e.nat,u.nat)&&!UT[e.type].fly&&(!vs||seen(e,u.nat,vs)))return true;}return false;};
+function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(),prev=new Map();const O=occ();const vs=G.fog?1:null;
+  const stopAt=(r,c)=>{if(t.fly)return false;for(const [a,b] of nbrs(r,c)){const e=O.get(key(a,b));if(e&&hostile(e.nat,u.nat)&&!UT[e.type].fly&&(!vs||seen(e,u.nat)))return true;}return false;};
   const st=key(u.r,u.c);res.set(st,0);const q=[[0,u.r,u.c]];
   while(q.length){q.sort((a,b)=>a[0]-b[0]);const [d,r,c]=q.shift();if(d>res.get(key(r,c)))continue;if(key(r,c)!==st&&stopAt(r,c))continue;
     for(const [a,b] of nbrs(r,c)){const x=G.map[a][b];const mc=mcost(u.type,x);if(mc===Infinity)continue;
@@ -422,22 +403,6 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
   for(const k of [...res.keys()]){const o=O.get(k);if(o&&o!==u)res.delete(k);}
   res.prev=prev;return res;}
 /* ---------- 전투 ---------- */
-function canHit(a,d,fromR,fromC,moved){const t=UT[a.type];if(!t.rng[1])return false;const r=fromR??a.r,c=fromC??a.c;const dd=fromR==null&&a.x!=null&&d.x!=null?Math.hypot(a.x-d.x,a.z-d.z):dist(r,c,d.r,d.c);
-  if(dd<t.rng[0]-.4||dd>t.rng[1]+.6)return false;if(!(t.atk[UT[d.type].cls]>0))return false;if(t.ind&&moved)return false;if(t.ind&&UT[d.type].fly)return false;
-  if(t.ind){return visSet(a.nat).has(key(d.r,d.c));}
-  return los(r,c,eyeAt(a.type,r,c),d.r,d.c,eye(d));}
-function canHitTile(a,r2,c2,fromR,fromC,moved){const t=UT[a.type];if(!t.ex||!t.rng[1])return false;const r=fromR??a.r,c=fromC??a.c;const dd=dist(r,c,r2,c2);
-  if(dd<t.rng[0]||dd>t.rng[1])return false;if(t.ind&&moved)return false;const x=G.map[r2][c2];if(x.t!=='bldg')return false;
-  if(t.ind)return visSet(a.nat).has(key(r2,c2));return los(r,c,eyeAt(a.type,r,c),r2,c2,Math.max(.5,x.f-.5));}
-function calcDmg(a,d,counter){const ta=UT[a.type],td=UT[d.type];let v=ta.atk[td.cls]||0;if(!v)return 0;
-  v*=.4+.6*a.hp/hpMax(a);const x=cell(d.r,d.c);let cov=td.fly?0:TT[x.t].cov;if(ta.ex&&x.t==='bldg')cov*=.5;if(x.smoke>0)cov+=.15;v*=1-cov;
-  const ax=cell(a.r,a.c);
-  if(a.type==='at'&&td.cls==='veh'&&(ax.t==='bldg'||ax.t==='rubble'))v*=1.25;
-  if(td.cls==='veh'&&ta.cls==='inf'&&dist(a.r,a.c,d.r,d.c)<=1)v*=1.2;
-  if(td.armor&&a.type!=='at'&&a.type!=='eng'&&a.type!=='tank')v*=.65;
-  if(eye(a)>=eye(d)+2&&!ta.ind)v*=1.15;
-  if(a.supp)v*=.7;v*=1+.1*(a.rank||0);if(counter)v*=.6;
-  return v;}
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
 function damageBldg(r,c,amt){const x=G.map[r][c];if(x.t!=='bldg'||amt<=0)return;x.bhp-=amt;bump();
   if(x.bhp<=0){const f0=x.f;x.t='rubble';x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom');L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
@@ -459,8 +424,8 @@ function afterMove(u){const x=cell(u.r,u.c);if(UT[u.type].cap&&x.obj!=null&&x.ow
     if(u.hp<=0){kill(u,w);break;}}
   bump();}
 function moveUnit(u,r,c){u.r=r;u.c=c;u.x=c+.5;u.z=r+.5;u.moved=true;bump();afterMove(u);}
-function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const vs=G.fog?visSet(u.nat):null;
-  for(const e of G.units){if(e.nat===u.nat)continue;if(vs&&!seen(e,u.nat,vs))continue;if(canHit(u,e,null,null,moved))out.push(key(e.r,e.c));}
+function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const vs=G.fog?1:null;
+  for(const e of G.units){if(e.nat===u.nat)continue;if(vs&&!seen(e,u.nat))continue;if(canHit(u,e,null,null,moved))out.push(key(e.r,e.c));}
   if(UT[u.type].ex){const R2=UT[u.type].rng[1];for(let r=Math.max(0,u.r-R2);r<=Math.min(N-1,u.r+R2);r++)for(let c=Math.max(0,u.c-R2);c<=Math.min(N-1,u.c+R2);c++){const k=key(r,c);if(out.includes(k))continue;
     const o=unitAt(r,c);if(o&&o.nat===u.nat)continue;if(canHitTile(u,r,c,null,null,moved))out.push(k);}}
   return out;}
@@ -483,6 +448,186 @@ function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.
     if(x.t==='bldg')damageBldg(a,b,kind==='air'?24:(ctr?9:6));}
   bump();return true;}
 
+/* ---- 04b-sight.js ---- */
+/* ===================== SIGHT: 칸 없는 시야 =====================
+   시야선은 부대의 실제 위치(x=열, z=행)에서 상대의 실제 위치까지 곧게 쏜 광선이다.
+   건물은 칸마다 상자(화면과 같은 여백 BLD_IN)로 보고, 광선이 상자를 지나는 구간에서
+   광선 높이가 건물보다 낮으면 막힌다. 높이 단위는 층.
+   시야 범위는 원형(유클리드 거리)이고, 전장의 안개는 한 칸을 FOW_R×FOW_R 점으로 잘게 나눠 계산한다. */
+const BLD_IN=.08;              // 건물 외벽이 칸 가장자리에서 들어간 정도 (07-view3d와 같게)
+const FOW_R=3;                 // 안개 해상도: 한 칸당 점 수 (가로·세로)
+const SPOT_HIDE=.6;            // 숨은 보병(건물·공원·연막 안)은 이 비율 거리에서야 발견된다
+const FIRE_REVEAL=4;           // 쏜 뒤 이 초 동안은 숨어 있어도 드러난다
+
+/* 부대의 현재 위치. AI가 가상의 칸(r,c)으로 옮겨 놓고 계산할 때는 그 칸 중심을 쓴다. */
+function posOf(u){if(u.x!=null&&Math.floor(u.x)===u.c&&Math.floor(u.z)===u.r)return [u.x,u.z];return [u.c+.5,u.r+.5];}
+const udist=(a,b)=>{const [ax,az]=posOf(a),[bx,bz]=posOf(b);return Math.hypot(ax-bx,az-bz);};
+
+/* 눈높이 (층 단위). 건물 안 보병은 그 건물 높이에서 본다. */
+function eyeAt(type,r,c){const t=UT[type];if(t.fly)return 9;const x=cell(r,c);if(x.t==='bldg')return Math.max(.5,x.f-.5);return t.cls==='veh'?.8:.5;}
+const eye=u=>eyeAt(u.type,u.r,u.c);
+/* 건물 높이(층). 많이 부서지면 낮아진다(화면과 같은 식). */
+function bldgH(x){if(x.t!=='bldg')return 0;const dmg=1-x.bhp/x.bmax;return dmg>.5?x.f*(1-(dmg-.5)*.6):x.f;}
+function blockH(x){if(x.smoke>0)return 99;return bldgH(x);}
+/* 건물 칸의 상자 [x0,x1,z0,z1]. 같은 블록 건물과 붙은 면은 여백 없이 잇는다. */
+function bldgBox(r,c){const x=G.map[r][c];const same=(a,b)=>inb(a,b)&&G.map[a][b].t==='bldg'&&x.blk!=null&&G.map[a][b].blk===x.blk;
+  return [c+(same(r,c-1)?0:BLD_IN),c+1-(same(r,c+1)?0:BLD_IN),r+(same(r-1,c)?0:BLD_IN),r+1-(same(r+1,c)?0:BLD_IN)];}
+/* 선분(x1,z1)→(x2,z2)이 상자를 지나는 구간 [t0,t1], 안 지나면 null */
+function segBox(x1,z1,x2,z2,b){let t0=0,t1=1;const dx=x2-x1,dz=z2-z1;
+  for(const [p,d,lo,hi] of [[x1,dx,b[0],b[1]],[z1,dz,b[2],b[3]]]){if(Math.abs(d)<1e-9){if(p<lo||p>hi)return null;continue;}
+    let a=(lo-p)/d,c=(hi-p)/d;if(a>c)[a,c]=[c,a];t0=Math.max(t0,a);t1=Math.min(t1,c);if(t0>t1)return null;}
+  return [t0,t1];}
+/* 시야선: 실제 좌표 사이. 지나는 칸을 DDA로 차례로 밟는다.
+   양 끝이 서 있는 칸(건물 안이면 바로 붙은 같은 블록 칸까지)은 가리지 않는다. */
+function losOwn(r,c,rr,cc){if(r===rr&&c===cc)return true;if(Math.abs(r-rr)>1||Math.abs(c-cc)>1)return false;const a=G.map[rr][cc],b=G.map[r][c];return a.t==='bldg'&&b.t==='bldg'&&a.blk!=null&&a.blk===b.blk;}
+function losPt(x1,z1,h1,x2,z2,h2){const dx=x2-x1,dz=z2-z1;if(dx*dx+dz*dz<.81)return true;
+  const r1=Math.floor(z1),c1=Math.floor(x1),r2=Math.floor(z2),c2=Math.floor(x2);
+  let c=c1,r=r1;const sx=dx>0?1:-1,sz=dz>0?1:-1;
+  const tdx=Math.abs(dx)>1e-12?Math.abs(1/dx):Infinity,tdz=Math.abs(dz)>1e-12?Math.abs(1/dz):Infinity;
+  let tmx=Math.abs(dx)>1e-12?((dx>0?c+1-x1:x1-c)*tdx):Infinity,tmz=Math.abs(dz)>1e-12?((dz>0?r+1-z1:z1-r)*tdz):Infinity;
+  for(let g=0;g<4*N;g++){if(tmx<tmz){c+=sx;tmx+=tdx;}else{r+=sz;tmz+=tdz;}
+    if(Math.min(tmx,tmz)>1+tdx&&Math.min(tmx,tmz)>1+tdz)break;
+    if(!inb(r,c))break;if(r===r2&&c===c2)break;
+    const x=G.map[r][c];if(!(x.smoke>0)&&x.t!=='bldg')continue;if(losOwn(r,c,r1,c1)||losOwn(r,c,r2,c2))continue;
+    if(x.t!=='bldg')return false;           // 연막
+    const bh=x.smoke>0?99:bldgH(x);const s=segBox(x1,z1,x2,z2,bldgBox(r,c));if(!s)continue;
+    const hmin=Math.min(h1+(h2-h1)*s[0],h1+(h2-h1)*s[1]);if(bh>=hmin-.05)return false;}
+  return true;}
+/* 예전 칸 단위 호출(칸 중심끼리)도 그대로 쓸 수 있게 둔다 */
+function los(r1,c1,h1,r2,c2,h2){return losPt(c1+.5,r1+.5,h1,c2+.5,r2+.5,h2);}
+/* 부대 a가 부대 b를 시야선으로 보는가 */
+function losU(a,b){const [ax,az]=posOf(a),[bx,bz]=posOf(b);return losPt(ax,az,eye(a),bx,bz,eye(b));}
+
+function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg')v+=x.f>=5?2:x.f>=3?1:0;
+  if(isNight())v-=t.fly?1:2;v+=WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
+/* 숨은 상태: 쏜 지 얼마 안 됐으면 드러난다 */
+const firedRecently=e=>e.firedT!=null&&(G.time||0)-e.firedT<FIRE_REVEAL;
+function concealed(e){const t=UT[e.type];if(t.fly||t.cls!=='inf')return false;if(firedRecently(e))return false;const x=cell(e.r,e.c);return x.t==='bldg'||x.t==='park'||x.smoke>0;}
+
+/* 지형 상태 요약: 시야 캐시를 지형이 바뀔 때만 버리려고 쓴다 */
+function terrSig(){const c=G._ts;if(c&&c.ver===G.ver)return c.s;let s=0;
+  for(let r=0;r<N;r++)for(let q=0;q<N;q++){const x=G.map[r][q];const v=(x.t==='bldg'?Math.round(bldgH(x)*2)*7+1:x.t==='rubble'?2:0)+(x.smoke>0?3:0);s=(Math.imul(s,31)+Math.round(v*10)+r*q)|0;}
+  G._ts={ver:G.ver,s};return s;}
+
+/* 한 부대가 보는 안개 점들: 사방으로 광선을 뻗어 가며 지금까지 가장 가파른 장애물보다 높이 보이는 점만 남긴다(높이맵 시야).
+   위치가 1/4칸 이상 움직이거나 지형이 바뀔 때만 다시 계산한다. */
+function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.round(uz*4)/4;const v=visRange(u),h=eye(u);const sig=terrSig();
+  const ck=qx+','+qz+','+v+','+h+','+sig+','+N;if(u._fov&&u._fov.k===ck)return u._fov.p;
+  const M=N*FOW_R;const r1=u.r,c1=u.c;
+  // 칸별 건물 상자·높이를 한 번만 구한다
+  const bx0=Math.max(0,Math.floor(qx-v)),bx1=Math.min(N-1,Math.floor(qx+v)),bz0=Math.max(0,Math.floor(qz-v)),bz1=Math.min(N-1,Math.floor(qz+v));
+  const W=bx1-bx0+1;const TB=new Array(W*(bz1-bz0+1));
+  for(let r=bz0;r<=bz1;r++)for(let c=bx0;c<=bx1;c++){const x=G.map[r][c];const own=losOwn(r,c,r1,c1);
+    TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0,own}:{b:null,h:0,sm:x.smoke>0,own};}
+  const gi0=Math.max(0,Math.floor((qx-v)*FOW_R)),gj0=Math.max(0,Math.floor((qz-v)*FOW_R)),GW=Math.min(M,Math.ceil((qx+v)*FOW_R)+1)-gi0,GH=Math.min(M,Math.ceil((qz+v)*FOW_R)+1)-gj0;
+  const mk=new Uint8Array(GW*GH);const mark=(px,pz)=>{const i=Math.floor(px*FOW_R)-gi0,j=Math.floor(pz*FOW_R)-gj0;if(i>=0&&j>=0&&i<GW&&j<GH)mk[j*GW+i]=1;};
+  mark(qx,qz);
+  const nr=Math.ceil(2*Math.PI*v*FOW_R*1.6),st=.5/FOW_R;
+  for(let k=0;k<nr;k++){const a=k/nr*2*Math.PI,cx=Math.cos(a),cz=Math.sin(a);let maxS=-Infinity;
+    for(let d=st;d<=v;d+=st){const px=qx+cx*d,pz=qz+cz*d;if(px<0||pz<0||px>=N||pz>=N)break;const r=Math.floor(pz),c=Math.floor(px);
+      const T=TB[(r-bz0)*W+c-bx0];if(!T)break;let bh=0,th=.3;
+      if(!(T.own&&d<1.5)){if(T.b&&px>=T.b[0]&&px<=T.b[1]&&pz>=T.b[2]&&pz<=T.b[3]){bh=T.h;th=Math.max(.5,T.h-.3);}if(T.sm)bh=99;}
+      if(d<.9||(th-h)/d>=maxS-.02)mark(px,pz);
+      if(bh>0){const sl=(bh-h)/d;if(sl>maxS)maxS=sl;}}}
+  const out=[];for(let j=0;j<GH;j++)for(let i=0;i<GW;i++)if(mk[j*GW+i])out.push((j+gj0)*M+i+gi0);
+  u._fov={k:ck,p:out};return out;}
+/* 세력 n의 시야: 칸 집합(예전 호환) + 잘게 나눈 안개 점(.fine). 위치가 계속 바뀌므로 0.25초마다 갱신 */
+function visSet(n){const ck='v'+n;G._vc=G._vc||{};const tq=Math.floor((G.time||0)*4);const c0=G._vc[ck];if(c0&&c0.ver===G.ver&&c0.tq===tq)return c0.s;
+  const M=N*FOW_R;const fine=new Uint8Array(M*M);const s=new Set();
+  for(const u of G.units){if(u.nat!==n)continue;for(const p of unitFov(u)){if(fine[p])continue;fine[p]=1;const i=p%M,j=(p-i)/M;s.add(key(Math.floor(j/FOW_R),Math.floor(i/FOW_R)));}
+    s.add(key(u.r,u.c));}
+  s.fine=fine;s.R=FOW_R;G._vc[ck]={ver:G.ver,tq,s};return s;}
+/* 실제 좌표 한 점이 세력 n에게 보이는가 */
+function seenPt(n,x,z){const s=visSet(n);const M=N*FOW_R;const i=Math.floor(x*FOW_R),j=Math.floor(z*FOW_R);if(i<0||j<0||i>=M||j>=M)return false;return !!s.fine[j*M+i];}
+
+/* 세력 n이 부대 e를 보는가: n의 부대 중 하나라도 시야 거리 안에서 시야선이 트이면 보인다.
+   숨은 보병은 더 가까이 와야 보이고, 건물 안 저격수는 바로 옆(1.5칸)이어야 보인다. 쏘면 잠시 드러난다. */
+function spots(u,e){const t=UT[e.type];let v=visRange(u)+(t.cls==='veh'?1:t.fly?1:0);
+  if(concealed(e))v*=SPOT_HIDE;
+  if(t.hide&&inside(e)&&!firedRecently(e)&&e.shot!==G.turn)v=Math.min(v,1.5);
+  const d=udist(u,e);if(d>v)return false;return d<.9||losU(u,e);}
+function seen(e,n,vs){if(!G.fog||e.nat===n)return true;
+  const ck='s'+n;G._sc=G._sc||{};const tq=Math.floor((G.time||0)*4);let c=G._sc[ck];if(!c||c.ver!==G.ver||c.tq!==tq){c=G._sc[ck]={ver:G.ver,tq,m:new Map()};}
+  const pk=e.id+':'+e.r+','+e.c;if(c.m.has(pk))return c.m.get(pk);
+  let ok=false;for(const u of G.units){if(u.nat!==n)continue;if(spots(u,e)){ok=true;break;}}
+  c.m.set(pk,ok);return ok;}
+
+/* ---------- 사격 가능 판정 ---------- */
+function canHit(a,d,fromR,fromC,moved){const t=UT[a.type];if(!t.rng[1])return false;
+  let ax,az,ae;if(fromR!=null){ax=fromC+.5;az=fromR+.5;ae=eyeAt(a.type,fromR,fromC);}else{[ax,az]=posOf(a);ae=eye(a);}
+  const [dx,dz]=posOf(d);const dd=Math.hypot(ax-dx,az-dz);
+  if(dd<t.rng[0]-.4||dd>t.rng[1]+.6)return false;if(!(t.atk[UT[d.type].cls]>0))return false;if(t.ind&&moved)return false;if(t.ind&&UT[d.type].fly)return false;
+  if(t.ind)return seen(d,a.nat);
+  return losPt(ax,az,ae,dx,dz,eye(d));}
+function canHitTile(a,r2,c2,fromR,fromC,moved){const t=UT[a.type];if(!t.ex||!t.rng[1])return false;
+  let ax,az,ae;if(fromR!=null){ax=fromC+.5;az=fromR+.5;ae=eyeAt(a.type,fromR,fromC);}else{[ax,az]=posOf(a);ae=eye(a);}
+  const dd=Math.hypot(ax-(c2+.5),az-(r2+.5));
+  if(dd<t.rng[0]-.4||dd>t.rng[1]+.6)return false;if(t.ind&&moved)return false;const x=G.map[r2][c2];if(x.t!=='bldg')return false;
+  if(t.ind)return visSet(a.nat).has(key(r2,c2));
+  // 건물 외벽 가장 가까운 점을 겨눈다
+  const b=bldgBox(r2,c2);const tx=Math.min(b[1],Math.max(b[0],ax)),tz=Math.min(b[3],Math.max(b[2],az));
+  return losPt(ax,az,ae,tx,tz,Math.max(.5,x.f-.5));}
+
+/* ---- 04c-cover.js ---- */
+/* ===================== COVER: 칸 없는 엄폐와 명중률 =====================
+   엄폐는 서 있는 칸 종류가 아니라 실제 위치와 쏘는 방향으로 정한다.
+   - 건물 안: 40% (폭발물은 절반만)
+   - 쏘는 쪽으로 반 칸 안에 건물 외벽이 있으면 벽 엄폐 35% (차량은 20%)
+   - 쏘는 쪽으로 차량·잔해 차량·소품(G.covers)이 붙어 있으면 그 물체의 엄폐 (보병만)
+   - 잔해 위 25%, 공원(나무) 15%. 연막 +15%, 제압당해 엎드린 보병 +10%
+   옆이나 뒤에서 쏘면 벽·차량 엄폐는 없다. 2층 이상 높은 곳에서 내려 쏘면 낮은 엄폐는 절반.
+   엄폐는 명중률을 깎는다. 피해 기댓값(calcDmg) = 기본 화력 × 명중률. */
+const COVK={bldg:{n:'건물 안',v:.4},wall:{n:'벽',v:.35},veh:{n:'차량',v:.3},wreck:{n:'잔해 차량',v:.3},prop:{n:'엄폐물',v:.25},car:{n:'차량',v:.3},barrier:{n:'방호벽',v:.35},hedge:{n:'덤불',v:.15},rubble:{n:'잔해',v:.25},park:{n:'나무',v:.15}};
+const VOLLEY={rifle:4,mg:6,at:1,sniper:1,eng:2,mortar:1,ifv:3,tank:1,drone:1};
+/* 엄폐물 목록: 지상 차량(서 있는 것) + 도시 소품·잔해 차량(G.covers: {x,z,r,cov,kind}) */
+function coverObjs(skip){const o=[];for(const u of G.units)if(u!==skip&&UT[u.type].cls==='veh'){const [x,z]=posOf(u);o.push({x,z,r:.22,cov:COVK.veh.v,kind:'veh'});}
+  if(G.covers)for(const c of G.covers)o.push(c);return o;}
+/* 점 (px,pz)에서 방향 (ux,uz)로 막아 주는 엄폐 */
+function dirCoverAt(px,pz,ux,uz,cls,skip,objs){let best={cov:0,kind:null};const put=(cov,kind)=>{if(cov>best.cov)best={cov,kind};};
+  const own=tileAt(px,pz);
+  for(const k of [.15,.3,.45]){const qx=px+ux*k,qz=pz+uz*k;const r=Math.floor(qz),c=Math.floor(qx);if(!inb(r,c))break;const x=G.map[r][c];
+    if(x.t==='bldg'&&x!==own){const b=bldgBox(r,c);if(qx>=b[0]&&qx<=b[1]&&qz>=b[2]&&qz<=b[3]){put(cls==='veh'?.2:COVK.wall.v,'wall');break;}}
+    if(x.t==='rubble'&&x!==own)put(.2,'rubble');}
+  if(cls==='inf')for(const o of objs||coverObjs(skip)){const vx=o.x-px,vz=o.z-pz,d=Math.hypot(vx,vz);const R=(o.r??.25)+.35;if(d>R||d<.02)continue;
+    if((vx*ux+vz*uz)/d>.45)put(o.cov??(COVK[o.kind]||COVK.prop).v,o.kind||'prop');}
+  return best;}
+/* 부대 d가 a의 사격에 대해 받는 엄폐 {cov, kind}. a가 없으면 어느 방향이든 가장 좋은 엄폐(표시용). */
+function coverOf(d,a){const td=UT[d.type];if(td.fly)return {cov:0,kind:null};const x=cell(d.r,d.c);
+  let best={cov:0,kind:null};const put=c=>{if(c.cov>best.cov)best=c;};
+  if(x.t==='bldg')put({cov:COVK.bldg.v,kind:'bldg'});
+  else{if(TT[x.t].cov)put({cov:TT[x.t].cov,kind:x.t});
+    const ind=a&&UT[a.type].ind;const [px,pz]=posOf(d);const objs=coverObjs(d);
+    if(!ind){let dirs;if(a){const [ax,az]=posOf(a);const L=Math.hypot(ax-px,az-pz)||1;dirs=[[(ax-px)/L,(az-pz)/L]];}else dirs=DIR8.map(([p,q])=>{const L=Math.hypot(p,q);return [q/L,p/L];});
+      const low=a&&eye(a)>=eye(d)+2;
+      for(const [ux,uz] of dirs){const c=dirCoverAt(px,pz,ux,uz,td.cls,d,objs);if(low)c.cov*=.5;put(c);}}
+    if(td.cls==='inf'&&d.supp>0&&best.cov>0)best={cov:best.cov+.1,kind:best.kind};}
+  if(x.smoke>0)best={cov:best.cov+.15,kind:best.kind||'smoke'};
+  return best;}
+/* 명중률 {p, cov, kind}: 거리에 따른 정확도 × (1 − 엄폐) */
+function hitP(a,d){const ta=UT[a.type];const rm=ta.rng[1]||1;const dd=udist(a,d);
+  const acc=a.type==='sniper'||ta.ind?1:Math.min(1,1.05-.3*Math.pow(dd/rm,2));
+  const c=coverOf(d,a);let cov=c.cov;if(ta.ex&&c.kind==='bldg')cov*=.5;
+  return {p:Math.max(0,acc*(1-Math.min(.85,cov))),cov,kind:c.kind};}
+/* 기본 화력(명중 시) */
+function rawDmg(a,d,counter){const ta=UT[a.type],td=UT[d.type];let v=ta.atk[td.cls]||0;if(!v)return 0;
+  v*=.4+.6*a.hp/hpMax(a);const ax=cell(a.r,a.c);
+  if(a.type==='at'&&td.cls==='veh'&&(ax.t==='bldg'||ax.t==='rubble'))v*=1.25;
+  if(td.cls==='veh'&&ta.cls==='inf'&&udist(a,d)<=1.2)v*=1.2;
+  if(td.armor&&a.type!=='at'&&a.type!=='eng'&&a.type!=='tank')v*=.65;
+  if(eye(a)>=eye(d)+2&&!ta.ind)v*=1.15;
+  if(a.supp)v*=.7;v*=1+.1*(a.rank||0);if(counter)v*=.6;
+  return v;}
+/* 피해 기댓값 (AI 판단, 턴제식 공격, 경계 사격에 쓴다) */
+function calcDmg(a,d,counter){const v=rawDmg(a,d,counter);if(!v)return 0;return v*hitP(a,d).p;}
+/* 이 지점 근처에 엄폐가 되는 자리가 있으면 그쪽으로 붙는다 (보병 이동 명령의 도착점) */
+function coverAt(px,pz,cls,objs){const t=tileAt(px,pz);if(!t)return 0;if(t.t==='bldg')return COVK.bldg.v;let b=TT[t.t].cov||0;
+  for(const [p,q] of DIR8){const L=Math.hypot(p,q);b=Math.max(b,dirCoverAt(px,pz,q/L,p/L,cls,null,objs).cov);}return b;}
+function coverSnap(u,x,z){if(UT[u.type].cls!=='inf')return [x,z];const objs=coverObjs(u);const c0=coverAt(x,z,'inf',objs);if(c0>=.3)return [x,z];
+  let best=[x,z],bs=c0+.05;
+  for(const rad of [.25,.45,.65])for(let i=0;i<12;i++){const a=i/12*Math.PI*2;const px=x+Math.cos(a)*rad,pz=z+Math.sin(a)*rad;if(!walkable(u,px,pz))continue;
+    const t=tileAt(px,pz);if(t.t==='bldg')continue;const s=coverAt(px,pz,'inf',objs)-rad*.1;if(s>bs){bs=s;best=[px,pz];}}
+  return best;}
+
 /* ---- 05-flow.js ---- */
 /* ===================== FLOW: 새 게임·승패·저장 ===================== */
 const START_FORCE=['rifle','rifle','rifle','mg','at','sniper','mortar','ifv'];
@@ -491,7 +636,7 @@ function zoneSpots(n){const o=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(inZo
 function newGame(cfg){cfg=cfg||{};const size=SIZES[cfg.size||'m']?cfg.size||'m':'m';N=SIZES[size].c;
   const seed=cfg.seed??Math.floor(Math.random()*1e9);const slots=cfg.slots||['human','ai','none','none'];
   const {map,objs}=genMap(seed,SIZES[size].obj);UID=1;
-  G={seed,size,map,objs,units:[],turn:1,cur:0,time:0,spd:1,paused:false,fog:cfg.fog!==false,log:[],ver:1,wx:'clear',diff:cfg.diff||'normal',speed:cfg.speed??140,
+  G={seed,size,map,objs,units:[],covers:[],turn:1,cur:0,time:0,spd:1,paused:false,fog:cfg.fog!==false,log:[],ver:1,wx:'clear',diff:cfg.diff||'normal',speed:cfg.speed??140,
     maxR:cfg.maxR||24,vpWin:cfg.vpWin||objs.length*6+12,hist:[],errs:[],scn:cfg.scn||null,
     nats:NATS.map((_,i)=>({ctrl:slots[i]||'none',cp:6,vp:0,alive:slots[i]&&slots[i]!=='none',kills:0,losses:0,used:0,dmg:0}))};
   const act=G.nats.map((x,i)=>x.alive?i:-1).filter(i=>i>=0);G.order=act;
@@ -517,7 +662,7 @@ function checkOver(){if(G.over)return G.over;const act=G.order.filter(i=>G.nats[
   if(G.turn>G.maxR){const score=n=>G.nats[n].vp*1000+objCount(n)*100+G.units.filter(u=>u.nat===n).length;top.sort((a,b)=>score(b)-score(a));G.over={win:top[0],why:`${G.maxR}라운드 종료, 승점 우세`};return G.over;}
   return null;}
 const SAVE_K='triad-urban-save';
-function save(){try{if(typeof localStorage==='undefined'||G.scn==='tut')return;const s=JSON.stringify({G,N,UID},(k,v)=>k==='_vc'?undefined:v);localStorage.setItem(SAVE_K,s);}catch(e){}}
+function save(){try{if(typeof localStorage==='undefined'||G.scn==='tut')return;const s=JSON.stringify({G,N,UID},(k,v)=>k[0]==='_'?undefined:v);localStorage.setItem(SAVE_K,s);}catch(e){}}
 function loadSave(){try{if(typeof localStorage==='undefined')return null;const s=localStorage.getItem(SAVE_K);if(!s)return null;const o=JSON.parse(s);if(!o.G||!o.G.map||o.G.over)return null;return o;}catch(e){return null;}}
 
 /* ---- 05b-realtime.js ---- */
@@ -556,7 +701,7 @@ function pathPts(u,x,z){x=Math.min(N-.05,Math.max(.05,x));z=Math.min(N-.05,Math.
   while(i<pts.length){let j=pts.length-1;while(j>i&&!segClear(u,cx,cz,pts[j][0],pts[j][1]))j--;out.push(pts[j]);[cx,cz]=pts[j];i=j+1;}
   return out;}
 /* 명령 */
-function orderMoveTo(u,x,z){u.path=pathPts(u,x,z);u.tgt=null;u.tgtTile=null;u.dest=[x,z];}
+function orderMoveTo(u,x,z){[x,z]=coverSnap(u,x,z);u.path=pathPts(u,x,z);u.tgt=null;u.tgtTile=null;u.dest=[x,z];}
 function orderMove(u,r,c){orderMoveTo(u,c+.5,r+.5);}
 function orderAttack(u,e){u.tgt=e.id;u.tgtTile=null;u.dest=null;u.path=canHit(u,e)?[]:pathPts(u,e.x,e.z);}
 function orderBldg(u,r,c){u.tgtTile=key(r,c);u.tgt=null;u.path=canHitTile(u,r,c)?[]:pathPts(u,c+.5,r+.5);}
@@ -567,18 +712,20 @@ function orderGroupMove(us,x,z){if(us.length===1){orderMoveTo(us[0],x,z);return;
   const slots=us.map((_,i)=>{const row=Math.floor(i/w),col=i%w-(w-1)/2;const lx=-row*sp,ly=col*sp;return [x+lx*Math.cos(ang)-ly*Math.sin(ang),z+lx*Math.sin(ang)+ly*Math.cos(ang)];});
   const left=us.slice();for(const s of slots){let bi=0,bd=1e9;left.forEach((u,i)=>{const d=Math.hypot(u.x-s[0],u.z-s[1]);if(d<bd){bd=d;bi=i;}});const u=left.splice(bi,1)[0];
     let [tx,tz]=s;if(!walkable(u,tx,tz)){tx=x;tz=z;}orderMoveTo(u,tx,tz);}}
-/* 사격 한 발 */
-function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.face=Math.atan2(d.z-a.z,d.x-a.x)*180/Math.PI;FXH.fire(a,d.r,d.c,d);
-  const dmg=Math.round(calcDmg(a,d,false)*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;d.hp=Math.round((d.hp-dmg)*10)/10;
-  if(ta.sup||ta.ex)d.supp=Math.max(d.supp||0,ta.sup?1.2:1);
+/* 사격 한 발: 분대가 VOLLEY발을 쏘고 한 발씩 명중률(엄폐·거리)로 맞았는지 굴린다 */
+function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(d.z-a.z,d.x-a.x)*180/Math.PI;
+  const h=hitP(a,d),k=VOLLEY[a.type]||1;let hits=0;for(let i=0;i<k;i++)if(Math.random()<h.p)hits++;
+  a.lastShot={t:G.time||0,hits,k,cover:h.kind,cov:h.cov,tgt:d.id};FXH.fire(a,d.r,d.c,d,a.lastShot);
+  const dmg=Math.round(rawDmg(a,d,false)*hits/k*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;if(ta.sup)d.supp=Math.max(d.supp||0,hits?1.2:.8);   // 기관총·박격포는 빗나가도 고개를 숙이게 한다
+  if(!hits)return 0;d.hp=Math.round((d.hp-dmg)*10)/10;if(ta.ex)d.supp=Math.max(d.supp||0,1);
   if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.max(1,Math.round(dmg*ta.ex*.8)));
   G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;if(d.hp<=0&&G.units.includes(d))kill(d,a);return dmg;}
-function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.face=Math.atan2(r-a.r,c-a.c)*180/Math.PI;FXH.fire(a,r,c);
+function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(r-a.r,c-a.c)*180/Math.PI;FXH.fire(a,r,c);
   const amt=Math.max(1,Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*DPS_K*COOL[a.type]*1.2*(.85+Math.random()*.3)));damageBldg(r,c,amt);
   const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.hp=Math.round((u.hp-amt*.2)*10)/10;u.supp=Math.max(u.supp||0,1);if(u.hp<=0)kill(u,a);}}
 /* 자동 표적: 가장 이득이 큰 적 */
-function rtPick(u){const vs=G.fog?visSet(u.nat):null;let best=null,bs=0;
-  for(const e of G.units){if(e.nat===u.nat||(vs&&!seen(e,u.nat,vs)))continue;if(Math.hypot(u.x-e.x,u.z-e.z)>UT[u.type].rng[1]+.6)continue;if(!canHit(u,e))continue;
+function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
+  for(const e of G.units){if(e.nat===u.nat||(vs&&!seen(e,u.nat)))continue;if(Math.hypot(u.x-e.x,u.z-e.z)>UT[u.type].rng[1]+.6)continue;if(!canHit(u,e))continue;
     const s=calcDmg(u,e,false)*UT[e.type].cost/Math.max(1,e.hp)+(u.tgt===e.id?99:0);if(s>bs){bs=s;best=e;}}
   return best;}
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);
@@ -656,8 +803,8 @@ function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
   u.r=sv;u.c=sc;s-=threat*UT[u.type].cost/hpMax(u)*.55;
   if(x.smoke>0)s+=2;return s;}
 /* 실시간 AI: 1.6~2.8초마다 한 번 생각한다. 지원 → 증원 → 부대마다 다음 자리 고르기. 사격은 부대가 알아서 한다. */
-function aiThink(n){const N2=G.nats[n];const vs=G.fog?visSet(n):null;
-  const vis=()=>G.units.filter(e=>e.nat!==n&&(!vs||seen(e,n,visSet(n))));
+function aiThink(n){const N2=G.nats[n];
+  const vis=()=>G.units.filter(e=>e.nat!==n&&seen(e,n));
   // 화력 지원
   {const E=vis();if(E.length&&N2.cp>=SUP.arty.cost+2&&(N2.supT||0)<=G.time){let best=null,bs=0;
       for(const e of E)for(const [a,b] of supArea(e.r,e.c,1)){let s=0;for(const [p,q] of supArea(a,b,1)){const o=unitAt(p,q);if(!o)continue;s+=o.nat===n?-UT[o.type].cost*1.5:UT[o.type].cost;}if(s>bs){bs=s;best=[a,b];}}
@@ -684,7 +831,7 @@ function aiThink(n){const N2=G.nats[n];const vs=G.fog?visSet(n):null;
       if(!t.ind)for(const e of E){if(dist(r,c,e.r,e.c)>t.rng[1])continue;const v=aiAtkScore(u,e,r,c,true);if(v>as)as=v;}
       else if(k!==key(u.r,u.c))s-=3;
       s+=as*.8;if(k===key(u.r,u.c))s+=1.5;if(s>bestS){bestS=s;bestT=k;}}
-    if(bestT!==key(u.r,u.c)){const jx=kc(bestT)+.2+Math.random()*.6,jz=kr(bestT)+.2+Math.random()*.6;u.path=pathPts(u,jx,jz);u.tgt=null;}}
+    if(bestT!==key(u.r,u.c)){const [jx,jz]=coverSnap(u,kc(bestT)+.2+Math.random()*.6,kr(bestT)+.2+Math.random()*.6);u.path=pathPts(u,jx,jz);u.tgt=null;}}
   checkOver();}
 
 /* ---- 07-view3d.js ---- */
@@ -771,7 +918,9 @@ function v3FowMat(mat){mat.onBeforeCompile=sh=>{sh.uniforms.fowMap=V3.fowU.map;s
     sh.vertexShader='varying vec2 vFowW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 fowP=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nfowP=instanceMatrix*fowP;\n#endif\nvFowW=(modelMatrix*fowP).xz;');
     sh.fragmentShader='uniform sampler2D fowMap;uniform float fowN;varying vec2 vFowW;\n'+sh.fragmentShader.replace('#include <fog_fragment>','{float fv=texture2D(fowMap,vFowW/fowN).r;vec3 gy=vec3(dot(gl_FragColor.rgb,vec3(.3,.59,.11)));gl_FragColor.rgb=mix(gy*vec3(.5,.54,.6),gl_FragColor.rgb,fv);}\n#include <fog_fragment>');};
   mat.customProgramCacheKey=()=>'fow';}
-function v3FowUpd(vs){if(!V3.fowD)return;const d=V3.fowD;for(let r=0;r<N;r++)for(let c=0;c<N;c++)d[(r*N+c)*4]=!vs||vs.has(key(r,c))?255:0;V3.fowT.needsUpdate=true;}
+// 안개 텍스처: 한 칸을 FOW_R×FOW_R 점으로 (04b-sight의 잘게 나눈 시야). 선형 보간으로 경계가 부드럽다.
+function v3FowUpd(vs){if(!V3.fowD)return;const d=V3.fowD,M=N*FOW_R;if(d.length!==M*M*4)return;const f=vs&&vs.fine;
+  if(V3.fowSrc===f&&f)return;V3.fowSrc=f;for(let i=0;i<M*M;i++)d[i*4]=!f||f[i]?255:0;V3.fowT.needsUpdate=true;}
 function v3PixelRatio(){const d=window.devicePixelRatio||1;return Math.max(.5,Math.min(1.1,d*.55));}
 function v3Size(){if(!V3.ren)return;const a=$('#app');const w=a.clientWidth,h=a.clientHeight;V3.ren.setPixelRatio(v3PixelRatio());V3.ren.setSize(w,h,false);V3.cam.aspect=w/Math.max(1,h);V3.cam.fov=V3.cam.aspect<1?Math.min(62,38/Math.sqrt(V3.cam.aspect)):38;V3.cam.updateProjectionMatrix();}
 
@@ -860,7 +1009,7 @@ function v3DeadTree(){const T=V3.T;if(V3.treeG)return V3.treeG;const parts=[];co
   let n=0;for(const g of parts)n+=g.attributes.position.count;const P=new Float32Array(n*3);let o=0;for(const g of parts){P.set(g.attributes.position.array,o);o+=g.attributes.position.array.length;g.dispose();}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.computeVertexNormals();V3.treeG=geo;return geo;}
 function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
-  if(!V3.fowT||V3.fowT.image.width!==N){if(V3.fowT)V3.fowT.dispose();V3.fowD=new Uint8Array(N*N*4).fill(255);V3.fowT=new T.DataTexture(V3.fowD,N,N);V3.fowT.magFilter=V3.fowT.minFilter=T.LinearFilter;V3.fowT.needsUpdate=true;V3.fowU.map.value=V3.fowT;V3.fowU.n.value=N;}
+  const FM=N*FOW_R;if(!V3.fowT||V3.fowT.image.width!==FM){if(V3.fowT)V3.fowT.dispose();V3.fowD=new Uint8Array(FM*FM*4).fill(255);V3.fowT=new T.DataTexture(V3.fowD,FM,FM);V3.fowT.magFilter=V3.fowT.minFilter=T.LinearFilter;V3.fowT.needsUpdate=true;V3.fowU.map.value=V3.fowT;V3.fowU.n.value=N;}
   if(M.terr.map)M.terr.map.dispose();M.terr.map=v3GroundTex();M.terr.needsUpdate=true;
   const gp=new T.Mesh(new T.PlaneGeometry(N,N),M.terr);gp.rotation.x=-Math.PI/2;gp.position.set(N/2,0,N/2);gp.receiveShadow=true;g.add(gp);
   const m4=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(),ps=new T.Vector3();const trees=[];
@@ -1044,7 +1193,7 @@ function v3SyncSmoke(){const T=V3.T,g=V3.G.amb;for(const sp of V3.smoke)g.remove
 function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
   for(const o of G.objs){const x=G.map[o.r][o.c];const [px0,pz]=v3x(o.r,o.c);want.set('o'+x.obj,{html:`<span>${o.name}</span>`,cls:'v3c',col:mapCol(x.owner),p:[px0,v3Top(o.r,o.c)+1.05,pz]});}
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;const hm=hpMax(u);const hc=u.hp>hm*.6?'#5cd18a':u.hp>hm*.3?'#f0b23a':'#ff5a4e';
-    const tags=(u.supp?'<em title="제압">제압</em>':'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
+    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
     want.set('u'+u.id,{html:`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
   for(const [id,o] of V3.labels)if(!want.has(id)){o.el.remove();V3.labels.delete(id);}
   for(const [id,w] of want){let o=V3.labels.get(id);if(!o){const el=document.createElement('div');el.className='v3l '+w.cls;lab.appendChild(el);o={el};V3.labels.set(id,o);}
@@ -1217,7 +1366,7 @@ function renderHUD(){const h=hourOf(),vn=G.viewer,N2=G.nats[vn];const night=isNi
   $('#app').classList.toggle('sheet-open',!!UI.sheet);$('#sheet').hidden=!UI.sheet;
   const g=$('#b-grid');if(g)g.setAttribute('aria-pressed',UI.grid?'true':'false');const sn=$('#b-snd');if(sn)sn.setAttribute('aria-pressed',SFX.on?'true':'false');}
 function uInfo(u){const t=UT[u.type];const x=cell(u.r,u.c);const where=x.t==='bldg'?`건물 ${x.f}층`:TT[x.t].n;
-  const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';return `체력 ${Math.ceil(u.hp)}/${hpMax(u)} · ${where} · ${st}${u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${u.rank?' · 숙련 '+u.rank:''}`;}
+  const st=u.path&&u.path.length?'이동 중':u.tgt!=null?'교전 명령':'대기';const cv=coverOf(u);const cvt=cv.cov>0&&cv.kind!=='bldg'?` · 엄폐 ${(COVK[cv.kind]||{n:'연막'}).n} ${Math.round(cv.cov*100)}%`:'';return `체력 ${Math.ceil(u.hp)}/${hpMax(u)} · ${where}${cvt} · ${st}${u.supp>0?' · 제압됨':''}${u.hold?' · 자리 고수':''}${u.rank?' · 숙련 '+u.rank:''}`;}
 function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.hidden=false;let h='';const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;if(UI.sel&&!s)clearSel();
   if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':NATS[w].full+' 승리'}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="new" id="ab-new">새 작전</button></div>`;return;}
   if(G.boot||isAI(n)){el.innerHTML=`<b>관전</b><span>AI끼리 싸우는 중</span>`;return;}

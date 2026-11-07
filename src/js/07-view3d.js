@@ -81,7 +81,9 @@ function v3FowMat(mat){mat.onBeforeCompile=sh=>{sh.uniforms.fowMap=V3.fowU.map;s
     sh.vertexShader='varying vec2 vFowW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 fowP=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nfowP=instanceMatrix*fowP;\n#endif\nvFowW=(modelMatrix*fowP).xz;');
     sh.fragmentShader='uniform sampler2D fowMap;uniform float fowN;varying vec2 vFowW;\n'+sh.fragmentShader.replace('#include <fog_fragment>','{float fv=texture2D(fowMap,vFowW/fowN).r;vec3 gy=vec3(dot(gl_FragColor.rgb,vec3(.3,.59,.11)));gl_FragColor.rgb=mix(gy*vec3(.5,.54,.6),gl_FragColor.rgb,fv);}\n#include <fog_fragment>');};
   mat.customProgramCacheKey=()=>'fow';}
-function v3FowUpd(vs){if(!V3.fowD)return;const d=V3.fowD;for(let r=0;r<N;r++)for(let c=0;c<N;c++)d[(r*N+c)*4]=!vs||vs.has(key(r,c))?255:0;V3.fowT.needsUpdate=true;}
+// 안개 텍스처: 한 칸을 FOW_R×FOW_R 점으로 (04b-sight의 잘게 나눈 시야). 선형 보간으로 경계가 부드럽다.
+function v3FowUpd(vs){if(!V3.fowD)return;const d=V3.fowD,M=N*FOW_R;if(d.length!==M*M*4)return;const f=vs&&vs.fine;
+  if(V3.fowSrc===f&&f)return;V3.fowSrc=f;for(let i=0;i<M*M;i++)d[i*4]=!f||f[i]?255:0;V3.fowT.needsUpdate=true;}
 function v3PixelRatio(){const d=window.devicePixelRatio||1;return Math.max(.5,Math.min(1.1,d*.55));}
 function v3Size(){if(!V3.ren)return;const a=$('#app');const w=a.clientWidth,h=a.clientHeight;V3.ren.setPixelRatio(v3PixelRatio());V3.ren.setSize(w,h,false);V3.cam.aspect=w/Math.max(1,h);V3.cam.fov=V3.cam.aspect<1?Math.min(62,38/Math.sqrt(V3.cam.aspect)):38;V3.cam.updateProjectionMatrix();}
 
@@ -170,7 +172,7 @@ function v3DeadTree(){const T=V3.T;if(V3.treeG)return V3.treeG;const parts=[];co
   let n=0;for(const g of parts)n+=g.attributes.position.count;const P=new Float32Array(n*3);let o=0;for(const g of parts){P.set(g.attributes.position.array,o);o+=g.attributes.position.array.length;g.dispose();}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.computeVertexNormals();V3.treeG=geo;return geo;}
 function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
-  if(!V3.fowT||V3.fowT.image.width!==N){if(V3.fowT)V3.fowT.dispose();V3.fowD=new Uint8Array(N*N*4).fill(255);V3.fowT=new T.DataTexture(V3.fowD,N,N);V3.fowT.magFilter=V3.fowT.minFilter=T.LinearFilter;V3.fowT.needsUpdate=true;V3.fowU.map.value=V3.fowT;V3.fowU.n.value=N;}
+  const FM=N*FOW_R;if(!V3.fowT||V3.fowT.image.width!==FM){if(V3.fowT)V3.fowT.dispose();V3.fowD=new Uint8Array(FM*FM*4).fill(255);V3.fowT=new T.DataTexture(V3.fowD,FM,FM);V3.fowT.magFilter=V3.fowT.minFilter=T.LinearFilter;V3.fowT.needsUpdate=true;V3.fowU.map.value=V3.fowT;V3.fowU.n.value=N;}
   if(M.terr.map)M.terr.map.dispose();M.terr.map=v3GroundTex();M.terr.needsUpdate=true;
   const gp=new T.Mesh(new T.PlaneGeometry(N,N),M.terr);gp.rotation.x=-Math.PI/2;gp.position.set(N/2,0,N/2);gp.receiveShadow=true;g.add(gp);
   const m4=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(),ps=new T.Vector3();const trees=[];
@@ -354,7 +356,7 @@ function v3SyncSmoke(){const T=V3.T,g=V3.G.amb;for(const sp of V3.smoke)g.remove
 function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
   for(const o of G.objs){const x=G.map[o.r][o.c];const [px0,pz]=v3x(o.r,o.c);want.set('o'+x.obj,{html:`<span>${o.name}</span>`,cls:'v3c',col:mapCol(x.owner),p:[px0,v3Top(o.r,o.c)+1.05,pz]});}
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;const hm=hpMax(u);const hc=u.hp>hm*.6?'#5cd18a':u.hp>hm*.3?'#f0b23a':'#ff5a4e';
-    const tags=(u.supp?'<em title="제압">제압</em>':'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
+    const cv=u.nat===vn&&!UT[u.type].fly?coverOf(u):null;const tags=(u.supp?'<em title="제압">제압</em>':'')+(cv&&cv.cov>=.2?`<u class="cv" title="엄폐: ${(COVK[cv.kind]||{n:'연막'}).n}">엄폐</u>`:'')+(u.ow?'<u>경계</u>':'')+(u.rank?`<b>${'^'.repeat(u.rank)}</b>`:'');
     want.set('u'+u.id,{html:`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
   for(const [id,o] of V3.labels)if(!want.has(id)){o.el.remove();V3.labels.delete(id);}
   for(const [id,w] of want){let o=V3.labels.get(id);if(!o){const el=document.createElement('div');el.className='v3l '+w.cls;lab.appendChild(el);o={el};V3.labels.set(id,o);}

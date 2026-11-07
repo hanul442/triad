@@ -33,7 +33,7 @@ function pathPts(u,x,z){x=Math.min(N-.05,Math.max(.05,x));z=Math.min(N-.05,Math.
   while(i<pts.length){let j=pts.length-1;while(j>i&&!segClear(u,cx,cz,pts[j][0],pts[j][1]))j--;out.push(pts[j]);[cx,cz]=pts[j];i=j+1;}
   return out;}
 /* 명령 */
-function orderMoveTo(u,x,z){u.path=pathPts(u,x,z);u.tgt=null;u.tgtTile=null;u.dest=[x,z];}
+function orderMoveTo(u,x,z){[x,z]=coverSnap(u,x,z);u.path=pathPts(u,x,z);u.tgt=null;u.tgtTile=null;u.dest=[x,z];}
 function orderMove(u,r,c){orderMoveTo(u,c+.5,r+.5);}
 function orderAttack(u,e){u.tgt=e.id;u.tgtTile=null;u.dest=null;u.path=canHit(u,e)?[]:pathPts(u,e.x,e.z);}
 function orderBldg(u,r,c){u.tgtTile=key(r,c);u.tgt=null;u.path=canHitTile(u,r,c)?[]:pathPts(u,c+.5,r+.5);}
@@ -44,18 +44,20 @@ function orderGroupMove(us,x,z){if(us.length===1){orderMoveTo(us[0],x,z);return;
   const slots=us.map((_,i)=>{const row=Math.floor(i/w),col=i%w-(w-1)/2;const lx=-row*sp,ly=col*sp;return [x+lx*Math.cos(ang)-ly*Math.sin(ang),z+lx*Math.sin(ang)+ly*Math.cos(ang)];});
   const left=us.slice();for(const s of slots){let bi=0,bd=1e9;left.forEach((u,i)=>{const d=Math.hypot(u.x-s[0],u.z-s[1]);if(d<bd){bd=d;bi=i;}});const u=left.splice(bi,1)[0];
     let [tx,tz]=s;if(!walkable(u,tx,tz)){tx=x;tz=z;}orderMoveTo(u,tx,tz);}}
-/* 사격 한 발 */
-function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.face=Math.atan2(d.z-a.z,d.x-a.x)*180/Math.PI;FXH.fire(a,d.r,d.c,d);
-  const dmg=Math.round(calcDmg(a,d,false)*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;d.hp=Math.round((d.hp-dmg)*10)/10;
-  if(ta.sup||ta.ex)d.supp=Math.max(d.supp||0,ta.sup?1.2:1);
+/* 사격 한 발: 분대가 VOLLEY발을 쏘고 한 발씩 명중률(엄폐·거리)로 맞았는지 굴린다 */
+function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(d.z-a.z,d.x-a.x)*180/Math.PI;
+  const h=hitP(a,d),k=VOLLEY[a.type]||1;let hits=0;for(let i=0;i<k;i++)if(Math.random()<h.p)hits++;
+  a.lastShot={t:G.time||0,hits,k,cover:h.kind,cov:h.cov,tgt:d.id};FXH.fire(a,d.r,d.c,d,a.lastShot);
+  const dmg=Math.round(rawDmg(a,d,false)*hits/k*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;if(ta.sup)d.supp=Math.max(d.supp||0,hits?1.2:.8);   // 기관총·박격포는 빗나가도 고개를 숙이게 한다
+  if(!hits)return 0;d.hp=Math.round((d.hp-dmg)*10)/10;if(ta.ex)d.supp=Math.max(d.supp||0,1);
   if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.max(1,Math.round(dmg*ta.ex*.8)));
   G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;if(d.hp<=0&&G.units.includes(d))kill(d,a);return dmg;}
-function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.face=Math.atan2(r-a.r,c-a.c)*180/Math.PI;FXH.fire(a,r,c);
+function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(r-a.r,c-a.c)*180/Math.PI;FXH.fire(a,r,c);
   const amt=Math.max(1,Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*DPS_K*COOL[a.type]*1.2*(.85+Math.random()*.3)));damageBldg(r,c,amt);
   const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.hp=Math.round((u.hp-amt*.2)*10)/10;u.supp=Math.max(u.supp||0,1);if(u.hp<=0)kill(u,a);}}
 /* 자동 표적: 가장 이득이 큰 적 */
-function rtPick(u){const vs=G.fog?visSet(u.nat):null;let best=null,bs=0;
-  for(const e of G.units){if(e.nat===u.nat||(vs&&!seen(e,u.nat,vs)))continue;if(Math.hypot(u.x-e.x,u.z-e.z)>UT[u.type].rng[1]+.6)continue;if(!canHit(u,e))continue;
+function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
+  for(const e of G.units){if(e.nat===u.nat||(vs&&!seen(e,u.nat)))continue;if(Math.hypot(u.x-e.x,u.z-e.z)>UT[u.type].rng[1]+.6)continue;if(!canHit(u,e))continue;
     const s=calcDmg(u,e,false)*UT[e.type].cost/Math.max(1,e.hp)+(u.tgt===e.id?99:0);if(s>bs){bs=s;best=e;}}
   return best;}
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);

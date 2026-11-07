@@ -26,8 +26,8 @@ function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
   u.r=sv;u.c=sc;s-=threat*UT[u.type].cost/hpMax(u)*.55;
   if(x.smoke>0)s+=2;return s;}
 /* 실시간 AI: 1.6~2.8초마다 한 번 생각한다. 지원 → 증원 → 부대마다 다음 자리 고르기. 사격은 부대가 알아서 한다. */
-function aiThink(n){const N2=G.nats[n];const vs=G.fog?visSet(n):null;
-  const vis=()=>G.units.filter(e=>e.nat!==n&&(!vs||seen(e,n,visSet(n))));
+function aiThink(n){const N2=G.nats[n];
+  const vis=()=>G.units.filter(e=>e.nat!==n&&seen(e,n));
   // 화력 지원
   {const E=vis();if(E.length&&N2.cp>=SUP.arty.cost+2&&(N2.supT||0)<=G.time){let best=null,bs=0;
       for(const e of E)for(const [a,b] of supArea(e.r,e.c,1)){let s=0;for(const [p,q] of supArea(a,b,1)){const o=unitAt(p,q);if(!o)continue;s+=o.nat===n?-UT[o.type].cost*1.5:UT[o.type].cost;}if(s>bs){bs=s;best=[a,b];}}
@@ -54,5 +54,5 @@ function aiThink(n){const N2=G.nats[n];const vs=G.fog?visSet(n):null;
       if(!t.ind)for(const e of E){if(dist(r,c,e.r,e.c)>t.rng[1])continue;const v=aiAtkScore(u,e,r,c,true);if(v>as)as=v;}
       else if(k!==key(u.r,u.c))s-=3;
       s+=as*.8;if(k===key(u.r,u.c))s+=1.5;if(s>bestS){bestS=s;bestT=k;}}
-    if(bestT!==key(u.r,u.c)){const jx=kc(bestT)+.2+Math.random()*.6,jz=kr(bestT)+.2+Math.random()*.6;u.path=pathPts(u,jx,jz);u.tgt=null;}}
+    if(bestT!==key(u.r,u.c)){const [jx,jz]=coverSnap(u,kc(bestT)+.2+Math.random()*.6,kr(bestT)+.2+Math.random()*.6);u.path=pathPts(u,jx,jz);u.tgt=null;}}
   checkOver();}
