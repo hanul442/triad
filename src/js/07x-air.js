@@ -1,7 +1,7 @@
 /* ===================== 공중전 연출 =====================
    공격헬기·FPV 드론·대공포 차량 모형, 대공미사일과 플레어, 빗나가는 대공 사격, 격추되어 떨어지는 기체,
    전투기 진입과 폭탄, 전자전팀의 방해 반경 표시. 시간은 게임 시간(G.time)으로 재서 배속·일시정지를 따른다. */
-Object.assign(FXH,{jet:j=>v3Jet(j),jetDown:(j,x,z)=>{j.down=[x,z];},bomb:(r,c)=>v3Bomb(r,c),crash:cr=>v3Crash(cr),fpvBoom:(u,e)=>v3FpvBoom(u,e),aaShot:(e,j)=>v3AaAtJet(e,j),launch:(u,f)=>v3Launch(u,f)});
+Object.assign(FXH,{jet:j=>v3Jet(j),jetDown:(j,x,z)=>{j.down=[x,z];},bomb:(r,c)=>v3Bomb(r,c),crash:cr=>v3Crash(cr),fpvBoom:(u,e)=>v3FpvBoom(u,e),aaShot:(e,j)=>v3AaAtJet(e,j),fpvLaunch:(u,f)=>v3Launch(u,f)});
 const AIRC={body:'#3d4038',dark:'#22231f'};
 function v3AirMats(){if(V3.airM)return V3.airM;const T=V3.T;
   V3.airM={body:new T.MeshStandardMaterial({color:AIRC.body,roughness:.75,metalness:.2,flatShading:true}),dark:V3.M.dark,glass:new T.MeshStandardMaterial({color:'#2b3a40',roughness:.2,metalness:.6}),
@@ -42,9 +42,9 @@ function v3AirY(u){const top=(x,z)=>{let h=0;const r0=Math.floor(z),c0=Math.floo
 /* ---------- 사격 ---------- */
 // 하늘을 향한 사격·대공미사일·헬기 로켓은 여기서 그린다. 처리했으면 true.
 function v3AirFire(a,r,c,d,shot){if(!V3.on)return false;const ta=UT[a.type];
-  if(a.type==='aa'&&d){v3Missile(a,d,shot&&shot.hits>0);sfx('launch',.8);return true;}
+  if(a.type==='aa'&&d){v3Missile(a,d,shot&&shot.hits>0);sndLaunch(a.x,a.z,'missile');return true;}
   if(a.type==='gunship'&&d){v3Rockets(a,d,shot);return true;}
-  if(d&&UT[d.type].fly){v3FlakTracers(a,d,shot);sfx(a.type==='zu'?'flak':'shot',.7);return true;}
+  if(d&&UT[d.type].fly){v3FlakTracers(a,d,shot);sndShot(a);return true;}
   return false;}
 const v3P=u=>{const o=V3.uo.get(u.id);if(o)return [o.position.x,o.position.y+(UT[u.type].fly?0:.1),o.position.z];return [u.x,v3UnitY(u)+.1,u.z];};
 function v3Trail(x,y,z,col,sz,dur){const T=V3.T;const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:col||'#cfc8bb',transparent:true,depthWrite:false,opacity:.55}));s.position.set(x,y,z);V3.G.fx.add(s);
@@ -75,11 +75,11 @@ function v3Flares(d){const T=V3.T;const [x,y,z]=v3P(d);for(let i=0;i<8;i++){cons
   const a=i/8*6.283+Math.random()*.4,v=.5+Math.random()*.5;let last=0;V3.fx.push({o:s,t0:performance.now()+i*40,dur:2200,upd:(o,k)=>{const px=x+Math.cos(a)*v*k*1.6,pz=z+Math.sin(a)*v*k*1.6,py=y-k*k*1.6+k*.3;o.position.set(px,py,pz);o.scale.setScalar(.14*(1-k*.6));o.material.opacity=1-k;
     const now=performance.now();if(now-last>90){last=now;v3Trail(px,py,pz,'#bdb6a8',.05,1400);}}});}}
 // 공격헬기: 로켓 두 발(연기 꼬리)과 기관포 예광탄
-function v3Rockets(a,d,shot){const T=V3.T;const [x1,y1,z1]=v3P(a);const [x2,y2,z2]=v3P(d);sfx('launch',.7);
+function v3Rockets(a,d,shot){const T=V3.T;const [x1,y1,z1]=v3P(a);const [x2,y2,z2]=v3P(d);sndLaunch(x1,z1,'rocket');
   for(let i=0;i<2;i++){const sx=(Math.random()-.5)*.3,sz=(Math.random()-.5)*.3;const hit=shot&&shot.hits>i;const ex=x2+(hit?0:sx*2),ez=z2+(hit?0:sz*2),ey=hit?y2:Math.max(0,y2-.05);
     const m=new T.Mesh(V3.misG||(V3.misG=new T.BoxGeometry(.06,.014,.014)),new T.MeshBasicMaterial({color:'#ffd9a0'}));m.userData.keepGeo=1;V3.G.fx.add(m);let last=0;const L=Math.hypot(ex-x1,ey-y1,ez-z1);
     V3.fx.push({o:m,t0:performance.now()+i*160,dur:250+L*60,upd:(o,k)=>{const x=x1+(ex-x1)*k,y=y1+(ey-y1)*k,z=z1+(ez-z1)*k;o.position.set(x,y,z);o.lookAt(ex,ey,ez);o.rotateY(Math.PI/2);const now=performance.now();if(now-last>30){last=now;v3Trail(x,y,z,'#cfc8bb',.07,1500);}
-      if(k>=.97&&!o.userData.done){o.userData.done=1;v3Burst(ex,ey,ez,.7,'#ff8a3d',3,1.4);dsScar('scorch',ex,ez,.1);dsSpray(ex,ey,ez,22,.5);dsDust(ex,ez,.8,5000,3);V3.shake=Math.max(V3.shake,.05);sfx('hit',.7);}}});}
+      if(k>=.97&&!o.userData.done){o.userData.done=1;v3Burst(ex,ey,ez,.7,'#ff8a3d',3,1.4);dsScar('scorch',ex,ez,.1);dsSpray(ex,ey,ez,22,.5);dsDust(ex,ez,.8,5000,3);V3.shake=Math.max(V3.shake,.05);sfx('hit',1.3,ex,ez);}}});}
   for(let i=0;i<3;i++){const o=new T.Mesh(V3.tracerG||(V3.tracerG=new T.BoxGeometry(.012,.012,.35)),new T.MeshBasicMaterial({color:'#ffcf7a',blending:T.AdditiveBlending,transparent:true,depthWrite:false}));o.userData.keepGeo=1;
     const ex=x2+(Math.random()-.5)*.3,ez=z2+(Math.random()-.5)*.3;o.lookAt(ex-x1,y2-y1,ez-z1);V3.G.fx.add(o);V3.fx.push({o,t0:performance.now()+300+i*80,dur:220,upd:(sh,k)=>{sh.position.set(x1+(ex-x1)*k,y1+(y2-y1)*k,z1+(ez-z1)*k);if(k>.95)v3Impact(ex,y2-.05,ez);}});}
   v3Burst(x1,y1-.05,z1,.25,'#ffd27a',0,.5);}
@@ -88,17 +88,17 @@ function v3Rockets(a,d,shot){const T=V3.T;const [x1,y1,z1]=v3P(a);const [x2,y2,z
 function v3AirKill(u){if(!V3.on)return;const o=V3.uo.get(u.id);if(!o)return;const T=V3.T;const heli=!!UT[u.type].heli;const w=o.userData.body.clone();
   w.traverse(m=>{if(m.isMesh){m.userData.keepGeo=1;m.userData.keepMat=1;}});const x0=o.position.x,y0=o.position.y,z0=o.position.z;w.position.set(x0,y0,z0);w.rotation.y=o.userData.body.rotation.y;
   V3.G.fx.add(w);const t0=G.time||0,fall=heli?2.2:1;const gy=v3TopAt(x0,z0)+(heli?.08:.02);const dx=(Math.random()-.5)*(heli?.8:.4),dz=(Math.random()-.5)*(heli?.8:.4);let last=0,landed=false;
-  v3Burst(x0,y0,z0,heli?1:.35,'#ff8a3d',heli?3:1,heli?3:.6);if(heli){V3.shake=Math.max(V3.shake,.08);sfx('boom',.8);}
+  v3Burst(x0,y0,z0,heli?1:.35,'#ff8a3d',heli?3:1,heli?3:.6);if(heli){V3.shake=Math.max(V3.shake,.08);sfx('boom',1.1,x0,z0);}
   V3.fx.push({o:w,t0:performance.now(),dur:heli?120000:fall*1000+400,upd:(ob)=>{const t=(G.time||0)-t0;const k=Math.min(1,t/fall);const now=performance.now();
     if(!landed){ob.position.set(x0+dx*k,y0+(gy-y0)*k*k,z0+dz*k);if(heli){ob.rotation.y+=.016*(3+k*10);ob.rotation.z=k*.5;}else{ob.rotation.x+=.2;ob.rotation.z+=.13;}
       if(now-last>(heli?50:80)){last=now;v3Trail(ob.position.x,ob.position.y,ob.position.z,heli?'#3b3833':'#5a554d',heli?.16:.06,heli?3200:1500);if(heli&&Math.random()<.5)v3Burst(ob.position.x,ob.position.y,ob.position.z,.3,'#ff7a2a',0,0);}
       if(k>=1){landed=true;const X=ob.position.x,Z=ob.position.z;
-        if(heli){v3Burst(X,gy,Z,2,'#ff6a1a',8,6);dsSpray(X,gy,Z,120,1.3);dsScar('crater',X,Z,.35);dsFires(X,Z,4,60000,.6);dsDust(X,Z,2,16000,10);dsColumn(X,Z,1.2);V3.shake=Math.max(V3.shake,.3);
+        if(heli){v3Burst(X,gy,Z,2,'#ff6a1a',8,6);dsSpray(X,gy,Z,120,1.3);dsScar('crater',X,Z,.35);dsFires(X,Z,4,30000,.6);dsDust(X,Z,2,16000,10);dsColumn(X,Z,1.2);V3.shake=Math.max(V3.shake,.3);
           ob.rotation.x=.3;ob.rotation.z=1.1;ob.position.y=gy-.02;ob.traverse(m=>{if(m.isMesh){m.material=V3.wreckM||(V3.wreckM=new T.MeshStandardMaterial({color:'#262421',roughness:1}));}});}
         else{v3Burst(X,gy,Z,u.type==='fpv'?.6:.35,'#ffa050',1,u.type==='fpv'?1:.3);dsScar('scorch',X,Z,.06);ob.visible=false;}}}
-    else if(heli&&now-last>400){last=now;v3Trail(ob.position.x+(Math.random()-.5)*.2,gy+.2,ob.position.z,'#2f2c28',.2,5000);}}});}
+    else if(heli&&now-last>400&&now-(ob.userData.landT||(ob.userData.landT=now))<25000){last=now;v3Trail(ob.position.x+(Math.random()-.5)*.2,gy+.2,ob.position.z,'#2f2c28',.2,5000);}}});}
 // 전투기 추락: 떨어진 곳에서 큰 폭발
-function v3Crash(cr){if(!V3.on||cr.kind!=='jet')return;const y=v3TopAt(cr.x,cr.z);v3Burst(cr.x,y+.2,cr.z,2.6,'#ff6a1a',10,7);dsSpray(cr.x,y+.2,cr.z,160,1.6);dsScar('crater',cr.x,cr.z,.45);dsFires(cr.x,cr.z,5,60000,1);dsColumn(cr.x,cr.z,2);V3.shake=Math.max(V3.shake,.35);}
+function v3Crash(cr){if(!V3.on||cr.kind!=='jet')return;const y=v3TopAt(cr.x,cr.z);v3Burst(cr.x,y+.2,cr.z,2.6,'#ff6a1a',10,7);dsSpray(cr.x,y+.2,cr.z,160,1.6);dsScar('crater',cr.x,cr.z,.45);dsFires(cr.x,cr.z,5,30000,1);dsColumn(cr.x,cr.z,2);V3.shake=Math.max(V3.shake,.35);}
 
 /* ---------- 전투기 ---------- */
 function v3JetModel(){const T=V3.T,M=v3AirMats();const g=new T.Group();const add=(geo,x,y,z,m)=>{const o=new T.Mesh(geo,m||M.jet);o.position.set(x,y,z);o.castShadow=true;g.add(o);return o;};
@@ -109,23 +109,23 @@ function v3JetModel(){const T=V3.T,M=v3AirMats();const g=new T.Group();const add
   add(new T.BoxGeometry(.2,.05,.07),.35,.07,0,M.glass);return g;}
 // 전투기: 세력 쪽 가장자리에서 낮게 들어와 G.time이 j.t일 때 목표 위를 지나며 폭탄을 놓는다
 function v3Jet(j){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(j.r,j.c);const e=airEdge(j.n,x,z);let ux=x-e[0],uz=z-e[1];const L=Math.hypot(ux,uz)||1;ux/=L;uz/=L;
-  const V=9,H=4.2;const g=v3JetModel();g.rotation.y=Math.atan2(-uz,ux);V3.G.fx.add(g);sfx('launch',.5);let last=0,bomb=null,boomed=false;
+  const V=9,H=4.2;const g=v3JetModel();g.rotation.y=Math.atan2(-uz,ux);V3.G.fx.add(g);sndTrack(g,'jet');let last=0,bomb=null,boomed=false;
   V3.fx.push({o:g,t0:performance.now(),dur:1e9,upd:(o)=>{const t=(G.time||0)-j.t;let px=x+ux*V*t,pz=z+uz*V*t,py=H+Math.max(0,-t)*.25;
       if(j.down&&t>0){const k=Math.min(1,t/1.6);const [cx,cz]=j.down;px=x+(cx-x)*k;pz=z+(cz-z)*k;py=H-(H-v3TopAt(cx,cz))*k*k;o.rotation.x+=.12;
-        const now=performance.now();if(now-last>40){last=now;v3Trail(px,py,pz,'#2f2c28',.18,3000);if(Math.random()<.6)v3Burst(px,py,pz,.4,'#ff7a2a',0,0);}if(k>=1){o.visible=false;V3.G.fx.remove(o);return;}}
+        const now=performance.now();if(now-last>40){last=now;v3Trail(px,py,pz,'#2f2c28',.18,3000);if(Math.random()<.6)v3Burst(px,py,pz,.4,'#ff7a2a',0,0);}if(k>=1){o.visible=false;return false;}}
       o.position.set(px,py,pz);
       // 폭탄: 지나가기 0.8초 전에 떨어져 목표에 꽂힌다
       if(!j.down&&t>-.8&&!bomb&&t<0){bomb=new T.Mesh(new T.CylinderGeometry(.025,.025,.14,6),V3.M.dark);bomb.rotation.z=Math.PI/2;bomb.rotation.y=o.rotation.y;V3.G.fx.add(bomb);bomb.userData.p=[px,py,pz];}
       if(bomb){const k=Math.min(1,(t+.8)/.8);const [bx,by,bz]=bomb.userData.p;bomb.position.set(bx+(x-bx)*k,by+(v3TopAt(x,z)-by)*k*k,bz+(z-bz)*k);if(k>=1||j.down){V3.G.fx.remove(bomb);bomb.geometry.dispose();bomb=null;}}
-      if(Math.hypot(px-x,pz-z)>N*1.2&&t>0){o.visible=false;V3.G.fx.remove(o);}}});}
+      if(Math.hypot(px-x,pz-z)>N*1.2&&t>0){o.visible=false;if(bomb){V3.G.fx.remove(bomb);bomb.geometry.dispose();bomb=null;}return false;}}});}
 function v3Bomb(r,c){if(!V3.on)return;const [x,z]=v3x(r,c);
-  v3Burst(x,v3Top(r,c)*.6+.3,z,2.4,'#ff6a1a',10,7);dsColumn(x,z,2.2);dsDust(x,z,3.6,26000,40);dsSpray(x,v3Top(r,c)*.5+.3,z,180,1.7);dsScar('crater',x,z,.45);dsFires(x,z,5,50000,1.2);V3.shake=Math.max(V3.shake,.35);sfx('boom');}
+  v3Burst(x,v3Top(r,c)*.6+.3,z,2.4,'#ff6a1a',10,7);dsColumn(x,z,2.2);dsDust(x,z,3.6,26000,40);dsSpray(x,v3Top(r,c)*.5+.3,z,180,1.7);dsScar('crater',x,z,.45);dsFires(x,z,5,50000,1.2);V3.shake=Math.max(V3.shake,.35);sfx('boom',1.8,x,z);}
 // 대공 사격이 지나가는 전투기를 노린다
 function v3AaAtJet(e,j){if(!V3.on)return;const [x,z]=v3x(j.r,j.c);const T=V3.T;
   const [x1,y1,z1]=v3P(e);const m=new T.Mesh(V3.misG||(V3.misG=new T.BoxGeometry(.06,.014,.014)),new T.MeshBasicMaterial({color:'#fff1c8'}));m.userData.keepGeo=1;V3.G.fx.add(m);let last=0;
   const ex=x+(Math.random()-.5)*2,ez=z+(Math.random()-.5)*2,ey=4.4;V3.fx.push({o:m,t0:performance.now(),dur:1300,upd:(o,k)=>{const px=x1+(ex-x1)*k,py=y1+(ey-y1)*Math.sqrt(k),pz=z1+(ez-z1)*k;o.position.set(px,py,pz);const now=performance.now();if(now-last>35){last=now;v3Trail(px,py,pz,'#d8d2c4',.06,2000);}if(k>.97&&!o.userData.d){o.userData.d=1;v3Burst(px,py,pz,.5,'#ffc070',1,1);}}});}
 function v3FpvBoom(u,e){if(!V3.on)return;const o=V3.uo.get(e.id);const x=o?o.position.x:e.x,z=o?o.position.z:e.z;const y=(o?o.position.y:v3UnitY(e))+.05;
-  v3Burst(x,y,z,.9,'#ff8a3d',3,2.2);dsSpray(x,y,z,40,.6);dsScar('scorch',x,z,.12);dsDust(x,z,1,6000,4);V3.shake=Math.max(V3.shake,.08);sfx('boom',.6);}
+  v3Burst(x,y,z,.9,'#ff8a3d',3,2.2);dsSpray(x,y,z,40,.6);dsScar('scorch',x,z,.12);dsDust(x,z,1,6000,4);V3.shake=Math.max(V3.shake,.08);sfx('boom',.7,x,z);}
 
 /* ---------- 매 프레임: 헬기 기울기, 플레어, 전파 방해 반경, 흔들리는 드론 ---------- */
 function v3AirFrame(now,dt){if(!G)return;const T=V3.T;v3Reticles(now);v3Links();

@@ -68,7 +68,7 @@ function dsShell(x,z,big){if(!V3.on)return;const T=V3.T;const y0=v3TopAt(x,z);
   V3.fx.push({o:tr,t0:performance.now(),dur:380,upd:(o,k)=>{o.position.set(sx+(x-sx)*k,sy+(y0-sy)*k,sz+(z-sz)*k);}});
   setTimeout(()=>{if(!V3.on)return;const s=big?1.6:1.1;v3Burst(x,y0+.15,z,s*1.1,'#ffb060',0,2.5);dsColumn(x,z,s*1.3);dsDust(x,z,s*2.4,16000+Math.random()*10000,18);
     dsSpray(x,y0+.3,z,big?110:70,s*.9);v3Debris(x,y0+.2,z,big?16:9,1.1);dsScar('crater',x,z,s*.2);if(Math.random()<.5)dsFires(x,z,1+Math.round(Math.random()*2),20000+Math.random()*25000,s*.7,y0+.03);
-    V3.shake=Math.max(V3.shake,big?.2:.12);if(typeof sfx==='function')sfx('boom');},380);}
+    V3.shake=Math.max(V3.shake,big?.2:.12);if(typeof sfx==='function')sfx('arty',big?1.2:1,x,z);},380);}
 function dsBarrage(r,c,n,spread){const [cx,cz]=v3x(r,c);for(let i=0;i<n;i++)setTimeout(()=>{const ox=(Math.random()-.5)*spread,oz=(Math.random()-.5)*spread;dsShell(cx+ox,cz+oz,i===0||Math.random()<.25);},200+i*(260+Math.random()*220));}
 function v3TopAt(x,z){const r=Math.floor(z),c=Math.floor(x);return inb(r,c)?v3Top(r,c):0;}
 /* ---------- 도시 전체의 전쟁 분위기 ----------
@@ -104,4 +104,4 @@ function dsFrame(now,dt){if(!V3.plumes)return;const tt=now/1000;const s=V3.cs;
   for(const p of V3.plumes){const n=p.sp.length;for(let i=0;i<n;i++){const l=((tt*.045+p.ph)+i/n)%1;const o=p.sp[i];const w=l*l;
       o.position.set(p.x+DS.wind[0]*l*60+Math.sin(tt*.25+p.ph+i)*.15*l,p.y0+l*p.h,p.z+DS.wind[1]*l*60);o.scale.setScalar((p.big?1.4:.6)*(.3+l*2.6));o.material.opacity=(p.big?.55:.5)*Math.sin(l*Math.PI)*(1-w*.4);}}
   if(V3.ash){V3.ash.position.set(s.x,0,s.z);const a=V3.ash.geometry.attributes.position.array;for(let i=0;i<a.length;i+=3){a[i]+=DS.wind[0]*dt*4+Math.sin(tt+i)*dt*.1;a[i+1]-=dt*.12;a[i+2]+=DS.wind[1]*dt*4;if(a[i+1]<0)a[i+1]=7;if(a[i]>13)a[i]-=26;if(a[i+2]>13)a[i+2]-=26;}V3.ash.geometry.attributes.position.needsUpdate=true;}
-  if(DS.nextRumble&&now>DS.nextRumble&&G&&!G.paused){DS.nextRumble=now+8000+Math.random()*16000;if(typeof sfx==='function')sfx('boom',.22);V3.shake=Math.max(V3.shake,.02);}}
+  if(DS.nextRumble&&now>DS.nextRumble&&G&&!G.paused){DS.nextRumble=now+8000+Math.random()*16000;if(typeof sfx==='function')sfx('distant',.5);V3.shake=Math.max(V3.shake,.02);}}

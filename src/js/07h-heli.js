@@ -14,7 +14,7 @@ function v3HeliModel(){const T=V3.T;const g=new T.Group();const body=new T.MeshS
 function v3Heli(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const y0=v3Top(r,c);const h=v3HeliModel();V3.G.fx.add(h);
   const dir=[[-1,0],[1,0],[0,-1],[0,1]][n??0]||[-1,0];const far=N*.9;const sx=x+dir[0]*far,sz=z+dir[1]*far;const ang=Math.atan2(-(z-sz),x-sx);h.rotation.y=ang;
   const t0=G.time,FLY=2.4,DESC=1.6,STAY=HELI_T-FLY-DESC+1.2,LIFT=1.2,OUT=2.6;const TOTAL=FLY+DESC+STAY+LIFT+OUT;let dustT=0;
-  if(typeof sfx==='function')sfx('launch',.9);
+  if(typeof sndTrack==='function')sndTrack(h,'rotor');
   V3.fx.push({o:h,t0:performance.now(),dur:1e9,upd:(o)=>{const t=G.time-t0;const now=performance.now();o.userData.hub.rotation.y=now/14;
     let px=x,pz=z,py=y0+.06,tilt=0;
     if(t<FLY){const k=t/FLY,e=1-Math.pow(1-k,2);px=sx+(x-sx)*e;pz=sz+(z-sz)*e;py=4.2-e*.6;tilt=.25*(1-k);}
@@ -22,7 +22,7 @@ function v3Heli(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const 
     else if(t<FLY+DESC+STAY){py=y0+.06;}
     else if(t<FLY+DESC+STAY+LIFT){const k=(t-FLY-DESC-STAY)/LIFT;py=y0+.06+k*k*2.4;}
     else if(t<TOTAL){const k=(t-FLY-DESC-STAY-LIFT)/OUT,e=k*k;px=x+(x-sx)*e*1.2;pz=z+(z-sz)*e*1.2;py=2.46+e*2.5;tilt=-.25*Math.min(1,k*3);}
-    else{o.visible=false;V3.G.fx.remove(o);return;}
+    else{o.visible=false;return false;}
     o.position.set(px,py,pz);o.rotation.z=tilt;o.rotation.y=t<FLY+DESC+STAY+LIFT?ang:ang+Math.PI;
     // 로터 바람: 낮게 떠 있을 때 바닥에서 먼지가 밀려난다
     if(py-y0<1.6&&now-dustT>140){dustT=now;const a=Math.random()*6.283;const d=.3+Math.random()*.5;dsDust(px+Math.cos(a)*d,pz+Math.sin(a)*d,.55,1600,1,'#9c9283',y0+.05);}}});}

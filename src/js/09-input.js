@@ -13,9 +13,9 @@ function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),
     if(u===s&&now-(UI.lastTap||0)<400){UI.group=G.units.filter(o=>o.nat===n&&o!==u&&Math.hypot(o.x-u.x,o.z-u.z)<4.5);toast(`${UI.group.length+1}개 부대 선택`);render();return;}
     UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
   if(s&&UI.phase==='fort'&&typeof fortTap==='function'){fortTap(grp,pt[0],pt[1]);render();return;}
-  if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){orderBldg(s,r,c);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
-  if(grp.length){if(u&&u.nat!==n){for(const g of grp)if(UT[g.type].rng[1])orderAttack(g,u);sfx('click',.6);render();return;}
-    orderGroupMove(grp,pt[0],pt[1]);sfx('click',.4);render();return;}
+  if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){radioSend(n,[s],'bldg',[r,c]);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
+  if(grp.length){if(u&&u.nat!==n){radioSend(n,grp.filter(g=>UT[g.type].rng[1]),'atk',[u.id]);if(typeof v3Ping==='function')v3Ping(u.x,u.z,'#ff5a3c');sfx('click',.6);if(typeof sndRadio==='function')sndRadio('ack');render();return;}
+    radioSend(n,grp,'move',[pt[0],pt[1]]);if(typeof v3Ping==='function')v3Ping(pt[0],pt[1]);sfx('click',.4);if(typeof sndRadio==='function'&&Math.random()<.6)sndRadio('ack');render();return;}
   clearSel();UI.pane={r,c};render();}
 function doSupport(){const n=G.viewer;const k=UI.st;if(k==null)return;if(support(n,UI.supK,kr(k),kc(k))){clearSel();render();if(typeof scnAfterAct==='function')scnAfterAct();}}
 if(typeof document!=='undefined'){
@@ -23,12 +23,17 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const a=b.dataset.act;const n=G?G.viewer:0;sfx('click',.4);
   if(a==='start'){const slots=NATS.map((_,i)=>$('#slot-'+i).value);const act=slots.filter(s=>s!=='none');
     if(act.length<2){$('#setup-err').textContent='세력을 둘 이상 활성화하세요.';return;}
-    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size:$('#opt-size').value,diff:$('#opt-diff').value,fog:$('#opt-fog').value==='1',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.sheet=false;
+    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size:$('#opt-size').value,diff:$('#opt-diff').value,fog:$('#opt-fog').value==='1',hour:$('#opt-hour')?.value||'day',wx:$('#opt-wx')?.value||'auto',tflow:$('#opt-tflow')?.value||'normal',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.sheet=false;
     render();rtStart();return;}
   if(a.startsWith('scn:')){startScn(a.slice(4));return;}
+  if(a.startsWith('camp:')){const d=$('#debrief');if(d)d.hidden=true;campBrief(a.slice(5));return;}
+  if(a==='camp-go'){campGo();return;}
+  if(a==='camp-back'||a==='camp-list'){showSetup();return;}
+  if(a==='camp-retry'){campGo(G&&G.camp?G.camp.id:UI.campSel);return;}
   if(a==='resume'){const o=loadSave();if(!o)return;N=o.N;G=o.G;UID=o.UID;$('#setup').hidden=true;clearSel();G.paused=false;render();rtStart();return;}
   if(a==='new'){showSetup();return;}
-  if(a==='snd'){SFX.on=!SFX.on;try{localStorage.setItem('triad-sound',SFX.on?'1':'0');}catch(e){}if(G)render();return;}
+  if(a==='snd'){sndPop();return;}
+  if(a==='snd-mute'){toggleSound();if(G)render();return;}
   if(a==='fs'){const el=document.documentElement;if(document.fullscreenElement)document.exitFullscreen();else if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});return;}
   if(!G)return;
   if(a==='menu'){UI.sheet=!UI.sheet;render();return;}
@@ -40,6 +45,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='cine'){if(typeof v3Cine==='function')v3Cine();return;}
   if(a==='grid'){UI.grid=!UI.grid;render();return;}
   if(a==='handoff'){G.handoff=false;clearSel();render();if(typeof v3HomeCam==='function')v3HomeCam(false);return;}
+  if(a==='nvg'){if(typeof nvgSet==='function')nvgSet(!UI.nvg);return;}
   if(a==='pause'){G.paused=!G.paused;render();return;}
   if(a==='spd'){G.spd=G.spd===1?2:G.spd===2?.5:1;render();return;}
   if(G.boot||isAI(n)||G.over)return;
@@ -55,13 +61,13 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='close'){UI.pane=null;render();return;}
   if(!s)return;
   const grp=[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));
-  if(a==='stop'){grp.forEach(orderStop);render();return;}
+  if(a==='stop'){radioSend(n,grp,'stop');render();return;}
   if(a==='dismount'){const v=dismount(s);if(v){select(v);}else toast('내릴 자리가 없거나 지휘점수가 모자랍니다');render();return;}
-  if(a==='floor'){const up=s.flT===0;grp.forEach(x=>orderFloor(x,up));render();return;}
-  if(a==='hold'){const h=!s.hold;grp.forEach(x=>x.hold=h);render();return;}
+  if(a==='floor'){const pe=radioPend(s);const up=pe&&pe.k==='floor'?!pe.a[0]:s.flT===0;radioSend(n,grp,'floor',[up]);render();return;}
+  if(a==='hold'){const pe=radioPend(s);const h=!(pe&&pe.k==='hold'?pe.a[0]:s.hold);radioSend(n,grp,'hold',[h]);render();return;}
   if(a==='fort'){UI.phase=UI.phase==='fortmenu'||UI.phase==='fort'?'select':'fortmenu';render();return;}
   if(a.startsWith('fort:')){UI.phase='fort';UI.fortK=a.slice(5);render();return;}
   if(a==='demo'){UI.phase=UI.phase==='demo'?'select':'demo';render();return;}
   if(a==='cancel'){clearSel();render();}});
-document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if(e.key===' '&&G&&!G.boot&&$('#setup').hidden){e.preventDefault();G.paused=!G.paused;render();return;}if((e.key==='c'||e.key==='C')&&G&&typeof v3Cine==='function'){v3Cine();return;}if(e.key==='Escape'){if(UI.sheet){UI.sheet=false;render();}else if(UI.sel||UI.phase||UI.pane){clearSel();UI.pane=null;render();}}});
+document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if(e.key===' '&&G&&!G.boot&&$('#setup').hidden){e.preventDefault();G.paused=!G.paused;render();return;}if((e.key==='c'||e.key==='C')&&G&&typeof v3Cine==='function'){v3Cine();return;}if((e.key==='n'||e.key==='N')&&G&&typeof nvgSet==='function'&&nightK()>.2){nvgSet(!UI.nvg);return;}if(e.key==='Escape'){if(UI.sheet){UI.sheet=false;render();}else if(UI.sel||UI.phase||UI.pane){clearSel();UI.pane=null;render();}}});
 }

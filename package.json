@@ -5,8 +5,9 @@
   "description": "TRIAD 시가전 — 3D 실시간 시가전 전술 게임",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node build.mjs && node --test test/game.test.mjs",
-    "balance": "node tools/balance.mjs"
+    "test": "node build.mjs && node --test test/*.test.mjs",
+    "balance": "node tools/balance.mjs",
+    "mix": "node tools/mix.mjs"
   },
   "engines": { "node": ">=18" }
 }

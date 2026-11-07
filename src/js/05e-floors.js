@@ -14,7 +14,7 @@ const breached=x=>isB(x)&&x.bhp/x.bmax<.4;
 function wallBetween(a,b){if(!isB(a)&&!isB(b))return false;if(sameBlk(a,b))return false;return true;}
 /* 건물 칸 (r,c)의 s쪽 벽에 문이 있는가. 바깥(건물 아님, 물 아님)과 맞닿은 면 중에서 고르고, 칸마다 하나는 꼭 있다. */
 function doorSides(r,c){const x=G.map[r][c];if(!isB(x))return null;
-  const sig=SIDES.map(([a,b])=>{const r2=r+a,c2=c+b;if(!inb(r2,c2))return 0;const y=G.map[r2][c2];return !isB(y)&&y.t!=='water'?1:0;}).join('');
+  let sig='';for(let s=0;s<4;s++){const r2=r+SIDES[s][0],c2=c+SIDES[s][1];let v=0;if(inb(r2,c2)){const y=G.map[r2][c2];v=!isB(y)&&y.t!=='water'?1:0;}sig+=v;}
   if(x._dk===sig)return x._ds;const k=key(r,c);const out=[0,0,0,0];let any=false;
   for(let s=0;s<4;s++)if(sig[s]==='1'&&dHash(k,s)<.42){out[s]=1;any=true;}
   if(!any){const st=Math.floor(dHash(k,9)*4);for(let i=0;i<4;i++){const s=(st+i)%4;const [a,b]=SIDES[s];const y=inb(r+a,c+b)?G.map[r+a][c+b]:null;if(sig[s]==='1'&&y&&y.t==='road'){out[s]=1;any=true;break;}}
@@ -35,7 +35,8 @@ function diagPass(r,c,a,b){const P=[G.map[r][c],G.map[a][b],G.map[a][c],G.map[r]
   if(P.every(x=>!isB(x)))return true;return P.every(x=>sameBlk(x,P[0]));}
 function stepPass(r,c,a,b){if(a!==r&&b!==c)return diagPass(r,c,a,b);return edgePass(r,c,a,b)!=null;}
 /* 선분이 문이 아닌 곳으로 벽을 지나가는가 (자유 이동·밀어내기·경로 다듬기에서 쓴다) */
-function wallCross(u,x1,z1,x2,z2){if(UT[u.type].fly)return false;const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.08));
+function wallCross(u,x1,z1,x2,z2){if(UT[u.type].fly)return false;if(Math.floor(x1)===Math.floor(x2)&&Math.floor(z1)===Math.floor(z2))return false;   // 한 칸 안: 지날 경계가 없다(성능)
+  const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.08));
   let pr=Math.floor(z1),pc=Math.floor(x1),px=x1,pz=z1;
   for(let i=1;i<=n;i++){const x=x1+(x2-x1)*i/n,z=z1+(z2-z1)*i/n;const r=Math.floor(z),c=Math.floor(x);
     if(r!==pr||c!==pc){if(!inb(r,c)||!inb(pr,pc))return true;

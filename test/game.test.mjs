@@ -660,3 +660,241 @@ test('드론팀: 차량에서 내리고, 멈춰서 FPV를 띄우며, 조종수�
   const f = T.__get('launchFpv')(d, null); f.hold = true; G.units = G.units.filter(u => u !== d); T.rtRun(0.3);
   assert.ok(!G.units.includes(f), '조종수가 없으면 추락');
 });
+
+test('경험치: 적을 쓰러뜨리면 분대가 진급하고, 전과를 쌓은 병사는 이름 붙은 베테랑이 된다', () => {
+  const T = loadGame(); const G = setup(T);
+  const a = T.mkUnit(0, 'rifle', 5, 5); a.hold = true;
+  const give = T.__get('giveXp'), credit = T.__get('creditMan');
+  give(a, 30); assert.equal(a.rank, 1, '숙련'); assert.ok(G.log.some(m => m.includes('숙련')));
+  give(a, 50); assert.equal(a.rank, 2, '노련'); assert.ok(a.vn[0], '노련이 되면 분대장 이름');
+  a._sh = [3]; for (let i = 0; i < 3; i++) credit(a);
+  assert.ok(a.vn[3] && a.vk[3] === 3, '전과 셋이면 베테랑'); assert.ok(G.log.some(m => m.includes('베테랑이 됨')));
+  const e = T.mkUnit(1, 'tank', 5, 8); const x0 = a.xp; const r0 = a.rank;
+  T.__get('kill')(e, a); assert.ok(a.xp >= x0 + 30, '차량 격파 경험'); assert.ok(a.rank >= r0, 'kill()의 옛 전과식이 계급을 깎지 않음');
+  const info = T.__get('vetInfo')(a); assert.match(info, /베테랑/);
+});
+
+test('경험치: 계급이 오르면 화력이 세지고 베테랑이 쓰러지면 기록된다', () => {
+  const T = loadGame(); const G = setup(T);
+  const a = T.mkUnit(0, 'rifle', 5, 5), d = T.mkUnit(1, 'rifle', 5, 8);
+  const v0 = T.calcDmg(a, d); a.rank = 3; assert.ok(T.calcDmg(a, d) > v0 * 1.25, '정예 화력');
+  const b = T.mkUnit(1, 'rifle', 9, 9); b.hold = true; T.rtRun(0.2); b.vn = null; T.__get('vetArr')(b); b.vn[2] = '한도윤'; b.vk[2] = 4;
+  b.ws[2].s = 'kia'; T.rtRun(0.2);
+  assert.equal(G.vetFallen.length, 1); assert.ok(G.log.some(m => m.includes('한도윤') && m.includes('전사')));
+});
+
+test('고참 명부: 살아남은 숙련 분대가 다음 작전 같은 병종 부대로 돌아온다', () => {
+  const T = loadGame(); const store = {}; T.__set('localStorage', { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); } });
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, fog: false });
+  const G = T.G; const mg = G.units.find(u => u.nat === 0 && u.type === 'mg');
+  T.__get('giveXp')(mg, 70); T.__get('vetArr')(mg); mg.vn[1] = '오지후'; mg.vk[1] = 5;
+  G.over = { win: 0, why: 'test' }; T.__get('vetEnd')();
+  const S = JSON.parse(store['triad-vets']); assert.equal(S.roster.length, 1); assert.equal(S.roster[0].type, 'mg');
+  assert.ok(S.roster[0].men.some(m => m.n === '오지후'));
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 6, fog: false });
+  T.__get('vetDeploy')(0); const mg2 = T.G.units.find(u => u.nat === 0 && u.type === 'mg');
+  assert.ok(mg2.rid && mg2.rank >= 2 && mg2.vn[1] === '오지후', '같은 병종으로 복귀');
+  T.G.units = T.G.units.filter(u => u !== mg2); T.G.vetLost = [mg2.rid]; T.G.over = { win: 1, why: 'test' }; T.__get('vetEnd')();
+  assert.equal(JSON.parse(store['triad-vets']).roster.length, 0, '전멸한 고참 분대는 명부에서 빠짐');
+});
+
+test('무전: 명령은 몇 초 늦게 닿고, 무전망은 교신을 한 줄로 세운다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, radio: true });
+  const G = T.G; G.units.length = 0;
+  const send = T.__get('radioSend');
+  const mid = (T.N - 1) / 2;
+  const a = T.mkUnit(0, 'rifle', Math.floor(mid), Math.floor(mid)), b = T.mkUnit(0, 'rifle', Math.floor(mid) + 1, Math.floor(mid));
+  const e1 = send(0, [a], 'move', [a.x + 2, a.z]);
+  const e2 = send(0, [b], 'move', [b.x + 2, b.z]);
+  assert.ok(!a.path.length && !b.path.length, '바로 움직이지 않는다');
+  assert.ok(e1.at - G.time >= 0.9 && e1.at - G.time <= 2.6, `지연 ${e1.at - G.time}`);
+  assert.ok(e2.at > e1.at, '두 번째 교신은 첫 교신 뒤에 나간다');
+  G.units.push(...[]); // 적 없음
+  for (let i = 0; i < 30; i++) T.rtTick(0.1);
+  assert.ok(a.dest && b.dest, '3초 안에 둘 다 명령을 받았다');
+  // 같은 부대에 새 명령을 내리면 앞 명령은 버려진다
+  send(0, [a], 'stop'); send(0, [a], 'move', [a.x, a.z + 1]);
+  assert.equal(G.rq.filter(e => e.us.includes(a.id)).length, 1);
+});
+
+test('무전: 적 재밍 반경 안에서는 끊기다가 결국 전령이 전한다, 끄면 바로 실행', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, radio: true });
+  const G = T.G; G.units.length = 0;
+  const send = T.__get('radioSend');
+  const r0 = Math.floor((T.N - 1) / 2);
+  const a = T.mkUnit(0, 'rifle', r0, r0); const j = T.mkUnit(1, 'ew', r0, r0 + 2); j.nocas = 1; a.nocas = 1; G.nats[1].aiT = 1e9;
+  const rnd = Math.random; Math.random = () => 0.99; // 매번 재송신 실패
+  try {
+    send(0, [a], 'move', [a.x, a.z + 2]);
+    const t0 = G.time; let got = null;
+    for (let i = 0; i < 200 && got == null; i++) { G.units.forEach(u => { u.cd = 99; }); T.rtTick(0.1); if (a.dest) got = G.time - t0; }
+    assert.ok(got != null && got > 6 && got < 14, `재밍 아래 전달 시간 ${got}`);
+  } finally { Math.random = rnd; }
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 5, radio: false });
+  const b = T.mkUnit(0, 'rifle', r0, r0);
+  T.__get('radioSend')(0, [b], 'move', [b.x + 1, b.z]);
+  assert.ok(b.dest, '무전 지연을 끄면 바로 움직인다');
+});
+
+test('미사일: 유도미사일은 날아가서 맞고, 연막에 들어가면 유도가 끊긴다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const a = T.mkUnit(0, 'atgm', 5, 2), tk = T.mkUnit(1, 'tank', 5, 9); a.hold = tk.hold = true; tk.cd = 99; a.cd = 0;
+  T.rtTick(0.1); assert.equal((G.missiles || []).length, 1, '미사일이 날아감'); assert.equal(tk.hp, 10, '쏘는 순간엔 피해 없음');
+  T.rtRun(3); assert.ok(tk.hp < 10 || !G.units.includes(tk), '도착하면 피해');
+  const G2 = setup(T); G2.nats[1].ctrl = 'human';
+  const b = T.mkUnit(0, 'atgm', 5, 2), t2 = T.mkUnit(1, 'tank', 5, 9); b.hold = t2.hold = true; t2.cd = 99; b.cd = 0;
+  T.rtTick(0.1); G2.map[5][9].smoke = 3; T.rtRun(3);
+  assert.ok(G2.log.some(m => m.includes('유도 끊김')));
+});
+
+test('미사일: 다연장 로켓은 로켓 여러 발을 띄우고, 탄도미사일은 몇 초 뒤 떨어진다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const m = T.mkUnit(0, 'mlrs', 15, 2), tg = T.mkUnit(1, 'rifle', 15, 13); m.hold = tg.hold = true; m.cd = 0;
+  T.rtTick(0.1); assert.equal(G.shells.filter(s => s.type === 'mlrs').length, 12);
+  const e = T.mkUnit(1, 'rifle', 20, 8), sp = T.mkUnit(0, 'drone', 20, 4); e.hold = sp.hold = true; G.nats[0].cp = 99; G.nats[0].supT = 0;
+  assert.ok(T.support(0, 'tbm', 20, 8)); const hp0 = e.hp; T.rtRun(4); assert.equal(e.hp, hp0, '아직 안 떨어짐');
+  T.rtRun(5); assert.ok(!G.units.includes(e) || e.hp < hp0, '떨어진 뒤 피해');
+});
+
+test('전투 기록: 붕괴·격파·거점·탄흔이 남고, 끝나면 통계와 주요 장면이 나온다', () => {
+  const T = loadGame(); T.newGame({ slots: ['ai', 'ai', 'none', 'none'], size: 's', fog: false, seed: 5 });
+  const G = T.G; const C = G.chron; assert.ok(C && C.base.t.length === T.N * T.N, '시작 도시');
+  let bk = null; for (let r = 0; r < T.N && !bk; r++) for (let c = 0; c < T.N; c++) if (G.map[r][c].t === 'bldg') { bk = [r, c]; break; }
+  T.damageBldg(bk[0], bk[1], 9999); assert.ok(C.ev.some(e => e.k === 'fall'), '붕괴 기록');
+  const e = T.mkUnit(1, 'rifle', 5, 5); T.__get('kill')(e, null); assert.ok(C.ev.some(x => x.k === 'kill' && x.n === 1), '격파 기록');
+  T.rtRun(7); assert.ok(C.fr.length >= 3, `3초마다 한 장 (${C.fr.length})`);
+  G.over = { win: 0, why: '테스트' }; T.rtTick(0.1);
+  assert.ok(C.end && C.stats.fallen >= 1 && C.stats.b0 > 0, '통계');
+  const rec = T.__get('chronRecord')(); const js = JSON.stringify(rec); assert.ok(js.length < 400000, `기록 크기 ${js.length}`);
+  assert.equal(rec.fin.t[bk[0] * T.N + bk[1]], 'x', '무너진 칸은 잔해');
+  assert.ok(Array.isArray(rec.moments) && rec.moments.some(m => m.k === 'fall'), '주요 장면');
+});
+
+test('소리: 멀수록 작고 둔하고 늦게 들리며, 좌우로 갈린다', () => {
+  const T = loadGame();
+  const place = T.sndPlace;
+  const ear = { x: 10, z: 10, h: 2, yaw: 0 };
+  const near = place(11, 10, ear), far = place(30, 10, ear);
+  assert.ok(near.gain > far.gain * 3, '먼 소리가 충분히 작지 않다');
+  assert.ok(near.cut > far.cut, '먼 소리의 고음이 깎이지 않는다');
+  assert.ok(far.delay > near.delay && far.delay > .4, '먼 소리가 늦게 닿지 않는다');
+  assert.ok(place(14, 10, ear).pan > .3 && place(6, 10, ear).pan < -.3, '좌우 패닝이 맞지 않다');
+  const turned = place(14, 10, { ...ear, yaw: Math.PI });
+  assert.ok(turned.pan < -.3, '카메라를 돌려도 좌우가 그대로다');
+});
+
+test('소리: 건물 사이 골목은 메아리 벽을 찾고, 건물 안은 안쪽으로 안다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['ai', 'ai', 'none', 'none'], size: 'm', seed: 5 });
+  const G = T.G, N = T.N, room = T.sndRoom;
+  let street = null, inside = null;
+  for (let r = 3; r < N - 3 && !(street && inside); r++) for (let c = 3; c < N - 3; c++) {
+    const x = G.map[r][c];
+    if (!inside && x.t === 'bldg' && x.f > 0) inside = [c + .5, r + .5];
+    if (!street && x.t === 'road' && G.map[r][c - 1].t === 'bldg' && G.map[r][c - 1].f > 0) street = [c + .5, r + .5];
+  }
+  assert.ok(street && inside);
+  const s = room(...street);
+  assert.equal(s.ind, 0);
+  assert.ok(s.walls.length > 0 && s.walls[0].d < 2, '바로 옆 건물 벽을 못 찾았다');
+  assert.ok(s.dens > 0);
+  assert.equal(room(...inside).ind, 1);
+});
+
+test('소리: 총을 쏘는 모든 병종에 총성이 있다', () => {
+  const T = loadGame();
+  const W = T.WPN;
+  for (const t of T.TYPES) {
+    const u = T.UT[t];
+    if (u.rng[1] > 0 && !u.kami) assert.ok(W[t], `${t} 총성 없음`);
+  }
+});
+
+/* ---------- 05j-real: 교범·실전 사례 규칙 ---------- */
+test('전차 주포는 가까운 위층 적을 못 쏘고, 멀리 떨어지면 쏜다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 6); T.bump();
+  const e = T.mkUnit(1, 'rifle', 5, 5); e.fl = 5; e.flK = T.key(5, 5); e.x = 5.85; e.z = 5.5;   // 6층 창가
+  const tk = T.mkUnit(0, 'tank', 5, 7); tk.x = 7.5; tk.z = 5.5; T.bump();
+  assert.ok(!T.canHit(tk, e), '20m 앞 6층은 포가 안 올라간다');
+  const ifv = T.mkUnit(0, 'ifv', 6, 7); ifv.x = 7.5; ifv.z = 5.5; T.bump();
+  assert.ok(T.canHit(ifv, e), '장갑차 기관포는 높이 든다');
+  tk.x = 11.5; tk.z = 5.5; tk.c = 11; T.bump();
+  assert.ok(T.canHit(tk, e), '멀리서는 쏠 수 있다');
+});
+
+test('차량은 정면보다 측면·후면·위에서 맞을 때 더 다친다', () => {
+  const T = loadGame(); const G = setup(T); const arc = F(T, 'armorArc');
+  const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0;    // 동쪽(+x)을 본다
+  const at = (x, z) => { const a = T.mkUnit(0, 'at', Math.floor(z), Math.floor(x)); a.x = x; a.z = z; return a; };
+  assert.equal(arc(tk, at(8.5, 5.5)), 'front');
+  assert.equal(arc(tk, at(5.5, 8.5)), 'side');
+  assert.equal(arc(tk, at(2.5, 5.5)), 'rear');
+  bldg(G, 5, 6, 5); const up = at(6.2, 5.5); up.fl = 4; up.flK = T.key(5, 6); T.bump();
+  assert.equal(arc(tk, up), 'top', '바로 옆 5층에서 쏘면 위');
+});
+
+test('대전차 화기에 맞은 차량은 연막탄을 쏘고 정면을 둔 채 후진한다', () => {
+  const T = loadGame(); const G = setup(T);
+  const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
+  const a = T.mkUnit(0, 'at', 5, 8); a.x = 8.5; a.z = 5.5;
+  const harm = F(T, 'harm'); harm(tk, 1, a, { kind: 'blast' });
+  assert.ok(G.units.includes(tk));
+  assert.ok(G.map[5][5].smoke > 0 || G.map[5][6].smoke > 0, '연막');
+  assert.equal(tk.vsm, 1, '연막탄 한 번 사용');
+  assert.ok(tk.path.length && tk.path[0][0] < tk.x, '적 반대쪽으로 후진');
+  for (let i = 0; i < 10; i++) T.rtTick(0.1);
+  assert.ok(Math.abs(tk.face) < 1, '후진하는 동안 정면은 적을 본다');
+});
+
+test('실내에서 대전차 화기를 쏘면 후폭풍으로 다음 사격이 늦다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 2); T.bump();
+  const a = T.mkUnit(0, 'at', 5, 5); a.fl = 0; a.flK = T.key(5, 5); a.x = 5.85; a.z = 5.5;
+  const b = T.mkUnit(0, 'at', 7, 5); b.x = 5.5; b.z = 7.5;
+  const tk = T.mkUnit(1, 'tank', 5, 8); tk.x = 8.5; tk.z = 5.5; tk.hp = 999; T.bump();
+  a.cd = 0; b.cd = 0; T.rtShoot(a, tk); T.rtShoot(b, tk);
+  assert.ok(a.cd > b.cd, '실내 사수는 재장전이 더 걸린다');
+  assert.ok(a.supp > 0, '후폭풍 충격');
+});
+
+test('붙어서 같은 높이의 방에 수류탄: 건물 엄폐가 크게 줄어든다', () => {
+  const T = loadGame(); const G = setup(T);
+  bldg(G, 5, 5, 1); T.bump();
+  const d = T.mkUnit(1, 'rifle', 5, 5); d.fl = 0; d.flK = T.key(5, 5); d.x = 5.85; d.z = 5.5;
+  const near = T.mkUnit(0, 'rifle', 5, 6); near.x = 6.4; near.z = 5.5;
+  const hitP = F(T, 'hitP');
+  const p1 = hitP(near, d); assert.ok(p1.cqb, '근접 소탕');
+  const far = T.mkUnit(0, 'rifle', 5, 8); far.x = 8.4; far.z = 5.5;
+  assert.ok(p1.p > hitP(far, d).p * 1.3);
+});
+
+test('사격받으며 트인 곳으로 움직이는 분대는 연막 수류탄을 던진다', () => {
+  const T = loadGame(); const G = setup(T);
+  const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5;
+  const e = T.mkUnit(1, 'mg', 5, 9); e.x = 9.5; e.z = 5.5; e.firedT = 0; G.time = 1;
+  u.supp = 1; u.path = [[5.5, 8.5]];
+  F(T, 'squadSmoke')(u);
+  assert.equal(u.ssm, 1);
+  assert.ok(G.smk.length === 1 && G.map[G.smk[0].r][G.smk[0].c].smoke > 0);
+});
+
+test('제병협동 AI: 적 무더기엔 포격·폭격을 부르고, 장갑차는 보병을 내리며, 비싼 차량은 돈을 모아 산다', () => {
+  const T = loadGame(); const G = setup(T); G.fog = false; G.time = 100;
+  // 적 소총분대 셋이 한데 모여 있다 → 화력 지원
+  for (const [r, c] of [[10, 20], [10, 21], [11, 20]]) T.mkUnit(1, 'rifle', r, c);
+  T.mkUnit(0, 'rifle', 10, 16); G.nats[0].cp = 30; T.bump();
+  const E = G.units.filter(u => u.nat === 1);
+  assert.ok(T.__get('aiSupport')(0, E), '지원 호출'); assert.ok(G.nats[0].cp < 30);
+  assert.ok(G.nats[0].supT > G.time, '재사용 대기');
+  // 장갑차 하차는 소총분대
+  G.nats[0].cp = 10; const v = T.mkUnit(0, 'ifv', 5, 3);
+  const r = T.__get('aiDismount')(v); assert.ok(r && r.type === 'rifle'); assert.equal(G.nats[0].cp, 10 - 3);
+  // 부대 구성: 장갑차·전차가 하나도 없으면 가중치가 소총보다 크게 뛴다
+  const cnt = t => G.units.filter(u => u.nat === 0 && u.type === t).length;
+  const w = T.__get('aiArmsW')(0, [], cnt, 10);
+  assert.ok(w.tank > w.drone * 3 && w.spg > w.drone * 3);
+  assert.ok(T.__get('aiArmsSave')(0, 'tank', 10) && !T.__get('aiArmsSave')(0, 'tank', 2));
+});

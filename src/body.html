@@ -2,26 +2,61 @@
   <canvas class="v3d" id="v3d" aria-label="시가지 전장 (3D)"></canvas>
   <div class="v3d-grain" id="v3d-grain" aria-hidden="true"></div>
   <div class="v3d-vig" aria-hidden="true"></div>
+  <div class="nvg-ov" id="nvg-ov" aria-hidden="true" hidden></div>
   <div class="v3d-lab" id="v3d-lab" aria-hidden="true"></div>
   <div class="v3d-err" id="v3d-err" role="alert" hidden></div>
   <div class="top">
-    <div class="tl"><button class="ib" data-act="menu" id="b-menu" aria-label="작전 메뉴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="pill" id="hud-clock"></div></div>
+    <div class="tl"><button class="ib" data-act="menu" id="b-menu" aria-label="작전 메뉴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="pill" id="hud-clock"></div><button class="ib nvg-b" data-act="nvg" id="b-nvg" aria-label="야간투시경 (N)" title="야간투시경 (N)" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="13" r="3.5"/><circle cx="16" cy="13" r="3.5"/><path d="M11.5 13h1M6 9.5 8 6h8l2 3.5"/></svg></button></div>
     <div class="plate" id="hud-obj" aria-live="polite"></div>
     <div class="pill res" id="hud-res"></div>
   </div>
-  <div class="mapctl">
+  <div class="mapctl" id="mapctl">
     <button class="ib" data-act="rot:1" id="b-rot" aria-label="시점 회전 (Q/E)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
-    <button class="ib" data-act="zoom:1" id="z-in" aria-label="확대">+</button>
-    <button class="ib" data-act="zoom:-1" id="z-out" aria-label="축소">−</button>
+    <button class="ib x" data-act="zoom:1" id="z-in" aria-label="확대">+</button>
+    <button class="ib x" data-act="zoom:-1" id="z-out" aria-label="축소">−</button>
     <button class="ib" data-act="home" id="b-home" aria-label="집결지로 이동"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8H4z"/><path d="M10 19v-5h4v5"/></svg></button>
-    <button class="ib" data-act="cine" id="b-cine" aria-label="낮은 시점 (C)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l5 3v6H3z"/><circle cx="8" cy="12" r="2.5"/></svg></button>
-    <button class="ib" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
-    <button class="ib" data-act="snd" id="b-snd" aria-label="효과음" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
-    <button class="ib" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="ib x" data-act="cine" id="b-cine" aria-label="낮은 시점 (C)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h13l5 3v6H3z"/><circle cx="8" cy="12" r="2.5"/></svg></button>
+    <button class="ib x" data-act="press" id="b-press" aria-label="종군기자 카메라 (V)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+    <button class="ib x" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
+    <button class="ib x" data-act="snd" id="b-snd" aria-label="소리 설정 (M 음소거)" aria-pressed="true" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+    <button class="ib x" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="ib more" data-act="more" id="b-more" aria-label="지도 버튼 더 보기" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg></button>
   </div>
+  <div class="sndpop" id="sndpop" role="dialog" aria-label="소리 설정" hidden>
+    <div class="sp-h"><b>소리</b><span class="sp-k">M 음소거</span><button class="sp-mute" data-act="snd-mute" id="b-smute" aria-pressed="true">켜짐</button></div>
+    <label class="sp-r"><span>전체</span><input type="range" min="0" max="100" step="1" data-snd="master"></label>
+    <label class="sp-r"><span>전투</span><input type="range" min="0" max="100" step="1" data-snd="fx"></label>
+    <label class="sp-r"><span>무전</span><input type="range" min="0" max="100" step="1" data-snd="radio"></label>
+    <label class="sp-r"><span>환경음</span><input type="range" min="0" max="100" step="1" data-snd="amb"></label>
+  </div>
+  <div class="selbox" id="selbox" hidden></div>
+  <div class="press" id="press" hidden>
+    <div class="pr-frame" aria-hidden="true"><i></i><i></i><i></i><i></i><b class="pr-af"></b></div>
+    <div class="pr-top"><span class="pr-tag">PRESS</span><span class="pr-sub" id="pr-sub" aria-live="polite"></span></div>
+    <div class="pr-read" id="pr-read" aria-live="off"></div>
+    <div class="pr-ctl">
+      <button class="ib" data-act="pr-exit" id="pr-exit" aria-label="기자 카메라 끄기 (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <button class="ib" data-act="pr-next" id="pr-next" aria-label="다른 부대와 동행 (N)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><path d="M17 8h5M19.5 5.5 22 8l-2.5 2.5"/></svg></button>
+      <button class="ib" data-act="pr-in" aria-label="망원 (+)">+</button>
+      <button class="ib" data-act="pr-out" aria-label="광각 (−)">−</button>
+      <button class="ib" data-act="pr-film" id="pr-film" aria-label="흑백 필름 (B)" aria-pressed="true"><span class="t3">B/W</span></button>
+      <button class="ib pr-galb" data-act="pr-gal" aria-label="사진첩 (G)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M4 15l4-4 4 4 3-3 5 5"/></svg><em id="pr-n"></em></button>
+    </div>
+    <button class="pr-shut" data-act="pr-shut" id="pr-shut" aria-label="셔터 (Enter)"><span></span></button>
+  </div>
+  <figure class="press-still" id="press-still" hidden aria-hidden="true"><img alt=""><figcaption></figcaption></figure>
+  <section class="press-gal" id="press-gal" role="dialog" aria-modal="true" aria-label="사진첩" hidden>
+    <header><h2>사진첩</h2><span id="pr-gal-sum"></span><button class="ib" data-act="pr-gal-close" aria-label="사진첩 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="pr-sheet" id="pr-sheet"></div>
+    <div class="pr-view" id="pr-view" hidden>
+      <img alt="">
+      <div class="pr-vcap"><p id="pr-cap"></p><small id="pr-meta"></small>
+        <div class="pr-vact"><a class="btn sm" id="pr-dl" download>사진 저장</a><button class="btn sm" data-act="pr-del">사진 지우기</button><button class="btn sm primary" data-act="pr-view-close">사진첩으로</button></div></div>
+    </div>
+  </section>
   <div class="toast" id="toast" role="status" hidden></div>
   <div class="tip" id="tip" hidden></div>
-  <div class="dock"><div class="obj" id="obj" role="status" hidden></div><div class="actbar" id="actbar" hidden></div></div>
+  <div class="dock"><div class="obj" id="obj" role="status" hidden></div><div class="roster" id="roster" aria-label="부대 목록" hidden></div><div class="actbar" id="actbar" hidden></div></div>
   <aside class="sheet" id="sheet" aria-label="작전 메뉴" hidden>
     <div class="sheet-h">
       <div class="tabs" role="tablist" id="tabs">
@@ -39,17 +74,25 @@
   <div class="card">
     <h2>TRIAD 시가전</h2>
     <p>도시 한복판의 거점을 두고 분대 단위로 싸우는 실시간 전술 게임입니다. 건물에 들어가 엄폐하고, 시야를 가리는 빌딩을 이용하고, 필요하면 건물째 무너뜨리세요.</p>
+    <h3 class="sec">캠페인 · 하령 작전</h3>
+    <p class="csub">공화국군이 하령시로 밀고 들어왔습니다. 연방군 기동대대를 지휘해 세 임무를 차례로 해내세요.</p>
+    <div class="clist" id="camp-list"></div>
     <h3 class="sec">훈련과 시나리오</h3>
     <div class="grid" id="scn-list"></div>
     <h3 class="sec">자유 전투</h3>
     <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
     <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 32×32 (거점 4)</option><option value="m" selected>중형 44×44 (거점 12)</option><option value="l">대형 56×56 (거점 16)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
+    <div class="slot"><span></span><label for="opt-hour">시작 시각</label><select id="opt-hour"><option value="day">아침 07시</option><option value="dusk">해질녘 17시</option><option value="night">한밤 22시</option><option value="dawn">새벽 03시</option></select></div>
+    <div class="slot"><span></span><label for="opt-tflow">시간 흐름</label><select id="opt-tflow"><option value="fixed">고정 (시간이 멈춤)</option><option value="real">실시간 (한 판 12분)</option><option value="slow">느리게 (한 판 3시간)</option><option value="normal" selected>보통 (한 판 6시간)</option><option value="fast">빠르게 (한 판 하루)</option></select></div>
+    <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비</option><option value="fog">짙은 안개</option><option value="storm">폭우</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
+    <div class="slot"><span></span><label for="opt-radio">무전 지연</label><select id="opt-radio"><option value="1">켜기 (명령이 무전으로 1~3초 늦게 닿음)</option><option value="0">끄기</option></select></div>
     <input type="hidden" id="opt-speed" value="0">
     <div class="err" id="setup-err"></div>
     <button class="btn primary" data-act="start" id="b-start">작전 개시</button>
     <button class="btn" data-act="resume" id="b-resume" hidden>저장된 작전 이어하기</button>
+    <button class="btn" data-act="archive" id="b-archive">지난 전투 기록</button>
   </div>
 </div>
 <div class="overlay" id="handoff" hidden>
@@ -58,4 +101,10 @@
     <p>기기를 넘겨주세요. 준비되면 시작합니다.</p>
     <button class="btn primary" data-act="handoff" id="b-ho">작전 시작</button>
   </div>
+</div>
+<div class="overlay" id="brief" hidden role="dialog" aria-modal="true" aria-label="작전 브리핑">
+  <div class="card ccard"></div>
+</div>
+<div class="overlay" id="debrief" hidden role="dialog" aria-modal="true" aria-label="작전 결과">
+  <div class="card ccard"></div>
 </div>

@@ -71,7 +71,7 @@ function los(r1,c1,h1,r2,c2,h2){return losPt(c1+.5,r1+.5,h1,c2+.5,r2+.5,h2);}
 function losU(a,b){const [ax,az]=posOf(a),[bx,bz]=posOf(b);return losPt(ax,az,eye(a),bx,bz,eye(b));}
 
 function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg'){const f=Math.round(eye(u)+.5);v+=f>=5?2:f>=3?1:0;}
-  if(isNight())v-=t.fly?1:2;v+=WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
+  v+=typeof envVis==='function'?envVis(u):(isNight()?-(t.fly?1:2):0)+WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
 /* 숨은 상태: 쏜 지 얼마 안 됐으면 드러난다 */
 const firedRecently=e=>e.firedT!=null&&(G.time||0)-e.firedT<FIRE_REVEAL;
 function concealed(e){const t=UT[e.type];if(t.fly||t.cls!=='inf')return false;if(firedRecently(e))return false;const x=cell(e.r,e.c);return x.t==='bldg'||x.t==='park'||x.smoke>0;}
@@ -121,10 +121,15 @@ function spots(u,e){const t=UT[e.type];let v=visRange(u)+(t.cls==='veh'?1:t.fly?
   if(concealed(e))v*=SPOT_HIDE;
   if(t.hide&&inside(e)&&!firedRecently(e)&&e.shot!==G.turn)v=Math.min(v,1.5);
   const d=udist(u,e);if(d>v)return false;return d<.9||losU(u,e);}
+/* spots()가 쓰는 시야 거리의 상한: 가장 먼 병종 시야 + 고층 보너스 2 + 차량·항공 1 + 날씨 */
+function visMax(){const w=G.wx;if(G._vmx&&G._vmx.w===w)return G._vmx.v;let m=0;for(const k in UT)m=Math.max(m,UT[k].vis||0);
+  const v=m+3+Math.max(0,WX[w].vis);Object.defineProperty(G,'_vmx',{value:{w,v},writable:true,configurable:true,enumerable:false});return v;}
 function seen(e,n,vs){if(!G.fog||e.nat===n)return true;
   const ck='s'+n;G._sc=G._sc||{};const tq=Math.floor((G.time||0)*4);let c=G._sc[ck];if(!c||c.ver!==G.ver||c.tq!==tq){c=G._sc[ck]={ver:G.ver,tq,m:new Map()};}
   const pk=e.id+':'+e.r+','+e.c;if(c.m.has(pk))return c.m.get(pk);
-  let ok=false;for(const u of G.units){if(u.nat!==n)continue;if(spots(u,e)){ok=true;break;}}
+  // 시야 거리가 아무리 길어도 닿지 않는 부대는 시야선 계산 없이 건너뛴다(성능)
+  const [ex,ez]=posOf(e),V=visMax()+1.5;
+  let ok=false;for(const u of G.units){if(u.nat!==n)continue;const [ux,uz]=posOf(u);if(Math.abs(ux-ex)>V||Math.abs(uz-ez)>V)continue;if(spots(u,e)){ok=true;break;}}
   c.m.set(pk,ok);return ok;}
 
 /* ---------- 사격 가능 판정 ---------- */

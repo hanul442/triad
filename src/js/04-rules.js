@@ -19,7 +19,7 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
 /* ---------- 전투 ---------- */
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
 function damageBldg(r,c,amt){const x=G.map[r][c];if(x.t!=='bldg'||amt<=0)return;x.bhp-=amt;bump();
-  if(x.bhp<=0){const f0=x.f;x.t='rubble';G.navV=(G.navV||0)+1;x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom');L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
+  if(x.bhp<=0){const f0=x.f;x.t='rubble';G.navV=(G.navV||0)+1;x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom',1.3,c+.5,r+.5);L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
     const u=unitAt(r,c);if(u){u.supp=2;harm(u,5,null,{kind:'crush'});}}}
 /* 부대가 피해를 입는다(체력 단위). 보병은 병사 한 명 한 명이, 차량은 부위별로 다친다(05g-casualty의 harmX). */
 function harm(u,amt,by,o){if(!u||!G.units.includes(u))return 0;if(!(amt>0)){if(u.hp<=0)kill(u,by);return 0;}   // 피해 0이어도 체력이 이미 0이면(FPV 한 발 격추) 없앤다
@@ -57,12 +57,12 @@ function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,x:c+.5+(Math.random
 function buy(n,type,r,c){const N2=G.nats[n];const t=UT[type];if(N2.cp<t.cost)return null;if(!deploySpots(n,type).includes(key(r,c)))return null;
   N2.cp-=t.cost;const u=mkUnit(n,type,r,c);u.done=true;N2.bought=(N2.bought||0)+1;L(`${natName(n)} ${t.n} 증원`);sfx('build');return u;}
 function supArea(r,c,rad){const o=[];for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))o.push([a,b]);return o;}
-function canSupport(n,kind,r,c){const N2=G.nats[n];if(N2.cp<SUP[kind].cost||(N2.supT||0)>(G.time||0))return false;if(SUP[kind].air&&WX[G.wx].noAir)return false;if(kind==='heli')return !WX[G.wx].noAir&&heliCanLand(n,r,c)&&visSet(n).has(key(r,c));return kind==='smoke'||visSet(n).has(key(r,c));}
-function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2.supT=(G.time||0)+SUP_CD;FXH.strike(kind,r,c,n);
-  if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch');L(`${natName(n)} 연막 차장`);bump();return true;}
+function canSupport(n,kind,r,c){const N2=G.nats[n];const S=SUP[kind];if(N2.cp<S.cost||(N2[S.cdK||'supT']||0)>(G.time||0)||(S.off&&S.off()))return false;if(S.any)return inb(r,c);if(SUP[kind].air&&WX[G.wx].noAir)return false;if(kind==='heli')return !WX[G.wx].noAir&&heliCanLand(n,r,c)&&visSet(n).has(key(r,c));return kind==='smoke'||visSet(n).has(key(r,c));}
+function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.nats[n];N2.cp-=SUP[kind].cost;N2[SUP[kind].cdK||'supT']=(G.time||0)+(SUP[kind].cd||SUP_CD);FXH.strike(kind,r,c,n);
+  if(kind==='smoke'){for(const [a,b] of supArea(r,c,1))G.map[a][b].smoke=3;sfx('launch',1,c+.5,r+.5);if(n===G.viewer&&typeof sndRadio==='function')sndRadio('support');L(`${natName(n)} 연막 차장`);bump();return true;}
   if(kind==='heli'){heliInsert(n,r,c);L(`${natName(n)} 헬기 투입 요청`);bump();return true;}
   if(SUP[kind].fn){SUP[kind].fn(n,r,c);bump();return true;}  // 공격헬기·전투기(05f-air)
-  sfx('arty');L(`${natName(n)} ${SUP[kind].n}`);
+  if(n===G.viewer&&!isAI(n))sndRadio('support');L(`${natName(n)} ${SUP[kind].n}`);
   if(kind==='arty'&&typeof shellBarrage==='function'){shellBarrage(n,r,c,9,2.8);bump();return true;}   // 포격은 실제 포탄으로(05g-shells)
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
     const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:Math.max(TT[x.t].cov*.5,typeof trenchAt==='function'&&UT[u.type].cls==='inf'&&trenchAt(u.x,u.z)?.5:0);/* 참호는 포격도 막는다 */const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}

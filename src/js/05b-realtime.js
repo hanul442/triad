@@ -71,14 +71,17 @@ function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0
   const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.supp=Math.max(u.supp||0,1);harm(u,amt*.2,a,{kind:'frag'});}}
 /* 자동 표적: 가장 이득이 큰 적 */
 function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
-  for(const e of G.units){if(e.nat===u.nat||(vs&&!seen(e,u.nat)))continue;if(Math.hypot(u.x-e.x,u.z-e.z)>UT[u.type].rng[1]+.6)continue;if(!canHit(u,e))continue;
+  const R=UT[u.type].rng[1]+.6;
+  for(const e of G.units){if(e.nat===u.nat)continue;const dx=u.x-e.x,dz=u.z-e.z;if(dx*dx+dz*dz>R*R)continue;if(vs&&!seen(e,u.nat))continue;if(!canHit(u,e))continue;   // 싼 사거리 검사를 먼저(성능)
     const s=calcDmg(u,e,false)*UT[e.type].cost/Math.max(1,e.hp)+(u.tgt===e.id?99:0);if(s>bs){bs=s;best=e;}}
   return best;}
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);
   const sp=UT[u.type].mv*SPD_K/(t?mcost(u.type,t):1)*(u.supp>0?.65:1);const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);
   if(d>.001)u.face=Math.atan2(dz,dx)*180/Math.PI;
   const st=Math.min(d,sp*dt),nx=d>.001?u.x+dx/d*st:tx,nz=d>.001?u.z+dz/d*st:tz;
-  if(!walkable(u,nx,nz)||wallCross(u,u.x,u.z,nx,nz)){const end=u.path[u.path.length-1];u.path=[];if(!u._rp){u._rp=1;u.path=pathPts(u,end[0],end[1]);}return;}
+  // 바로 옆에 새 잔해·방어물이 생겨 지금 자리부터 막혔으면 빠져나가는 걸음은 허용한다(갇힘 방지)
+  const esc=!walkable(u,u.x,u.z)&&!!tileAt(nx,nz)&&mcost(u.type,tileAt(nx,nz))<Infinity;
+  if((!esc&&!walkable(u,nx,nz))||wallCross(u,u.x,u.z,nx,nz)){const end=u.path[u.path.length-1];u.path=[];if(!u._rp){u._rp=1;u.path=pathPts(u,end[0],end[1]);}return;}
   u._rp=0;u.x=nx;u.z=nz;if(d<=sp*dt)u.path.shift();
   // 서로 밀어 제자리걸음(목적지가 다른 부대 바로 옆): 4초 넘게 못 나아가면 목적지 근처면 거기서 멈추고, 멀면 길을 다시 찾는다
   {const t=G.time||0,g=u._pg;if(!g||Math.hypot(g[0]-u.x,g[1]-u.z)>.08)u._pg=[u.x,u.z,t];else if(t-g[2]>4){u._pg=[u.x,u.z,t];const e=u.path[u.path.length-1];
@@ -89,8 +92,9 @@ function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];
 /* 서 있는 칸이 바뀌면 시야·점령을 갱신한다 */
 function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c)return;u.r=r;u.c=c;bump();afterMove(u);}
 /* 겹친 부대는 서로 조금씩 밀어낸다 */
-function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 건물 안·문간에서는 서로 밀지 않는다(문에서 막히지 않게)
-    const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
+function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];const dx=b.x-a.x,dz=b.z-a.z;if(dx>.75||dx<-.75||dz>.75||dz<-.75)continue;   // 먼 쌍은 바로 건너뛴다(성능)
+    if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 건물 안·문간에서는 서로 밀지 않는다(문에서 막히지 않게)
+    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
     const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
     const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}}
@@ -105,7 +109,7 @@ function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb||t.kami)ret
   if(!tg)return;rtShoot(u,tg);u.cd=COOL[u.type]*(.85+Math.random()*.3)*(moving?1.5:1);}
 /* 30초마다: 수입·승점·날씨·연막 */
 function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue;G.nats[n].cp+=income(n);G.nats[n].vp+=objCount(n);}
-  if(Math.random()<.35)G.wx=rollWx();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.smoke>0)x.smoke--;}
+  if(typeof wxRound==='function')wxRound();else if(Math.random()<.35)G.wx=rollWx();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.smoke>0)x.smoke--;}
   G.hist.push(G.order.map(k=>G.nats[k].vp));bump();save();}
 function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   while(G.time>=G.turn*ROUND_S&&!G.over)rtRound();
@@ -114,11 +118,13 @@ function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   if(typeof fireTick==='function')fireTick(dt);
   if(typeof fortTick==='function')fortTick(dt);
   if(typeof airTick==='function')airTick(dt);
+  if(typeof msAllTick==='function')msAllTick(dt);
   for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;if(!flTick(u,dt))rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
   rtSeparate(dt);
   for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;
     if(N2.aiT<=0){N2.aiT=1.6+Math.random()*1.2;try{aiThink(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}
   if(typeof scnAfterAct==='function'&&G.scn==='tut')scnAfterAct();
+  if(G.camp&&typeof campTick==='function')campTick(dt);
   checkOver();}
 /* 시뮬레이션을 secs초만큼 돌린다(테스트·관전용) */
 function rtRun(secs){const n=Math.round(secs/TICK);for(let i=0;i<n&&!G.over;i++)rtTick(TICK);return G.over;}
