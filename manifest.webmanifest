@@ -1,7 +1,7 @@
 {
-  "name": "TRIAD 전구사령부",
+  "name": "TRIAD 시가전",
   "short_name": "TRIAD",
-  "description": "육·해·공 통합 턴제 전략 워게임",
+  "description": "3D 실시간 시가전 전술 게임",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

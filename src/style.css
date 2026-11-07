@@ -135,3 +135,37 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .pop{font-family:var(--font-m);font-weight:600;font-size:11px;fill:#ffb36b;paint-order:stroke;stroke:#0b0f14;stroke-width:3px;animation:rise .95s ease-out forwards}
 @keyframes rise{from{transform:translateY(0);opacity:1}to{transform:translateY(-16px);opacity:0}}
 @media (prefers-reduced-motion: reduce){.pop{animation:fade .9s linear forwards}@keyframes fade{to{opacity:0}}}
+/* 3D 시점 */
+.v3d{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;background:#121920;outline:none;image-rendering:pixelated;image-rendering:crisp-edges}
+.v3d-grain{position:absolute;inset:0;pointer-events:none;opacity:.16;mix-blend-mode:overlay;background-repeat:repeat;background-size:128px 128px}
+.v3d-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 70% at 50% 45%,transparent 50%,rgba(8,10,12,.6) 100%)}
+.v3d-lab{position:absolute;inset:0;pointer-events:none;overflow:hidden;contain:strict}
+.app.v3 .board{visibility:hidden;pointer-events:none}
+.v3only{display:none}
+.app.v3 .v3only{display:grid}
+.ib .t3{font-family:var(--font-m,monospace);font-size:12px;font-weight:600;letter-spacing:.02em}
+.v3l{position:absolute;left:0;top:0;white-space:nowrap;will-change:transform}
+.v3c{font:600 10.5px/1 var(--font-m,monospace);letter-spacing:.04em;color:#e9e6dc;background:rgba(9,13,18,.82);padding:3px 6px 3px 5px;border-left:3px solid var(--c);border-radius:2px}
+.v3u{display:flex;align-items:center;gap:2px;font:700 9px/1 var(--font-m,monospace);color:#f0b23a}
+.v3u i{display:block;width:22px;height:4px;background:rgba(0,0,0,.72);border:1px solid rgba(0,0,0,.6);border-radius:1px;overflow:hidden}
+.v3u i s{display:block;height:100%}
+.v3u em{font-style:normal;color:#fff;background:#ff6a3d;border-radius:50%;width:10px;height:10px;display:grid;place-items:center;font-size:8px}
+.v3u u{text-decoration:none;color:#e9e6dc;background:rgba(9,13,18,.85);border:1px solid var(--c);padding:1px 2px;border-radius:2px;font-size:8px}
+.v3d-err{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);max-width:min(420px,calc(100% - 32px));background:rgba(9,13,18,.92);border:1px solid var(--hit);border-radius:6px;padding:14px 16px;color:var(--ink);font-size:14px;z-index:2}
+.top .plate{letter-spacing:.2em;font-size:12px}
+.plate .nt{color:#8e99a3}
+.tip{position:absolute;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(9,13,18,.86);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:4px 10px;font-family:var(--font-m);font-size:11.5px;color:#cfd6dc;pointer-events:none;white-space:nowrap;max-width:calc(100% - 32px);overflow:hidden;text-overflow:ellipsis}
+.slot label small{color:var(--muted);font-weight:400;margin-left:4px}
+.slot .sw{width:12px;height:12px;border-radius:2px;display:block}
+.ucard[disabled]{opacity:.4;cursor:default}
+.ucard b{font-size:12.5px}
+.v3u{gap:3px}
+.v3u em{width:auto;height:auto;padding:1px 3px;border-radius:2px;font-size:8px}
+
+/* 병사별 상태 칸 (05g-casualty) */
+.v3u .pp{display:flex;gap:1px;width:auto;height:auto;background:none;border:0;overflow:visible}
+.v3u .pp b{display:block;width:3px;height:6px;background:#5cd18a;box-shadow:0 0 0 1px rgba(0,0,0,.65)}
+.v3u .pp b.lw{background:#f0b23a}.v3u .pp b.hw{background:#ff4a3e}.v3u .pp b.hy{background:#ff4a3e;opacity:.5}
+.v3u .pp b.aw{background:#8a96a3;opacity:.7}.v3u .pp b.ev{background:#8a96a3;opacity:.3}.v3u .pp b.kia{background:#151515;opacity:.8}
+.v3u em.sh{background:#c88a2a}.v3u em.br{background:#8a2a8a}
+.cas-tbl td{font-variant-numeric:tabular-nums}

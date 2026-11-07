@@ -2,7 +2,7 @@
   "name": "triad",
   "private": true,
   "type": "module",
-  "description": "TRIAD 전구사령부 — 육해공 턴제 전략 워게임",
+  "description": "TRIAD 시가전 — 3D 실시간 시가전 전술 게임",
   "scripts": {
     "build": "node build.mjs",
     "test": "node build.mjs && node --test test/game.test.mjs",
