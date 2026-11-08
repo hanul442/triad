@@ -14,10 +14,10 @@ const specMaps=()=>[['free','자유 전투'],['scn:assault','시나리오 · 도
   ...(typeof CAMP_IDS!=='undefined'?CAMP_IDS.map(id=>['camp:'+id,`캠페인 ${CAMP[id].no} · ${CAMP[id].n}`]):[])];
 function specStart(cfg){cfg=cfg||{};const map=specMaps().some(m=>m[0]===cfg.map)?cfg.map:'free';const seed=cfg.seed==null||cfg.seed===''||!isFinite(+cfg.seed)?null:Math.abs(Math.floor(+cfg.seed));
   const opt=id=>typeof document!=='undefined'&&document.getElementById(id)?document.getElementById(id).value:null;
-  UI.specCfg={n:cfg.n||2,size:cfg.size||'m',map,seed,layout:cfg.layout||opt('opt-layout')||'sym',relief:cfg.relief||opt('opt-relief')||'flat'};   // 자유 전투 지형은 새 게임 설정을 따른다
+  UI.specCfg={win:cfg.win==='lts'?'lts':'vp',n:cfg.n||2,size:cfg.size||'m',map,seed,layout:cfg.layout||opt('opt-layout')||'sym',relief:cfg.relief||opt('opt-relief')||'flat'};   // 자유 전투 지형은 새 게임 설정을 따른다
   // 시나리오·캠페인은 원래 사람 자리를 AI로 바꿔 차린다(newGame 감싸기가 UI.specForce를 본다)
   UI.specForce=true;UI.specSeed=seed;
-  try{if(map==='free')newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,layout:UI.specCfg.layout,relief:UI.specCfg.relief,diff:'normal',fog:true,speed:0,seed:seed??undefined});
+  try{if(map==='free')newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,layout:UI.specCfg.layout,relief:UI.specCfg.relief,diff:'normal',fog:true,speed:0,seed:seed??undefined,win:UI.specCfg.win});
     else if(map.startsWith('scn:'))scnSetup(map.slice(4),0);
     else campStart(map.slice(5));}
   finally{UI.specForce=false;UI.specSeed=null;}
@@ -56,7 +56,9 @@ function specPress(now){const us=prUnits();if(!us.length)return;const ok=new Set
     if(h&&(!u||h.u.id!==u.id&&specScore(u)<h.s*.6))u=h.u;}
   if(u&&PR.sub!==u){PR.sub=u;UI.follow=u.id;if(typeof prHud==='function')prHud(false);}
   UI.specPr=PR.sub?PR.sub.id:null;}
-function specCam(now){if(!specOn()||typeof V3==='undefined'||!V3.cs)return;if(typeof PR!=='undefined'&&PR.on){specPress(now);return;}let u=specFollowed();
+function specCam(now){if(!specOn()||typeof V3==='undefined'||!V3.cs)return;
+  // 세력이 탈락한 자리를 몇 초 비춘다(최후 생존)
+  if(UI.specOut&&now<UI.specOut.until&&UI.specAuto&&!(typeof PR!=='undefined'&&PR.on)){V3.cs.gx=UI.specOut.x;V3.cs.gz=UI.specOut.z;if(V3.cs.gd>20)V3.cs.gd=18;UI.follow=null;return;}if(typeof PR!=='undefined'&&PR.on){specPress(now);return;}let u=specFollowed();
   if(UI.follow!=null&&(!u||!specVisible(u))){u=null;UI.follow=null;if(!UI.specAuto&&!G.over)toast('따라가던 부대를 놓쳤습니다');}
   if(UI.specAuto&&!G.paused&&!G.over&&(!u||now-(UI.specHotT||0)>7000)){UI.specHotT=now;const h=specHot(null);
     // 아직 교전이 없으면 부대 하나(맵 가장자리일 수 있다) 대신 두 세력이 가장 가까운 전선을 넓게 비춘다
@@ -87,9 +89,12 @@ function specCycleVis(){const act=G.order.filter(i=>G.nats[i].alive);
   bump();}
 function specSetSpd(s){G.spd=s;G.paused=false;}
 
+/* 최후 생존: 세력이 탈락하면 알리고, 관전 중이면 마지막 부대가 쓰러진 자리를 비춘다 */
+function ltsOutFx(n){if(typeof document==='undefined')return;const p=G.ltsLast&&G.ltsLast[n];if(typeof toast==='function'){const o=(G.ltsOut||[]).slice(-1)[0];toast(`${NATS[n].full} 탈락${o&&o.n===n&&o.why?" — "+o.why:""}`);};
+  if(specOn()&&p){UI.specOut={x:p.x,z:p.z,until:performance.now()+6000};UI.specHotT=performance.now();}}
 /* ---------- 화면: 관전 중에는 HUD·하단 바를 바꾼다 ---------- */
-function specHUD(){const r=$('#hud-res');if(!r)return;
-  r.innerHTML=`<span class="rv"><b>관전</b><small class="lbl" title="${specMapName()} · 지도 번호 ${G.seed}">시야 ${specVisLabel()}</small></span><span class="rv"><b>${G.order.map(n=>`<span class="spec-sc${G.nats[n].alive?'':' out'}" style="color:${mapCol(n)}" title="${NATS[n].name} 승점">${G.nats[n].vp}</span>`).join(' ')}</b><small class="lbl">승점 / ${G.vpWin}</small></span>`;
+function specHUD(){const r=$('#hud-res');if(!r)return;const lts=typeof ltsOn==='function'&&ltsOn();
+  r.innerHTML=`<span class="rv"><b>관전</b><small class="lbl" title="${specMapName()} · 지도 번호 ${G.seed}">시야 ${specVisLabel()}</small></span><span class="rv"><b>${G.order.map(n=>`<span class="spec-sc${G.nats[n].alive?'':' out'}" style="color:${mapCol(n)}" title="${NATS[n].name} ${lts?'남은 부대':'승점'}">${lts?ltsCount(n):G.nats[n].vp}</span>`).join(' ')}</b><small class="lbl">${lts?'최후 생존 · 남은 부대':`승점 / ${G.vpWin}`}</small></span>`;
   const t=$('#t-cmd');if(t)t.hidden=true;}
 function specBar(){const el=$('#actbar');if(!el)return;el.hidden=false;
   if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':`<span style="color:${mapCol(w)}">${NATS[w].full}</span> 승리`}</b><span>${G.over.why} · ${fmtT(G.time||0)} · ${specMapName()} · 지도 번호 ${G.seed}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm" data-act="spec-same" id="ab-ssame">같은 지도로 다시</button><button class="btn sm primary" data-act="spec-again" id="ab-sagain">다시 관전</button><button class="btn sm" data-act="new" id="ab-new">새 작전</button></div>`;return;}
@@ -111,6 +116,7 @@ function specSetupBox(){if($('#spec-box'))return;const card=$('#setup .card');co
 <div class="slot"><span></span><label for="spec-n">세력 수</label><select id="spec-n"><option value="2">2세력</option><option value="3">3세력</option><option value="4">4세력</option></select></div>
 <div class="slot"><span></span><label for="spec-map">전장</label><select id="spec-map">${specMaps().map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></div>
 <div class="slot"><span></span><label for="spec-size">도시 크기</label><select id="spec-size"><option value="s">소형 32×32</option><option value="m" selected>중형 44×44</option><option value="l">대형 56×56</option></select></div>
+<div class="slot"><span></span><label for="spec-win">승리 방식</label><select id="spec-win"><option value="vp">승점</option><option value="lts">최후 생존</option></select></div>
 <div class="slot"><span></span><label for="spec-seed">지도 번호</label><input id="spec-seed" type="number" inputmode="numeric" min="0" step="1" placeholder="비우면 무작위"></div>
 <p class="spec-note" id="spec-note" hidden></p>
 <button class="btn" data-act="spec-start" id="b-spec">관전 시작</button>`;
@@ -118,9 +124,9 @@ function specSetupBox(){if($('#spec-box'))return;const card=$('#setup .card');co
   box.querySelector('#spec-map').addEventListener('change',specSetupSync);}
 /* 시나리오·캠페인은 세력 수·도시 크기가 정해져 있다(캠페인은 지도도) */
 function specSetupSync(){const m=$('#spec-map');if(!m)return;const v=m.value,free=v==='free',camp=v.startsWith('camp:');
-  $('#spec-n').disabled=!free;$('#spec-size').disabled=!free;$('#spec-seed').disabled=camp;
+  $('#spec-n').disabled=!free;$('#spec-win').disabled=!free;$('#spec-size').disabled=!free;$('#spec-seed').disabled=camp;
   const nt=$('#spec-note');nt.hidden=free;nt.textContent=camp?'캠페인 임무는 지도와 병력이 정해져 있습니다. 연방군 쪽도 AI가 지휘합니다(임무 목표는 모르고 싸웁니다).':'시나리오는 2세력·중형 도시입니다. 사람 쪽 자리를 AI가 맡습니다.';}
-function specSetupCfg(){const sd=$('#spec-seed').value.trim();return {n:+$('#spec-n').value,size:$('#spec-size').value,map:$('#spec-map').value,seed:sd===''?null:sd};}
+function specSetupCfg(){const sd=$('#spec-seed').value.trim();return {win:$('#spec-win').value,n:+$('#spec-n').value,size:$('#spec-size').value,map:$('#spec-map').value,seed:sd===''?null:sd};}
 function specBegin(){$('#setup').hidden=true;for(const id of ['#brief','#debrief']){const el=$(id);if(el)el.hidden=true;}clearSel();UI.sheet=false;UI.tab='world';render();rtStart();
   if(typeof V3!=='undefined'&&V3.cs){const m=N/2;V3.cs.gx=m;V3.cs.gz=m;V3.cs.gd=Math.min(Math.max(48,N*1.35),N*.8);}}
 
@@ -148,7 +154,7 @@ function specBegin(){$('#setup').hidden=true;for(const id of ['#brief','#debrief
   // 관전 화면은 깔끔하게: 따라가는 부대만 엄폐·사기·무전 같은 표시를 달고, 나머지는 체력 막대만
   const _sl=v3SyncLabels;v3SyncLabels=function(){const r=_sl.apply(this,arguments);const lab=$('#v3d-lab');const on=specOn();if(lab)lab.classList.toggle('spec-clean',on);
     if(on)for(const o of V3.labels.values())if(o.uid!=null)o.el.classList.toggle('fol',o.uid===UI.follow);return r;};
-  const _ss=showSetup;showSetup=function(){_ss.apply(this,arguments);specSetupBox();if(UI.specCfg){$('#spec-n').value=String(UI.specCfg.n);$('#spec-size').value=UI.specCfg.size;$('#spec-map').value=UI.specCfg.map||'free';$('#spec-seed').value=UI.specCfg.seed??'';}specSetupSync();};
+  const _ss=showSetup;showSetup=function(){_ss.apply(this,arguments);specSetupBox();if(UI.specCfg){$('#spec-n').value=String(UI.specCfg.n);$('#spec-size').value=UI.specCfg.size;$('#spec-map').value=UI.specCfg.map||'free';$('#spec-seed').value=UI.specCfg.seed??'';$('#spec-win').value=UI.specCfg.win||'vp';}specSetupSync();};
   // 관전 중 탭: 보이는 부대를 탭하면 따라간다. 명령은 내리지 않는다.
   const _tap=tap;tap=function(k){if(!specOn())return _tap.apply(this,arguments);const id=typeof V3!=='undefined'?V3.pickId:null;
     const u=id!=null?G.units.find(z=>z.id===id):null;if(u&&specVisible(u)){specFollow(u,false);render();}};
