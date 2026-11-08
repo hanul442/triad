@@ -72,6 +72,7 @@ test('돌입: 문 옆에서 대기하고 수류탄을 던진 뒤 들어가 층�
 
 test('계단 싸움: 위층의 눌리지 않은 적은 계단으로 올라오는 분대를 먼저 쏜다', () => {
   const T = loadGame(); const G = setup(T); bldg(G, 5, 5, 3); T.bump();
+  T.__set('aiThink', () => {});   // 지키는 쪽 AI가 계단을 내려가 버리면(약 3번에 2번) 매복이 안 일어난다
   const a = T.mkUnit(0, 'rifle', 5, 5); at(T, a, 5, 5, 0); a.hp = 999;
   const d = T.mkUnit(1, 'rifle', 5, 5); at(T, d, 5, 5, 1); d.cd = 0; d.flT = 1;
   a.cqb = { k: T.key(5, 5), st: 'clear', fl: 1, t0: 0, n: 0, gT: 1e9 };   // 수류탄 없이 바로 오른다
