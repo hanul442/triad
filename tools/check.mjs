@@ -21,6 +21,7 @@ const CHECKS = {
   unseen: '세력 시야에 없는 표적을 쏨',
   soldierWall: '분대와 다른 건물 공간에 끼인 병사(표본)',
   longGame: '20분 넘게 끝나지 않은 판',
+  jump: '지상 부대가 1초에 최고 속도의 1.5배(최소 1.5칸) 넘게 순간 이동',
 };
 
 async function oneGame(seed, size) {
@@ -64,11 +65,14 @@ async function oneGame(seed, size) {
     }
     return r;
   });
-  const stillT = new Map();
+  const stillT = new Map(), lastP = new Map();
   const check = G => {
     for (const u of G.units) {
       const t = UT[u.type];
       if (!Number.isFinite(u.x) || !Number.isFinite(u.z)) { note('nan', `${u.type}#${u.id}`); continue; }
+      { const lp = lastP.get(u.id); if (lp && !t.fly && G.time - lp[2] < 1.05 && Math.hypot(u.x - lp[0], u.z - lp[1]) > Math.max(1.5, (t.mv || 0) * .2 * 1.5 + .3))
+          note('jump', `${u.type}#${u.id} (${lp[0].toFixed(1)},${lp[1].toFixed(1)})→(${u.x.toFixed(1)},${u.z.toFixed(1)}) mv=${t.mv} tow=${!!u.tow} job=${u.job || ''}`);
+        lastP.set(u.id, [u.x, u.z, G.time]); }
       const x = cell(u.r, u.c);
       if (t.cls === 'inf' && x.t === 'bldg' && gable(x) && onRoof(u)) note('gable', `${u.type}#${u.id} (${u.r},${u.c}) f=${x.f}`);
       if (t.cls === 'veh' && !t.fly && x.t === 'bldg') { const b = bldgBox(u.r, u.c); if (u.x > b[0] && u.x < b[1] && u.z > b[2] && u.z < b[3]) note('vehBldg', `${u.type}#${u.id}`); }
