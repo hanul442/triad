@@ -47,8 +47,8 @@ function wallCross(u,x1,z1,x2,z2){if(UT[u.type].fly)return false;if(Math.floor(x
           if(Math.hypot(cx-d[0],cz-d[1])>DOOR_W)return true;}}}
     pr=r;pc=c;px=x;pz=z;}
   return false;}
-/* 서로 밀어내지 않는 자리: 건물 안이거나 문에서 0.35칸 안 */
-function sepFree(u){if(UT[u.type].cls!=='inf')return false;const x=cell(u.r,u.c);if(isB(x))return true;
+/* 서로 밀어내지 않는 자리: 문에서 0.35칸 안 (건물 안은 05b rtSeparate가 같은 칸 같은 층끼리만 민다) */
+function sepFree(u){if(UT[u.type].cls!=='inf')return false;
   for(let s=0;s<4;s++){const [a,b]=SIDES[s];const r=u.r+a,c=u.c+b;if(!inb(r,c)||!isB(G.map[r][c]))continue;const ds=doorSides(r,c);const o=(s+2)%4;if(!ds||!ds[o])continue;const d=doorPos(r,c,o);if(Math.hypot(d[0]-u.x,d[1]-u.z)<.35)return true;}
   return false;}
 /* 계단 자리: 칸마다 한 모서리 */
@@ -70,9 +70,11 @@ function pathFlLim(u){const here=cell(u.r,u.c);let lim=topFl(here);let px=u.x,pz
 /* 계단으로 한 걸음: 계단 자리로 걸어가서 목표 층까지 오르내린다. 계단에 있는 동안은 u.climb=1 */
 function stairStep(u,dt,goal){const [sx,sz]=stairPos(u.r,u.c);const dx=sx-u.x,dz=sz-u.z,d=Math.hypot(dx,dz);
   const sp=UT[u.type].mv*SPD_K*.5*(u.supp>0?.65:1);u.climb=1;   // 계단으로 가는 동안과 오르내리는 동안은 쏘지 않는다
+  // 계단은 한 번에 한 분대: 같은 칸 아군 분대가 계단에 있으면 계단 앞에서 기다린다
+  if(!u.onSt&&G.units.some(o=>o!==u&&o.onSt&&o.nat===u.nat&&o.r===u.r&&o.c===u.c)){if(d>.45){const k=Math.min(1,sp*dt/d,(d-.45)/d);u.x+=dx*k;u.z+=dz*k;}return;}
   if(d>.04){const k=Math.min(1,sp*dt/d);u.x+=dx*k;u.z+=dz*k;u.face=Math.atan2(dz,dx)*180/Math.PI;u.onSt=0;return;}
   u.onSt=1;
-  const rate=dt/FLOOR_S*(u.supp>0?.6:1);
+  const rate=dt/FLOOR_S*(u.supp>0?.6:1)*(goal<u.fl?1.6:1);   // 내려가기는 더 빠르다
   u.flDir=goal>u.fl?1:-1;
   if(u.fl<goal)u.fl=Math.min(goal,u.fl+rate);else u.fl=Math.max(goal,u.fl-rate);
   if(Math.abs(u.fl-goal)<1e-6){u.fl=goal;endClimb(u);}
@@ -94,4 +96,4 @@ function endClimb(u){u.climb=0;u.onSt=0;u.cd=Math.max(u.cd||0,1);bump();}
 /* 부대가 차지한 층(칸+층 점유): 건물 안 보병은 지금 층, 옥상은 topFl, 그 밖의 지상 부대는 0, 하늘은 -1 */
 function flOf(u){if(UT[u.type].fly)return -1;if(UT[u.type].cls!=='inf')return 0;const x=cell(u.r,u.c);if(!isB(x))return 0;return Math.floor(curFl(u)+1e-6);}
 /* 층 명령: 꼭대기로 / 1층으로 (UI 버튼) */
-function orderFloor(u,up){u.flT=up?null:0;}
+function orderFloor(u,up){u.flT=up?99:0;}   // 99 = 꼭대기(옥상)까지

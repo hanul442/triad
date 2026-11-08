@@ -8,7 +8,7 @@
      계단을 오르는 동안은 쏘지 못하고, 머리를 내미는 순간 위층의 눌리지 않은 적이 먼저 쏜다(계단 싸움).
      칸을 정리하면 같은 건물의 다음 적 칸으로, 다 정리하면 건물을 차지하고 선다.
    - 포탄·폭탄·건물 사격은 위층·옥상에 그대로, 아래층일수록 덜 미친다(flShield). */
-const CQB={cap:4,stack:1.6,bangCD:4.5,bang:2.2,charge:3.2,go:.5,roomCov:.12,nextCov:.22,roomK:1.5,pin:1.2,seek:7,maxT:150};
+const CQB={autoFl:4,stallT:12,stallD:.3,cap:4,stack:1.6,bangCD:4.5,bang:2.2,charge:3.2,go:.5,roomCov:.12,nextCov:.22,roomK:1.5,pin:1.2,seek:7,maxT:150};
 const canClear=u=>{const t=UT[u.type];return t.cls==='inf'&&!t.ind&&!t.fly&&!t.heli&&!t.kami&&!t.dteam&&u.type!=='sniper'&&(t.rng[1]||0)>0;};
 /* 이 분대가 칸 (r,c)에 함께 들 자리가 있는가 (L: 이미 든 부대) */
 function bldgRoom(u,r,c,L){const x=G.map[r][c];if(!isB(x)||UT[u.type].cls!=='inf'||UT[u.type].fly)return false;
@@ -17,7 +17,7 @@ function bldgRoom(u,r,c,L){const x=G.map[r][c];if(!isB(x)||UT[u.type].cls!=='inf
 function flShield(u){if(UT[u.type].cls!=='inf')return 1;const x=cell(u.r,u.c);if(!isB(x))return 1;return Math.pow(.55,Math.max(0,topFl(x)-1-curFl(u)));}
 /* 멈춘 분대가 갈 층: 돌입 중이면 소탕할 층, 아니면 원하는 층(u.flT, 없으면 꼭대기)에서 같은 칸 아군이 먼저 잡은 층을 피해 가장 가까운 빈 층 */
 function flWant(u,x){if(u.cqb)return u.cqb.fl!=null?u.cqb.fl:Math.floor((u.fl||0)+1e-6);
-  const k=key(u.r,u.c),top=topFl(x);const want=u.flT==null?top:Math.min(top,u.flT);
+  const k=key(u.r,u.c),top=topFl(x);const want=u.flT==null?(u.type==='sniper'?top:Math.min(top,CQB.autoFl)):Math.min(top,u.flT);   // 따로 시키지 않으면 5층까지만 오른다(저격수는 꼭대기)
   if(u._inK!==k){u._inK=k;u._inT=G.time||0;u._flC=null;}
   const taken=new Set(),me=u._inT||0;
   for(const v of G.units){if(v===u||v.nat!==u.nat||v.r!==u.r||v.c!==u.c||UT[v.type].cls!=='inf'||v._inK!==k)continue;if(v.path&&v.path.length)continue;
@@ -48,7 +48,11 @@ function cqbPlan(u){const C=u.cqb;const r=kr(C.k),c=kc(C.k),X=G.map[r][c];
   if(sameBlk(cell(u.r,u.c),X)||cell(u.r,u.c)===X){C.st='entry';u.path=pathPts(u,c+.5,r+.5);return;}
   const p=pathPts(u,c+.5,r+.5);
   for(let i=1;i<p.length;i++){const q=p[i];if(q.door!=='b')continue;const t=tileAt(q[0],q[1]);if(!t||!(t===X||sameBlk(t,X)))continue;const a=p[i-1];if(a.door!=='a')break;
-    C.sx=a[0];C.sz=a[1];C.dx=(a[0]+q[0])/2;C.dz=(a[1]+q[1])/2;C.er=Math.floor(q[1]);C.ec=Math.floor(q[0]);u.path=p.slice(0,i);C.st='move';return;}
+    C.sx=a[0];C.sz=a[1];C.dx=(a[0]+q[0])/2;C.dz=(a[1]+q[1])/2;C.er=Math.floor(q[1]);C.ec=Math.floor(q[0]);u.path=p.slice(0,i);C.st='move';
+    // 같은 문에 이미 붙은 아군 분대가 있으면 문 반대편 벽에 붙는다
+    if(G.units.some(o=>o!==u&&o.nat===u.nat&&o.cqb&&o.cqb.sx!=null&&Math.hypot(o.cqb.sx-a[0],o.cqb.sz-a[1])<.3)){const nx=q[0]-a[0],nz=q[1]-a[1],L=Math.hypot(nx,nz)||1;const tx=-nz/L*.32,tz=nx/L*.32;
+      for(const sg of [1,-1]){const x=a[0]+tx*sg,z=a[1]+tz*sg;if(walkable(u,x,z)&&!G.units.some(o=>o!==u&&o.cqb&&o.cqb.sx!=null&&Math.hypot(o.cqb.sx-x,o.cqb.sz-z)<.25)){C.sx=x;C.sz=z;u.path=pathPts(u,x,z);break;}}}
+    return;}
   // 문을 거치지 않는다(벽이 무너졌다): 바로 들어간다
   C.er=r;C.ec=c;C.st='entry';u.path=p;}
 function cqbEnd(u,done,why){const C=u.cqb;if(!C)return;u.cqb=null;G.cqbWhy=G.cqbWhy||{};const w=done?'done':why||'order';G.cqbWhy[w]=(G.cqbWhy[w]||0)+1;u.flT=null;u._flC=null;if(done&&C&&(!isAI(u.nat)||!G.fog))L(`${natName(u.nat)} ${UT[u.type].n} 건물 소탕 완료`);bump();}
@@ -92,7 +96,11 @@ function cqbStairs(t){for(const u of G.units.slice()){if(!u.climb||!u.onSt||UT[u
   for(const d of G.units.slice()){if(d.nat===u.nat||d.r!==u.r||d.c!==u.c||UT[d.type].cls!=='inf'||UT[d.type].ind||!UT[d.type].rng[1])continue;
     if(d.climb||(d.cd||0)>0||(d.supp||0)>=CQB.pin||flOf(d)!==tf)continue;
     rtShoot(d,u);d.cd=COOL[d.type]*(.8+Math.random()*.3);d._amb=t;if(!G.units.includes(u))break;}}}
-function cqbTick(){const t=G.time||0;for(const u of G.units.slice())if(u.cqb&&G.units.includes(u))cqbStep(u,t);cqbStairs(t);}
+/* 계단에서 내려선 분대는 계단 자리를 비워 방 안으로 몇 걸음 물러선다(다음에 오르내리는 분대와 겹치지 않게) */
+function stairClear(dt){for(const u of G.units){if(UT[u.type].cls!=='inf'||u.climb||(u.path&&u.path.length))continue;const x=cell(u.r,u.c);if(!isB(x))continue;
+  const [sx,sz]=stairPos(u.r,u.c);if(Math.hypot(u.x-sx,u.z-sz)>.2)continue;const h=dHash(u.id,7)-.5;const tx=u.c+.5+(u.c+.5-sx)*.4+h*.2,tz=u.r+.5+(u.r+.5-sz)*.4-h*.2;
+  const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);if(d<.02)continue;const k=Math.min(1,UT[u.type].mv*SPD_K*.5*dt/d);u.x+=dx*k;u.z+=dz*k;}}
+function cqbTick(){const t=G.time||0;stairClear(TICK);for(const u of G.units.slice())if(u.cqb&&G.units.includes(u))cqbStep(u,t);cqbStairs(t);}
 const _cqbTick0=rtTick;
 rtTick=function(dt){_cqbTick0(dt);if(G&&!G.over)try{cqbTick();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};
 /* 다른 명령을 받으면 돌입을 멈춘다 */
@@ -106,3 +114,11 @@ const _cqbRx0=radioExec;
 radioExec=function(k,a,us){if(k!=='clear')return _cqbRx0(k,a,us);us=us.filter(u=>G.units.includes(u));for(const g of us){orderClear(g,a[0],a[1]);g._ack=G.time||0;}};
 /* 패널에 보일 돌입 단계 */
 function cqbTxt(u){const C=u.cqb;if(!C)return '';return C.st==='move'?'돌입: 문으로 가는 중':C.st==='stack'?'돌입: 문 옆 대기':C.st==='entry'?'돌입: 진입 중':u.climb?'돌입: 계단':`돌입: ${C.fl>=topFl(cell(u.r,u.c))?'옥상':(C.fl+1)+'층'} 소탕`;}
+/* 헛걸음 막기: 경로가 있는데 CQB.stallT초 동안 목적지에 CQB.stallD칸도 더 가까워지지 못하면(문 앞에서 떨거나 왔다 갔다) 멈춘다.
+   AI는 다음 생각에서 새 자리를 고르고, 돌입 중이면 돌입을 그만둔다. */
+const _cqbMove0=rtMove;
+rtMove=function(u,dt){_cqbMove0(u,dt);if(!G.units.includes(u))return;const p=u.path;if(!p||!p.length){u._pw=null;return;}
+  const e=p[p.length-1],t=G.time||0,d=Math.hypot(e[0]-u.x,e[1]-u.z);const w=u._pw;
+  if(!w||Math.abs(w.x-e[0])>.01||Math.abs(w.z-e[1])>.01){u._pw={x:e[0],z:e[1],d,t};return;}
+  if(d<w.d-CQB.stallD){w.d=d;w.t=t;return;}
+  if(t-w.t>CQB.stallT){u._pw=null;u.path=[];u.dest=null;G.stallN=(G.stallN||0)+1;if(u.cqb)cqbEnd(u,0,'stall');}};

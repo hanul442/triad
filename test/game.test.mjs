@@ -142,7 +142,7 @@ test('건물은 문으로만 드나들고, 안에서는 계단으로 한 층씩 
   // 옥상에서는 건물 높이보다 조금 위에서 본다
   assert.ok(Math.abs(T.eye(u) - 4.3) < 1e-9);
   // 나가라고 하면 먼저 1층까지 내려온 뒤 문으로 나간다
-  T.orderMoveTo(u, 1.5, 1.5); T.rtTick(0.1);
+  T.orderMoveTo(u, 1.5, 1.5); for (let i = 0; i < 15 && !(u.fl < 4); i++) T.rtTick(0.1);   // 계단 자리로 몇 걸음 돌아간 뒤
   assert.ok(u.r === 5 && u.c === 5 && u.fl < 4 && u.fl > 0, '계단으로 내려오는 중');
   lx = u.x; lz = u.z; let outT = 0;
   for (let i = 0; i < 600 && !(u.r === 1 && u.c === 1); i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z)); if (G.map[u.r][u.c].t !== 'bldg' && !outT) { outT = 1; assert.equal(u.fl, 0); } lx = u.x; lz = u.z; }
@@ -153,7 +153,7 @@ test('계단을 오르내리는 동안은 쏘지 않는다', () => {
   const T = loadGame(); const G = setup(T);
   bldg(G, 5, 5, 4); G.map[5][5].blk = 1; T.bump();
   const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; u.fl = 0; u.flK = T.key(5, 5);
-  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; e.hp = 999; e.cd = 999;
+  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; e.hp = 999; e.cd = 999; e.post = 1;   // AI가 돌입하지 않게 제자리
   let shotWhileClimb = false;
   for (let i = 0; i < 200; i++) { const was = u.climb; const f0 = u.firedT; T.rtTick(0.1); if (u.firedT !== f0 && (was || u.climb)) shotWhileClimb = true; }
   assert.ok(!shotWhileClimb);

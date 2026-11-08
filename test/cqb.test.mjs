@@ -92,3 +92,20 @@ test('AI는 가까운 적 점령 건물에 분대를 돌입시킨다', () => {
   T.__get('aiCqb')(0);
   assert.ok(a.cqb || b.cqb, '돌입 명령');
 });
+
+test('계단은 한 번에 한 분대씩 오르고, 따로 시키지 않으면 5층까지만 오른다', () => {
+  const T = loadGame(); const G = setup(T); bldg(G, 5, 5, 9); T.bump();
+  const a = T.mkUnit(0, 'rifle', 5, 5); at(T, a, 5, 5, 0); const b = T.mkUnit(0, 'mg', 5, 5); at(T, b, 5, 5, 0); b.x = 5.3;
+  let both = 0;
+  for (let i = 0; i < 900; i++) { T.rtTick(0.1); if (a.onSt && b.onSt) both++; }
+  assert.equal(both, 0, '두 분대가 함께 계단에 있었다');
+  const fl = [a.fl, b.fl].sort((p, q) => p - q);
+  assert.deepEqual(fl, [3, 4], `층 ${fl}`);
+});
+
+test('목적지에 12초 넘게 가까워지지 못하면 헛걸음을 멈춘다', () => {
+  const T = loadGame(); const G = setup(T);
+  const u = T.mkUnit(0, 'rifle', 5, 5); at(T, u, 5, 5);
+  for (let i = 0; i < 160; i++) { u.path = [[8.5, 5.5]]; u.x = 5.5; u.z = 5.5; T.rtTick(0.1); }   // 매 틱 제자리로 되돌려진다
+  assert.ok((G.stallN || 0) > 0, '멈추지 않았다');
+});

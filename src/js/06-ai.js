@@ -56,12 +56,12 @@ function aiThink(n){const N2=G.nats[n];
   for(const u of G.units){if(u.nat!==n||u.job||u.post||u.cqb)continue;const t=UT[u.type];if(t.heli)continue;if(t.kami&&typeof aiFpv==='function'&&aiFpv(n,u,E))continue;if(t.dteam&&E.some(e=>Math.hypot(e.x-u.x,e.z-u.z)<9)&&Math.random()<.85)continue;
     if(u.path&&u.path.length&&Math.random()<.75)continue;
     if(t.ind&&E.some(e=>canHit(u,e))&&Math.random()<.85)continue; // 곡사: 쏠 수 있으면 자리 지킴
-    const goal=aiGoal(n,u,E);if(typeof aiArmsAdvance==='function'&&Math.random()<.7&&aiArmsAdvance(n,u,E,goal))continue;const R=reach(u);let bestT=key(u.r,u.c),bestS=-1e9;
+    const goal=aiGoal(n,u,E);if(typeof aiArmsAdvance==='function'&&Math.random()<.7&&aiArmsAdvance(n,u,E,goal))continue;const R=reach(u);let bestT=key(u.r,u.c),bestS=-1e9;const pe=u.path&&u.path.length?u.path[u.path.length-1]:null;const endK=pe?key(Math.floor(pe[1]),Math.floor(pe[0])):-1;
     for(const k of R.keys()){const r=kr(k),c=kc(k);let s=aiPosScore(u,r,c,goal,E,n);let as=0;
       if(!t.ind)for(const e of E){if(dist(r,c,e.r,e.c)>t.rng[1])continue;const v=aiAtkScore(u,e,r,c,true);if(v>as)as=v;}
       else if(k!==key(u.r,u.c))s-=3;
-      s+=as*.8;if(k===key(u.r,u.c))s+=1.5;if(s>bestS){bestS=s;bestT=k;}}
-    if(bestT!==key(u.r,u.c)){const [jx,jz]=coverSnap(u,kc(bestT)+.2+Math.random()*.6,kr(bestT)+.2+Math.random()*.6);u.path=pathPts(u,jx,jz);u.tgt=null;u.dest=null;}}
+      s+=as*.8;if(k===key(u.r,u.c))s+=1.5;if(k===endK)s+=3;if(k!==key(u.r,u.c)&&G.units.some(o=>o!==u&&o.nat===n&&o.r===kr(k)&&o.c===kc(k)&&!UT[o.type].fly))s-=4;/* 아군이 든 칸은 꼭 필요할 때만 함께 든다 */if(s>bestS){bestS=s;bestT=k;}}   // 가던 곳은 웬만큼 나아야 바꾼다(왔다 갔다 방지)
+    if(bestT!==key(u.r,u.c)&&bestT!==endK){const [jx,jz]=coverSnap(u,kc(bestT)+.2+Math.random()*.6,kr(bestT)+.2+Math.random()*.6);u.path=pathPts(u,jx,jz);u.tgt=null;u.dest=null;}}
   if(typeof aiArmsEscort==='function')aiArmsEscort(n);
   if(typeof aiFort==='function')aiFort(n);
   checkOver();}
