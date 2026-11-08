@@ -53,6 +53,8 @@ function sepFree(u){if(UT[u.type].cls!=='inf')return false;
   return false;}
 /* 계단 자리: 칸 한가운데 계단실(코어). 창에서 멀어 밖에서는 계단 위 병사가 보이지 않는다(04b spots). */
 const STAIR_OFF=.09;
+/* 계단에서 비켜선 자리: 계단 반대쪽으로 0.3칸, 분대마다 앞뒤로 조금씩 다르게 (계단을 기다리거나 막 내려선 분대) */
+function stairAway(u){const [sx,sz]=stairPos(u.r,u.c);const s=sx>u.c+.5?-1:1;const h=dHash(u.id,31)-.5;return [u.c+.5+s*(.22+Math.abs(h)*.12),u.r+.5+h*.6];}
 function stairPos(r,c){const h=dHash(key(r,c),40);const sx=h<.5?-1:1,sz=(h*4|0)%2?-1:1;return [c+.5+sx*STAIR_OFF,r+.5+sz*.04];}
 /* 박공지붕(낮은 주택): 비탈진 지붕이라 올라설 수 없다. 화면(07-view3d)이 박공을 그리는 조건과 같다. */
 /* 박공지붕: 주택(ks='house', 예전 지도는 주거 구역) 2층 이하. 집 열에 셋은 옥상이 평평하다(블록 번호로 정해 그림과 규칙이 같다) */
@@ -76,8 +78,10 @@ function pathFlLim(u){const here=cell(u.r,u.c);let lim=topFl(here);let px=u.x,pz
 /* 계단으로 한 걸음: 계단 자리로 걸어가서 목표 층까지 오르내린다. 계단에 있는 동안은 u.climb=1 */
 function stairStep(u,dt,goal){const [sx,sz]=stairPos(u.r,u.c);const dx=sx-u.x,dz=sz-u.z,d=Math.hypot(dx,dz);
   const sp=UT[u.type].mv*SPD_K*.5*(u.supp>0?.65:1);u.climb=1;   // 계단으로 가는 동안과 오르내리는 동안은 쏘지 않는다
-  // 계단은 한 번에 한 분대: 같은 칸 아군 분대가 계단에 있으면 계단 앞에서 기다린다
-  if(!u.onSt&&G.units.some(o=>o!==u&&o.onSt&&o.nat===u.nat&&o.r===u.r&&o.c===u.c)){if(d>.45){const k=Math.min(1,sp*dt/d,(d-.45)/d);u.x+=dx*k;u.z+=dz*k;}return;}
+  // 계단은 한 번에 한 분대: 같은 칸 아군 분대가 계단에 있거나 먼저(더 가까이) 계단으로 가고 있으면, 계단에서 비켜선 자리에서 기다린다
+  if(!u.onSt&&G.units.some(o=>o!==u&&o.climb&&o.nat===u.nat&&o.r===u.r&&o.c===u.c&&(o.onSt||Math.hypot(o.x-sx,o.z-sz)<d-1e-6))){
+    const [wx,wz]=stairAway(u);   // 계단 맞은편 쪽
+    const ex=wx-u.x,ez=wz-u.z,e=Math.hypot(ex,ez);if(e>.02){const k=Math.min(1,sp*dt/e);u.x+=ex*k;u.z+=ez*k;}u.onSt=0;return;}
   if(d>.04){const k=Math.min(1,sp*dt/d);u.x+=dx*k;u.z+=dz*k;u.face=Math.atan2(dz,dx)*180/Math.PI;u.onSt=0;return;}
   u.onSt=1;
   const rate=dt/FLOOR_S*(u.supp>0?.6:1)*(goal<u.fl?1.6:1);   // 내려가기는 더 빠르다

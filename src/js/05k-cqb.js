@@ -98,7 +98,7 @@ function cqbStairs(t){for(const u of G.units.slice()){if(!u.climb||!u.onSt||UT[u
     rtShoot(d,u);d.cd=COOL[d.type]*(.8+Math.random()*.3);d._amb=t;if(!G.units.includes(u))break;}}}
 /* 계단에서 내려선 분대는 계단 자리를 비워 방 안으로 몇 걸음 물러선다(다음에 오르내리는 분대와 겹치지 않게) */
 function stairClear(dt){for(const u of G.units){if(UT[u.type].cls!=='inf'||u.climb||(u.path&&u.path.length))continue;const x=cell(u.r,u.c);if(!isB(x))continue;
-  const [sx,sz]=stairPos(u.r,u.c);if(Math.hypot(u.x-sx,u.z-sz)>.2)continue;const h=dHash(u.id,7)-.5;const tx=u.c+.5+(u.c+.5-sx)*.4+h*.2,tz=u.r+.5+(u.r+.5-sz)*.4-h*.2;
+  const [sx,sz]=stairPos(u.r,u.c);if(Math.hypot(u.x-sx,u.z-sz)>.2)continue;const [tx,tz]=stairAway(u);
   const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);if(d<.02)continue;const k=Math.min(1,UT[u.type].mv*SPD_K*.5*dt/d);u.x+=dx*k;u.z+=dz*k;}}
 function cqbTick(){const t=G.time||0;stairClear(TICK);for(const u of G.units.slice())if(u.cqb&&G.units.includes(u))cqbStep(u,t);cqbStairs(t);}
 const _cqbTick0=rtTick;
@@ -116,6 +116,30 @@ radioExec=function(k,a,us){if(k!=='clear')return _cqbRx0(k,a,us);us=us.filter(u=
 function cqbTxt(u){const C=u.cqb;if(!C)return '';return C.st==='move'?'돌입: 문으로 가는 중':C.st==='stack'?'돌입: 문 옆 대기':C.st==='entry'?'돌입: 진입 중':u.climb?'돌입: 계단':`돌입: ${C.fl>=topFl(cell(u.r,u.c))?'옥상':(C.fl+1)+'층'} 소탕`;}
 /* 헛걸음 막기: 경로가 있는데 CQB.stallT초 동안 목적지에 CQB.stallD칸도 더 가까워지지 못하면(문 앞에서 떨거나 왔다 갔다) 멈춘다.
    AI는 다음 생각에서 새 자리를 고르고, 돌입 중이면 돌입을 그만둔다. */
+/* 간격 지키기 (보병):
+   - 문은 한 번에 한 분대: 같은 문으로 아군 분대가 먼저(더 가까이) 지나가고 있으면 문 앞 0.7칸 밖에서 기다린다.
+   - 앞서 같은 쪽으로 걷는 아군 분대에 0.5칸 안으로 붙으면 걸음을 늦춘다(줄줄이 겹쳐 걷지 않게). 마주 오는 분대는 막지 않는다. */
+const SPACE={door:.7,doorIn:.5,follow:.5,slow:.25};
+function doorAhead(u){const p=u.path;if(!p||!p.length)return null;
+  for(let i=0;i<Math.min(3,p.length-1);i++){if(p[i].door==='a'&&p[i+1].door==='b'){const D=[(p[i][0]+p[i+1][0])/2,(p[i][1]+p[i+1][1])/2];return Math.hypot(D[0]-u.x,D[1]-u.z)<SPACE.door+.3?D:null;}if(p[i].door==='b')return null;}
+  return null;}
+function spaceWait(u){if(UT[u.type].cls!=='inf'||u.climb||u.cqb&&u.cqb.st==='stack')return 1;const t=G.time||0;
+  const D=doorAhead(u);
+  if(D){const du=Math.hypot(D[0]-u.x,D[1]-u.z);
+    for(const o of G.units){if(o===u||o.nat!==u.nat||UT[o.type].cls!=='inf'||!o.path||!o.path.length||o._wait===t)continue;const dd=Math.hypot(D[0]-o.x,D[1]-o.z);
+      if(dd<SPACE.doorIn&&dd<du-1e-6&&du>.25){u._wait=t;return 0;}}}
+  const [tx,tz]=u.path[0];const hx=tx-u.x,hz=tz-u.z,hl=Math.hypot(hx,hz);if(hl<1e-6)return 1;
+  for(const o of G.units){if(o===u||o.nat!==u.nat||UT[o.type].fly||!o.path||!o.path.length||o._wait===t)continue;const ox=o.x-u.x,oz=o.z-u.z,od=Math.hypot(ox,oz);if(od>SPACE.follow||od<1e-6)continue;
+    if((ox*hx+oz*hz)/(od*hl)<.5)continue;   // 앞에 있지 않다
+    const [px,pz]=o.path[0];const gx=px-o.x,gz=pz-o.z,gl=Math.hypot(gx,gz)||1;if((gx*hx+gz*hz)/(gl*hl)<.3)continue;   // 같은 쪽으로 가지 않는다
+    if(cell(o.r,o.c).t==='bldg'&&typeof flOf==='function'&&flOf(o)!==flOf(u))continue;return SPACE.slow;}
+  return 1;}
+/* 목적지에 아군이 먼저 서 있으면 그 곁(0.6칸 안)에 닿은 것으로 치고 멈춘다(서로 밀며 제자리걸음하지 않게) */
+function nearTaken(u){const p=u.path;if(!p||p.length!==1||UT[u.type].fly)return false;const [ex,ez]=p[0];if(Math.hypot(ex-u.x,ez-u.z)>.6)return false;
+  for(const o of G.units){if(o===u||o.nat!==u.nat||UT[o.type].fly||o.path&&o.path.length)continue;if(Math.hypot(o.x-ex,o.z-ez)>.5)continue;
+    if(o.r===u.r&&o.c===u.c&&cell(o.r,o.c).t==='bldg'&&typeof flOf==='function'&&flOf(o)!==flOf(u))continue;return true;}
+  return false;}
+{const _spMove0=rtMove;rtMove=function(u,dt){if(u.path&&u.path.length){if(nearTaken(u)){u.path=[];u.dest=null;return;}const k=spaceWait(u);if(k<=0)return;dt*=k;}return _spMove0(u,dt);};}
 const _cqbMove0=rtMove;
 rtMove=function(u,dt){_cqbMove0(u,dt);if(!G.units.includes(u))return;const p=u.path;if(!p||!p.length){u._pw=null;return;}
   const e=p[p.length-1],t=G.time||0,d=Math.hypot(e[0]-u.x,e[1]-u.z);const w=u._pw;
