@@ -84,7 +84,7 @@ function hurtVeh(u,amt,by,o){const V=vdOf(u);const ta=by?UT[by.type]:null;const 
   const heavy=kind==='blast'||kind==='crush'||(ta&&ta.atk.veh>=5);const S=casStats(u.nat);const nm=`${natName(u.nat)} ${UT[u.type].n}`;
   const rolls=Math.min(3,Math.max(1,o.hits||1));const crewHit=()=>{const i=V.crew.findIndex(c=>c==='ok');if(i<0)return;V.crew[i]=Math.random()<.4?'kia':'hw';if(V.crew[i]==='kia')S.kia++;else S.wia++;};
   for(let k=0;k<rolls;k++){
-    if(heavy){let pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(o.arm||1));if(Math.random()>pen)continue;
+    if(heavy){let pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(o.arm||1))*Math.min(1,amt/2.5);if(Math.random()>pen)continue;   // 파편 몇 점(피해 1~2)은 부품까지 잘 안 뚫는다
       const r=Math.random();
       if(r<.28){if(!V.mob){V.mob=1;L(`${nm} 기동 불능`);}}
       else if(r<.5){if(!V.gun){V.gun=1;L(`${nm} 무장 파손`);}}

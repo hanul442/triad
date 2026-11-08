@@ -2763,7 +2763,7 @@ function hurtVeh(u,amt,by,o){const V=vdOf(u);const ta=by?UT[by.type]:null;const 
   const heavy=kind==='blast'||kind==='crush'||(ta&&ta.atk.veh>=5);const S=casStats(u.nat);const nm=`${natName(u.nat)} ${UT[u.type].n}`;
   const rolls=Math.min(3,Math.max(1,o.hits||1));const crewHit=()=>{const i=V.crew.findIndex(c=>c==='ok');if(i<0)return;V.crew[i]=Math.random()<.4?'kia':'hw';if(V.crew[i]==='kia')S.kia++;else S.wia++;};
   for(let k=0;k<rolls;k++){
-    if(heavy){let pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(o.arm||1));if(Math.random()>pen)continue;
+    if(heavy){let pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(o.arm||1))*Math.min(1,amt/2.5);if(Math.random()>pen)continue;   // 파편 몇 점(피해 1~2)은 부품까지 잘 안 뚫는다
       const r=Math.random();
       if(r<.28){if(!V.mob){V.mob=1;L(`${nm} 기동 불능`);}}
       else if(r<.5){if(!V.gun){V.gun=1;L(`${nm} 무장 파손`);}}
@@ -4811,7 +4811,7 @@ function aiThink(n){const N2=G.nats[n];
    (3) 장갑차·전차는 보병과 붙어서 진격하고, 자주포·박격포는 보병 뒤에서 쏜다. */
 
 // 부대 구성 목표(비율). 대공·전자전은 적 비행체가 보일 때 05f-air의 aiAirW가 따로 더한다.
-const ARMS_MIX={rifle:.28,mg:.1,at:.08,eng:.05,sniper:.04,mortar:.08,hmv:.06,ifv:.13,tank:.09,spg:.08,drone:.02,fpv:.01,dteam:.02};
+const ARMS_MIX={rifle:.26,mg:.1,at:.08,eng:.05,sniper:.04,mortar:.08,hmv:.06,ifv:.13,tank:.11,spg:.09,drone:.02,fpv:.01,dteam:.02};
 const ARMS_VEH=['ifv','tank','spg'];
 
 /* 증원 가중치: 목표보다 모자란 병종일수록 크게 */
@@ -4914,7 +4914,7 @@ function aiArmsAdvance(n,u,E,goal){const t=UT[u.type];if(t.fly||t.dteam)return f
    - 거점을 잡으면 한 분대를 남겨 지키게 하고 다음 거점으로 간다.
    - 움직이다 적을 직접 보면 가까운 엄폐에 붙어 멈추고 응사한다(접적 반응). 측면조·후퇴 중엔 계속 간다.
    차량·곡사·저격·드론·헬기는 예전 AI(06-ai, 06b-arms)가 그대로 맡는다. 플레이어 부대는 임무를 받으면(묶음 B) 같은 두뇌를 쓴다. */
-const TAC={types:{rifle:1,mg:1,at:1,eng:1},size:3,memAge:20,near:9,travel:9,leg:3.2,flankR:[2.4,3.8],ret:.5,regroup:18,think:2};
+const TAC={types:{rifle:1,mg:1,at:1,eng:1},size:3,memAge:20,near:9,travel:9,leg:3.2,flankR:[3,4.2],ret:.42,regroup:18,think:2};
 const tacUnit=u=>!!TAC.types[u.type]&&!u.post&&!u.cqb&&(!u.job||u.job===TAC_HIDE);   // 건물 진입·소탕 중(u.cqb, 05k-cqb)이면 손대지 않는다
 const TAC_HIDE={tac:1};
 const tacCost=t=>(UT[t]&&UT[t].cost)||3;
@@ -4986,7 +4986,7 @@ function tacPlatoon(p,K0,objs){const M=tacMembers(p);if(!M.length)return;const t
   if(p.st==='retreat'){if(t-p.stT<12&&M.some(u=>!tacIdle(u)))return;p.st='regroup';p.stT=t;if(p.human)msnReport(p,'후퇴 완료, 재편성 중');}
   if(p.st==='regroup'&&t-p.stT<TAC.regroup&&(mor<55||est>str)){tacHold(p,M,K,objs);return;}
   const hurt=M.reduce((a,u)=>a+(u.supp||0),0)/M.length>.8||M.some(u=>t-(u.casT??-99)<8);
-  if(K.length&&p.mode!=='recon'&&t-(p.retT??-99)>40&&(est>=4&&str<est*TAC.ret&&hurt||mor<28&&est>0)){
+  if(K.length&&p.mode!=='recon'&&t-(p.retT??-99)>60&&(est>=4&&str<est*TAC.ret&&hurt||mor<28&&est>0)){
     if(p.human&&p.aut==='semi'&&!msnOK(p,'retreat'))msnReq(p,'retreat');      // 반자동: 물러나기 전에 승인을 받는다
     else{p.retT=t;tacRetreat(p,M,K,objs);return;}}
   if(!K.length){if(p.st!=='move'){p.st='move';p.stT=t;}tacMove(p,M,objs);return;}
@@ -5041,10 +5041,10 @@ function tacContact(p,M,K,objs,str,est){const t=G.time||0;
   if(!man.length)return;
   const bx=bof.length?bof.reduce((a,u)=>a+u.x,0)/bof.length:c[0],bz=bof.length?bof.reduce((a,u)=>a+u.z,0)/bof.length:c[1];const axis=Math.atan2(bz-fz,bx-fx);
   const fe=F.e;const supd=fe&&G.units.includes(fe)&&((typeof pinned==='function'&&pinned(fe))||fe.brk||(fe.mor??80)<35||UT[fe.type].cls==='inf'&&fe.hp<hpMax(fe)*.35);
-  const weak=est<=str*.45;
-  if(p.st==='contact'&&(supd||weak)&&man.every(u=>tacIdle(u)||u.tk.role==='flank'&&Math.hypot(u.x-fx,u.z-fz)<3.6)&&t-p.stT>6){
+  const weak=est<=str*.35;
+  if(p.st==='contact'&&(supd||weak)&&man.every(u=>tacIdle(u)||u.tk.role==='flank'&&Math.hypot(u.x-fx,u.z-fz)<3.6)&&t-p.stT>10&&t-(p.asT??-99)>30){
     if(p.human&&p.aut==='semi'&&!msnOK(p,'assault'))msnReq(p,'assault');
-    else{p.st='assault';p.stT=t;tacN('assault');if(p.human)msnReport(p,'적 제압, 돌격');}}
+    else{p.st='assault';p.stT=t;p.asT=t;tacN('assault');if(p.human)msnReport(p,'적 제압, 돌격');}}
   if(p.st==='assault'&&!supd&&!weak&&t-p.stT>20){p.st='contact';p.stT=t;}
   for(const u of man){const R=UT[u.type].rng[1];
     if(p.st==='assault'){// 돌격: 초점 1칸 안쪽 엄폐(건물이면 문 앞)
@@ -5058,13 +5058,14 @@ function tacContact(p,M,K,objs,str,est){const t=G.time||0;
       if(bof.length&&da<1.0)return -1e9;const mx=(x+u.x)/2,mz=(z+u.z)/2;const dd=Math.hypot(x-u.x,z-u.z);if(dd>7)return -1e9;
       let nearE=0;for(const k of K)if(k!==F&&Math.hypot(k.x-x,k.z-z)<2.2)nearE+=6;
       const ax1=u.x+(x-u.x)/3,az1=u.z+(z-u.z)/3,ax2=u.x+(x-u.x)*2/3,az2=u.z+(z-u.z)*2/3;
+      for(const k of K)for(const [qx,qz] of [[ax1,az1],[ax2,az2],[mx,mz]])if(Math.hypot(k.x-qx,k.z-qz)<2)nearE+=4;   // 가는 길에 적 코앞을 지나지 않게
       return tacCov(x,z,fx,fz,objs)*10+Math.min(da,1.9)*2.2-nearE-tacExpo(x,z,K,objs,null)*.6-(tacExpo(ax1,az1,K,objs,null)+tacExpo(ax2,az2,K,objs,null))*.35-dd*.55;});
     if(s){if(tacGo(u,s[0],s[1],'flank')){tacN('flank');tacSmokeLeg(u,K);}}}}
 /* 트인 길을 노출된 채 건너야 하면 연막 수류탄 */
-function tacSmokeLeg(u,K){if(typeof popSmoke!=='function'||!u.path||!u.path.length)return;if(u.ssm==null)u.ssm=(REAL.ssmk||{})[u.type]||0;if(u.ssm<=0||(G.time||0)-(u._smT||-99)<10)return;
+function tacSmokeLeg(u,K){if(typeof popSmoke!=='function'||!u.path||!u.path.length)return;if(u.ssm==null)u.ssm=(REAL.ssmk||{})[u.type]||0;if(u.ssm<=0||(G.time||0)-(u._smT||-99)<10)return;const pl=u.pl&&tacPl().find(q=>q.id===u.pl);if(pl&&(G.time||0)-(pl.smT??-99)<25)return;
   let px=u.x,pz=u.z,L=0;for(const q of u.path){const s=Math.hypot(q[0]-px,q[1]-pz);for(let k=.5;k<=s;k+=.5){const x=px+(q[0]-px)*k/s,z=pz+(q[1]-pz)*k/s;const tl=tileAt(x,z);
       if(tl&&(tl.t==='road'||tl.t==='plaza')&&tacExpo(x,z,K,null,null)>=3){let f=null,fd=1e9;for(const kk of K){const d=Math.hypot(kk.x-x,kk.z-z);if(d<fd){fd=d;f=kk;}}
-        const ux=(f.x-x)/(fd||1),uz=(f.z-z)/(fd||1);const sx=x+ux*.7,sz=z+uz*.7;const st=tileAt(sx,sz);if(st&&st.t!=='bldg'&&popSmoke(sx,sz,18)){u.ssm--;u._smT=G.time||0;if(typeof FXH.ssmoke==='function')FXH.ssmoke(u,sx,sz);tacN('smoke');}return;}}
+        const ux=(f.x-x)/(fd||1),uz=(f.z-z)/(fd||1);const sx=x+ux*.7,sz=z+uz*.7;const st=tileAt(sx,sz);if(st&&st.t!=='bldg'&&popSmoke(sx,sz,18)){u.ssm--;u._smT=G.time||0;if(pl)pl.smT=u._smT;if(typeof FXH.ssmoke==='function')FXH.ssmoke(u,sx,sz);tacN('smoke');}return;}}
     L+=s;if(L>3.5)return;px=q[0];pz=q[1];}}
 /* 후퇴: 엄폐를 타고 집결지 쪽으로 3~5칸, 기관총이 마지막까지 엄호 */
 function tacRetreat(p,M,K,objs){const t=G.time||0;if(p.st!=='retreat'){p.st='retreat';p.stT=t;tacN('retreat');if(p.human)msnReport(p,'불리하여 후퇴');else if(!G.fog)L(`${natName(p.nat)} 소대 후퇴`);}
@@ -5184,6 +5185,91 @@ function msnThink(n){tacThink(n);for(const p of tacPl())if(p.nat===n&&p.human)ms
 {const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||G.over||!G.units||!G.plat)return;const t=G.time||0;
   for(const n of G.order){if(isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];if((N2.msnT||0)>t)continue;N2.msnT=t+TAC.think;
     if(!G.plat.some(p=>p.nat===n)&&!G.units.some(u=>u.nat===n&&u.msn))continue;try{msnThink(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}};}
+
+/* ---- 06e-polish.js ---- */
+/* ===================== POLISH: AI 관전 1000판에서 찾은 어색한 점 고치기 =====================
+   - 차량 명령 고정: AI가 2초마다 차량 목적지를 바꾸면 회전 중에 되돌아선다. 새 목적지가 6초 안에 크게(60도 넘게) 다른 쪽이면
+     먼저 준 길을 그대로 간다(크게 다치거나 재보급하러 가는 길은 예외).
+   - 보급 트럭: 적이 3.2칸 안에 보이거나 방금 맞았으면 보급소로 빠지고, 그 부대는 30초 동안 찾아가지 않는다.
+     교전 한가운데 있는 부대에는 가지 않으며, 전선에서 45초 넘게 할 일 없이 서 있으면 보급소로 돌아간다.
+   - 탄약이 다 떨어진 부대와 절반 넘게 다친 부대는 건물 꼭대기로 올라가지 않는다(1층에 머물러 빠져나갈 수 있게).
+     교전 중 탄약이 떨어진 AI 부대는 트럭을 기다리지 않고 보급소로 물러난다.
+   - AI의 포격·폭격은 아군이 가까이(포격 3칸, 폭격 1.5칸) 있으면 하지 않는다.
+   - 공격헬기는 지휘점수 12로 비싸지고 화력이 조금 줄었다.
+   - 손실 원인: 출혈·차량 포기처럼 쏜 쪽 없이 끝난 손실은 마지막으로 피해를 준 부대 몫으로 센다(90초 안).
+     화력 지원(포격·폭격)으로 죽은 경우 u._cause에 그 종류를 남긴다. */
+const POL={vcommit:6,vsettle:8,vturn:1.05,truckHot:3.2,truckFlee:30,truckIdle:45,lastBy:90,ffR:{arty:3,air:1.5,tbm:2.2,cruise:1.6}};
+/* ---------- 차량 명령 고정 ---------- */
+const polEnd=u=>u.path&&u.path.length?u.path[u.path.length-1]:null;
+{const _ai=aiThink;aiThink=function(n){const t=G.time||0;const snap=new Map();
+  for(const u of G.units){if(u.nat!==n)continue;const ty=UT[u.type];if(ty.cls!=='veh'||ty.fly||ty.logi)continue;snap.set(u,{p:u.path?u.path.slice():[],e:polEnd(u),d:u.dest});}
+  _ai(n);
+  for(const [u,s] of snap)if(G.units.includes(u))polVeh(u,s,t);};}
+/* 한 차량: s = aiThink 전 {p 길, e 끝, d 목적지} */
+function polVeh(u,s,t){const e=polEnd(u);const c=u._cmE;
+    if(!s.e&&c&&Math.hypot(c[0]-u.x,c[1]-u.z)<=.8&&u._arT==null)u._arT=t;          // 도착
+    if(!e)return;
+    if(s.e&&Math.hypot(e[0]-s.e[0],e[1]-s.e[1])<.6)return;                       // 같은 길
+    const urgent=u.hp<hpMax(u)*.5||u.rearm||u.towBy!=null||(u.vd&&u.vd.mob)||t-(u._hitT??-99)<4;
+    // 막 도착한 차량이 몇 칸 뒤로 되돌아가려 하면(왔다 갔다) 그 자리를 지킨다
+    if(!urgent&&!s.e&&u._arT!=null&&t-u._arT<POL.vsettle&&Math.hypot(e[0]-u.x,e[1]-u.z)<4){const f=(u.face||0)*Math.PI/180,a2=Math.atan2(e[1]-u.z,e[0]-u.x);
+      if(Math.abs(Math.atan2(Math.sin(f-a2),Math.cos(f-a2)))>POL.vturn+.5){u.path=[];u.dest=null;if(typeof tacN==='function')tacN('vkeep');return;}}
+    if(c&&!urgent&&t-(u._cmT??-99)<POL.vcommit&&Math.hypot(c[0]-u.x,c[1]-u.z)>.6){
+      const a1=Math.atan2(c[1]-u.z,c[0]-u.x),a2=Math.atan2(e[1]-u.z,e[0]-u.x);const da=Math.abs(Math.atan2(Math.sin(a1-a2),Math.cos(a1-a2)));
+      if(da>POL.vturn){const P=s.p.length&&s.e&&Math.hypot(s.e[0]-c[0],s.e[1]-c[1])<.6?s.p:pathPts(u,c[0],c[1]);
+        if(P.length){u.path=P;u.dest=[c[0],c[1]];if(typeof tacN==='function')tacN('vkeep');return;}}}
+    u._cmT=t;u._cmE=[e[0],e[1]];u._arT=null;}
+/* ---------- 보급 트럭 ---------- */
+if(typeof supTick==='function'){
+  const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!isAI(u.nat)||!G.units.includes(u))return;const t=G.time||0;
+    const hot=hotAt(u.nat,u.x,u.z,POL.truckHot)||t-(u._hitT??-99)<6;
+    if(hot&&!atDepot(u)&&!(u.lj&&u.lj.k==='home'&&u.path&&u.path.length)){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');return;}
+    if(idle(u)&&!atDepot(u)&&!u._srv&&!(u.lj&&u.lj.k==='serve')){if(u._idleT==null)u._idleT=t;else if(t-u._idleT>POL.truckIdle){u._idleT=null;supHome(u);}}else u._idleT=null;};
+  const _ss=supSend;supSend=function(u,e){if(isAI(u.nat)&&hotAt(u.nat,e.x,e.z,POL.truckHot)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}return _ss(u,e);};}
+if(typeof aiLogi==='function'){const _al=aiLogi;aiLogi=function(n){_al(n);
+  for(const u of G.units){if(u.nat!==n||!amMax(u)||u.rearm||amOf(u)>=1||inZone(n,u.r,u.c)||u.brk||UT[u.type].fly)continue;
+    if(!hotAt(n,u.x,u.z,3.5))continue;u.rearm=1;u.tgt=null;u.tgtTile=null;if(u.pl&&typeof msnLeave==='function'&&!u.msn)msnLeave(u);const d=depotOf(n);u.path=pathPts(u,d.x,d.z);}};}
+/* 다 떨어지거나 많이 다친 부대는 꼭대기로 올라가지 않는다 */
+function polHurt(u){if(!u.ws||!u.ws.length)return false;let bad=0;for(const w of u.ws)if(w.s!=='ok'&&w.s!=='lw')bad++;return bad*2>=u.ws.length;}
+function polFloors(){for(const u of G.units){if(UT[u.type].cls!=='inf'||UT[u.type].fly)continue;
+  const out=(amMax(u)&&amOf(u)<1)||polHurt(u)||u.rearm;
+  if(out&&u.flT==null){u.flT=0;u._polFl=1;}else if(!out&&u._polFl){u.flT=null;u._polFl=0;}}}
+/* ---------- 아군 근처 포격 금지(AI) ---------- */
+{const _s=support;support=function(n,kind,r,c){const R=POL.ffR[kind];
+  if(R&&isAI(n)&&G.units.some(o=>o.nat===n&&!UT[o.type].fly&&Math.hypot(o.x-(c+.5),o.z-(r+.5))<R))return false;
+  const p=G._supN;G._supN={n,kind};try{return _s(n,kind,r,c);}finally{G._supN=p;}};}
+/* ---------- 공격헬기 ---------- */
+if(SUP.gunship){SUP.gunship.cost=12;}
+if(UT.gunship){UT.gunship.atk={...UT.gunship.atk,inf:6,veh:6};}
+/* ---------- 손실 원인 ---------- */
+{const _h=harm;harm=function(u,amt,by,o){if(u&&amt>0){const t=G.time||0;u._hitT=t;if(by&&by!==u)u._lb={by,t};else if(!by&&G._supN)u._lc={k:G._supN.kind,n:G._supN.n,t};}return _h(u,amt,by,o);};}
+{const _k=kill;kill=function(u,by){if(!by&&u){const t=G.time||0;if(u._lb&&t-u._lb.t<POL.lastBy)by=u._lb.by;else if(u._lc&&t-u._lc.t<POL.lastBy)u._cause=u._lc.k;}return _k(u,by);};}
+/* ---------- 매 틱 ---------- */
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;const t=G.time||0;if((G._polT||0)>t)return;G._polT=t+1;
+  try{polFloors();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+/* ---------- 곡사·폭발물 근접 아군 확인 ---------- */
+// 곡사는 표적 둘레(박격포 1.2칸, 자주포 1.8칸, 다연장 2.4칸)에 아군 지상 부대가 있으면, 직접 쏘는 폭발물은 표적 0.7칸 안에 아군이 있으면 쏘지 않는다
+const POL_DC={mortar:1.2,spg:1.8,mlrs:2.4};
+{const _ch=canHit;canHit=function(a,d,fromR,fromC,moved){const r=_ch(a,d,fromR,fromC,moved);if(!r||!d)return r;const ta=UT[a.type];
+  const R=ta.ind?(POL_DC[a.type]||1.5):ta.ex?.7:0;if(!R)return r;const [dx,dz]=posOf(d);
+  for(const o of G.units){if(o.nat!==a.nat||o===a||UT[o.type].fly)continue;const [ox,oz]=posOf(o);if(Math.abs(ox-dx)<R&&Math.abs(oz-dz)<R&&Math.hypot(ox-dx,oz-dz)<R)return false;}
+  return r;};}
+/* ---------- 박격포 손보기: 관측은 그대로 두고 빨리·정확하게 ---------- */
+// 분대 무전 사격 요청 8초 → 5초, 드론·저격수 2초 → 1.5초. 같은 표적을 이어 쏘면 탄착을 고쳐 흩어짐이 줄어든다(1발 1, 2발 .75, 3발째부터 .6)
+if(typeof OBS==='object'){OBS.call=5;OBS.fast=1.5;}
+POL_DC.mortar=.9;
+if(UT.mortar)UT.mortar.atk={...UT.mortar.atk,inf:6};   // 보병 피해 5 → 6
+if(typeof shellShoot==='function'&&typeof shellLaunch==='function'){
+  const _sl=shellLaunch;shellLaunch=function(o){if(G._spK&&o)o.spread=(o.spread||1)*G._spK;if(G._pwK&&o)o.pw=(o.pw??1)*G._pwK;return _sl(o);};
+  const _ss=shellShoot;shellShoot=function(a,d){const t=G.time||0;const L=a.lastShot;const same=L&&L.shell&&L.tgt===d.id&&t-L.t<20;
+    a._adj=same?Math.min(2,(a._adj||0)+1):0;const p=G._spK,q=G._pwK;G._spK=[1,.75,.6][a._adj];
+    // 박격포는 한 번에 두 발씩(발당 위력 .65): 실제 박격포반처럼 짧게 연속 사격
+    try{if(a.type==='mortar'){G._pwK=.65;_ss(a,d);return _ss(a,d);}return _ss(a,d);}finally{G._spK=p;G._pwK=q;}};}
+// 박격포 쌍안경 +3 → +4칸(멈춰서 8칸), 관측자가 놓친 뒤 3초까지는 마지막 사격 요청대로 쏜다, AI 구매 비중 .08 → .1
+if(typeof OPT==='object')OPT.gl.mortar=4;
+if(typeof ARMS_MIX==='object'){ARMS_MIX.mortar=.1;}
+if(typeof obsReady==='function'){const _or=obsReady;obsReady=function(a,e){if(_or(a,e))return true;const r=G.cff&&G.cff[a.nat]&&G.cff[a.nat][e.id];const t=G.time||0;
+  return !!(r&&t-r.last<3&&t-r.t0>=(r.c===1?OBS.fast:OBS.call));};}
 
 /* ---- 06z-radio-ai.js ---- */
 /* ===================== AI 명령도 무전으로 =====================
@@ -8615,6 +8701,19 @@ function specBegin(){$('#setup').hidden=true;for(const id of ['#brief','#debrief
     const i='1234'.indexOf(e.key);if(i>=0){specSetSpd(SPEC_SPD[i]);render();return;}
     if(e.key==='Escape'&&!UI.sheet&&(UI.follow!=null||UI.specAuto)){UI.follow=null;UI.specAuto=false;render();}});
 })();
+
+/* ---- 08x-polish.js ---- */
+/* ===================== POLISH UI: 하단 바를 바뀔 때만 다시 그리기 =====================
+   하단 바는 0.25초마다 새로 그려져서, 누르는 순간 버튼이 바뀌면 클릭이 빠졌다.
+   새로 그린 내용이 그 전과 같으면 원래 버튼(DOM)을 그대로 되돌려 놓고, 누르고 있는 동안(0.4초)은 다시 그리지 않는다. */
+if(typeof document!=='undefined'){
+  let abDown=0;
+  document.addEventListener('pointerdown',e=>{if(e.target&&e.target.closest&&e.target.closest('#actbar'))abDown=Date.now();},true);
+  const _ra=renderActbar;renderActbar=function(){const el=$('#actbar');if(!el)return _ra.apply(this,arguments);
+    if(Date.now()-abDown<400&&el.childNodes.length)return;
+    const old=[...el.childNodes],oh=el.innerHTML,hid=el.hidden;const r=_ra.apply(this,arguments);
+    if(el.innerHTML===oh&&old.length){el.replaceChildren(...old);el.hidden=hid;}
+    return r;};}
 
 /* ---- 09-input.js ---- */
 /* ===================== INPUT ===================== */

@@ -47,11 +47,14 @@ test('자동 연출은 최근에 총을 쏜 부대가 모인 곳을 고른다', 
   b.x = a.x + 2; b.z = a.z;
   a.firedT = 99; b.firedT = 98.5;
   const h = fn(T, 'specHot')(null);
-  assert.ok(h && (h.u === a || h.u === b));
+  const near = u => [a, b].some(o => Math.hypot(o.x - u.x, o.z - u.z) < 1.5);   // 쏜 부대 또는 바로 곁(같은 교전)
+  assert.ok(h && near(h.u), '총을 쏜 곳을 고른다');
   // 교전이 없으면 적과 가장 가까운 부대(전선)
   a.firedT = b.firedT = -99;
   const h2 = fn(T, 'specHot')(null);
-  assert.ok(h2 && (h2.u === a || h2.u === b));
+  const gap = u => Math.min(...G.units.filter(e => e.nat !== u.nat).map(e => Math.hypot(e.x - u.x, e.z - u.z)));
+  const minGap = Math.min(...G.units.map(gap));
+  assert.ok(h2 && Math.abs(gap(h2.u) - minGap) < 1e-9 && minGap <= 2 + 1e-9, '적과 가장 가까운 부대(전선)');
 });
 
 test('관전 판도 AI끼리 끝까지 진행된다', () => {

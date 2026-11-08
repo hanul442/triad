@@ -6,7 +6,7 @@
    (3) 장갑차·전차는 보병과 붙어서 진격하고, 자주포·박격포는 보병 뒤에서 쏜다. */
 
 // 부대 구성 목표(비율). 대공·전자전은 적 비행체가 보일 때 05f-air의 aiAirW가 따로 더한다.
-const ARMS_MIX={rifle:.28,mg:.1,at:.08,eng:.05,sniper:.04,mortar:.08,hmv:.06,ifv:.13,tank:.09,spg:.08,drone:.02,fpv:.01,dteam:.02};
+const ARMS_MIX={rifle:.26,mg:.1,at:.08,eng:.05,sniper:.04,mortar:.08,hmv:.06,ifv:.13,tank:.11,spg:.09,drone:.02,fpv:.01,dteam:.02};
 const ARMS_VEH=['ifv','tank','spg'];
 
 /* 증원 가중치: 목표보다 모자란 병종일수록 크게 */
