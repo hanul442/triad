@@ -323,7 +323,7 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
   const Cy=(r1,r2,h,x,y,z,rz,mat,par)=>{const m=new T.Mesh(new T.CylinderGeometry(r1,r2,h,8),mat||body);m.position.set(x,y,z);if(rz)m.rotation.z=rz;m.castShadow=true;(par||g).add(m);return m;};
   const root=new T.Group();const sold=[];
   if(t.cls==='inf'){const n=SQUAD[ty]||4;
-    for(let i=0;i<n;i++){const m=v3Soldier(u.nat,i===0?ty:'rifle');root.add(m);const a=i/n*Math.PI*2+v3Hash(u.id,i)*.8,rr=i?.1+v3Hash(u.id,10+i)*.16:0;
+    for(let i=0;i<n;i++){const m=v3Soldier(u.nat,i===0?ty:(typeof squadKit==='function'&&squadKit(ty,i))||'rifle');root.add(m);const a=i/n*Math.PI*2+v3Hash(u.id,i)*.8,rr=i?.1+v3Hash(u.id,10+i)*.16:0;
       sold.push({m,slot:[Math.cos(a)*rr-(i?.05:0),Math.sin(a)*rr],wx:u.x+Math.cos(a)*rr,wz:u.z+Math.sin(a)*rr,ph:v3Hash(u.id,20+i)*6.28,spd:0});}
     if(ty==='mortar'){Cy(.016,.016,.11,.06,.05,0,-.6,M.steel);B(.05,.01,.05,.06,.005,0,M.dark);}}
   else if(t.cls==='veh'&&typeof v3VehicleM==='function')v3VehicleM(ty,g,u.nat);
