@@ -4280,11 +4280,11 @@ function capPct(o){const x=G.map[o.r][o.c];return x.cap?Math.min(99,Math.floor(x
    - 탈락: 싸울 수 있는 지상 부대가 하나도 없고, 그 부대를 다시 부를 지휘점수도 없으면(또는 증원이 끊긴 뒤면) 탈락.
    - 증원 중단(LTS.cut, 8분): 이때부터 아무도 증원·화력 지원을 못 부르고, 서로의 위치가 무전 감청으로 드러나
      AI가 남은 적을 찾아 나선다. 교착을 막는 장치다.
-   - 항복(LTS.sur, LTS.surT): 증원이 끊긴 뒤 남은 전력이 가장 센 세력의 20% 밑으로 30초 동안 머물면 항복하고 탈락.
+   - 항복(LTS.sur, LTS.surT): 증원이 끊긴 뒤 남은 전력이 가장 센 세력의 15% 밑으로 45초 동안 머물면 항복하고 탈락.
      남은 몇 부대가 구석에서 버티며 판을 끌지 않게 하는 서든데스다.
    - 제한 시간(LTS.max, 15분): 그래도 끝나지 않으면 남은 전력(부대 값×체력)이 큰 세력이 이긴다.
    - AI: 거점을 절반 넘게 쥐었거나 4분이 지나면 거점보다 적을 찾아 친다(웅크리지 않게). */
-const LTS={cut:480,max:900,hunt:240,grace:4,sur:.2,surT:30};
+const LTS={cut:480,max:900,hunt:240,grace:4,sur:.15,surT:45};
 const ltsOn=()=>!!(G&&G.win==='lts'&&!G.scn&&!G.camp);
 /* 싸울 수 있는 지상 부대(보급·구난·구급차, 드론·자폭 차량은 빼고) */
 const ltsFighter=u=>{const t=UT[u.type];return !t.fly&&!t.logi&&!t.kami&&(t.rng[1]||0)>0&&u.type!=='vbied'&&u.type!=='amb';};

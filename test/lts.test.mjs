@@ -56,7 +56,7 @@ test('최후 생존: AI끼리 한 판이 제한 시간 안에 오류 없이 끝�
   assert.equal(T.G.errs.length, 0, T.G.errs.join('\n'));
 });
 
-test('최후 생존: 증원이 끊긴 뒤 전력이 크게 밀린 세력은 30초 버티면 항복한다', () => {
+test('최후 생존: 증원이 끊긴 뒤 전력이 크게 밀린 세력은 45초 버티면 항복한다', () => {
   const T = loadGame();
   start(T);
   const G = T.G, [a, b] = G.order;
@@ -65,7 +65,7 @@ test('최후 생존: 증원이 끊긴 뒤 전력이 크게 밀린 세력은 30�
   mine[0].hp = 1;
   G.time = 481;
   assert.equal(fn(T, 'checkOver')(), null, '바로 항복하지는 않는다');
-  G.time = 515;
+  G.time = 530;
   const o = fn(T, 'checkOver')();
   assert.equal(G.nats[b].alive, false);
   assert.ok(G.units.every(u => u.nat !== b), '남은 부대는 거둔다');
