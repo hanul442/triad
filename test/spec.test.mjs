@@ -13,7 +13,7 @@ test('관전 모드: 고른 세력 수만큼 AI 세력으로 시작하고 사람
     assert.ok(act.every(x => x.ctrl === 'ai'));
     assert.equal(T.G.spec, true);
     assert.equal(T.G.fog, true, 'AI는 안개 속에서 싸운다');
-    assert.equal(T.N, 32);
+    assert.equal(T.N, T.SIZES.s.c);
   }
 });
 

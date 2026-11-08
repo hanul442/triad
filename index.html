@@ -507,7 +507,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
    TRIAD 시가전: 도시 한 곳을 두고 분대 단위로 싸우는 턴제 전략 게임.
    지도는 정사각 격자(가로·세로·대각 8방향), 거리는 체비셰프 거리. */
 let N=44;                      // 지도 한 변 칸 수 (정사각)
-const SIZES={s:{n:'소형 32×32',c:32,obj:1},m:{n:'중형 44×44',c:44,obj:3},l:{n:'대형 56×56',c:56,obj:4}};
+const SIZES={s:{n:'소형 36×36',c:36,obj:1},m:{n:'중형 52×52',c:52,obj:3},l:{n:'대형 64×64',c:64,obj:4}};
 const NATS=[
   {name:'블루',full:'블루 연방군',col:'var(--n0)',edge:'서쪽'},
   {name:'레드',full:'레드 공화국군',col:'var(--n1)',edge:'동쪽'},
@@ -3269,27 +3269,32 @@ function objFnText(o){const k=objKind(o);if(!k)return '';const d=OBJK[k];return 
 function objLabel(o){const k=objKind(o);return k?`${OBJK[k].ic} ${o.name}`:o.name;}
 
 /* ---------- 지도 만들 때: 거점 이름을 땅 모양에 맞춰 다시 붙이고 건물 색을 입힌다 ---------- */
-{const _gm=genMap;genMap=function(seed,objPer){const out=_gm(seed,objPer);try{objAssign(out,seed);}catch(e){}return out;};}
+{const _gm=genMap;genMap=function(seed,...a){const out=_gm(seed,...a);try{objAssign(out,seed);}catch(e){}return out;};}
 /* 거점 자리를 넓은 곳으로 옮긴다: 한 칸짜리 집이나 도로에 낀 빈터면 3칸 안에서 큰 건물(4칸 이상)이나 3×3 빈터를 찾는다.
    정준 거점 하나(목록에서 넷씩 묶인 첫째)로 찾고 나머지 셋은 90도씩 돌린 자리로 옮겨 대칭을 지킨다. */
-function objRelocate(map,objs){const H=map.length;const at=(r,c)=>r>=0&&c>=0&&r<H&&c<H?map[r][c]:null;
+function objRelocate(map,objs,GS){GS=GS||4;const H=map.length;const at=(r,c)=>r>=0&&c>=0&&r<H&&c<H?map[r][c]:null;
   const rot=(r,c,k)=>{for(let j=0;j<k;j++){const t=r;r=c;c=H-1-t;}return [r,c];};
   const blkN=(r,c)=>{const x=map[r][c];if(x.t!=='bldg'||x.blk==null)return 0;let n=0;for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++){const y=at(r+a,c+b);if(y&&y.t==='bldg'&&y.blk===x.blk)n++;}return n;};
   const open=(r,c)=>{const y=at(r,c);return !!y&&y.t!=='road'&&y.t!=='bldg'&&y.t!=='water'&&!y.lm;};
   const win3=(r,c)=>{for(let a=-2;a<=0;a++)for(let b=-2;b<=0;b++){let ok=true;for(let i=0;i<3&&ok;i++)for(let j=0;j<3;j++){const R=r+a+i,C=c+b+j;if(!(R===r&&C===c)&&!open(R,C)){ok=false;break;}}if(ok)return true;}return false;};
-  const good=(r,c)=>{const x=at(r,c);if(!x||x.t==='road'||x.t==='water')return false;return x.t==='bldg'?blkN(r,c)>=4:win3(r,c);};
-  for(let i=0;i+3<objs.length;i+=4){const o=objs[i];if(good(o.r,o.c))continue;let best=null,bd=99;
-    for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++){const r=o.r+a,c=o.c+b;const d=Math.max(Math.abs(a),Math.abs(b));if(d>=bd||!good(r,c))continue;
+  const good=(r,c)=>{const x=at(r,c);if(!x||x.t==='road'||x.t==='water'||x.t==='rubble'||objFixed(x))return false;if(x.lm&&x.obj==null)return false;return objFootprint(map,{r,c}).fp.n>=4;};
+  for(let i=0;i+GS-1<objs.length;i+=GS){const o=objs[i];if(map[o.r][o.c].stn||good(o.r,o.c))continue;let best=null,bd=99;
+    for(let a=-4;a<=4;a++)for(let b=-4;b<=4;b++){const r=o.r+a,c=o.c+b;const d=Math.max(Math.abs(a),Math.abs(b));if(d>=bd||!good(r,c))continue;
       if(r<3||c<3||r>H-4||c>H-4)continue;
       // 다른 거점(넷 모두)과 3칸 이상 떨어지게
-      let far=true;for(let j=0;j<objs.length&&far;j++){if(j>=i&&j<i+4)continue;for(let k=0;k<4;k++){}const q=objs[j];for(let k=0;k<4;k++){const [rr,cc]=rot(r,c,k);if(Math.max(Math.abs(rr-q.r),Math.abs(cc-q.c))<3){far=false;break;}}}
+      let far=true;for(let j=0;j<objs.length&&far;j++){if(j>=i&&j<i+GS)continue;const q=objs[j];for(let k=0;k<GS;k++){const [rr,cc]=rot(r,c,k);if(Math.max(Math.abs(rr-q.r),Math.abs(cc-q.c))<3){far=false;break;}}}
       // 같은 묶음의 회전 복사본끼리도
-      for(let k=1;k<4&&far;k++){const [rr,cc]=rot(r,c,k);if(Math.max(Math.abs(rr-r),Math.abs(cc-c))<4)far=false;}
+      for(let k=1;k<GS&&far;k++){const [rr,cc]=rot(r,c,k);if(Math.max(Math.abs(rr-r),Math.abs(cc-c))<4)far=false;}
       if(!far)continue;best=[r,c];bd=d;}
     if(!best)continue;
-    for(let k=0;k<4;k++){const q=objs[i+k];const [or,oc]=[q.r,q.c];const ox=map[or][oc];const idx=ox.obj;ox.obj=null;ox.lm=0;
+    for(let k=0;k<GS;k++){const q=objs[i+k];const [or,oc]=[q.r,q.c];const ox=map[or][oc];const idx=ox.obj;ox.obj=null;ox.lm=0;
       const [nr,nc]=rot(best[0],best[1],k);const y=map[nr][nc];y.obj=idx;y.lm=1;if(y.t==='bldg'){y.f=Math.max(y.f,4);y.bmax=8+y.f*3;y.bhp=y.bmax;}else{y.t='plaza';delete y.lot;}q.r=nr;q.c=nc;}}}
-function objAssign(out,seed){const {map,objs}=out;const R=mulberry((seed|0)^0x5eed0b);objRelocate(map,objs);
+/* 거점 목록이 넷씩 90도 회전 묶음인가(대칭 도시). 비대칭 도시(강 도시 등)는 하나씩 따로 다룬다 */
+// 지형 스레드(03a)가 정한 칸: 강·다리·철로·역은 옮기거나 합치거나 광장으로 바꾸지 않는다
+function objFixed(y){return !!(y.rv||y.br||y.rail||y.stn);}
+function objSym(map,objs){const H=map.length;if(objs.length%4)return false;
+  for(let i=0;i<objs.length;i+=4){let r=objs[i].r,c=objs[i].c;for(let k=1;k<4;k++){const t=r;r=c;c=H-1-t;if(objs[i+k].r!==r||objs[i+k].c!==c)return false;}}return true;}
+function objAssign(out,seed){const {map,objs}=out;const R=mulberry((seed|0)^0x5eed0b);const GS=objSym(map,objs)?4:1;objRelocate(map,objs,GS);
   const sh=a=>{for(let j=a.length-1;j>0;j--){const q=Math.floor(R()*(j+1));[a[j],a[q]]=[a[q],a[j]];}return a;};
   const open=sh(OBJ_NAMES.filter(s=>OBJ_OPEN.includes(s))),semi=sh(OBJ_NAMES.filter(s=>OBJ_SEMI.includes(s))),closed=sh(OBJ_NAMES.filter(s=>!OBJ_OPEN.includes(s)&&!OBJ_SEMI.includes(s)));
   // 같은 정준 거점의 네 회전 복사본은 땅 모양이 같다. 광장은 빈터용 → 반쯤 → 건물용, 건물은 건물용 → 반쯤 → 빈터용 순으로 이름을 받는다
@@ -3301,13 +3306,13 @@ function objAssign(out,seed){const {map,objs}=out;const R=mulberry((seed|0)^0x5e
     // 높이: 병원은 5층 이상, 관공서는 4층 이상
     if(x.t==='bldg'){if(k==='hosp')x.f=Math.max(x.f,5);if(k==='gov'||k==='bank'||k==='archive')x.f=Math.max(x.f,4);
       x.bmax=8+x.f*3;x.bhp=x.bmax;}}
-  for(let i=0;i+3<objs.length;i+=4)objFpApply(map,objs.slice(i,i+4));}
+  for(let i=0;i+GS-1<objs.length;i+=GS)objFpApply(map,objs.slice(i,i+GS));}
 /* 거점이 차지하는 땅(모습을 얹을 범위). 건물이면 같은 건물(blk) 전체를 같은 높이로 맞춘 한 덩이,
    빈터면 둘레 8칸이 모두 빈터(도로·건물·물·다른 거점이 아님)일 때 3×3 단지로 넓힌다. */
 function objFootprint(map,o){const x=map[o.r][o.c];const H=map.length;const at=(r,c)=>r>=0&&c>=0&&r<H&&c<H?map[r][c]:null;
   if(x.t==='bldg'&&x.blk!=null){
     // 거점 칸을 품는 3×3(없으면 2×2) 건물 덩어리를 한 채로 합쳐 큰 건물로 만든다(길·빈터는 건드리지 않음)
-    const okB=(r,c)=>{const y=at(r,c);return !!y&&y.t==='bldg'&&r>0&&c>0&&r<H-1&&c<H-1&&!y.lm&&y.obj==null||(r===o.r&&c===o.c);};
+    const okB=(r,c)=>{const y=at(r,c);return !!y&&y.t==='bldg'&&!objFixed(y)&&r>0&&c>0&&r<H-1&&c<H-1&&!y.lm&&y.obj==null||(r===o.r&&c===o.c);};
     const M=[];merge:for(const n of [3,2])for(let a=-(n-1);a<=0;a++)for(let b=-(n-1);b<=0;b++){let ok=true;for(let i=0;i<n&&ok;i++)for(let j=0;j<n;j++)if(!okB(o.r+a+i,o.c+b+j)){ok=false;break;}if(!ok)continue;
       for(let i=0;i<n;i++)for(let j=0;j<n;j++)M.push([o.r+a+i,o.c+b+j]);break merge;}
     const inM=(r,c)=>M.some(p=>p[0]===r&&p[1]===c);
@@ -3320,7 +3325,7 @@ function objFootprint(map,o){const x=map[o.r][o.c];const H=map.length;const at=(
       for(let r=r0;r<=r1&&ok;r++)for(let c=c0;c<=c1;c++)if(!S.has(r*1000+c)){ok=false;break;}
       if(ok){bs=sc;best={r0,r1,c0,c1,n:a,blkN:L.length};}}
     return {fp:best,M,L,plaza:0};}
-  const free=(r,c)=>{const y=at(r,c);return !!y&&y.t!=='road'&&y.t!=='bldg'&&y.t!=='water'&&(!y.lm||(r===o.r&&c===o.c));};
+  const free=(r,c)=>{const y=at(r,c);return !!y&&!objFixed(y)&&y.t!=='road'&&y.t!=='bldg'&&y.t!=='water'&&(!y.lm||(r===o.r&&c===o.c));};
   // 거점 칸을 품는 3×3(없으면 2×2) 창 가운데 모두 빈터인 것
   for(const n of [3,2])for(let a=-(n-1);a<=0;a++)for(let b=-(n-1);b<=0;b++){let ok=true;for(let i=0;i<n&&ok;i++)for(let j=0;j<n;j++)if(!free(o.r+a+i,o.c+b+j)){ok=false;break;}if(!ok)continue;
     const L=[];for(let i=0;i<n;i++)for(let j=0;j<n;j++)L.push([o.r+a+i,o.c+b+j]);
