@@ -78,3 +78,30 @@ test('비탈: 오르막은 느리고 차량이 더 느리며, 내리막은 조�
   const c1 = T.coverOf(lo, hi).cov; ridge(T, G, 99, 99, 0); delete hi._fov; const c0 = T.coverOf(lo, hi).cov;
   assert.ok(c1 < c0, `내려다보는 사격 엄폐 ${c1} < 평지 ${c0}`);
 });
+
+test('숲(나무 공원)을 오래 지나는 시야선은 막히고, 높은 곳에서는 숲 너머가 보인다', () => {
+  const T = loadGame(); const G = blank(T); const los = T.__get('losPt');
+  for (let r = 6; r <= 9; r++) for (let c = 0; c < T.N; c++) G.map[r][c] = { t: 'park', owner: null, obj: null, smoke: 0 };
+  G.ver++;
+  assert.equal(los(5.5, 4.5, .5, 5.5, 12.5, .5), false, '숲 4칸 너머는 안 보인다');
+  assert.equal(los(5.5, 4.5, 4.3, 5.5, 12.5, .5), true, '높은 곳(4층)에서는 숲 너머가 보인다');
+  for (let c = 0; c < T.N; c++) G.map[7][c].yard = 1, G.map[8][c].yard = 1, G.map[9][c].yard = 1;
+  G.ver++;
+  assert.equal(los(5.5, 4.5, .5, 5.5, 12.5, .5), true, '나무 한 줄은 다 가리지 못한다');
+  for (let c = 0; c < T.N; c++) delete G.map[7][c].yard, delete G.map[8][c].yard, delete G.map[9][c].yard;
+  const a = T.mkUnit(0, 'rifle', 4, 5), b = T.mkUnit(1, 'rifle', 12, 5); a.x = 5.5; a.z = 4.5; b.x = 5.5; b.z = 12.5; G.ver++;
+  assert.equal(T.seen(b, 0), false, '숲 너머 적은 안 보인다');
+  const fov = T.__get('unitFov'), M = T.N * 3;
+  const p = fov(a); const far = p.some(i => Math.floor(i / M) >= 11 * 3 && i % M === 16);
+  assert.equal(far, false, '안개도 숲 너머를 가린다');
+});
+
+test('비탈에 선 부대는 칸 평균이 아니라 실제 지면 높이에서 보고, 능선 정점이 가린다', () => {
+  const T = loadGame(); const G = blank(T); const los = T.__get('losPt'); const W = T.N + 1;
+  G.elv = new Array(W * W).fill(0); for (let i = 0; i < W; i++) G.elv[8 * W + i] = 2.4;   // 8번째 꼭짓점 줄만 솟은 좁은 능선
+  for (let r = 0; r < T.N; r++) for (let c = 0; c < T.N; c++) { const v = (G.elv[r * W + c] + G.elv[r * W + c + 1] + G.elv[(r + 1) * W + c] + G.elv[(r + 1) * W + c + 1]) / 4; if (v) G.map[r][c].el = v; }
+  G.ver++;
+  assert.equal(los(5.5, 4.5, .5, 5.5, 12.5, .5), false, '능선 너머는 안 보인다');
+  assert.equal(los(5.5, 7.95, .5, 5.5, 12.5, .5), true, '능선 정점에 서면 내려다본다');
+  assert.equal(los(5.5, 7.1, .5, 5.5, 12.5, .5), false, '정점 아래 비탈에서는 능선이 가린다');
+});
