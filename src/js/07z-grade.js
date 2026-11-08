@@ -59,7 +59,8 @@ if(typeof document!=='undefined'){
 
 /* ---------- 외벽: 벽돌과 돌 창틀 ----------
    창 자리(64px 칸, 창 34×30)는 원래 무늬와 같다: 밤 창불(emissiveMap)이 같은 자리를 쓴다. */
-function grFacade(){const T=V3.T,M=V3.M;if(!M||M.wall.userData.brick)return;const fr=mulberry(17);
+function grFacade(){const T=V3.T,M=V3.M;if(!M||M.wall.userData.brick)return;
+  if(Array.isArray(M.walls))return;   // 건물 종류별 외벽(V3.M.walls)이 있으면 그쪽 무늬를 그대로 쓴다const fr=mulberry(17);
   const tex=v3Tex(512,512,(g,w,h)=>{
     g.fillStyle='#9b9184';g.fillRect(0,0,w,h);   // 줄눈
     // 벽돌: 한 층(64px)에 8단, 한 장 16×7, 단마다 반 장씩 어긋나게
@@ -92,7 +93,7 @@ function grProps(){const T=V3.T,g=V3.G.city;if(!G||!g)return;
     for(const m of [wood,iron,deb])if(typeof v3FowMat==='function')v3FowMat(m);GRADE.mat={wood,iron,deb};}
   const tanks=[],deb=[];const col=new T.Color();
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
-    if(x.t==='bldg'&&x.f>=3&&x.f<8&&!x.lm&&x.bhp/x.bmax>.6&&v3Hash(k,201)<.16){const a=v3Hash(k,202)<.5?-1:1,b=v3Hash(k,203)<.5?-1:1;
+    if(x.t==='bldg'&&x.f>=3&&x.f<8&&!x.lm&&x.ks!=='ware'&&x.ks!=='house'&&x.bhp/x.bmax>.6&&v3Hash(k,201)<.16){const a=v3Hash(k,202)<.5?-1:1,b=v3Hash(k,203)<.5?-1:1;
       tanks.push([cx+a*.24,.06+x.f*FLOOR_H,cz+b*.24,v3Hash(k,204)*3]);}
     else if(x.t==='road'||x.t==='plaza'){const n=v3Hash(k,210)<.45?1+Math.floor(v3Hash(k,211)*4):0;
       for(let i=0;i<n;i++){const s=.018+Math.pow(v3Hash(k,220+i),2)*.05;deb.push([cx+(v3Hash(k,230+i)-.5)*.9,s*.3,cz+(v3Hash(k,240+i)-.5)*.9,s,v3Hash(k,250+i)*3,v3Hash(k,260+i)]);}}}
