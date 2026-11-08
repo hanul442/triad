@@ -3477,27 +3477,32 @@ function tacPlatoon(p,K0,objs){const M=tacMembers(p);if(!M.length)return;const t
   const str=M.reduce((a,u)=>a+tacCost(u.type)*u.hp/hpMax(u)*((u.mor??80)<30?.5:1),0);
   const est=K.filter(k=>Math.hypot(k.x-c[0],k.z-c[1])<7).reduce((a,k)=>a+tacCost(k.ty)*(k.e.hp/hpMax(k.e))*(UT[k.ty].cls==='veh'&&!M.some(u=>u.type==='at'||u.type==='eng')?1.5:1),0);
   const mor=M.reduce((a,u)=>a+(u.mor??80),0)/M.length;
-  if(p.st==='retreat'){if(t-p.stT<12&&M.some(u=>!tacIdle(u)))return;p.st='regroup';p.stT=t;}
+  if(p.st==='retreat'){if(t-p.stT<12&&M.some(u=>!tacIdle(u)))return;p.st='regroup';p.stT=t;if(p.human)msnReport(p,'후퇴 완료, 재편성 중');}
   if(p.st==='regroup'&&t-p.stT<TAC.regroup&&(mor<55||est>str)){tacHold(p,M,K,objs);return;}
   const hurt=M.reduce((a,u)=>a+(u.supp||0),0)/M.length>.8||M.some(u=>t-(u.casT??-99)<8);
-  if(K.length&&p.mode!=='recon'&&t-(p.retT??-99)>40&&(est>=4&&str<est*TAC.ret&&hurt||mor<28&&est>0)){p.retT=t;tacRetreat(p,M,K,objs);return;}
+  if(K.length&&p.mode!=='recon'&&t-(p.retT??-99)>40&&(est>=4&&str<est*TAC.ret&&hurt||mor<28&&est>0)){
+    if(p.human&&p.aut==='semi'&&!msnOK(p,'retreat'))msnReq(p,'retreat');      // 반자동: 물러나기 전에 승인을 받는다
+    else{p.retT=t;tacRetreat(p,M,K,objs);return;}}
   if(!K.length){if(p.st!=='move'){p.st='move';p.stT=t;}tacMove(p,M,objs);return;}
-  if(p.st!=='contact'&&p.st!=='assault'){p.st='contact';p.stT=t;p.roles=null;}
+  if(p.st!=='contact'&&p.st!=='assault'){p.st='contact';p.stT=t;p.roles=null;if(p.human)msnReport(p,'접적, 교전 시작');}
+  if(p.mode==='recon'){tacHold(p,M,K,objs);if(p.human)msnSpot(p,K);return;}   // 정찰: 엄폐에 숨어 보고만 한다
+  if(p.human)msnFireReq(p,K,est);
   tacContact(p,M,K,objs,str,est);}
 /* 적 없음: 멀면 함께 행군, 가까우면 번갈아 엄폐 이동, 도착하면 거점을 잡고 둘레를 지킨다 */
-function tacMove(p,M,objs){const t=G.time||0;const n=p.nat;if(!p.obj)return;const [or,oc]=p.obj;const gx=oc+.5,gz=or+.5;const c=tacCtr(p);
+function tacMove(p,M,objs){const t=G.time||0;const n=p.nat;if(!p.obj)return;const [or,oc]=p.obj;const gx=p.pt?p.pt[0]:oc+.5,gz=p.pt?p.pt[1]:or+.5;const c=tacCtr(p);
   const d=Math.hypot(gx-c[0],gz-c[1]);const X=G.map[or][oc];
   if(d<1.8||p.mode==='defend'&&d<3){// 도착: 점령할 수 있는 분대 하나는 거점 칸으로, 나머지는 둘레 엄폐
     const cap=X.obj!=null&&X.owner!==n?M.find(u=>UT[u.type].cap):null;
     if(cap&&tacIdle(cap)&&(cap.r!==or||cap.c!==oc))tacGo(cap,gx,gz,'cap');
-    for(const u of M){if(u===cap||!tacIdle(u)||t-(u.tk.at||0)<8)continue;const i=M.indexOf(u);const ang=i/M.length*6.283;
+    for(const u of M){if(u===cap||!tacIdle(u)||t-(u.tk.at||0)<8||u.tk.role==='hold'&&Math.hypot(u.x-gx,u.z-gz)<2.6)continue;const i=M.indexOf(u);const ang=i/M.length*6.283;
       const s=tacSpot(u,gx+Math.cos(ang)*1.2,gz+Math.sin(ang)*1.2,[0,.4,.8],(x,z)=>coverAt(x,z,'inf',objs)-Math.hypot(x-u.x,z-u.z)*.05);if(s)tacGo(u,s[0],s[1],'hold');}
+    if(p.human&&p.mode==='attack'&&(X.obj==null||X.owner===n)&&M.every(tacIdle)){p.mode='defend';msnReport(p,X.obj!=null?`${G.objs[X.obj].name} 확보, 방어로 전환`:'목표 지점 도착, 방어로 전환');return;}
     // 다 잡았으면 한 분대를 수비로 남기고 소대는 다음 목표로
     if(X.obj!=null&&X.owner===n&&p.mode==='attack'&&M.length>=3&&!tacPl().some(q=>q.nat===n&&q.mode==='defend'&&q.obj&&q.obj[0]===or&&q.obj[1]===oc)){
       const g=M.slice().sort((a,b)=>Math.hypot(a.x-gx,a.z-gz)-Math.hypot(b.x-gx,b.z-gz))[0];p.mem=p.mem.filter(id=>id!==g.id);
       const q={id:TACID++,nat:n,mem:[g.id],mode:'defend',st:'move',stT:t,ph:0,phT:t,obj:[or,oc],objT:t};tacPl().push(q);g.pl=q.id;p.objT=-99;tacN('garrison');}
     return;}
-  const near=d<TAC.travel||tacKnown(n).some(k=>Math.hypot(k.x-c[0],k.z-c[1])<12);
+  const near=d<TAC.travel||p.mode==='recon'||tacKnown(n).some(k=>Math.hypot(k.x-c[0],k.z-c[1])<12);
   if(!near||M.length<2){// 행군: 다 같이 몇 칸씩
     for(const u of M){if(!tacIdle(u)&&t-(u.tk.at||0)<10)continue;const i=M.indexOf(u);const a=i*2.4;const L=Math.min(6,d);
       const q=tacAlong(u,gx+Math.cos(a)*.6,gz+Math.sin(a)*.6,L);if(q)tacGo(u,q[0],q[1],'move');}
@@ -3516,6 +3521,7 @@ function tacContact(p,M,K,objs,str,est){const t=G.time||0;
   if(!p.roles||p.rolesF!==F.id||Object.keys(p.roles).length!==M.length){p.roles={};p.rolesF=F.id;const veh=UT[F.ty].cls==='veh';
     let bof=M.filter(u=>u.type==='mg'||u.type==='at'&&!veh);
     if(!bof.length&&M.length>=2){const r=M.slice().sort((a,b)=>Math.hypot(a.x-F.x,a.z-F.z)-Math.hypot(b.x-F.x,b.z-F.z));bof=[r[0]];}
+    if(p.mode==='defend'||p.mode==='support')bof=M.slice();   // 방어·지원 사격: 모두 자리에서 쏜다
     for(const u of M)p.roles[u.id]=bof.includes(u)?'bof':'man';}
   const bof=M.filter(u=>p.roles[u.id]==='bof'),man=M.filter(u=>p.roles[u.id]==='man');
   const fx=F.x,fz=F.z;
@@ -3523,14 +3529,16 @@ function tacContact(p,M,K,objs,str,est){const t=G.time||0;
   for(const u of bof){const R=UT[u.type].rng[1];const d0=Math.hypot(u.x-fx,u.z-fz);
     const see=d0>=Math.min(2,R*.5)&&d0<=R*.95&&losPt(u.x,u.z,eye(u),fx,fz,F.h);const ok=see&&tacCov(u.x,u.z,fx,fz,objs)>=.25;
     if(ok||(!tacIdle(u)&&t-(u.tk.at||0)<8)||see&&u.tk.role==='bof'&&t-(u.tk.at||0)<15){u.tk.role='bof';continue;}
-    const s=tacSpot(u,u.x,u.z,[0,.5,1,1.5,2.2],(x,z)=>{const d=Math.hypot(x-fx,z-fz);if(d<1.6||d>R*.95)return -1e9;if(!losPt(x,z,tacEye(x,z),fx,fz,F.h))return -1e8;
+    const s=tacSpot(u,u.x,u.z,[0,.5,1,1.5,2.2],(x,z)=>{const d=Math.hypot(x-fx,z-fz);if(d<1.6||d>R*.95)return -1e9;if(p.pt&&p.mode==='defend'&&Math.hypot(x-p.pt[0],z-p.pt[1])>3.2)return -1e9;if(!losPt(x,z,tacEye(x,z),fx,fz,F.h))return -1e8;
       return tacCov(x,z,fx,fz,objs)*12-tacExpo(x,z,K,objs,F)*.8-Math.abs(d-R*.72)*.8-Math.hypot(x-u.x,z-u.z)*.9;});
     if(s&&s[0]>-1e7)tacGo(u,s[0],s[1],'bof');}
   if(!man.length)return;
   const bx=bof.length?bof.reduce((a,u)=>a+u.x,0)/bof.length:c[0],bz=bof.length?bof.reduce((a,u)=>a+u.z,0)/bof.length:c[1];const axis=Math.atan2(bz-fz,bx-fx);
   const fe=F.e;const supd=fe&&G.units.includes(fe)&&((typeof pinned==='function'&&pinned(fe))||fe.brk||(fe.mor??80)<35||UT[fe.type].cls==='inf'&&fe.hp<hpMax(fe)*.35);
   const weak=est<=str*.45;
-  if(p.st==='contact'&&(supd||weak)&&man.every(u=>tacIdle(u)||u.tk.role==='flank'&&Math.hypot(u.x-fx,u.z-fz)<3.6)&&t-p.stT>6){p.st='assault';p.stT=t;tacN('assault');}
+  if(p.st==='contact'&&(supd||weak)&&man.every(u=>tacIdle(u)||u.tk.role==='flank'&&Math.hypot(u.x-fx,u.z-fz)<3.6)&&t-p.stT>6){
+    if(p.human&&p.aut==='semi'&&!msnOK(p,'assault'))msnReq(p,'assault');
+    else{p.st='assault';p.stT=t;tacN('assault');if(p.human)msnReport(p,'적 제압, 돌격');}}
   if(p.st==='assault'&&!supd&&!weak&&t-p.stT>20){p.st='contact';p.stT=t;}
   for(const u of man){const R=UT[u.type].rng[1];
     if(p.st==='assault'){// 돌격: 초점 1칸 안쪽 엄폐(건물이면 문 앞)
@@ -3553,7 +3561,7 @@ function tacSmokeLeg(u,K){if(typeof popSmoke!=='function'||!u.path||!u.path.leng
         const ux=(f.x-x)/(fd||1),uz=(f.z-z)/(fd||1);const sx=x+ux*.7,sz=z+uz*.7;const st=tileAt(sx,sz);if(st&&st.t!=='bldg'&&popSmoke(sx,sz,18)){u.ssm--;u._smT=G.time||0;if(typeof FXH.ssmoke==='function')FXH.ssmoke(u,sx,sz);tacN('smoke');}return;}}
     L+=s;if(L>3.5)return;px=q[0];pz=q[1];}}
 /* 후퇴: 엄폐를 타고 집결지 쪽으로 3~5칸, 기관총이 마지막까지 엄호 */
-function tacRetreat(p,M,K,objs){const t=G.time||0;if(p.st!=='retreat'){p.st='retreat';p.stT=t;tacN('retreat');if(!isAI(p.nat)||!G.fog)L(`${natName(p.nat)} 소대 후퇴`);}
+function tacRetreat(p,M,K,objs){const t=G.time||0;if(p.st!=='retreat'){p.st='retreat';p.stT=t;tacN('retreat');if(p.human)msnReport(p,'불리하여 후퇴');else if(!G.fog)L(`${natName(p.nat)} 소대 후퇴`);}
   const home=ccpOf(p.nat);
   for(const u of M){if(!tacIdle(u)&&u.tk.role==='ret')continue;const dx=home.x-u.x,dz=home.z-u.z,L0=Math.hypot(dx,dz)||1;const ax=u.x+dx/L0*4,az=u.z+dz/L0*4;
     const s=tacSpot(u,ax,az,[0,.6,1.2,1.8],(x,z)=>tacCov(x,z,x-dx,z-dz,objs)*5-tacExpo(x,z,K,objs,null)*1.2-Math.hypot(x-ax,z-az)*.4);if(s)tacGo(u,s[0],s[1],'ret');}}
@@ -3575,6 +3583,72 @@ const TAC_QUIET={flank:1,ret:1,move:1,bound:1,bof:1,hold:1,cap:1,assault:1};
   return _f(u);};}
 {const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||G.over||!G.units)return;
   for(const u of G.units)if(u.tk&&u.pl)try{tacReact(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+
+/* ---- 06d-mission.js ---- */
+/* ===================== MISSION: 임무형 지휘 (개선 묶음 B) =====================
+   플레이어는 부대 하나하나를 끌고 다니지 않고, 묶어서 임무만 준다. 세부 이동·엄폐·사격은 소대 전술 AI(06c-tactics)가 한다.
+   - 임무: 공격(그 지점·거점을 점령하고 나면 방어로 바뀜), 방어(그 둘레 3칸 안 엄폐에서 지킴),
+           정찰(엄폐를 타고 번갈아 가며, 적을 보면 숨어서 보고), 지원 사격(그 자리에서 보이는 적을 제압).
+   - 자율: 위임 = 측면·돌격·후퇴를 소대가 알아서 / 반자동 = 돌격·후퇴 전에 승인을 요청.
+   - 포격 요청: 접적한 소대가 큰 적 무더기를 만나면 포격을 요청한다(지휘점수가 드니 언제나 승인 필요).
+   - 보고: 임무 수령, 접적, 돌격, 목표 확보, 후퇴, 피해(전사·중상)가 무전 기록으로 올라온다.
+   - 차량·곡사·저격 같은 다른 부대도 같은 임무에 넣을 수 있다: 차량은 보병 소대 곁을 따르고, 나머지는 소대 뒤를 따른다.
+   - 임무 중인 부대에 직접 이동·공격·정지 명령을 주면 그 부대는 임무에서 빠진다.
+   명령은 무전(05j-radio)으로 가므로 지연·재밍도 그대로 받는다. */
+const MSN={attack:{n:'공격'},defend:{n:'방어'},recon:{n:'정찰'},support:{n:'지원 사격'}};
+const MSN_AUT={full:'위임',semi:'반자동'};
+const MSN_ST={move:'이동',contact:'교전',assault:'돌격',retreat:'후퇴',regroup:'재편성'};
+const MSN_REQ={assault:'돌격',retreat:'후퇴',arty:'포격'};
+function msnLeave(u){if(!u)return;if(u.pl){const p=tacPl().find(q=>q.id===u.pl);if(p)p.mem=p.mem.filter(i=>i!==u.id);}u.pl=null;u.tk=null;u.msn=null;}
+function msnOf(u){if(!u)return null;const id=u.pl||(u.msn&&u.msn.pl);return id?tacPl().find(q=>q.id===id)||null:null;}
+/* 임무 주기: 보병은 4개 분대씩 소대로, 나머지는 그 소대를 따른다 */
+function msnAssign(n,us,mode,x,z,aut){us=us.filter(u=>u&&G.units.includes(u)&&u.nat===n);if(!us.length||!MSN[mode])return null;const t=G.time||0;
+  for(const u of us)msnLeave(u);
+  const inf=us.filter(tacUnit).sort((a,b)=>a.x-b.x||a.z-b.z),oth=us.filter(u=>!tacUnit(u)&&!UT[u.type].fly);const P=[];
+  for(let i=0;i<inf.length;i+=TAC.size+1){const ch=inf.slice(i,i+TAC.size+1);G.msnN=(G.msnN||0)+1;
+    const p={id:TACID++,nat:n,mem:ch.map(u=>u.id),mode,st:'move',stT:t,ph:0,phT:t,obj:[Math.floor(z),Math.floor(x)],pt:[x,z],objT:t,auto:false,human:1,aut:aut==='semi'?'semi':'full',name:`${G.msnN}소대`,ok:{},rep:{}};
+    tacPl().push(p);P.push(p);for(const u of ch){u.pl=p.id;u.tk={role:'move',at:-99};u.path=[];u.tgt=null;u.tgtTile=null;u.dest=null;u.hold=false;}msnCas(p,1);}
+  const lead=P[0]||null;
+  for(const u of oth){u.msn={mode,x,z,pl:lead?lead.id:null,t:-99};u.tgt=null;u.hold=false;}
+  const who=P.map(p=>p.name).join('·')||`${oth.length}개 부대`;
+  msnLog(n,`${who} ${MSN[mode].n} 임무 수령${aut==='semi'?' (반자동)':''}`);
+  if(P.length)msnThink(n);
+  return P;}
+function msnLog(n,m){if(n===G.viewer)L(m);}
+function msnReport(p,m){const t=G.time||0;const k=m.slice(0,6);if(p.rep[k]&&t-p.rep[k]<6)return;p.rep[k]=t;msnLog(p.nat,`${p.name}: ${m}`);}
+/* 피해 보고: 새 전사·중상이 생기면 */
+function msnCas(p,quiet){let k=0,w=0;for(const id of p.mem){const u=G.units.find(o=>o.id===id);if(!u||!u.ws)continue;for(const s of u.ws){if(s.s==='kia')k++;else if(s.s==='hw'||s.s==='evac')w++;}}
+  const pk=p.ck??k,pw=p.cw??w;p.ck=k;p.cw=w;if(quiet)return;
+  if(k>pk||w>pw)msnReport(p,`피해 보고: 전사 ${k-pk>0?k-pk:0} · 중상 ${w-pw>0?w-pw:0}`);}
+/* 정찰 보고: 처음 본 적 */
+function msnSpot(p,K){p.seen=p.seen||{};let nw=[];for(const k of K){if(p.seen[k.id])continue;p.seen[k.id]=1;nw.push(UT[k.ty].n);}if(nw.length)msnReport(p,`적 발견: ${nw.slice(0,3).join(', ')}${nw.length>3?` 외 ${nw.length-3}`:''}`);}
+/* 승인 */
+function msnOK(p,k){return p.ok&&p.ok[k]!=null&&(G.time||0)-p.ok[k]<30;}
+function msnReq(p,k,a){const t=G.time||0;if(p.req&&p.req.k===k)return;if(p.no&&p.no[k]&&t-p.no[k]<25)return;p.req={k,t,a:a||null};msnReport(p,`${MSN_REQ[k]} 승인 요청`);}
+function msnAnswer(pid,yes){const p=tacPl().find(q=>q.id===pid);if(!p||!p.req)return false;const r=p.req;p.req=null;const t=G.time||0;
+  if(!yes){p.no=p.no||{};p.no[r.k]=t;msnReport(p,`${MSN_REQ[r.k]} 보류`);return true;}
+  if(r.k==='arty'){const ok=support(p.nat,'arty',r.a[0],r.a[1]);if(!ok)msnLog(p.nat,'포격 지원을 할 수 없습니다(지휘점수·재정비·시야)');return ok;}
+  p.ok[r.k]=t;msnReport(p,`${MSN_REQ[r.k]} 승인`);return true;}
+/* 포격 요청: 아군이 2칸 안에 없는 적 무더기(가치 6 이상) */
+function msnFireReq(p,K,est){const t=G.time||0;if(p.req||t-(p.artyT??-99)<45||est<6||!SUP.arty)return;const N2=G.nats[p.nat];if(N2.cp<SUP.arty.cost)return;
+  let best=null,bs=0;for(const k of K){let s=0;for(const o of K)if(Math.hypot(o.x-k.x,o.z-k.z)<1.6)s+=tacCost(o.ty);if(G.units.some(o=>o.nat===p.nat&&!UT[o.type].fly&&Math.hypot(o.x-k.x,o.z-k.z)<2))continue;if(s>bs){bs=s;best=k;}}
+  if(!best||bs<6||!canSupport(p.nat,'arty',Math.floor(best.z),Math.floor(best.x)))return;p.artyT=t;msnReq(p,'arty',[Math.floor(best.z),Math.floor(best.x)]);}
+/* 소대가 아닌 임무 부대: 차량은 소대 곁, 나머지는 소대 뒤 */
+function msnFollow(u){const m=u.msn;const t=G.time||0;if(!m||t-m.t<3||u.path&&u.path.length&&t-m.t<8)return;m.t=t;const p=m.pl?tacPl().find(q=>q.id===m.pl):null;
+  let cx=m.x,cz=m.z;const c=p?tacCtr(p):null;if(c){cx=c[0];cz=c[1];}const t0=UT[u.type];
+  if(t0.ind&&c){if(G.units.some(e=>e.nat!==u.nat&&canHit(u,e)))return;}           // 곡사: 쏠 수 있으면 자리 지킴
+  const dx=m.x-cx,dz=m.z-cz,L0=Math.hypot(dx,dz)||1;const back=c?(t0.cls==='veh'&&!t0.ind?1.4:t0.ind?4:2.5):0;
+  const gx=cx-dx/L0*back,gz=cz-dz/L0*back;if(Math.hypot(gx-u.x,gz-u.z)<1.2)return;const [sx,sz]=coverSnap(u,gx,gz);const P=pathPts(u,sx,sz);if(P.length){u.path=P;u.dest=[sx,sz];}}
+/* 플레이어 세력 소대 판단(AI 세력은 aiThink 안에서) */
+function msnThink(n){tacThink(n);for(const p of tacPl())if(p.nat===n&&p.human)msnCas(p);for(const u of G.units)if(u.nat===n&&u.msn)msnFollow(u);}
+/* ---------- 엔진에 끼우기 ---------- */
+{const _re=radioExec;radioExec=function(k,a,us){us=(us||[]).filter(u=>u&&G.units.includes(u));
+  if(k==='mis'){if(!us.length)return;const n=us[0].nat;if(a[0]==='off'){us.forEach(msnLeave);msnLog(n,`${us.length}개 부대 임무 해제, 직접 지휘`);}else msnAssign(n,us,a[0],a[1],a[2],a[3]);for(const g of us)g._ack=G.time||0;return;}
+  if(k!=='hold'&&k!=='floor')for(const u of us)if((u.pl||u.msn)&&!isAI(u.nat))msnLeave(u);   // 직접 명령을 받으면 임무에서 빠진다
+  return _re(k,a,us);};}
+{const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||G.over||!G.units||!G.plat)return;const t=G.time||0;
+  for(const n of G.order){if(isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];if((N2.msnT||0)>t)continue;N2.msnT=t+TAC.think;
+    if(!G.plat.some(p=>p.nat===n)&&!G.units.some(u=>u.nat===n&&u.msn))continue;try{msnThink(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}};}
 
 /* ---- 07-view3d.js ---- */
 /* ===================== 3D VIEW (three.js) =====================
@@ -5910,6 +5984,43 @@ const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로
 function showSetup(){const cl=$('#camp-list');if(cl&&typeof campList==='function')cl.innerHTML=campList();for(const id of ['brief','debrief']){const o=$('#'+id);if(o)o.hidden=true;}const sl=$('#scn-list');if(sl&&typeof scnButtons==='function')sl.innerHTML=scnButtons();
   const box=$('#slots');box.innerHTML=NATS.map((N2,i)=>`<div class="slot"><i class="sw" style="background:${N2.col}"></i><label for="slot-${i}">${N2.full} <small>${N2.edge}</small></label><select id="slot-${i}"><option value="human">사람</option><option value="ai">AI</option>${i>1?'<option value="none">없음</option>':''}</select></div>`).join('');
   NATS.forEach((_,i)=>{$('#slot-'+i).value=UI.setupSlots[i]||'none';});$('#b-resume').hidden=!loadSave();$('#setup').hidden=false;}
+
+/* ---- 08m-mission.js ---- */
+/* ===================== MISSION UI: 임무형 지휘 화면 (06d-mission) =====================
+   부대(또는 두 번 탭해 묶은 부대들)를 고르고 [임무] → 공격·방어·정찰·지원 사격 중 하나 → 지도에서 지점을 탭.
+   [자율] 버튼으로 위임/반자동을 바꾼다. 소대의 승인 요청(돌격·후퇴·포격)은 하단 바 위에 승인/보류 버튼으로 뜬다.
+   CSS는 body.html·style.css를 건드리지 않으려고 여기서 넣는다. */
+if(typeof document!=='undefined'&&!document.getElementById('msn-css')){const st=document.createElement('style');st.id='msn-css';
+  st.textContent='.msn-req{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%;padding:4px 0 6px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:6px;font-size:13px}.msn-req b{color:#ffd27a}.msn-req .btn{min-height:32px}';
+  document.head.appendChild(st);}
+const msnGrp=()=>{const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;return [s,...(UI.group||[])].filter(x=>x&&G.units.includes(x));};
+if(typeof fortBar==='function'){const _fb=fortBar;fortBar=function(s){let h=_fb(s);if(!s||s.nat!==G.viewer||isAI(G.viewer))return h;const open=UI.phase==='msnmenu'||UI.phase==='msn';
+  h+=`<button class="btn sm${open?' primary':''}" data-act="msn:menu" id="ab-msn" title="부대를 묶어 임무만 주면 이동·엄폐·사격은 알아서 합니다">임무</button>`;
+  if(open){for(const k in MSN)h+=`<button class="btn sm${UI.phase==='msn'&&UI.msnK===k?' primary':''}" data-act="msn:${k}" id="ab-msn-${k}">${MSN[k].n}</button>`;
+    h+=`<button class="btn sm" data-act="msn:aut" id="ab-msn-aut" title="위임: 측면·돌격·후퇴를 소대가 알아서 / 반자동: 돌격·후퇴 전에 승인 요청">자율: ${MSN_AUT[UI.msnAut||'full']}</button>`;
+    if(msnGrp().some(u=>u.pl||u.msn))h+=`<button class="btn sm" data-act="msn:off" id="ab-msn-off">임무 해제</button>`;}
+  return h;};}
+if(typeof fortTip==='function'){const _ft=fortTip;fortTip=function(){if(UI.phase==='msnmenu')return '줄 임무를 고르세요';if(UI.phase==='msn')return `${MSN[UI.msnK].n} 지점을 탭하세요 · 자율 ${MSN_AUT[UI.msnAut||'full']}`;return _ft();};}
+{const _tap=tap;tap=function(k){if(G&&!G.over&&UI.phase==='msn'&&UI.sel&&G.units.includes(UI.sel)){const r=kr(k),c=kc(k),n=G.viewer;
+    const pt=(typeof V3!=='undefined'&&V3.pickPt)||[c+.5,r+.5];const grp=msnGrp();
+    radioSend(n,grp,'mis',[UI.msnK,pt[0],pt[1],UI.msnAut||'full']);if(typeof v3Ping==='function')v3Ping(pt[0],pt[1],'#ffd27a');if(typeof sndRadio==='function')sndRadio('ack');
+    UI.phase='select';render();return;}
+  return _tap(k);};}
+{const _ui=uInfo;uInfo=function(u){let s=_ui(u);const p=msnOf(u);if(p&&p.human)s+=` · ${p.name} ${MSN[p.mode].n}·${MSN_ST[p.st]||p.st}`;else if(u.msn)s+=` · ${MSN[u.msn.mode].n} 임무(따라감)`;return s;};}
+/* 승인 요청 띠 */
+{const _ra=renderActbar;renderActbar=function(){_ra();const el=$('#actbar');if(!el||!G||G.over||isAI(G.viewer))return;
+  const R=(G.plat||[]).filter(p=>p.nat===G.viewer&&p.human&&p.req&&p.mem.length);if(!R.length)return;
+  const div=document.createElement('div');div.className='msn-req';
+  div.innerHTML=R.slice(0,2).map(p=>`<b>${p.name}</b> ${MSN_REQ[p.req.k]} 승인 요청 <button class="btn sm primary" data-act="msn:ok:${p.id}" id="ab-msn-ok-${p.id}">승인</button><button class="btn sm" data-act="msn:no:${p.id}" id="ab-msn-no-${p.id}">보류</button>`).join(' ');
+  el.prepend(div);};}
+if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="msn:"]');if(!b||b.disabled||!G||G.over||isAI(G.viewer))return;
+  const a=b.dataset.act.slice(4);const n=G.viewer;
+  if(a.startsWith('ok:')||a.startsWith('no:')){msnAnswer(+a.slice(3),a.startsWith('ok:'));render();return;}
+  const grp=msnGrp();if(!grp.length)return;
+  if(a==='menu'){UI.phase=UI.phase==='msnmenu'||UI.phase==='msn'?'select':'msnmenu';render();return;}
+  if(a==='aut'){UI.msnAut=(UI.msnAut||'full')==='full'?'semi':'full';render();return;}
+  if(a==='off'){radioSend(n,grp,'mis',['off']);UI.phase='select';render();return;}
+  if(MSN[a]){UI.phase='msn';UI.msnK=a;render();}});
 
 /* ---- 08v-spec.js ---- */
 /* ===================== 관전 모드: 모든 세력을 AI가 지휘한다 =====================
