@@ -31,13 +31,14 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.
     const nm=x.obj!=null?G.objs[x.obj].name+' · ':'';const own=x.obj!=null?` · ${natName(x.owner)} 거점`:'';
     const what=x.t==='bldg'?`${x.f}층 건물 · 내구 ${Math.ceil(x.bhp)}/${x.bmax} · 엄폐 40%`:`${TT[x.t].n}${TT[x.t].cov?` · 엄폐 ${Math.round(TT[x.t].cov*100)}%`:''}`;
     const uo=u&&(!G.fog||seen(u,n))?` · ${natName(u.nat)} ${UT[u.type].n} ${uInfo(u)}`:'';
-    h=`<b>${nm}${x.t==='bldg'?'건물':TT[x.t].n}</b><span>${what}${own}${x.smoke?' · 연막':''}${vis?'':' · 시야 밖'}${uo}</span><div class="ab"><button class="btn sm" data-act="close" id="ab-close">닫기</button>${pz}</div>`;}
+    const fn=x.obj!=null&&typeof objFnText==='function'?objFnText(G.objs[x.obj]):'';const fb=x.fb!=null?` · ${natName(x.fb)} 요새화(엄폐 55%)`:'';
+    h=`<b>${nm}${x.t==='bldg'?'건물':TT[x.t].n}</b><span>${what}${fb}${own}${fn?` · ${fn}`:''}${x.smoke?' · 연막':''}${vis?'':' · 시야 밖'}${uo}</span><div class="ab"><button class="btn sm" data-act="close" id="ab-close">닫기</button>${pz}</div>`;}
   else{const N2=G.nats[n];const cnt=G.units.filter(u=>u.nat===n).length;const cd=Math.max(0,(N2.supT||0)-(G.time||0));
     h=`<b>${NATS[n].name} 지휘소</b><span>부대 ${cnt} · 지휘 ${N2.cp}${cd?` · 화력 지원 ${Math.ceil(cd)}초`:''} · 아군을 탭해 지휘</span><div class="ab"><button class="btn sm" data-act="reinf" id="ab-reinf">증원·지원</button><button class="btn sm" data-act="all" id="ab-all">전체 선택</button><button class="btn sm" data-act="spd" id="ab-spd">${G.spd}×</button>${pz}</div>`;}
   el.innerHTML=h;}
 function renderObj(){const el=$('#obj');if(!el)return;const m=typeof scnObjective==='function'?scnObjective():null;if(m&&!G.over){el.hidden=false;el.innerHTML=`<b>${m.t}</b> ${m.html||m.m}`;}else el.hidden=true;}
 function renderTip(){const el=$('#tip');if(!el||!G)return;const k=UI.hk;if(k==null||UI.sel||UI.phase){el.hidden=true;return;}const r=kr(k),c=kc(k);const x=cell(r,c);const u=unitAt(r,c);
-  const vis=!G.fog||visSet(G.viewer).has(k);let s=x.obj!=null?`<b>${G.objs[x.obj].name}</b> ${natName(x.owner)} · `:'';s+=x.t==='bldg'?`${x.f}층 건물 ${x.bhp}/${x.bmax}`:TT[x.t].n;
+  const vis=!G.fog||visSet(G.viewer).has(k);let s=x.obj!=null?`<b>${typeof objLabel==='function'?objLabel(G.objs[x.obj]):G.objs[x.obj].name}</b> ${natName(x.owner)} · `:'';s+=x.t==='bldg'?`${x.f}층 건물 ${x.bhp}/${x.bmax}`:TT[x.t].n;
   if(u&&(!G.fog||seen(u,G.viewer)))s+=` · <span style="color:${mapCol(u.nat)}">${UT[u.type].n}</span> ${u.hp}/${hpMax(u)}`;if(!vis)s+=' · 시야 밖';el.innerHTML=s;el.hidden=false;}
 function renderPanel(){const p=$('#panel');if(!p||!UI.sheet)return;document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===UI.tab?'true':'false'));
   const n=G.viewer,N2=G.nats[n];let h='';
@@ -48,9 +49,9 @@ function renderPanel(){const p=$('#panel');if(!p||!UI.sheet)return;document.quer
     h+=`<h3>병종</h3><div class="tbl"><table><tr><th>병종</th><th>이동</th><th>사거리</th><th>대보병</th><th>대기갑</th><th>특징</th></tr>`+TYPES.map(t=>{const u=UT[t];return `<tr><td>${u.n}</td><td>${u.mv}</td><td>${u.rng[1]?u.rng[0]+'–'+u.rng[1]:'-'}</td><td>${u.atk.inf||'-'}</td><td>${u.atk.veh||'-'}</td><td style="text-align:left;white-space:normal;min-width:160px">${u.desc}</td></tr>`;}).join('')+`</table></div>`;
     h+=`<div class="log">${G.log.map(l=>`<div>${l}</div>`).join('')}</div>`;}
   else if(UI.tab==='world'){if(G.over)h+=`<h3>${G.over.win==null?'무승부':NATS[G.over.win].full+' 승리'}</h3><p>${G.over.why}</p>`;
-    h+=`<h3>전황 <span class="stats">승점 ${G.vpWin} 먼저 달성 또는 ${fmtT(G.maxR*ROUND_S)} 뒤 승점 우세</span></h3><div class="tbl"><table><tr><th>세력</th><th>승점</th><th>거점</th><th>부대</th><th>지휘</th><th>격파</th><th>손실</th><th>전사</th><th>부상</th><th>후송</th></tr>`+
-      G.order.map(i=>{const x=G.nats[i];return `<tr><td style="color:${mapCol(i)}">${NATS[i].name}${x.alive?'':' (전멸)'}</td><td>${x.vp}</td><td>${objCount(i)}</td><td>${G.units.filter(u=>u.nat===i).length}</td><td>${i===n||!G.fog?x.cp:'?'}</td><td>${x.kills}</td><td>${x.losses}</td><td>${(x.cas||{}).kia||0}</td><td>${((x.cas||{}).wia||0)+((x.cas||{}).lw||0)}</td><td>${(x.cas||{}).evac||0}</td></tr>`;}).join('')+`</table></div>`;
-    h+=`<h3>거점</h3><div class="kv">`+G.objs.map(o=>`<dt>${o.name}</dt><dd style="color:${mapCol(G.map[o.r][o.c].owner)}">${natName(G.map[o.r][o.c].owner)}${G.map[o.r][o.c].t==='rubble'?' · 잔해':''}</dd>`).join('')+`</div>`;
+    h+=`<h3>전황 <span class="stats">승점 ${G.vpWin} 먼저 달성 또는 ${fmtT(G.maxR*ROUND_S)} 뒤 승점 우세</span></h3><div class="tbl"><table><tr><th>세력</th><th>승점</th><th>거점</th><th>부대</th><th>지휘</th><th>격파</th><th>손실</th><th>전사</th><th>부상</th><th>후송</th><th>복귀</th></tr>`+
+      G.order.map(i=>{const x=G.nats[i];return `<tr><td style="color:${mapCol(i)}">${NATS[i].name}${x.alive?'':' (전멸)'}</td><td>${x.vp}</td><td>${objCount(i)}</td><td>${G.units.filter(u=>u.nat===i).length}</td><td>${i===n||!G.fog?x.cp:'?'}</td><td>${x.kills}</td><td>${x.losses}</td><td>${(x.cas||{}).kia||0}</td><td>${((x.cas||{}).wia||0)+((x.cas||{}).lw||0)}</td><td>${(x.cas||{}).evac||0}</td><td>${(x.cas||{}).rtd||0}</td></tr>`;}).join('')+`</table></div>`;
+    h+=`<h3>거점</h3><div class="kv">`+G.objs.map(o=>`<dt>${typeof objLabel==='function'?objLabel(o):o.name}</dt><dd style="color:${mapCol(G.map[o.r][o.c].owner)}">${natName(G.map[o.r][o.c].owner)}${G.map[o.r][o.c].t==='rubble'?' · 잔해':''}${typeof objFnText==='function'&&objFnText(o)?`<small style="display:block;color:var(--mut,#9aa);font-size:11px">${objFnText(o)}</small>`:''}</dd>`).join('')+`</div>`;
     if(G.hist.length>1)h+=vpChart();}
   else h+=RULES_HTML;
   p.innerHTML=h;}

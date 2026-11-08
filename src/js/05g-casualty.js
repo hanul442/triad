@@ -160,11 +160,11 @@ function evTick(dt){G.evac=G.evac||[];const keep=[];const S=n=>casStats(n);
           p.ph='out';p.path=null;if(u)casSync(u,null);}}}
     if(p.ph==='out'){const cw=p.cas.w||w;if(cw&&cw.s==='hw'){cw.b-=dt*(cw.a?.35:.5);if(cw.b<=0){cw.s='kia';S(p.nat).dow++;wiaDn(S(p.nat));S(p.nat).kia++;p.drop=[p.x,p.z];
           if(p.cas.u!=null&&u){cw.y=0;const m=u._men[p.cas.i];if(m){m.x=p.x;m.z=p.z;manFlags(u,m);}}else FXH.cas(null,{x:p.x,z:p.z,orph:1},'kia');p.ph=u?'back':'rear';p.path=null;}}
-      if(p.ph==='out'){const c=ccpOf(p.nat);goal=[c.x,c.z];
-        if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){if(cw){cw.s='evac';cw.y=0;}S(p.nat).evac++;wiaDn(S(p.nat));if(u&&p.cas.u!=null){const m=u._men[p.cas.i];if(m)manFlags(u,m);}
+      if(p.ph==='out'){const c=ccpOf(p.nat,p.x,p.z);goal=[c.x,c.z];
+        if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){if(cw){cw.s='evac';cw.y=0;}S(p.nat).evac++;if(typeof medAdmit==='function')medAdmit(c,p,cw);wiaDn(S(p.nat));if(u&&p.cas.u!=null){const m=u._men[p.cas.i];if(m)manFlags(u,m);}
           p.ph=u?'back':'rear';p.path=null;}}}
     if(p.ph==='back'){if(!u){p.ph='rear';p.path=null;}else{goal=[u.x,u.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.35){const m=u._men[p.ci];u.ws[p.ci].y=0;if(m){m.x=p.x;m.z=p.z;m.lag=0;manFlags(u,m);}casSync(u,null);continue;}}}
-    if(p.ph==='rear'){const c=ccpOf(p.nat);goal=[c.x,c.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){continue;}}
+    if(p.ph==='rear'){const c=ccpOf(p.nat,p.x,p.z,false);goal=[c.x,c.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){continue;}}
     if(!goal){continue;}
     // 길 따라 걷기(업고 가면 느리다)
     const pu={type:'rifle',nat:p.nat,x:p.x,z:p.z,r:Math.floor(p.z),c:Math.floor(p.x),path:p.path||[]};
