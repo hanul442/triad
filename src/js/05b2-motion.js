@@ -12,13 +12,13 @@ const VEH={
   tank:{hl:.33,hw:.15,trav:40,tol:5,trk:1},
   ifv:{hl:.29,hw:.135,trav:55,tol:8,trk:1},
   spg:{hl:.32,hw:.14,trav:20,tol:6,trk:1},
-  hmv:{hl:.2,hw:.095,trav:90,tol:10},
+  hmv:{hl:.23,hw:.11,trav:90,tol:10},
   zu:{hl:.22,hw:.095,trav:60,tol:10},
   mlrs:{hl:.3,hw:.11,trav:25,tol:8},
   sup:{hl:.3,hw:.11,trav:0,tol:180},
   rec:{hl:.33,hw:.12,trav:30,tol:180},
 };
-const VM={pivot:32,trkTurn:45,whR:.55,whMax:70,shuffle:20,accT:1.6,accW:1.2,brake:2,revK:.45,revNear:1.6,aimHold:4};
+const VM={pivot:32,trkTurn:45,whR:.55,whMax:50,shuffle:20,accT:1.6,accW:1.2,brake:2,revK:.45,revNear:1.6,aimHold:4};
 const vSpec=u=>VEH[u.type]||{hl:.25,hw:.11,trav:45,tol:8};
 const isGV=u=>{const t=UT[u.type];return !!t&&t.cls==='veh'&&!t.fly;};
 const vDeg=(x,z)=>Math.atan2(z,x)*180/Math.PI;
@@ -31,8 +31,6 @@ function vFit(u){if(!hullPen(u,u.x,u.z,u.hd))return;let best=null,bs=1e9;
   for(const r of [0,.12,.25,.4])for(let k=0;k<(r?8:1);k++){const x=u.x+Math.cos(k*Math.PI/4)*r,z=u.z+Math.sin(k*Math.PI/4)*r;if(!walkable(u,x,z))continue;
     for(let j=0;j<12;j++){const h=u.hd+(j%2?1:-1)*Math.ceil(j/2)*30;const p=hullPen(u,x,z,h);const sc=p*10+r*4+Math.abs(vDiff(h,u.hd))/180;if(sc<bs){bs=sc;best=[x,z,h];}}}
   if(best){[u.x,u.z,u.hd]=best;u.face=u.tf=u.hd;}}
-/* 차체 사각형이 지나갈 수 없는 칸에 걸친 점 수 (모서리 4 + 변 가운데 4) */
-const V_PTS=[[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
 /* 막는 물체(주차 차·방벽·잔해·방어물)를 칸별로 묶어 둔다. 이동 격자(04d-fort)가 새로 만들어질 때마다 다시 묶는다 */
 const VOB={src:null,b:null};
 function vObsAt(cls,x,z){if(typeof navGrid!=='function')return null;navGrid(cls);if(VOB.src!==NAV.obs){VOB.src=NAV.obs;VOB.b=new Map();
@@ -41,13 +39,25 @@ function vObsAt(cls,x,z){if(typeof navGrid!=='function')return null;navGrid(cls)
 /* 점 하나가 차를 막는가: 건물·물 칸, 또는 이 차가 못 넘는 물체 안 */
 function vBlocked(u,cls,px,pz){const t=tileAt(px,pz);if(!t||mcost(u.type,t)===Infinity)return true;
   const L=vObsAt(cls,px,pz);if(L)for(const o of L){const rl=NAV_RULE[o.k];if(rl&&rl[cls]===2&&inBox(o,px,pz,0))return true;}return false;}
-/* 차체 판정: 모서리·변은 건물·물 칸만(작은 소품에 모서리가 살짝 걸치는 건 봐준다), 중심은 막는 물체 모양까지 */
-function hullPen(u,x,z,h){const s=vSpec(u),a=h*Math.PI/180,c=Math.cos(a),n=Math.sin(a),cls=typeof navCls==='function'?navCls(u):null;let k=0;
-  for(const [lx,lz] of V_PTS){const px=x+c*lx*s.hl-n*lz*s.hw,pz=z+n*lx*s.hl+c*lz*s.hw;const t=tileAt(px,pz);if(!t||mcost(u.type,t)===Infinity)k++;}
-  if(cls&&vBlocked(u,cls,x,z))k++;
+/* 차체 판정: 차체 사각형과 건물·물 칸(정사각형)이 겹친 깊이의 합(분리축 판정, 칸마다 가장 얕게 빠져나올 거리).
+   중심은 막는 물체(주차 차·방벽 등) 모양 안이면 1을 더한다. 0이면 깨끗하다 */
+function hullPen(u,x,z,h){const s=vSpec(u),a=h*Math.PI/180,c=Math.cos(a),n=Math.sin(a),cls=typeof navCls==='function'?navCls(u):null;
+  const ex=Math.abs(c)*s.hl+Math.abs(n)*s.hw,ez=Math.abs(n)*s.hl+Math.abs(c)*s.hw;let k=0;   // 차체를 감싸는 축 정렬 상자 반폭
+  for(let r=Math.floor(z-ez);r<=Math.floor(z+ez);r++)for(let q=Math.floor(x-ex);q<=Math.floor(x+ex);q++){
+    const t=inb(r,q)?G.map[r][q]:null;if(t&&mcost(u.type,t)<Infinity)continue;
+    const cx=q+.5,cz=r+.5,dx=cx-x,dz=cz-z;
+    // 축 1·2: 지도 축(칸의 변), 축 3·4: 차체 축
+    let d=Math.min(ex+.5-Math.abs(dx),ez+.5-Math.abs(dz));
+    const pl=Math.abs(dx*c+dz*n),pw=Math.abs(-dx*n+dz*c),tr=.5*(Math.abs(c)+Math.abs(n));
+    d=Math.min(d,s.hl+tr-pl,s.hw+tr-pw);if(d>0)k+=d;}
+  if(cls&&vBlocked(u,cls,x,z))k+=1;
   return k;}
 /* 차체를 (x,z,h)로 옮겨도 되나: 중심은 이동 격자로, 차체는 지금보다 더 파고들지 않을 때만 */
-function hullOk(u,x,z,h,p0){if(!tileAt(x,z))return false;if(u._gh>(G.time||0))return true;const p=hullPen(u,x,z,h);return p<=p0||((u._blk||0)>1.5&&p<=1);}   // 막히면 모서리 하나 스치는 건 허용, 아주 오래 막히면 잠깐 점처럼(u._gh) 빠져나온다
+function hullOk(u,x,z,h,p0){if(!tileAt(x,z))return false;if(u._gh>(G.time||0))return true;const p=hullPen(u,x,z,h);return p<=p0+1e-6||((u._blk||0)>1.5&&p<=.03);}   // 막히면 0.03칸(약 36cm)까지 스치는 건 허용, 아주 오래 막히면 잠깐 점처럼(u._gh) 빠져나온다
+/* 차체가 벽에 조금 걸쳐 있으면 걸침이 줄어드는 쪽으로 조금씩 밀어낸다 */
+function vSettle(u){if(u._gh>(G.time||0))return;const p=hullPen(u,u.x,u.z,u.hd);if(!p)return;let best=null,bp=p;
+  for(let k=0;k<8;k++){const a=k*Math.PI/4,x=u.x+Math.cos(a)*.03,z=u.z+Math.sin(a)*.03;const t=tileAt(x,z);if(!t||mcost(u.type,t)===Infinity||wallCross(u,u.x,u.z,x,z))continue;const q=hullPen(u,x,z,u.hd);if(q<bp){bp=q;best=[x,z];}}
+  if(best){u.x=best[0];u.z=best[1];}}
 /* 지상 차량 한 틱 이동 */
 function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
   const t0=tileAt(u.x,u.z);const vmax=UT[u.type].mv*SPD_K/(t0?mcost(u.type,t0):1)*(u.supp>0?.65:1);
@@ -71,7 +81,7 @@ function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
   const e=vDiff(head,u.hd);
   // 선회 속도
   let rate;if(s.trk)rate=Math.abs(u.vs)<.1?VM.pivot:VM.trkTurn;
-  else rate=Math.min(VM.whMax,Math.abs(u.vs)/VM.whR*180/Math.PI)+(Math.abs(u.vs)<.08?VM.shuffle:0);
+  else rate=Math.min(VM.whMax,Math.abs(u.vs)/VM.whR*180/Math.PI+(Math.abs(u.vs)<.08?VM.shuffle:0));
   if(shuffle)rate=Math.max(rate,VM.whMax*.6);
   const h1=vTurn(u.hd,shuffle?want:head,rate*dt);
   // 목표 속도
@@ -121,6 +131,7 @@ function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
     else if(!fin&&nd<.4&&Math.abs(vDiff(vDeg(tx-u.x,tz-u.z),u.hd))>100&&!rev)u.path.shift();}
   {const g=u._pg;if(!g||Math.hypot(g[0]-u.x,g[1]-u.z)>.08)u._pg=[u.x,u.z,now];else if(now-g[2]>4){u._pg=[u.x,u.z,now];const e2=u.path[u.path.length-1];
     if(!e2||Math.hypot(e2[0]-u.x,e2[1]-u.z)<.9)u.path=[];else u.path=pathPts(u,e2[0],e2[1]);}}
+  vSettle(u);
   u.moved=true;if(typeof fortCrush==='function')fortCrush(u);rtCell(u);if(!G.units.includes(u))return;
   if(u.tgt!=null){const t2=G.units.find(z=>z.id===u.tgt);if(t2&&canHit(u,t2))u.path=[];}
   if(u.tgtTile!=null&&canHitTile(u,kr(u.tgtTile),kc(u.tgtTile)))u.path=[];}
@@ -146,8 +157,9 @@ function vTurret(u,dt){const s=vSpec(u);if(!s.trav){u.tf=u.hd;return;}const now=
   const want=u._aim!=null&&now-(u._aimT||-99)<VM.aimHold?u._aim:u.hd;u.tf=vTurn(u.tf,want,s.trav*dt);}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units)return;
   for(const u of G.units){if(!isGV(u))continue;vInit(u);
-    if(u.towBy!=null){u.hd=u.face||0;u.vs=0;}         // 끌려가는 차는 구난차가 방향을 정한다
+    if(u.towBy!=null){u.hd=vTurn(u.hd,u.face||0,40*dt);u.face=u.hd;u.vs=0;}         // 끌려가는 차는 구난차 쪽으로 천천히 돈다
     else if(u.face!==u.hd)u.face=u.hd;   // 다른 규칙이 방향을 바로 바꿔도 차체는 천천히 돈다
+    if(!(u.path&&u.path.length)&&u.towBy==null&&!(u.vd&&u.vd.mob))vSettle(u);
     vTurret(u,dt);}};}
 /* 겹친 부대 밀어내기가 차체를 벽 속으로 밀지 않게 */
 {const _sep=rtSeparate;rtSeparate=function(dt){const keep=[];for(const u of G.units)if(isGV(u)){vInit(u);keep.push([u,u.x,u.z,hullPen(u,u.x,u.z,u.hd)]);}

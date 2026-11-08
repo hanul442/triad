@@ -4,9 +4,9 @@
    - 대기(hold): 대기 지점에서 제자리 비행하며 옆으로 천천히 미끄러지고, 기수를 표적 쪽으로 돌려 쏜다.
    - 사격 비행(run): 몇 초마다 목표를 비스듬히 스쳐 지나가는 직선으로 들어오며 쏜다(기총·로켓 사격 비행).
    - 이탈(brk): 목표를 지나면 옆으로 꺾어 빠져나가 다른 방향의 대기 지점으로 간다. 체력이 40% 아래면 사격 비행 없이 대기만.
-   기수 방향(u.hd)은 초당 정해진 각도만 돈다. 기수에서 40° 안쪽 표적만 쏜다(rtFight 감쌈).
+   기수 방향(u.hd)은 초당 50°만 돈다. 기수에서 40° 안쪽 표적만 쏜다(rtFight 감쌈).
    속도는 가속도 한계 안에서만 바뀐다(A.vx, A.vz: 화면이 이것으로 기수 숙임·기울기를 그린다). */
-const GS={rs:3.6,yaw:75,acc:1.3,fire:40,hold:[5,8],runOff:.7,runPast:1.6,brk:[.9,1.4]};
+const GS={rs:3.6,yaw:50,acc:1.3,fire:40,hold:[5,8],runOff:.7,runPast:1.6,brk:[.9,1.4]};
 const gsRand=([a,b])=>a+Math.random()*(b-a);
 const gsClamp=v=>Math.min(N-.3,Math.max(.3,v));
 function gsSpot(A,ang){return [gsClamp(A.cx+Math.cos(ang)*GS.rs),gsClamp(A.cz+Math.sin(ang)*GS.rs)];}
