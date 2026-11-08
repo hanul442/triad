@@ -149,9 +149,9 @@ function occLabels(want,vs,vn){if(V3.press)return;const m=v3OccMap(vs,vn);
 
 /* ---------- 창가에서 내다보기 ----------
    단면도를 끈 뒤로는 실내 병사가 벽에 가려 안 보인다. 창가(바깥 외벽 가까이)에 선 병사는 쏘거나 막 쏜 뒤에
-   상체를 창 밖으로 내밀었다가(PEEK_OUT) 다시 벽 안으로 숨는다(PEEK_IN). 총구 화염도 그 자리에서 난다.
+   창턱 바로 안쪽까지 나와 창 구멍으로 보였다가(PEEK_OUT) 다시 벽 안으로 숨는다(PEEK_IN). 총구 화염도 그 자리에서 난다.
    돌려주는 값: 병사가 갈 자리 {x,z,f(바라볼 방향)} 또는 null(창가가 아님) */
-const PEEK_OUT=.014,PEEK_IN=.07,PEEK_T=1.3;
+const PEEK_OUT=-.014,PEEK_IN=.07,PEEK_T=1.3;
 function v3WinPeek(uu,m,t){const x=cell(uu.r,uu.c);if(x.t!=='bldg'||onRoof(uu)||uu.climb)return null;const b=bldgBox(uu.r,uu.c),e=1e-6,r=uu.r,c=uu.c;
   // 바깥과 맞닿은 외벽(같은 블록과 붙지 않은 면)만: [벽 좌표, 축(0=x,1=z), 바깥 방향]
   const W=[];if(b[0]>c+e)W.push([b[0],0,-1]);if(b[1]<c+1-e)W.push([b[1],0,1]);if(b[2]>r+e)W.push([b[2],1,-1]);if(b[3]<r+1-e)W.push([b[3],1,1]);
@@ -167,3 +167,14 @@ function v3WinPeek(uu,m,t){const x=cell(uu.r,uu.c);if(x.t!=='bldg'||onRoof(uu)||
   const px=ax?along:wv+sg*off,pz=ax?wv+sg*off:along;
   const f=peek&&m.aim?Math.atan2(m.aim[1]-pz,m.aim[0]-px):ax?(sg>0?Math.PI/2:-Math.PI/2):(sg>0?0:Math.PI);
   return {x:px,z:pz,f,peek,y:peek?.06:0};}   // 내밀 때는 창턱 높이로 몸을 올린다(창은 층 높이의 .31~.78)
+
+/* ---------- 창이 뚫린 건물의 속: 층마다 바닥판 ----------
+   외벽 창은 구멍이라(07-view3d winA) 안이 들여다보인다. 층마다 어두운 바닥판을 깔아 병사가 그 위에 서 보이고,
+   아래층·땅이 비쳐 보이지 않게 한다. v3BuildCity가 끝날 때마다 다시 만든다. */
+function v3BuildSlabs(g){const T=V3.T;const L=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg')continue;const b=bldgBox(r,c);const top=bldgH(x);const k=key(r,c);
+    for(let f=0;f<x.f&&f<top-.05;f++)L.push([(b[0]+b[1])/2,.06+f*FLOOR_H+.004,(b[2]+b[3])/2,b[1]-b[0]-.012,b[3]-b[2]-.012,k]);}
+  if(!L.length)return;const im=new T.InstancedMesh(new T.BoxGeometry(1,.012,1),V3.M.slab||(V3.M.slab=new T.MeshStandardMaterial({color:'#4a453e',roughness:1})),L.length);
+  im.receiveShadow=true;const m4=new T.Matrix4(),q=new T.Quaternion(),p=new T.Vector3(),sc=new T.Vector3();
+  L.forEach(([x,y,z,sx,sz],i)=>{p.set(x,y,z);sc.set(sx,1,sz);m4.compose(p,q,sc);im.setMatrixAt(i,m4);});im.userData.keys=L.map(o=>o[5]);g.add(im);}
+{const _bc=v3BuildCity;v3BuildCity=function(){_bc.apply(this,arguments);try{v3BuildSlabs(V3.G.city);}catch(e){console.error(e);}};}

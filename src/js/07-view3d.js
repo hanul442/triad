@@ -46,6 +46,9 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');
       WIN.push([X,Y,r]);}
     for(let i=0;i<40;i++){const x=fr()*w,y=fr()*h,len=30+fr()*120;const gr=g.createLinearGradient(0,y,0,y+len);gr.addColorStop(0,'rgba(45,40,34,.18)');gr.addColorStop(1,'rgba(45,40,34,0)');g.fillStyle=gr;g.fillRect(x,y,2+fr()*5,len);}});
   facade.wrapS=facade.wrapT=T.RepeatWrapping;
+  // 창 구멍: 창 자리는 뚫려 있어 건물 안 병사가 창 너머로 보인다(흰색 = 벽, 검은색 = 구멍)
+  const winA=v3Tex(512,512,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.fillStyle='#000';for(const [X,Y] of WIN)g.fillRect(X+1,Y+1,32,28);});
+  winA.wrapS=winA.wrapT=T.RepeatWrapping;
   const lights=v3Tex(512,512,(g,w,h)=>{g.fillStyle='#000';g.fillRect(0,0,w,h);for(const [X,Y,r] of WIN){if(r>.08&&fr()<.32){g.fillStyle=fr()<.8?'#ffc77a':'#fff0cf';g.fillRect(X,Y,34,30);}}});
   lights.wrapS=lights.wrapT=T.RepeatWrapping;
   const roofT=v3Tex(256,256,(g,w,h)=>{g.fillStyle='#8f8d89';g.fillRect(0,0,w,h);for(let i=0;i<9000;i++){const v=90+fr()*90|0;g.fillStyle=`rgba(${v},${v},${v-6},.3)`;g.fillRect(fr()*w,fr()*h,2,2);}
@@ -55,7 +58,7 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');
   const puff=v3Tex(64,64,(g)=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.5,'rgba(255,255,255,.45)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);});
   const M={
     terr:new T.MeshStandardMaterial({roughness:.95,metalness:0}),
-    wall:new T.MeshStandardMaterial({map:facade,emissiveMap:lights,emissive:'#ffffff',emissiveIntensity:0,vertexColors:true,roughness:.92}),
+    wall:new T.MeshStandardMaterial({map:facade,emissiveMap:lights,emissive:'#ffffff',emissiveIntensity:0,vertexColors:true,roughness:.92,alphaMap:winA,alphaTest:.5,side:T.DoubleSide}),
     roof:new T.MeshStandardMaterial({map:roofT,vertexColors:true,roughness:.95,flatShading:true,side:T.DoubleSide}),
     rubble:new T.MeshStandardMaterial({color:'#77736c',roughness:1,flatShading:true}),
     mark:new T.MeshStandardMaterial({color:'#d9d4c4',roughness:.8}),
