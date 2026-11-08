@@ -5288,7 +5288,9 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');if(typeof v3TerrInstall==='fun
       for(let i=0;i<3000;i++){g.fillStyle=fr()<.5?'rgba(255,255,255,.04)':'rgba(0,0,0,.05)';g.fillRect(fr()*w,fr()*h,2,2);}
       for(let i=0;i<24;i++){const x=fr()*w,y=fr()*h,len=30+fr()*100;const gr=g.createLinearGradient(0,y,0,y+len);gr.addColorStop(0,'rgba(45,40,34,.14)');gr.addColorStop(1,'rgba(45,40,34,0)');g.fillStyle=gr;g.fillRect(x,y,2+fr()*4,len);}});
     const lt=v3Tex(512,512,(g,w,h)=>{g.fillStyle='#000';g.fillRect(0,0,w,h);for(const [X,Y,ww,hh] of W2)if(fr()<.3){g.fillStyle=fr()<.7?'#ffc77a':'#e8f0ff';g.fillRect(X,Y,ww,hh);}});
-    for(const t of [tx,lt]){t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=ren.capabilities.getMaxAnisotropy();}return [tx,lt];};
+    // 창 구멍(알파): 단면도 대신 창으로 실내 병사가 보이게(#39). 창 무늬(W2)와 같은 자리를 1px 안쪽으로 뚫는다
+    const al=v3Tex(512,512,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.fillStyle='#000';for(const [X,Y,ww,hh] of W2)if(hh>=20)g.fillRect(X+1,Y+1,ww-2,hh-2);});
+    for(const t of [tx,lt,al]){t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=ren.capabilities.getMaxAnisotropy();}return [tx,lt,al];};
   const facG=mkFac('#c9ccd0',(g,w,h,W2)=>{for(let y=0;y<8;y++){g.fillStyle='#b4b7ba';g.fillRect(0,y*64,w,14);g.fillStyle='rgba(0,0,0,.25)';g.fillRect(0,y*64+13,w,2);
       for(let x=0;x<8;x++){const X=x*64,Y=y*64+15;const gr=g.createLinearGradient(X,Y,X+64,Y+49);const t=fr();gr.addColorStop(0,t<.3?'#56677a':'#3a4652');gr.addColorStop(1,'#1d242c');g.fillStyle=gr;g.fillRect(X,Y,64,49);
         if(fr()<.35){g.fillStyle='rgba(200,215,225,.16)';g.beginPath();g.moveTo(X+fr()*30,Y);g.lineTo(X+40+fr()*24,Y);g.lineTo(X+10+fr()*20,Y+49);g.lineTo(X,Y+49);g.fill();}
@@ -5320,7 +5322,7 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');if(typeof v3TerrInstall==='fun
     smoke:new T.SpriteMaterial({map:puff,color:'#3e3a35',transparent:true,depthWrite:false,opacity:.55}),
     fire:new T.SpriteMaterial({map:puff,color:'#ff8a3a',transparent:true,depthWrite:false,blending:T.AdditiveBlending}),
   };
-  M.walls=[M.wall];for(const [tx,lt] of [facG,facB,facI])M.walls.push(new T.MeshStandardMaterial({map:tx,emissiveMap:lt,emissive:'#ffffff',emissiveIntensity:0,vertexColors:true,roughness:.92}));
+  M.walls=[M.wall];for(const [tx,lt,al] of [facG,facB,facI])M.walls.push(new T.MeshStandardMaterial({map:tx,emissiveMap:lt,emissive:'#ffffff',emissiveIntensity:0,vertexColors:true,roughness:.92,alphaMap:al,alphaTest:.5,side:T.DoubleSide}));   // 골함석(창고)은 띠창이 낮아 구멍 없음(al 흰색)
   M.walls[1].roughness=.55;M.walls[1].metalness=.25;
   {let ei=0;Object.defineProperty(M.wall,'emissiveIntensity',{configurable:true,get(){return ei;},set(v){ei=v;for(const m of M.walls)if(m!==M.wall)m.emissiveIntensity=v;}});}   // 밤 창불은 모든 외벽이 같이
   V3.fowU={map:{value:null},n:{value:N}};
