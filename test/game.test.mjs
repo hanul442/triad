@@ -80,11 +80,13 @@ test('엄폐: 건물 안 보병은 피해를 덜 받고, 폭발물은 엄폐를 
 
 test('건물이 무너지면 잔해가 되고 안의 부대가 피해를 입는다', () => {
   const T = loadGame(); const G = setup(T);
-  bldg(G, 5, 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5);
+  bldg(G, 5, 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); const hp0 = d.hp;
   T.damageBldg(5, 5, 999);
   assert.equal(G.map[5][5].t, 'rubble');
   assert.ok(d.ws.some(w => w.s !== 'ok') || !G.units.includes(d), '무너진 건물에 깔린 병사');
-  assert.ok(d.dmgIn === 5 && d.supp >= 2);
+  // 남은 체력의 30~95%: 병사마다 다치거나 죽는다
+  assert.ok(d.dmgIn >= hp0 * .3 - 1e-6 && d.dmgIn <= hp0 * .95 + 1e-6 && d.supp >= 2, `피해 ${d.dmgIn}/${hp0}`);
+  assert.equal(d.fl, 0, '잔해 위(땅)로 떨어진다');
 });
 
 test('폭발물로 건물을 쏘면 숨은 적도 맞는다', () => {

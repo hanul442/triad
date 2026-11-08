@@ -347,7 +347,13 @@ function v3UnitY(u){if(UT[u.type].fly&&typeof v3AirY==='function'){const y=v3Air
 function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;const c=v3Soldier(nat,'rifle');c.position.set(s.wx,o.position.y,s.wz);c.rotation.set(0,Math.random()*6.28,0);
   c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;const wrap=new T.Group();wrap.position.copy(c.position);c.position.set(0,0,0);wrap.add(c);c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;
   wrap.traverse(m=>{if(m.isMesh){m.material=V3.corpseM||(V3.corpseM=new T.MeshStandardMaterial({color:'#4a463e',roughness:1}));m.userData.keepMat=1;m.userData.keepGeo=1;}});wrap.userData.keepGeo=1;wrap.userData.keepMat=1;
-  V3.G.fx.add(wrap);V3.fx.push({o:wrap,t0:performance.now(),dur:120000,upd:()=>{}});s.m.visible=false;if(typeof dsScar==='function')dsScar('blood',s.wx,s.wz,.07);}
+  V3.G.fx.add(wrap);
+  // 발밑이 사라지면(건물 붕괴·지붕이 낮아짐) 떨어져 잔해·땅 위에 눕는다
+  const cr=Math.floor(s.wz),cc=Math.floor(s.wx);let vy=0,last=performance.now();
+  V3.fx.push({o:wrap,t0:performance.now(),dur:120000,upd:(o)=>{const now=performance.now(),dt=Math.min(.1,(now-last)/1000);last=now;if(!inb(cr,cc))return;
+    const x=G.map[cr][cc];const floor=x.t==='bldg'?Math.min(o.position.y,.06+bldgH(x)*FLOOR_H):v3Top(cr,cc)+.005;
+    if(o.position.y>floor+.003){vy+=9.8*MU*12*dt;o.position.y=Math.max(floor,o.position.y-vy*dt);}else vy=0;}});
+  s.m.visible=false;if(typeof dsScar==='function')dsScar('blood',s.wx,s.wz,.07);}
 function v3SyncUnits(vs,vn){const keep=new Set();
   for(const u of G.units){if(G.fog&&!seen(u,vn,vs))continue;keep.add(u.id);let o=V3.uo.get(u.id);
     if(!o){o=v3Model(u);o.position.set(u.x,v3UnitY(u),u.z);V3.G.units.add(o);V3.uo.set(u.id,o);}
