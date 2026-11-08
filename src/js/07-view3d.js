@@ -22,7 +22,7 @@ const V3COL={road:'#3b3c3d',plaza:'#7f7d77',park:'#5a6247',rubble:'#5e5952',bldg
 function v3Tex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new V3.T.CanvasTexture(c);t.colorSpace=V3.T.SRGBColorSpace;return t;}
 
 /* ---------- 초기화 ---------- */
-function v3Init(){const T=V3.T;const cv=$('#v3d');
+function v3Init(){const T=V3.T;const cv=$('#v3d');if(typeof v3TerrInstall==='function')v3TerrInstall();   // 지형 높이 셰이더 훅(07g)
   const ren=new T.WebGLRenderer({canvas:cv,antialias:false,powerPreference:'high-performance'});
   // 레퍼런스처럼 살짝 거친 픽셀 화면: 화면 픽셀보다 낮은 해상도로 그리고 확대한다
   ren.setPixelRatio(v3PixelRatio());ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;
@@ -77,10 +77,10 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');
     uo:new Map(),fx:[],smoke:[],labels:new Map(),tag:null,last:0,shake:0,matc:new Map()});
   v3Controls(cv);window.addEventListener('resize',v3Size);dsInit();}
 // 전장의 안개: 안 보이는 칸을 지면·건물 모두 어둡게 (칸 경계는 부드럽게)
-function v3FowMat(mat){mat.onBeforeCompile=sh=>{sh.uniforms.fowMap=V3.fowU.map;sh.uniforms.fowN=V3.fowU.n;
+function v3FowMat(mat){mat.onBeforeCompile=sh=>{if(typeof v3TerrHook==='function')v3TerrHook(sh,mat);sh.uniforms.fowMap=V3.fowU.map;sh.uniforms.fowN=V3.fowU.n;
     sh.vertexShader='varying vec2 vFowW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 fowP=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nfowP=instanceMatrix*fowP;\n#endif\nvFowW=(modelMatrix*fowP).xz;');
     sh.fragmentShader='uniform sampler2D fowMap;uniform float fowN;varying vec2 vFowW;\n'+sh.fragmentShader.replace('#include <fog_fragment>','{float fv=texture2D(fowMap,vFowW/fowN).r;vec3 gy=vec3(dot(gl_FragColor.rgb,vec3(.3,.59,.11)));gl_FragColor.rgb=mix(gy*vec3(.5,.54,.6),gl_FragColor.rgb,fv);}\n#include <fog_fragment>');};
-  mat.customProgramCacheKey=()=>'fow';}
+  mat.customProgramCacheKey=()=>'fow'+(mat.userData.terrN?'N':'');}
 // 안개 텍스처: 한 칸을 FOW_R×FOW_R 점으로 (04b-sight의 잘게 나눈 시야). 선형 보간으로 경계가 부드럽다.
 function v3FowUpd(vs){if(!V3.fowD)return;const d=V3.fowD,M=N*FOW_R;if(d.length!==M*M*4)return;const f=vs&&vs.fine;
   if(V3.fowSrc===f&&f)return;V3.fowSrc=f;for(let i=0;i<M*M;i++)d[i*4]=!f||f[i]?255:0;V3.fowT.needsUpdate=true;}
@@ -147,7 +147,7 @@ function v3Pick(cx,cy,rad){if(!G)return null;V3.pickId=null;V3.pickPt=null;const
     const m=h.object.userData;V3.pickPt=[h.point.x,h.point.z];if(m.keys&&h.instanceId!=null){k=m.keys[h.instanceId];break;}if(m.tri&&h.faceIndex!=null){k=m.tri[h.faceIndex];break;}if(h.object.parent===V3.G.world){k=key(Math.floor(h.point.z),Math.floor(h.point.x));break;}}
   if(k==null){const p=new V3.T.Vector3();if(rc.ray.intersectPlane(new V3.T.Plane(new V3.T.Vector3(0,1,0),0),p)){V3.pickPt=[p.x,p.z];const r=Math.floor(p.z),c=Math.floor(p.x);if(inb(r,c))k=key(r,c);}}
   // 가까운 부대(화면에서 28px 안) 우선
-  {const v=new V3.T.Vector3();const b=V3.cv.getBoundingClientRect();let best=null,bd=rad||28;for(const [id,o] of V3.uo){v.copy(o.position);v.y+=.08;v.project(V3.cam);const sx=(v.x+1)/2*b.width+b.left,sy=(1-v.y)/2*b.height+b.top;const d=Math.hypot(sx-cx,sy-cy);if(d<bd){bd=d;best=o;}}
+  {const v=new V3.T.Vector3();const b=V3.cv.getBoundingClientRect();let best=null,bd=rad||28;for(const [id,o] of V3.uo){v.copy(o.position);v.y+=.08+(typeof v3TY==='function'?v3TY(v.x,v.z):0);v.project(V3.cam);const sx=(v.x+1)/2*b.width+b.left,sy=(1-v.y)/2*b.height+b.top;const d=Math.hypot(sx-cx,sy-cy);if(d<bd){bd=d;best=o;}}
     if(best){V3.pickId=best.userData.id;return best.userData.k;}}
   return k;}
 let v3HovRaf=0;
@@ -189,8 +189,9 @@ function v3GroundTex(){const P=48,W=N*P;const cv=document.createElement('canvas'
       g.fillStyle='#86827a';g.fillRect(x,y,w,hh);g.fillStyle='rgba(0,0,0,.12)';for(let i=0;i<Math.max(w,hh);i+=8)w>hh?g.fillRect(x+i,y,1,hh):g.fillRect(x,y+i,w,1);
       g.fillStyle='#a19c90';w>hh?g.fillRect(x,a<r?y+hh-1:y,w,1):g.fillRect(b<c?x+w-1:x,y,1,hh);}}
   // 한가운데 원형 광장: 둥근 포석 무늬와 동심원
-  {let R0=0;for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(G.map[r][c].sq)R0=Math.max(R0,Math.hypot(r+.5-N/2,c+.5-N/2));
-    if(R0){const X=N/2*P,Y=N/2*P;g.fillStyle='#8a867c';g.beginPath();g.arc(X,Y,(R0+.2)*P,0,7);g.fill();
+  {let R0=0,sx=0,sz=0,sn=0;for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(G.map[r][c].sq){sx+=c+.5;sz+=r+.5;sn++;}const qx=sn?sx/sn:N/2,qz=sn?sz/sn:N/2;   // 광장 중심(비대칭 도시는 도심이 한쪽에 있다)
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(G.map[r][c].sq)R0=Math.max(R0,Math.hypot(r+.5-qz,c+.5-qx));
+    if(R0){const X=qx*P,Y=qz*P;g.fillStyle='#8a867c';g.beginPath();g.arc(X,Y,(R0+.2)*P,0,7);g.fill();
       for(let i=1;i<6;i++){g.strokeStyle=i%2?'rgba(60,55,48,.35)':'rgba(230,225,210,.25)';g.lineWidth=i%2?3:2;g.beginPath();g.arc(X,Y,(R0+.2)*P*i/6+P*.3,0,7);g.stroke();}
       g.strokeStyle='rgba(60,55,48,.25)';g.lineWidth=2;for(let a=0;a<16;a++){const t=a/16*Math.PI*2;g.beginPath();g.moveTo(X+Math.cos(t)*P*1.4,Y+Math.sin(t)*P*1.4);g.lineTo(X+Math.cos(t)*(R0+.2)*P,Y+Math.sin(t)*(R0+.2)*P);g.stroke();}
       g.strokeStyle='#a19c90';g.lineWidth=4;g.beginPath();g.arc(X,Y,(R0+.2)*P,0,7);g.stroke();}}
@@ -198,6 +199,7 @@ function v3GroundTex(){const P=48,W=N*P;const cv=document.createElement('canvas'
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(rd(r,c))continue;for(const [a,b] of v3Cham(r,c,true)){const X=c*P+(b>0?P:0),Y=r*P+(a>0?P:0),L=P*.62,sx=-b,sy=-a;
       g.fillStyle='#353637';g.beginPath();g.moveTo(X,Y);g.lineTo(X+sx*L,Y);g.lineTo(X,Y+sy*L);g.closePath();g.fill();
       g.strokeStyle='#8a867e';g.lineWidth=5;g.beginPath();g.moveTo(X+sx*L,Y);g.lineTo(X,Y+sy*L);g.stroke();g.strokeStyle='#a19c90';g.lineWidth=1;g.stroke();}}
+  if(typeof v3TerrTex==='function')v3TerrTex(g,P);   // 강·철길(07g)
   // 배치 구역은 아주 옅게 물들인다
   for(const n of G.order){g.fillStyle=MAPCOL[n]+'1c';for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(inZone(n,r,c))g.fillRect(c*P,r*P,P,P);}
   if(typeof dsReplay==='function')dsReplay();
@@ -211,8 +213,10 @@ function v3DeadTree(){const T=V3.T;if(V3.treeG)return V3.treeG;const parts=[];co
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.computeVertexNormals();V3.treeG=geo;return geo;}
 function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
   const FM=N*FOW_R;if(!V3.fowT||V3.fowT.image.width!==FM){if(V3.fowT)V3.fowT.dispose();V3.fowD=new Uint8Array(FM*FM*4).fill(255);V3.fowT=new T.DataTexture(V3.fowD,FM,FM);V3.fowT.magFilter=V3.fowT.minFilter=T.LinearFilter;V3.fowT.needsUpdate=true;V3.fowU.map.value=V3.fowT;V3.fowU.n.value=N;}
+  if(typeof v3TerrUpd==='function')v3TerrUpd();
   if(M.terr.map)M.terr.map.dispose();M.terr.map=v3GroundTex();M.terr.needsUpdate=true;
-  const gp=new T.Mesh(new T.PlaneGeometry(N,N),M.terr);gp.rotation.x=-Math.PI/2;gp.position.set(N/2,0,N/2);gp.receiveShadow=true;g.add(gp);
+  // 땅: 언덕 높이(07g 셰이더)가 보이도록 칸마다 두 번 나눈 판. 회전은 형상에 굽는다(물체 좌표 = 월드 좌표)
+  const gpg=G.elv?new T.PlaneGeometry(N,N,N*2,N*2):new T.PlaneGeometry(N,N);gpg.rotateX(-Math.PI/2);const gp=new T.Mesh(gpg,M.terr);gp.position.set(N/2,0,N/2);gp.receiveShadow=true;g.add(gp);
   const m4=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(),ps=new T.Vector3();const trees=[];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const [px0,pz]=v3x(r,c);const e=0;
     if(x.t==='park')for(let s=0;s<(x.yard?1:3);s++)if(v3Hash(key(r,c),50+s)<(x.yard?.45:.75))trees.push([px0+(v3Hash(key(r,c),60+s)-.5)*.7,e,pz+(v3Hash(key(r,c),70+s)-.5)*.7,.7+v3Hash(key(r,c),80+s)*.6,key(r,c)]);}
@@ -220,6 +224,7 @@ function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
     const trg=new T.CylinderGeometry(.02,.03,.04,5);trg.translate(0,.02,0);const trm=new T.InstancedMesh(trg,M.trunk,trees.length);const tc=new T.Color();
     trees.forEach(([x,y,z,s,k],j)=>{ps.set(x,y,z);sc.set(s,s*(.85+v3Hash(k,90+j)*.4),s);m4.compose(ps,q,sc);tm.setMatrixAt(j,m4);trm.setMatrixAt(j,m4);tm.setColorAt(j,tc.set('#ffffff').offsetHSL(0,0,(v3Hash(k,91+j)-.5)*.25));});tm.userData.keys=trees.map(t=>t[4]);g.add(tm);g.add(trm);}
   if(typeof v3BuildProps==='function')v3BuildProps(g);
+  if(typeof v3BuildTerrain==='function')v3BuildTerrain(g);
   if(typeof v3BuildCamp==='function')v3BuildCamp(g);
   // 버려진 차량 (소품 모듈이 없을 때만)
   else{const cars=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);if(x.t==='road'&&v3Hash(k,700)<.07)cars.push([...v3x(r,c),k]);}
@@ -233,7 +238,7 @@ function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
   // 바깥 땅
   const out=new T.Mesh(new T.PlaneGeometry(N+120,N+120),new T.MeshStandardMaterial({color:'#3a3936',roughness:1}));out.rotation.x=-Math.PI/2;out.position.set(N/2,-.02,N/2);out.receiveShadow=true;g.add(out);
   // 격자선
-  const L=[];for(let i2=0;i2<=N;i2++){L.push(0,.07,i2,N,.07,i2,i2,.07,0,i2,.07,N);}
+  const L=[];for(let i2=0;i2<=N;i2++)for(let j=0;j<N;j++)L.push(j,.07,i2,j+1,.07,i2,i2,.07,j,i2,.07,j+1);   // 칸마다 끊어 언덕을 따라 휜다
   const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(L,3));V3.grid=new T.LineSegments(lg,new T.LineBasicMaterial({color:'#ffffff',transparent:true,opacity:.12}));g.add(V3.grid);}
 /* 칸 (r,c)의 네 모서리 중 대각선·곡선 도로가 감싼 모서리 목록 [[a,b]] (a,b = ±1: 북남, 서동).
    그 모서리는 땅에서는 아스팔트로 채우고 건물은 비스듬히 깎는다. */
@@ -263,7 +268,7 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
   const GLASS=['#7d8790','#6a737b','#8a9096','#5f676e','#9a9a94'];const gab=[];// 고층은 유리 외벽 톤, 주택은 박공 지붕
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
     if(x.t==='bldg'){const dmg=1-x.bhp/x.bmax;let h=x.f*FLOOR_H;if(dmg>.5)h*=1-(dmg-.5)*.6;
-      const bt=x.blk!=null?v3Hash(x.blk,3):v3Hash(k,3);col.set(x.lm?'#e2dccb':x.f>=8?GLASS[Math.floor(bt*GLASS.length)]:TONES[Math.floor(bt*TONES.length)]);col.offsetHSL(0,0,(v3Hash(k,4)-.5)*.04);col.multiplyScalar(1-dmg*.55);
+      const bt=x.blk!=null?v3Hash(x.blk,3):v3Hash(k,3);col.set(x.lm?'#e2dccb':x.ind?IND_C[Math.floor(bt*IND_C.length)]:x.f>=8?GLASS[Math.floor(bt*GLASS.length)]:TONES[Math.floor(bt*TONES.length)]);col.offsetHSL(0,0,(v3Hash(k,4)-.5)*.04);col.multiplyScalar(1-dmg*.55);
       const same=(a,b)=>inb(a,b)&&G.map[a][b].t==='bldg'&&x.blk!=null&&G.map[a][b].blk===x.blk&&G.map[a][b].bhp/G.map[a][b].bmax>.5&&dmg<.5;
       const sN=same(r-1,c),sE=same(r,c+1),sS=same(r+1,c),sW=same(r,c-1);
       const x0=cx-.5+(sW?0:IN),x1=cx+.5-(sE?0:IN),z0=cz-.5+(sN?0:IN),z1=cz+.5-(sS?0:IN);
@@ -295,6 +300,7 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
     im.userData.keys=gab.map(o=>o.k);V3.cityM.gab=im;g.add(im);}
   v3CutPrep();
   if(typeof v3BuildShops==='function')v3BuildShops(g);}
+const IND_C=['#8d9396','#7d8b8e','#a39d92','#6f7a80','#998f7d','#8a8178'];   // 공업지대 창고·공장 외벽(골함석·도장 철판 톤)
 const ROOFC=['#5b4a42','#4a4a4c','#6a5f55','#3f4448','#7a6e60','#584038'];
 
 /* ---------- 거점 표시 ---------- */
@@ -440,7 +446,7 @@ function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
     if(o.html!==w.html){o.el.innerHTML=w.html;o.html=w.html;}o.el.style.setProperty('--c',w.col);o.p=w.p;o.uid=w.uid;}}
 function v3PlaceLabels(){const v=V3.tmpV||(V3.tmpV=new V3.T.Vector3());const w=V3.cv.clientWidth,h=V3.cv.clientHeight;const far=V3.cs.d>30||V3.cine||V3.press;
   for(const o of V3.labels.values()){let p=o.p;if(o.uid!=null){const uo=V3.uo.get(o.uid);if(!uo||far){o.el.style.display='none';continue;}p=[uo.position.x,uo.position.y+(uo.userData.air?.25:.45),uo.position.z];}
-    v.set(p[0],p[1],p[2]).project(V3.cam);if(v.z>1||v.x<-1.1||v.x>1.1||v.y<-1.1||v.y>1.1){o.el.style.display='none';continue;}o.el.style.display='';
+    v.set(p[0],p[1]+(typeof v3TY==='function'?v3TY(p[0],p[2]):0),p[2]).project(V3.cam);if(v.z>1||v.x<-1.1||v.x>1.1||v.y<-1.1||v.y>1.1){o.el.style.display='none';continue;}o.el.style.display='';
     o.el.style.transform=`translate(${((v.x+1)/2*w).toFixed(1)}px,${((1-v.y)/2*h).toFixed(1)}px) translate(-50%,-50%)`;}}
 
 /* ---------- 동기화 ---------- */

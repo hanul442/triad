@@ -19,7 +19,7 @@ export function loadGame() {
 
 // 모든 세력을 AI로 두고(관전 모드) 실시간 한 판을 0.1초씩 끝까지 돌린다.
 export async function playAI(T, cfg = {}) {
-  T.newGame({ slots: cfg.slots || ['ai', 'ai', 'none', 'none'], size: cfg.size || 's', diff: cfg.diff || 'normal', fog: cfg.fog ?? true, speed: 0, seed: cfg.seed, maxR: cfg.maxR });
+  T.newGame({ slots: cfg.slots || ['ai', 'ai', 'none', 'none'], size: cfg.size || 's', diff: cfg.diff || 'normal', fog: cfg.fog ?? true, speed: 0, seed: cfg.seed, maxR: cfg.maxR, layout: cfg.layout, relief: cfg.relief });
   const t0 = Date.now();
   const check = cfg.check;
   for (let i = 0; i < 20000 && !T.G.over; i++) { T.rtTick(0.1); if (check && i % 10 === 0) check(T.G); }

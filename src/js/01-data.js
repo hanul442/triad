@@ -17,7 +17,7 @@ const TT={
   park:{n:'공원',cov:.15},
   rubble:{n:'잔해',cov:.25},
   bldg:{n:'건물',cov:.4},
-  water:{n:'분수·연못',cov:0},
+  water:{n:'물',cov:0},
 };
 /* 병종. cls: inf(보병) veh(차량) air(드론)
    rng: [최소, 최대] 사거리, ind: 곡사(시야 없이 아군이 보는 곳 사격, 이동 후 사격 불가)

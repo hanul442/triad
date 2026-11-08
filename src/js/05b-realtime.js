@@ -76,7 +76,7 @@ function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
     const s=calcDmg(u,e,false)*UT[e.type].cost/Math.max(1,e.hp)+(u.tgt===e.id?99:0);if(s>bs){bs=s;best=e;}}
   return best;}
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);
-  const sp=UT[u.type].mv*SPD_K/(t?mcost(u.type,t):1)*(u.supp>0?.65:1);const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);
+  const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);const sp=UT[u.type].mv*SPD_K/(t?mcost(u.type,t):1)*(u.supp>0?.65:1)*slopeK(u,dx,dz);
   if(d>.001)u.face=Math.atan2(dz,dx)*180/Math.PI;
   const st=Math.min(d,sp*dt),nx=d>.001?u.x+dx/d*st:tx,nz=d>.001?u.z+dz/d*st:tz;
   // 바로 옆에 새 잔해·방어물이 생겨 지금 자리부터 막혔으면 빠져나가는 걸음은 허용한다(갇힘 방지)

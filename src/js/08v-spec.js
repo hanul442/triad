@@ -7,8 +7,9 @@ const SPEC_SPD=[1,2,4,8];
 const specOn=()=>!!(G&&G.spec&&!G.boot);
 /* 관전 판 설정: 세력 수(2~4)에 맞는 슬롯 */
 function specSlots(n){n=Math.max(2,Math.min(4,n|0||2));return NATS.map((_,i)=>i<n?'ai':'none');}
-function specStart(cfg){cfg=cfg||{};UI.specCfg={n:cfg.n||2,size:cfg.size||'m'};
-  newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,diff:'normal',fog:true,speed:0,seed:cfg.seed});
+function specStart(cfg){cfg=cfg||{};const opt=id=>typeof document!=='undefined'&&document.getElementById(id)?document.getElementById(id).value:null;
+  UI.specCfg={n:cfg.n||2,size:cfg.size||'m',layout:cfg.layout||opt('opt-layout')||'sym',relief:cfg.relief||opt('opt-relief')||'flat'};   // 지형은 자유 전투 설정을 따른다
+  newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,layout:UI.specCfg.layout,relief:UI.specCfg.relief,diff:'normal',fog:true,speed:0,seed:cfg.seed});
   G.spd=1;G.paused=false;return G;}
 /* 교전이 가장 뜨거운 부대: 최근 4초 안에 쏜 부대가 둘레 5칸에 많을수록, 적이 가까울수록 높다.
    교전이 없으면 적과 가장 가까운 부대(전선). skip에 든 부대는 뺀다. */
@@ -101,7 +102,7 @@ function specBegin(){$('#setup').hidden=true;clearSel();UI.sheet=false;UI.tab='w
   v3Frame=allView(v3Frame);
   document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="spec"]');if(!b||b.disabled)return;const a=b.dataset.act;
     if(a==='spec-start'){specStart({n:+$('#spec-n').value,size:$('#spec-size').value});specBegin();return;}
-    if(a==='spec-again'){specStart(UI.specCfg||{n:G.order.length,size:G.size});specBegin();return;}
+    if(a==='spec-again'){specStart(UI.specCfg||{n:G.order.length,size:G.size,layout:G.feat?.layout,relief:G.feat?.relief});specBegin();return;}
     if(!specOn())return;
     if(a==='spec-pause')G.paused=!G.paused;
     else if(a.startsWith('spec-spd:'))specSetSpd(+a.slice(9));

@@ -11,7 +11,7 @@ function genLines(rnd){const H=N/2;const st=new Array(N).fill(0);st[2]=1;let i=3
     const maxb=Math.min(7,left-w-4);if(maxb<4)break;const b=4+Math.floor(rnd()*(maxb-3));i+=b;
     for(let j=0;j<w;j++)st[i+j]=w;i+=w;n++;}
   st[H-1]=2;for(let j=0;j<H;j++)st[N-1-j]=st[j];return st;}
-function genMap(seed,objPer){const rnd=mulberry(seed);const H=N/2;const mid=(N-1)/2;
+function genMap(seed,objPer,opt){if(opt&&opt.layout==='river')return terrFinish(genMapRiver(seed,objPer,opt),seed,opt);const rnd=mulberry(seed);const H=N/2;const mid=(N-1)/2;
   const st=genLines(rnd);const hyp=(r,c)=>Math.hypot(r-mid,c-mid);
   const can=[];for(let r=0;r<H;r++){can[r]=[];for(let c=0;c<H;c++)can[r][c]=null;}
   const isRd=(r,c)=>r>=0&&c>=0&&r<H&&c<H&&can[r][c]&&can[r][c].t==='road';
@@ -54,7 +54,7 @@ function genMap(seed,objPer){const rnd=mulberry(seed);const H=N/2;const mid=(N-1
   let oi=0;const names=OBJ_NAMES.slice();for(let j=names.length-1;j>0;j--){const q=Math.floor(rnd()*(j+1));[names[j],names[q]]=[names[q],names[j]];}
   const list=[];for(const [r,c] of objs)for(let k=0;k<4;k++){const [a,b]=rot(r,c,k);m[a][b].obj=oi;list.push({r:a,c:b,name:names[oi%names.length]});oi++;}
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=m[r][c];if(x.t==='bldg'){x.bmax=8+x.f*3;x.bhp=x.bmax;}x.smoke=0;}
-  return {map:m,objs:list};}
+  return terrFinish({map:m,objs:list},seed,opt);}
 /* 블록 하나 채우기. comp = 도로로 둘러싸인 칸 목록(모양이 제각각).
    구역(가운데일수록 높다)에 따라 안뜰·막다른 골목을 내고, 필지를 무작위로 자라게 해 ㄱ자·ㄷ자 건물을 만든다. */
 function growPieces(rnd,cells,H,lo,hi){const free=new Set(cells.map(([r,c])=>r*H+c));const out=[];
@@ -66,11 +66,12 @@ function growPieces(rnd,cells,H,lo,hi){const free=new Set(cells.map(([r,c])=>r*H
     out.push(got.map(v=>[Math.floor(v/H),v%H]));}
   return out;}
 let FILL_BID=0;
-function fillComp(rnd,can,comp,bid,mid,H,isRd){const n=comp.length;
+function fillComp(rnd,can,comp,bid,mid,H,isRd,dfn){const n=comp.length;
   // 거리가 끊겨 아주 커진 덩어리는 몇 조각으로 나눠 따로 채운다(조각마다 공원·주차장·건물이 섞이게)
-  if(n>30){for(const pc of growPieces(rnd,comp,H,14,24))fillComp(rnd,can,pc,1000+(++FILL_BID),mid,H,isRd);return;}
-  let d=0;for(const [r,c] of comp)d+=Math.max(Math.abs(r-mid),Math.abs(c-mid));d=d/n/H;// 0 = 도심, 1 = 가장자리
-  const dist=d<.36?'down':d<.66?'mid':'res';
+  if(n>30){for(const pc of growPieces(rnd,comp,H,14,24))fillComp(rnd,can,pc,1000+(++FILL_BID),mid,H,isRd,dfn);return;}
+  let d=0,dist;if(dfn)({d,dist}=dfn(comp));   // 비대칭 도시(03a-terrain)는 구역을 직접 정한다
+  else{for(const [r,c] of comp)d+=Math.max(Math.abs(r-mid),Math.abs(c-mid));d=d/n/H;// 0 = 도심, 1 = 가장자리
+    dist=d<.36?'down':d<.66?'mid':'res';}
   const set=(r,c,x)=>{x.dist=dist;can[r][c]=x;};
   const inC=new Set(comp.map(([r,c])=>r*H+c));const has=(r,c)=>inC.has(r*H+c);
   const p=rnd();
@@ -92,12 +93,16 @@ function fillComp(rnd,can,comp,bid,mid,H,isRd){const n=comp.length;
     for(let s=0;s<len&&free.has(r*H+c);s++){set(r,c,{t:'road',ro:dc?'h':'v',rw:1,al:1});free.delete(r*H+c);
       if(s===turn){const t=rnd()<.5?[dc,dr]:[-dc,-dr];if(free.has((r+t[0])*H+c+t[1])){dr=t[0];dc=t[1];}}r+=dr;c+=dc;}}
   // 필지: 남은 칸에서 씨앗을 골라 무작위로 자라게 한다
-  const size={down:[3,8],mid:[2,5],res:[1,3]}[dist];let lot=0;
+  const size={down:[3,8],mid:[2,5],res:[1,3],ind:[4,9]}[dist];let lot=0;
   for(const C of growPieces(rnd,comp.filter(([r,c])=>free.has(r*H+c)),H,size[0],size[1])){
     const id=bid*64+(++lot);const q=rnd();
     if(dist==='down'){
       if(q<.08)C.forEach(([r,c])=>set(r,c,{t:'plaza'}));
       else{const f=Math.max(5,Math.min(12,Math.round(12-d*14+(rnd()-.4)*4)));C.forEach(([r,c])=>set(r,c,{t:'bldg',f,blk:id}));}}
+    else if(dist==='ind'){// 공업지대: 넓은 1~2층 창고·공장, 트럭 마당
+      if(q<.16)C.forEach(([r,c])=>set(r,c,{t:'plaza',lot:1}));
+      else if(q<.22)C.forEach(([r,c])=>set(r,c,{t:'rubble'}));
+      else{const f=rnd()<.3?2:1;C.forEach(([r,c])=>set(r,c,{t:'bldg',f,blk:id,ind:1}));}}
     else if(dist==='mid'){
       if(q<.06)C.forEach(([r,c])=>set(r,c,{t:'plaza',lot:1}));
       else if(q<.09)C.forEach(([r,c])=>set(r,c,{t:'rubble'}));
