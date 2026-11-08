@@ -91,7 +91,9 @@ function fortbTick(dt,list){for(const u of list){const j=u.job;if(!j||!j.fb)cont
 {const _af=aiFort;aiFort=function(n){_af(n);try{aiFort2(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 function aiFort2(n){const N2=G.nats[n];if(Math.random()>.35)return;const own=G.objs.filter(o=>G.map[o.r][o.c].owner===n);
   const mine=(G.forts||[]).filter(f=>f.nat===n);const cnt=k=>mine.filter(f=>f.k===k).length;
-  const eVeh=G.units.some(e=>e.nat!==n&&UT[e.type].cls==='veh'&&seen(e,n));
+  // 적 차량: 보이는 것 또는 지금까지 본 적 있는 것(한 번 본 적 기갑은 다시 온다)
+  const eVehNow=G.units.some(e=>e.nat!==n&&UT[e.type].cls==='veh'&&!UT[e.type].logi&&seen(e,n));if(eVehNow)N2._sawVeh=G.time||0;
+  const eVeh=eVehNow||(N2._sawVeh!=null&&(G.time||0)-N2._sawVeh<120);
   for(const u of G.units){if(u.nat!==n||u.job||(u.path&&u.path.length)||u.tgt!=null||u.brk)continue;const ks=fortKinds(u.type);if(!ks.length)continue;
     const o=own.find(q=>Math.hypot(q.c+.5-u.x,q.r+.5-u.z)<3);
     const t=tileAt(u.x,u.z);
@@ -99,10 +101,12 @@ function aiFort2(n){const N2=G.nats[n];if(Math.random()>.35)return;const own=G.o
     if(o&&t&&t.t==='bldg'&&t.fb==null&&ks.includes('fortb')&&N2.cp>=6&&cnt('fortb')<own.length*2){if(typeof orderFort(u,'fortb',u.x,u.z)!=='string')return;}
     if(!o)continue;
     // 공병: 적 차량이 오면 거점으로 오는 길목 도로에 지뢰
-    if(u.type==='eng'&&eVeh&&N2.cp>=6&&cnt('mine')<3+own.length*2){const [fx,fz]=fortFront(n,u.x,u.z);
-      for(const s of [.8,1.2,1.6]){const x=u.x+fx*s+(Math.random()-.5)*.4,z=u.z+fz*s+(Math.random()-.5)*.4;const tt=tileAt(x,z);if(!tt||tt.t!=='road')continue;if(typeof orderFort(u,'mine',x,z)!=='string')return;}}
+    if(u.type==='eng'&&eVeh&&N2.cp>=5&&cnt('mine')<3+own.length*2){const [fx,fz]=fortFront(n,u.x,u.z);
+      // 거점 앞 길: 적 쪽으로 1~3칸, 좌우로 조금 흩어 찾는다
+      for(const s of [1,1.5,2,2.5,3])for(const side of [0,.6,-.6]){const x=u.x+fx*s-fz*side+(Math.random()-.5)*.3,z=u.z+fz*s+fx*side+(Math.random()-.5)*.3;const tt=tileAt(x,z);if(!tt||tt.t!=='road')continue;
+        if((G.forts||[]).some(f=>f.k==='mine'&&f.nat===n&&Math.hypot(f.x-x,f.z-z)<.5))continue;if(hotAt(n,x,z,1.5))continue;if(typeof orderFort(u,'mine',x,z)!=='string')return;}}
     // 공병: 지휘점수가 넉넉하면 거점 앞 벙커
-    if(u.type==='eng'&&N2.cp>=12&&cnt('bunker')<own.length&&t&&t.t!=='bldg'){const [fx,fz]=fortFront(n,u.x,u.z);if(typeof orderFort(u,'bunker',u.x+fx*.3,u.z+fz*.3)!=='string')return;}}
+    if(u.type==='eng'&&N2.cp>=9&&cnt('bunker')<own.length&&t&&t.t!=='bldg'&&Math.random()<.5){const [fx,fz]=fortFront(n,u.x,u.z);if(typeof orderFort(u,'bunker',u.x+fx*.3,u.z+fz*.3)!=='string')return;}}
   // 구호소: 부상자가 많은데 앞쪽(출발 지역에서 먼 곳)에 구호소가 없으면, 거점 근처 쉬는 보병이 세운다
   const hurt=G.units.filter(u=>u.nat===n&&u.ws&&u.ws.some(w=>w.s==='hw'&&!w.y)).length+(G.evac||[]).filter(p=>p.nat===n&&p.ph==='out').length;
   if(hurt>=2&&N2.cp>=5&&cnt('aid')<Math.max(1,own.length)){

@@ -148,3 +148,9 @@ function v3AmbBuild(){const T=V3.T,mm=v3ModMats(),m=MU,L=v3LmMats();const g=new 
   return g;}
 {const _vb=v3VehBuild;v3VehBuild=function(ty){return ty==='amb'?v3AmbBuild():_vb(ty);};}
 if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){let h=_ut(u);if(u.type==='amb'){const n=(u.load||[]).length;h+=`<em title="실은 부상자">환자 ${n}/${typeof AMB_CAP!=='undefined'?AMB_CAP:4}</em>`;}return h;};}
+/* 축성 안내: 요새화·지뢰·구호소는 고르는 자리가 다르다 */
+if(typeof fortTip==='function'){const _tp=fortTip;fortTip=function(){if(UI.phase==='fort'){const k=UI.fortK;
+     if(k==='fortb')return '요새화할 건물 칸을 탭하세요 · 부대가 그 칸에 들어가 창을 막습니다';
+     if(k==='mine')return '지뢰를 묻을 길을 탭하세요 · 적에게는 보이지 않습니다';
+     if(k==='aid')return '구호소를 세울 곳을 탭하세요 · 전선 조금 뒤 안전한 곳이 좋습니다';}
+   return _tp();};}
