@@ -16,6 +16,8 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
       if(t.cls==='veh'&&a!==r&&b!==c&&(G.map[a][c].t==='bldg'&&G.map[r][b].t==='bldg'))continue;
       const nd=d+mc;if(nd>mv)continue;const k=key(a,b);if(foeOn(k))continue;
       if(!res.has(k)||nd<res.get(k)){res.set(k,nd);prev.set(k,key(r,c));q.push([nd,a,b]);}}}
+  // 아군이 이미 가고 있는 칸도 차지된 것으로 본다(두 분대가 같은 자리로 몰려 겹치지 않게)
+  for(const o of G.units){if(o===u||o.nat!==u.nat||!!UT[o.type].fly!==!!t.fly||!o.path||!o.path.length)continue;const e=o.path[o.path.length-1];const k=key(Math.floor(e[1]),Math.floor(e[0]));if(k===key(o.r,o.c))continue;const a=OA.get(k);if(a){if(!a.includes(o))a.push(o);}else OA.set(k,[o]);}
   for(const k of [...res.keys()]){if(k===st)continue;const L=(OA.get(k)||[]).filter(o=>o!==u&&!!UT[o.type].fly===!!t.fly);if(!L.length)continue;
     if(typeof bldgRoom==='function'&&bldgRoom(u,kr(k),kc(k),L))continue;res.delete(k);}
   res.prev=prev;return res;}

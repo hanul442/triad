@@ -129,7 +129,10 @@ function v3InSoldier(uu,s,i,dt){if(!inb(uu.r,uu.c))return null;const x=cell(uu.r
   if(moving)return null;
   const fa=(uu.face||0)*Math.PI/180,fx=Math.cos(fa),fz=Math.sin(fa);const n=(SQUAD[uu.type]||4);
   const ax=Math.abs(fx)>Math.abs(fz);const cx=uu.c+.5,cz=uu.r+.5;const lat=(i-(n-1)/2)/Math.max(1,n-1)*.62;let gx,gz;
-  if(ax){gx=cx+Math.sign(fx)*.31;gz=cz+lat;}else{gz=cz+Math.sign(fz)*.31;gx=cx+lat;}
+  // 같은 칸 같은 층에 아군 분대가 더 있으면 뒤에 온 분대는 한 줄 안쪽에 선다(겹치지 않게)
+  let row=0;if(i===0||!uu._rowT||uu._rowT<(G.time||0)-1){uu._row=0;for(const o of G.units)if(o!==uu&&o.r===uu.r&&o.c===uu.c&&o.id<uu.id&&UT[o.type].cls==='inf'&&!o.climb&&Math.abs((o.fl||0)-(uu.fl||0))<.5)uu._row++;uu._rowT=G.time||0;}row=Math.min(2,uu._row||0);
+  const off=.31-row*.15;
+  if(ax){gx=cx+Math.sign(fx)*off;gz=cz+lat;}else{gz=cz+Math.sign(fz)*off;gx=cx+lat;}
   if(i>=6){gx=cx+(v3Hash(uu.id,90+i)-.5)*.4;gz=cz+(v3Hash(uu.id,95+i)-.5)*.4;}
   return {x:gx,z:gz,y:0};}
 

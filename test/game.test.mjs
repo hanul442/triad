@@ -144,7 +144,7 @@ test('건물은 문으로만 드나들고, 안에서는 계단으로 한 층씩 
   // 옥상에서는 건물 높이보다 조금 위에서 본다
   assert.ok(Math.abs(T.eye(u) - 4.3) < 1e-9);
   // 나가라고 하면 먼저 1층까지 내려온 뒤 문으로 나간다
-  T.orderMoveTo(u, 1.5, 1.5); T.rtTick(0.1);
+  T.orderMoveTo(u, 1.5, 1.5); for (let i = 0; i < 15 && !(u.fl < 4); i++) T.rtTick(0.1);   // 계단 자리로 몇 걸음 돌아간 뒤
   assert.ok(u.r === 5 && u.c === 5 && u.fl < 4 && u.fl > 0, '계단으로 내려오는 중');
   lx = u.x; lz = u.z; let outT = 0;
   for (let i = 0; i < 600 && !(u.r === 1 && u.c === 1); i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z)); if (G.map[u.r][u.c].t !== 'bldg' && !outT) { outT = 1; assert.equal(u.fl, 0); } lx = u.x; lz = u.z; }
@@ -155,7 +155,7 @@ test('계단을 오르내리는 동안은 쏘지 않는다', () => {
   const T = loadGame(); const G = setup(T);
   bldg(G, 5, 5, 4); G.map[5][5].blk = 1; T.bump();
   const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; u.fl = 0; u.flK = T.key(5, 5);
-  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; e.hp = 999; e.cd = 999;
+  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; e.hp = 999; e.cd = 999; e.post = 1;   // AI가 돌입하지 않게 제자리
   let shotWhileClimb = false;
   for (let i = 0; i < 200; i++) { const was = u.climb; const f0 = u.firedT; T.rtTick(0.1); if (u.firedT !== f0 && (was || u.climb)) shotWhileClimb = true; }
   assert.ok(!shotWhileClimb);
@@ -840,10 +840,15 @@ test('차량은 정면보다 측면·후면·위에서 맞을 때 더 다친다'
 
 test('대전차 화기에 맞은 차량은 연막탄을 쏘고 정면을 둔 채 후진한다', () => {
   const T = loadGame(); const G = setup(T);
-  const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
   const a = T.mkUnit(0, 'at', 5, 8); a.x = 8.5; a.z = 5.5;
-  // 부품 피해 굴림(기동 불능 28%)에 따라 가끔 후진을 못 해서 실패하던 것을 막는다
-  const harm = F(T, 'harm'); const rnd = Math.random; Math.random = () => .6; try { harm(tk, 1, a, { kind: 'blast' }); } finally { Math.random = rnd; }
+  const harm = F(T, 'harm');
+  // 맞은 부위는 무작위다: 궤도가 끊겨 기동 불능이 되면 후진할 수 없으니, 움직일 수 있는 전차로 본다
+  let tk;
+  for (let i = 0; i < 40; i++) {
+    G.units = G.units.filter(u => u.type !== 'tank'); for (const row of G.map) for (const x of row) x.smoke = 0;
+    tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
+    harm(tk, 1, a, { kind: 'blast' }); if (G.units.includes(tk) && !(tk.vd && tk.vd.mob)) break;
+  }
   assert.ok(G.units.includes(tk));
   assert.ok(G.map[5][5].smoke > 0 || G.map[5][6].smoke > 0, '연막');
   assert.equal(tk.vsm, 1, '연막탄 한 번 사용');
