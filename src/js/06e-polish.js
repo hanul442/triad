@@ -65,3 +65,19 @@ const POL_DC={mortar:1.2,spg:1.8,mlrs:2.4};
   const R=ta.ind?(POL_DC[a.type]||1.5):ta.ex?.7:0;if(!R)return r;const [dx,dz]=posOf(d);
   for(const o of G.units){if(o.nat!==a.nat||o===a||UT[o.type].fly)continue;const [ox,oz]=posOf(o);if(Math.abs(ox-dx)<R&&Math.abs(oz-dz)<R&&Math.hypot(ox-dx,oz-dz)<R)return false;}
   return r;};}
+/* ---------- 박격포 손보기: 관측은 그대로 두고 빨리·정확하게 ---------- */
+// 분대 무전 사격 요청 8초 → 5초, 드론·저격수 2초 → 1.5초. 같은 표적을 이어 쏘면 탄착을 고쳐 흩어짐이 줄어든다(1발 1, 2발 .75, 3발째부터 .6)
+if(typeof OBS==='object'){OBS.call=5;OBS.fast=1.5;}
+POL_DC.mortar=.9;
+if(UT.mortar)UT.mortar.atk={...UT.mortar.atk,inf:6};   // 보병 피해 5 → 6
+if(typeof shellShoot==='function'&&typeof shellLaunch==='function'){
+  const _sl=shellLaunch;shellLaunch=function(o){if(G._spK&&o)o.spread=(o.spread||1)*G._spK;if(G._pwK&&o)o.pw=(o.pw??1)*G._pwK;return _sl(o);};
+  const _ss=shellShoot;shellShoot=function(a,d){const t=G.time||0;const L=a.lastShot;const same=L&&L.shell&&L.tgt===d.id&&t-L.t<20;
+    a._adj=same?Math.min(2,(a._adj||0)+1):0;const p=G._spK,q=G._pwK;G._spK=[1,.75,.6][a._adj];
+    // 박격포는 한 번에 두 발씩(발당 위력 .65): 실제 박격포반처럼 짧게 연속 사격
+    try{if(a.type==='mortar'){G._pwK=.65;_ss(a,d);return _ss(a,d);}return _ss(a,d);}finally{G._spK=p;G._pwK=q;}};}
+// 박격포 쌍안경 +3 → +4칸(멈춰서 8칸), 관측자가 놓친 뒤 3초까지는 마지막 사격 요청대로 쏜다, AI 구매 비중 .08 → .1
+if(typeof OPT==='object')OPT.gl.mortar=4;
+if(typeof ARMS_MIX==='object'){ARMS_MIX.mortar=.1;}
+if(typeof obsReady==='function'){const _or=obsReady;obsReady=function(a,e){if(_or(a,e))return true;const r=G.cff&&G.cff[a.nat]&&G.cff[a.nat][e.id];const t=G.time||0;
+  return !!(r&&t-r.last<3&&t-r.t0>=(r.c===1?OBS.fast:OBS.call));};}

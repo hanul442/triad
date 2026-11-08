@@ -390,7 +390,7 @@ test('박격포: 건물 안에서는 못 쏘고, 포탄이 날아가 떨어진 �
   assert.ok(T.canHit(m, e), '지상에서는 쏜다');
   const hp0 = e.hp; T.rtShoot(m, e);
   assert.equal(e.hp, hp0, '쏘는 순간에는 피해 없음');
-  assert.equal(T.G.shells.length, 1, '포탄이 날아간다');
+  assert.equal(T.G.shells.length, 2, '포탄이 날아간다(박격포는 두 발씩)');
   for (let i = 0; i < 60 && T.G.shells.length; i++) { T.G.time += .1; T.shellTick(); }
   assert.equal(T.G.shells.length, 0, '포탄이 떨어졌다');
 });

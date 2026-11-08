@@ -22,8 +22,8 @@ test('보급 트럭은 적이 가까우면 보급소로 빠진다', () => {
 
 test('AI는 아군 가까이 포격하지 않고, 박격포도 아군 곁의 적은 쏘지 않는다', () => {
   const T = loadGame(); const G = setup(T); G.nats[0].cp = 99;
-  put(T, 0, 'rifle', 10.5, 10.5); const e = put(T, 1, 'rifle', 11.5, 10.5); T.bump();
-  assert.equal(F(T, 'support')(0, 'arty', 10, 11), false, '아군 1칸 곁 포격 금지');
+  put(T, 0, 'rifle', 11.0, 10.5); const e = put(T, 1, 'rifle', 11.6, 10.5); T.bump();
+  assert.equal(F(T, 'support')(0, 'arty', 10, 11), false, '아군 곁 포격 금지');
   const m = put(T, 0, 'mortar', 5.5, 10.5); T.bump();
   assert.equal(F(T, 'canHit')(m, e), false, '박격포 근접 아군');
 });
