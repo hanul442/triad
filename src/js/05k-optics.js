@@ -25,7 +25,7 @@ function optGlass(u){const g=OPT.gl[u.type];if(!g||!optStill(u))return 0;const n
 {const _vm=visMax;visMax=function(){return _vm()+3;};}
 /* 해치 닫은 차량의 시야각 */
 function optButtoned(u){const a=OPT.arc[u.type];if(!a)return false;const t=G.time||0;return (u.supp||0)>0||t-(u.firedT??-99)<OPT.button||t-(u._hitT??-99)<OPT.button;}
-function fovArc(u){if(!optButtoned(u))return null;const A=OPT.arc[u.type];const f=(u.face||0)*Math.PI/180;const q=Math.round((u.face||0)/15);
+function fovArc(u){if(!optButtoned(u))return null;const A=OPT.arc[u.type];const fd=u.tf??u.face??0;const f=fd*Math.PI/180;const q=Math.round(fd/15);   // 포탑 방향(차량 움직임 #43의 u.tf)을 본다
   return {key:'b'+q,k:a=>{let d=Math.abs(((a-f)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI);return d<=A.half?1:A.k;}};}
 {const _sp=spots;spots=function(u,e){if(!_sp(u,e))return false;const ar=fovArc(u);if(!ar)return true;const [ux,uz]=posOf(u),[ex,ez]=posOf(e);
   const k=ar.k(Math.atan2(ez-uz,ex-ux));if(k>=1)return true;const d=Math.hypot(ex-ux,ez-uz);return d<=Math.max(1.2,(visRange(u)+1)*k);};}
