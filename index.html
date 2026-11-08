@@ -476,7 +476,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div class="grid" id="scn-list"></div>
     <h3 class="sec">자유 전투</h3>
     <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
-    <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 32×32 (거점 4)</option><option value="m" selected>중형 44×44 (거점 12)</option><option value="l">대형 56×56 (거점 16)</option></select></div>
+    <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 36×36 (거점 4)</option><option value="m" selected>중형 52×52 (거점 12)</option><option value="l">대형 64×64 (거점 16)</option></select></div>
     <div class="slot"><span></span><label for="opt-layout">도시 배치</label><select id="opt-layout"><option value="sym" selected>대칭 도시 (4세력 공정)</option><option value="river">강이 흐르는 도시 (비대칭: 강·다리·철도·역)</option></select></div>
     <div class="slot"><span></span><label for="opt-relief">지형 고저차</label><select id="opt-relief"><option value="flat">평지</option><option value="hills" selected>완만한 언덕 (최고 약 10m)</option><option value="steep">가파른 구릉 (최고 약 18m)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
@@ -485,6 +485,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비</option><option value="fog">짙은 안개</option><option value="storm">폭우</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
     <div class="slot"><span></span><label for="opt-radio">무전 지연</label><select id="opt-radio"><option value="1">켜기 (명령이 무전으로 1~3초 늦게 닿음)</option><option value="0">끄기</option></select></div>
+    <div class="slot"><span></span><label for="opt-geneva">제네바 협약</label><select id="opt-geneva"><option value="mil" selected>민병대는 무시 (나머지는 구급차·구호소를 쏘지 않음)</option><option value="all">모두 지킴</option><option value="off">끄기 (보호 없음)</option></select></div>
     <input type="hidden" id="opt-speed" value="0">
     <div class="err" id="setup-err"></div>
     <button class="btn primary" data-act="start" id="b-start">작전 개시</button>
@@ -4335,11 +4336,11 @@ function medTick(dt){const t=G.time||0;G.med=G.med||[];
 function ambWant(n,x,z,R){// 부상자가 기다리는 분대(중상자가 있고 아직 업혀 가지 않은)
   let best=null,bs=0;for(const o of G.units){if(o.nat!==n||!o.ws)continue;const hw=o.ws.filter(w=>w.s==='hw'&&!w.y).length+(G.evac||[]).filter(p=>p.nat===n&&p.u===o.id&&p.ph==='out').length;if(!hw)continue;
     if(inZone(n,o.r,o.c))continue;const d=Math.hypot(o.x-x,o.z-z);if(d>R)continue;
-    if(G.units.some(a=>a.type==='amb'&&a.nat===n&&a.mj&&a.mj.id===o.id))continue;const s=hw/(1+d*.15);if(s>bs){bs=s;best=o;}}
+    if(G.units.some(a=>a.type==='amb'&&a.nat===n&&a.mj&&a.mj.id===o.id))continue;if(ambNo(n,o.id)||ambDanger(n,o.x,o.z,1))continue;const s=hw/(1+d*.15);if(s>bs){bs=s;best=o;}}
   return best;}
 /* 분대 뒤(출발 지역 쪽) 안전한 자리 */
 function ambSpot(a,o){const b=ccpBase(a.nat);const dx=b.x-o.x,dz=b.z-o.z,d=Math.hypot(dx,dz)||1;
-  for(const k of [1.2,1.7,2.3,3]){const x=o.x+dx/d*k,z=o.z+dz/d*k;const t=tileAt(x,z);if(!t||t.t==='bldg'||t.t==='water')continue;if(hotAt(a.nat,x,z,2.2))continue;if(!navOk(a,x,z))continue;return [x,z];}
+  for(const k of [1.2,1.7,2.3,3]){const x=o.x+dx/d*k,z=o.z+dz/d*k;const t=tileAt(x,z);if(!t||t.t==='bldg'||t.t==='water')continue;if(ambDanger(a.nat,x,z))continue;if(!navOk(a,x,z))continue;return [x,z];}
   return null;}
 function ambUnload(a){const fac=ccpOf(a.nat,a.x,a.z,false);for(const l of a.load||[])medQueue(a.nat,fac,l.u,l.i);
   if((a.load||[]).length&&(!isAI(a.nat)||!G.fog||a.nat===G.viewer))L(`${natName(a.nat)} 구급차 부상자 ${a.load.length}명을 ${MED[fac.k].n}에 내려놓음`);a.load=[];a.mj=null;}
@@ -4378,7 +4379,7 @@ function aiMedBuy(n){const N2=G.nats[n];const mine=G.units.filter(u=>u.nat===n);
 /* ---------- 남겨진 부상자 수습 ----------
    분대가 끝난 자리에 쓰러진 중상자(G.cas)는 예전엔 지나가던 분대가 2칸 안에 와야만 데려갔다.
    이제 구급차가 빈 틈에 직접 실으러 가고, AI는 근처에서 쉬고 있는 분대를 보내 데려온다. */
-function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat!==n||o.taken)continue;const d=Math.hypot(o.x-x,o.z-z);if(d>=bd)continue;if(hotAt(n,o.x,o.z,2.2))continue;bd=d;best=o;}return best;}
+function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat!==n||o.taken)continue;const d=Math.hypot(o.x-x,o.z-z);if(d>=bd)continue;if((o._ambNo||0)>(G.time||0)||ambDanger(n,o.x,o.z))continue;bd=d;best=o;}return best;}
 {const _at=ambTick;ambTick=function(a,dt,t){a.load=a.load||[];const j=a.mj;
   if(j&&j.k==='orph'){const o=(G.cas||[]).find(q=>q.id===j.id);
     if(!o||t-(a._hitT||-99)<3||hotAt(a.nat,a.x,a.z,1.8)){if(o)o.taken=0;a.mj=null;a.path=[];return;}
@@ -4405,6 +4406,90 @@ function aiOrphan(n){if(!G.cas||!G.cas.length)return;const t=G.time||0;
       const d=Math.hypot(u.x-o.x,u.z-o.z);if(d<bd){bd=d;best=u;}}
     if(best){o._call=t;orderMoveTo(best,o.x,o.z);}}}
 {const _ai=aiThink;aiThink=function(n){if(!G.over)try{aiOrphan(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}return _ai(n);};}
+
+/* ---------- 구급차 안전 (보급 트럭과 같은 규칙, 06e-polish) ----------
+   적이 3.2칸 안에 보이거나 방금 맞았으면 하던 일을 버리고 물러난다(실었으면 시설로, 아니면 환자집결지로).
+   그 분대·부상자는 30초 동안 다시 찾아가지 않는다. 교전 중인 곳(둘레에서 적이 방금 쐈거나 아군이 제압당한 곳)엔 들어가지 않는다.
+   AI는 구급차를 잃으면 60초 동안 새로 사지 않는다. */
+const AMBS={hot:3.2,hit:6,flee:30,fight:5,rebuy:60};
+function ambDanger(n,x,z,sq){if(hotAt(n,x,z,AMBS.hot))return true;const t=G.time||0;
+  for(const e of G.units){if(e.nat===n||!hostile(e.nat,n)||UT[e.type].fly)continue;if(!firedRecently(e))continue;if(G.fog&&!seen(e,n))continue;if(Math.hypot(e.x-x,e.z-z)<AMBS.fight)return true;}
+  if(!sq&&G.units.some(u=>u.nat===n&&UT[u.type].cls==='inf'&&(u.supp||0)>.8&&Math.hypot(u.x-x,u.z-z)<2))return true;   // 분대 자체가 제압당하는 중이면 그 뒤로는 간다(sq)
+  return false;}
+function ambNo(n,id){const m=G.ambNog&&G.ambNog[n];return !!(m&&m[id]>(G.time||0));}
+function ambFlee(a,t){const j=a.mj;G.ambNog=G.ambNog||{};const m=G.ambNog[a.nat]=G.ambNog[a.nat]||{};
+  if(j&&j.id!=null){if(j.k==='orph'){const o=(G.cas||[]).find(q=>q.id===j.id);if(o){o.taken=0;o._ambNo=t+AMBS.flee;}}else m[j.id]=t+AMBS.flee;}
+  if(a.load.length){a.mj={k:'go'};const f=ccpOf(a.nat,a.x,a.z,false);a.path=pathPts(a,f.x,f.z);}
+  else{const b=ccpBase(a.nat);a.mj={k:'flee'};a.path=pathPts(a,b.x,b.z);}
+  a._auT=t+4;a._oT=t+4;if(typeof tacN==='function')tacN('ambFlee');}
+{const _at=ambTick;ambTick=function(a,dt,t){a.load=a.load||[];const j=a.mj;
+  const hot=hotAt(a.nat,a.x,a.z,AMBS.hot)||t-(a._hitT??-99)<AMBS.hit;
+  if(hot&&!a.hold&&!(j&&(j.k==='go'||j.k==='flee'))){const b=ccpBase(a.nat);if(Math.hypot(b.x-a.x,b.z-a.z)>1.5){ambFlee(a,t);return;}}
+  if(j&&j.k==='flee'){if(!(a.path&&a.path.length))a.mj=null;return;}
+  // 가는 길에 목적지가 교전으로 바뀌면 멈춘다
+  if(j&&(j.k==='move'||j.k==='orph')&&a.path&&a.path.length&&(a._dzT||0)<t){a._dzT=t+1;const p=a.path[a.path.length-1];if(ambDanger(a.nat,p[0],p[1],j.k==='move')){ambFlee(a,t);return;}}
+  return _at(a,dt,t);};}
+// 플레이어가 직접 옮기면 물러나기는 끝
+{const _om=orderMoveTo;orderMoveTo=function(u,x,z){if(u&&u.type==='amb'&&u.mj&&u.mj.k==='flee')u.mj=null;return _om(u,x,z);};}
+// AI: 구급차를 막 잃었으면 바로 다시 사지 않는다
+{const _k=kill;kill=function(u,by){if(u&&u.type==='amb'&&G.units.includes(u)){G.ambLost=G.ambLost||{};G.ambLost[u.nat]=G.time||0;}return _k(u,by);};}
+{const _mb=aiMedBuy;aiMedBuy=function(n){if(G.ambLost&&(G.time||0)-(G.ambLost[n]??-999)<AMBS.rebuy)return;return _mb(n);};}
+
+/* ---- 05m2-geneva.js ---- */
+/* ===================== 제네바 협약: 의료 보호 =====================
+   근거(공개 자료): 제네바 제1협약 19·24·35조(의료 부대·위생 요원·의료 수송은 공격하지 않는다),
+   21조(본래 임무를 벗어나 적에게 해로운 행위에 쓰이면 경고 뒤 보호를 잃는다).
+   - 보호 대상: 구급차, 구호소(완공된 aid 진지), 출발 지역의 환자집결지.
+   - 협약을 지키는 세력의 부대와 AI는 이들을 일부러 겨누지 않고, AI는 그 둘레에 포격·폭격을 부르지 않는다.
+     다른 적을 쏘다 폭발에 휘말리는 것은 막지 않는다(우발 피해는 벌점 없음).
+   - 일부러 쏘면(직접 사격 명령, 지원 사격을 그 자리에) 위반: 승점 −2, 쏜 세력 보병 사기 −4, 맞은 세력 보병 사기 +3.
+     같은 공격자-대상 쌍은 15초에 한 번만 센다. 무전 기록과 관전 화면(자동 연출이 그 장면으로 감)에 나온다.
+   - 새 게임 설정 "제네바 협약": 모두 지킴 / 민병대는 무시(기본: 앰버 민병대 AI는 보호 대상도 겨눈다, 벌점은 받는다) / 끄기(규칙 없음).
+   - 구호소 둘레 1.2칸에서 그 세력 부대가 사격하면 구호소를 사격 진지로 쓴 것으로 보고 30초 동안 보호를 잃는다. */
+const GEN={vp:2,morA:4,morV:3,cd:15,lose:30,loseR:1.2,mil:2,supPad:.6};
+function genMode(){return G&&G.geneva||'mil';}
+function genOn(){return genMode()!=='off';}
+// 이 세력이 협약을 지키는가(민병대 무시 모드에서 민병대는 안 지킨다)
+function genKeeps(n){if(!genOn())return false;if(genMode()==='mil'&&n===GEN.mil)return false;return true;}
+function genProtUnit(e){return !!(e&&e.type==='amb'&&genOn()&&!((e._genOff||0)>(G.time||0)));}
+// (x,z) 둘레 rad 안의 보호 시설·차량(세력 n의 적 것만)
+function genSites(n){const out=[];if(!genOn())return out;const t=G.time||0;
+  for(const f of G.forts||[])if(f.k==='aid'&&f.prog>=1&&f.nat!==n&&!((f._genOff||0)>t))out.push({x:f.x,z:f.z,nat:f.nat,k:'aid',f});
+  for(const m of G.order||[]){if(m===n||!G.nats[m]||!G.nats[m].alive)continue;if(typeof ccpBase==='function'){const b=ccpBase(m);if(b)out.push({x:b.x,z:b.z,nat:m,k:'ccp'});}}
+  for(const u of G.units)if(u.nat!==n&&genProtUnit(u))out.push({x:u.x,z:u.z,nat:u.nat,k:'amb',u});
+  return out;}
+function genNear(n,x,z,rad){return genSites(n).find(s=>hostile(s.nat,n)&&Math.hypot(s.x-x,s.z-z)<=rad)||null;}
+const GEN_NAME={amb:'구급차',aid:'구호소',ccp:'환자집결지'};
+function genBreach(n,site,by){if(!genOn()||!site||!G.nats[n])return;const t=G.time||0;G.genCd=G.genCd||{};
+  const key=n+':'+(site.u?site.u.id:site.k+Math.round(site.x)+','+Math.round(site.z));if((G.genCd[key]||-99)>t)return;G.genCd[key]=t+GEN.cd;
+  const N2=G.nats[n];N2.vp=Math.max(0,(N2.vp||0)-GEN.vp);N2.genV=(N2.genV||0)+1;
+  for(const u of G.units){if(UT[u.type].cls!=='inf')continue;if(u.nat===n)u.mor=Math.max(0,(u.mor??80)-GEN.morA);else if(u.nat===site.nat)u.mor=Math.min(100,(u.mor??80)+GEN.morV);}
+  L(`⚠ ${natName(n)}이(가) 표시된 ${natName(site.nat)} ${GEN_NAME[site.k]}을(를) 공격: 제네바 협약 위반 (승점 −${GEN.vp})`);
+  G.genEv=G.genEv||[];G.genEv.push({t,n,v:site.nat,k:site.k,x:site.x,z:site.z,by:by?by.id:null});
+  if(typeof genSpec==='function')genSpec(site,by);}
+/* 표적 고르기: 지키는 세력은 보호 대상을 건너뛴다. 사람이 직접 찍은 표적(u.tgt)은 그대로 쏜다(위반은 벌점) */
+{const _p=rtPick;rtPick=function(u){if(!genKeeps(u.nat))return _p(u);
+  const prot=G.units.filter(e=>e.nat!==u.nat&&genProtUnit(e)&&!(u.tgt===e.id&&!isAI(u.nat)));if(!prot.length)return _p(u);
+  const all=G.units;G.units=all.filter(e=>!prot.includes(e));try{return _p(u);}finally{G.units=all;}};}
+// AI가 보호 대상을 공격 명령 표적으로 고르지 않게
+{const _oa=orderAttack;orderAttack=function(u,e){if(isAI(u.nat)&&genKeeps(u.nat)&&genProtUnit(e)&&e.nat!==u.nat)return;return _oa(u,e);};}
+/* 직접 사격: 보호 대상을 겨눈 사격은 위반 */
+{const _s=rtShoot;rtShoot=function(a,d){if(genOn()&&d&&genProtUnit(d)&&hostile(a.nat,d.nat))genBreach(a.nat,{x:d.x,z:d.z,nat:d.nat,k:'amb',u:d},a);return _s(a,d);};}
+/* 지원 사격: AI(지키는 세력)는 보호 시설 둘레를 피하고, 그 자리에 부르면 위반 */
+{const _c=canSupport;canSupport=function(n,kind,r,c){if(!_c(n,kind,r,c))return false;
+  if(isAI(n)&&genKeeps(n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&genNear(n,c+.5,r+.5,(SUP[kind].rad||1)+GEN.supPad))return false;return true;};}
+{const _su=support;support=function(n,kind,r,c){const ok=_su(n,kind,r,c);
+  if(ok&&genOn()&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any){const s=genNear(n,c+.5,r+.5,(SUP[kind].rad||1)+.2);if(s)genBreach(n,s,null);}return ok;};}
+/* 보호를 잃는 경우: 구호소 곁에서 그 세력 부대가 사격(사격 진지로 씀) */
+function genTick(){if(!genOn())return;const t=G.time||0;
+  for(const f of G.forts||[]){if(f.k!=='aid'||f.prog<1)continue;if((f._genOff||0)>t)continue;
+    const u=G.units.find(o=>o.nat===f.nat&&UT[o.type].rng&&UT[o.type].rng[1]&&t-(o.firedT??-99)<1&&Math.hypot(o.x-f.x,o.z-f.z)<GEN.loseR);
+    if(u){f._genOff=t+GEN.lose;if(!isAI(f.nat)||!G.fog||f.nat===G.viewer)L(`${natName(f.nat)} 구호소 곁에서 사격: 30초 동안 협약 보호를 잃음`);}}}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;try{genTick();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+/* 새 게임 설정 */
+{const _n=newGame;newGame=function(cfg){const g=_n(cfg);let m=cfg&&cfg.geneva;
+  if(!m){try{const el=typeof document!=='undefined'&&document.getElementById('opt-geneva');m=el?el.value:null;}catch(e){m=null;}}
+  G.geneva=['all','mil','off'].includes(m)?m:'mil';G.genEv=[];G.genCd={};return g;};}
 
 /* ---- 05n-0core.js ---- */
 /* ===================== URBAN CORE: 폭발 소식과 "누가 쐈나" =====================
@@ -9079,6 +9164,15 @@ function specBegin(){$('#setup').hidden=true;for(const id of ['#brief','#debrief
     const i='1234'.indexOf(e.key);if(i>=0){specSetSpd(SPEC_SPD[i]);render();return;}
     if(e.key==='Escape'&&!UI.sheet&&(UI.follow!=null||UI.specAuto)){UI.follow=null;UI.specAuto=false;render();}});
 })();
+
+/* ---- 08w-geneva.js ---- */
+/* 제네바 협약 위반을 화면에: 관전 중이면 자동 연출이 그 장면으로 가고 알림을 띄운다. 구급차 꼬리표에 보호 상태 */
+function genSpec(site,by){if(typeof document==='undefined')return;
+  const watch=typeof specOn==='function'&&specOn();if(!watch&&!(G.viewer==null||site.nat===G.viewer||(by&&by.nat===G.viewer)))return;
+  toast(`⚠ 제네바 협약 위반: ${by?natName(by.nat):'포격'} → ${natName(site.nat)} ${GEN_NAME[site.k]}`);
+  if(watch&&UI.specAuto&&by&&G.units.includes(by)&&typeof specFollow==='function'){specFollow(by,true);UI.specHotT=performance.now()+4000;}}
+if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){let h=_ut(u);
+  if(u.type==='amb'&&typeof genOn==='function'&&genOn())h+=genProtUnit(u)?'<em title="제네바 협약 보호">✚ 보호</em>':'<em title="보호를 잃음">보호 해제</em>';return h;};}
 
 /* ---- 08x-polish.js ---- */
 /* ===================== POLISH UI: 하단 바를 바뀔 때만 다시 그리기 =====================
