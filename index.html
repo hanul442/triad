@@ -1948,12 +1948,12 @@ function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];
 function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c)return;u.r=r;u.c=c;bump();afterMove(u);}
 /* 겹친 부대는 서로 조금씩 밀어낸다 */
 function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];const dx=b.x-a.x,dz=b.z-a.z;if(dx>.75||dx<-.75||dz>.75||dz<-.75)continue;   // 먼 쌍은 바로 건너뛴다(성능)
-    if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 문간에서는 서로 밀지 않는다(문에서 막히지 않게)
+    if(UT[b.type].fly||a.climb&&b.climb)continue;   // 계단에 있는 분대는 밀리지 않고 옆 분대만 비킨다if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b))&&a.path&&a.path.length&&b.path&&b.path.length)continue;   // 문간을 함께 지날 때는 밀지 않는다(문에서 막히지 않게). 문간에 서 있는 분대는 비켜 준다
     const inB=cell(a.r,a.c).t==='bldg'||cell(b.r,b.c).t==='bldg';if(inB&&(a.r!==b.r||a.c!==b.c||(typeof flOf==='function'&&flOf(a)!==flOf(b))))continue;   // 건물 안: 같은 칸 같은 층끼리만
-    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:inB?.4:.55;if(d>=R)continue;
+    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:inB?.5:.55;if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
     const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(inB&&(Math.floor(x)!==u.c||Math.floor(z)!==u.r))return;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
-    const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);
+    const am=a.path&&a.path.length,bm=b.path&&b.path.length;if(a.climb){mv(b,2);}else if(b.climb){mv(a,-2);}else{mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}
     // 마주 오며 밀어내기만 하면 둘 다 제자리: 움직이는 차량끼리는 옆으로도 비켜 서로 지나간다
     if(am&&bm&&UT[a.type].cls==='veh'&&UT[b.type].cls==='veh'){const px=-nz*push*1.5,pz=nx*push*1.5;const sd=(u,s)=>{const x=u.x+px*s,z=u.z+pz*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};sd(a,1);sd(b,-1);}}}
   for(const u of us.slice())if(G.units.includes(u))rtCell(u);}
@@ -2247,6 +2247,8 @@ function sepFree(u){if(UT[u.type].cls!=='inf')return false;
   return false;}
 /* 계단 자리: 칸 한가운데 계단실(코어). 창에서 멀어 밖에서는 계단 위 병사가 보이지 않는다(04b spots). */
 const STAIR_OFF=.09;
+/* 계단에서 비켜선 자리: 계단 반대쪽으로 0.3칸, 분대마다 앞뒤로 조금씩 다르게 (계단을 기다리거나 막 내려선 분대) */
+function stairAway(u){const [sx,sz]=stairPos(u.r,u.c);const s=sx>u.c+.5?-1:1;const h=dHash(u.id,31)-.5;return [u.c+.5+s*(.22+Math.abs(h)*.12),u.r+.5+h*.6];}
 function stairPos(r,c){const h=dHash(key(r,c),40);const sx=h<.5?-1:1,sz=(h*4|0)%2?-1:1;return [c+.5+sx*STAIR_OFF,r+.5+sz*.04];}
 /* 박공지붕(낮은 주택): 비탈진 지붕이라 올라설 수 없다. 화면(07-view3d)이 박공을 그리는 조건과 같다. */
 /* 박공지붕: 주택(ks='house', 예전 지도는 주거 구역) 2층 이하. 집 열에 셋은 옥상이 평평하다(블록 번호로 정해 그림과 규칙이 같다) */
@@ -2270,8 +2272,10 @@ function pathFlLim(u){const here=cell(u.r,u.c);let lim=topFl(here);let px=u.x,pz
 /* 계단으로 한 걸음: 계단 자리로 걸어가서 목표 층까지 오르내린다. 계단에 있는 동안은 u.climb=1 */
 function stairStep(u,dt,goal){const [sx,sz]=stairPos(u.r,u.c);const dx=sx-u.x,dz=sz-u.z,d=Math.hypot(dx,dz);
   const sp=UT[u.type].mv*SPD_K*.5*(u.supp>0?.65:1);u.climb=1;   // 계단으로 가는 동안과 오르내리는 동안은 쏘지 않는다
-  // 계단은 한 번에 한 분대: 같은 칸 아군 분대가 계단에 있으면 계단 앞에서 기다린다
-  if(!u.onSt&&G.units.some(o=>o!==u&&o.onSt&&o.nat===u.nat&&o.r===u.r&&o.c===u.c)){if(d>.45){const k=Math.min(1,sp*dt/d,(d-.45)/d);u.x+=dx*k;u.z+=dz*k;}return;}
+  // 계단은 한 번에 한 분대: 같은 칸 아군 분대가 계단에 있거나 먼저(더 가까이) 계단으로 가고 있으면, 계단에서 비켜선 자리에서 기다린다
+  if(!u.onSt&&G.units.some(o=>o!==u&&o.climb&&o.nat===u.nat&&o.r===u.r&&o.c===u.c&&(o.onSt||Math.hypot(o.x-sx,o.z-sz)<d-1e-6))){
+    const [wx,wz]=stairAway(u);   // 계단 맞은편 쪽
+    const ex=wx-u.x,ez=wz-u.z,e=Math.hypot(ex,ez);if(e>.02){const k=Math.min(1,sp*dt/e);u.x+=ex*k;u.z+=ez*k;}u.onSt=0;return;}
   if(d>.04){const k=Math.min(1,sp*dt/d);u.x+=dx*k;u.z+=dz*k;u.face=Math.atan2(dz,dx)*180/Math.PI;u.onSt=0;return;}
   u.onSt=1;
   const rate=dt/FLOOR_S*(u.supp>0?.6:1)*(goal<u.fl?1.6:1);   // 내려가기는 더 빠르다
@@ -3865,7 +3869,7 @@ function cqbStairs(t){for(const u of G.units.slice()){if(!u.climb||!u.onSt||UT[u
     rtShoot(d,u);d.cd=COOL[d.type]*(.8+Math.random()*.3);d._amb=t;if(!G.units.includes(u))break;}}}
 /* 계단에서 내려선 분대는 계단 자리를 비워 방 안으로 몇 걸음 물러선다(다음에 오르내리는 분대와 겹치지 않게) */
 function stairClear(dt){for(const u of G.units){if(UT[u.type].cls!=='inf'||u.climb||(u.path&&u.path.length))continue;const x=cell(u.r,u.c);if(!isB(x))continue;
-  const [sx,sz]=stairPos(u.r,u.c);if(Math.hypot(u.x-sx,u.z-sz)>.2)continue;const h=dHash(u.id,7)-.5;const tx=u.c+.5+(u.c+.5-sx)*.4+h*.2,tz=u.r+.5+(u.r+.5-sz)*.4-h*.2;
+  const [sx,sz]=stairPos(u.r,u.c);if(Math.hypot(u.x-sx,u.z-sz)>.2)continue;const [tx,tz]=stairAway(u);
   const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);if(d<.02)continue;const k=Math.min(1,UT[u.type].mv*SPD_K*.5*dt/d);u.x+=dx*k;u.z+=dz*k;}}
 function cqbTick(){const t=G.time||0;stairClear(TICK);for(const u of G.units.slice())if(u.cqb&&G.units.includes(u))cqbStep(u,t);cqbStairs(t);}
 const _cqbTick0=rtTick;
@@ -3883,6 +3887,30 @@ radioExec=function(k,a,us){if(k!=='clear')return _cqbRx0(k,a,us);us=us.filter(u=
 function cqbTxt(u){const C=u.cqb;if(!C)return '';return C.st==='move'?'돌입: 문으로 가는 중':C.st==='stack'?'돌입: 문 옆 대기':C.st==='entry'?'돌입: 진입 중':u.climb?'돌입: 계단':`돌입: ${C.fl>=topFl(cell(u.r,u.c))?'옥상':(C.fl+1)+'층'} 소탕`;}
 /* 헛걸음 막기: 경로가 있는데 CQB.stallT초 동안 목적지에 CQB.stallD칸도 더 가까워지지 못하면(문 앞에서 떨거나 왔다 갔다) 멈춘다.
    AI는 다음 생각에서 새 자리를 고르고, 돌입 중이면 돌입을 그만둔다. */
+/* 간격 지키기 (보병):
+   - 문은 한 번에 한 분대: 같은 문으로 아군 분대가 먼저(더 가까이) 지나가고 있으면 문 앞 0.7칸 밖에서 기다린다.
+   - 앞서 같은 쪽으로 걷는 아군 분대에 0.5칸 안으로 붙으면 걸음을 늦춘다(줄줄이 겹쳐 걷지 않게). 마주 오는 분대는 막지 않는다. */
+const SPACE={door:.7,doorIn:.5,follow:.5,slow:.25};
+function doorAhead(u){const p=u.path;if(!p||!p.length)return null;
+  for(let i=0;i<Math.min(3,p.length-1);i++){if(p[i].door==='a'&&p[i+1].door==='b'){const D=[(p[i][0]+p[i+1][0])/2,(p[i][1]+p[i+1][1])/2];return Math.hypot(D[0]-u.x,D[1]-u.z)<SPACE.door+.3?D:null;}if(p[i].door==='b')return null;}
+  return null;}
+function spaceWait(u){if(UT[u.type].cls!=='inf'||u.climb||u.cqb&&u.cqb.st==='stack')return 1;const t=G.time||0;
+  const D=doorAhead(u);
+  if(D){const du=Math.hypot(D[0]-u.x,D[1]-u.z);
+    for(const o of G.units){if(o===u||o.nat!==u.nat||UT[o.type].cls!=='inf'||!o.path||!o.path.length||o._wait===t)continue;const dd=Math.hypot(D[0]-o.x,D[1]-o.z);
+      if(dd<SPACE.doorIn&&dd<du-1e-6&&du>.25){u._wait=t;return 0;}}}
+  const [tx,tz]=u.path[0];const hx=tx-u.x,hz=tz-u.z,hl=Math.hypot(hx,hz);if(hl<1e-6)return 1;
+  for(const o of G.units){if(o===u||o.nat!==u.nat||UT[o.type].fly||!o.path||!o.path.length||o._wait===t)continue;const ox=o.x-u.x,oz=o.z-u.z,od=Math.hypot(ox,oz);if(od>SPACE.follow||od<1e-6)continue;
+    if((ox*hx+oz*hz)/(od*hl)<.5)continue;   // 앞에 있지 않다
+    const [px,pz]=o.path[0];const gx=px-o.x,gz=pz-o.z,gl=Math.hypot(gx,gz)||1;if((gx*hx+gz*hz)/(gl*hl)<.3)continue;   // 같은 쪽으로 가지 않는다
+    if(cell(o.r,o.c).t==='bldg'&&typeof flOf==='function'&&flOf(o)!==flOf(u))continue;return SPACE.slow;}
+  return 1;}
+/* 목적지에 아군이 먼저 서 있으면 그 곁(0.6칸 안)에 닿은 것으로 치고 멈춘다(서로 밀며 제자리걸음하지 않게) */
+function nearTaken(u){const p=u.path;if(!p||p.length!==1||UT[u.type].fly)return false;const [ex,ez]=p[0];if(Math.hypot(ex-u.x,ez-u.z)>.6)return false;
+  for(const o of G.units){if(o===u||o.nat!==u.nat||UT[o.type].fly||o.path&&o.path.length)continue;if(Math.hypot(o.x-ex,o.z-ez)>.5)continue;
+    if(o.r===u.r&&o.c===u.c&&cell(o.r,o.c).t==='bldg'&&typeof flOf==='function'&&flOf(o)!==flOf(u))continue;return true;}
+  return false;}
+{const _spMove0=rtMove;rtMove=function(u,dt){if(u.path&&u.path.length){if(nearTaken(u)){u.path=[];u.dest=null;return;}const k=spaceWait(u);if(k<=0)return;dt*=k;}return _spMove0(u,dt);};}
 const _cqbMove0=rtMove;
 rtMove=function(u,dt){_cqbMove0(u,dt);if(!G.units.includes(u))return;const p=u.path;if(!p||!p.length){u._pw=null;return;}
   const e=p[p.length-1],t=G.time||0,d=Math.hypot(e[0]-u.x,e[1]-u.z);const w=u._pw;

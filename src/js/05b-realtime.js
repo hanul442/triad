@@ -97,12 +97,12 @@ function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];
 function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c)return;u.r=r;u.c=c;bump();afterMove(u);}
 /* 겹친 부대는 서로 조금씩 밀어낸다 */
 function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];const dx=b.x-a.x,dz=b.z-a.z;if(dx>.75||dx<-.75||dz>.75||dz<-.75)continue;   // 먼 쌍은 바로 건너뛴다(성능)
-    if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 문간에서는 서로 밀지 않는다(문에서 막히지 않게)
+    if(UT[b.type].fly||a.climb&&b.climb)continue;   // 계단에 있는 분대는 밀리지 않고 옆 분대만 비킨다if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b))&&a.path&&a.path.length&&b.path&&b.path.length)continue;   // 문간을 함께 지날 때는 밀지 않는다(문에서 막히지 않게). 문간에 서 있는 분대는 비켜 준다
     const inB=cell(a.r,a.c).t==='bldg'||cell(b.r,b.c).t==='bldg';if(inB&&(a.r!==b.r||a.c!==b.c||(typeof flOf==='function'&&flOf(a)!==flOf(b))))continue;   // 건물 안: 같은 칸 같은 층끼리만
-    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:inB?.4:.55;if(d>=R)continue;
+    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:inB?.5:.55;if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
     const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(inB&&(Math.floor(x)!==u.c||Math.floor(z)!==u.r))return;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
-    const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);
+    const am=a.path&&a.path.length,bm=b.path&&b.path.length;if(a.climb){mv(b,2);}else if(b.climb){mv(a,-2);}else{mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}
     // 마주 오며 밀어내기만 하면 둘 다 제자리: 움직이는 차량끼리는 옆으로도 비켜 서로 지나간다
     if(am&&bm&&UT[a.type].cls==='veh'&&UT[b.type].cls==='veh'){const px=-nz*push*1.5,pz=nx*push*1.5;const sd=(u,s)=>{const x=u.x+px*s,z=u.z+pz*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};sd(a,1);sd(b,-1);}}}
   for(const u of us.slice())if(G.units.includes(u))rtCell(u);}

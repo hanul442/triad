@@ -1,9 +1,10 @@
 // 건물 안 전투: 칸+층 점유, 같은 칸 다른 층 시야, 돌입·소탕 (05k-cqb)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGame } from './harness.mjs';
+import { loadGame, seedRandom } from './harness.mjs';
 
 function setup(T) {
+  seedRandom(T, 7);
   T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 's', seed: 3, fog: false });
   const G = T.G; G.units = []; G.props = []; G.covers = []; G.radio = false;
   for (let r = 0; r < T.N; r++) for (let c = 0; c < T.N; c++) G.map[r][c] = { t: 'road', owner: null, obj: null, smoke: 0 };
@@ -109,4 +110,19 @@ test('목적지에 12초 넘게 가까워지지 못하면 헛걸음을 멈춘다
   const u = T.mkUnit(0, 'rifle', 5, 5); at(T, u, 5, 5);
   for (let i = 0; i < 160; i++) { u.path = [[8.5, 5.5]]; u.x = 5.5; u.z = 5.5; T.rtTick(0.1); }   // 매 틱 제자리로 되돌려진다
   assert.ok((G.stallN || 0) > 0, '멈추지 않았다');
+});
+
+test('문은 한 번에 한 분대씩 지나간다', () => {
+  const T = loadGame(); const G = setup(T); bldg(G, 5, 5, 2); T.bump();
+  const ds = T.__get('doorSides')(5, 5); const s = ds.findIndex(Boolean); const [dx, dz] = T.__get('doorPos')(5, 5, s);
+  const SD = [[-1, 0], [0, 1], [1, 0], [0, -1]][s];
+  const a = T.mkUnit(0, 'rifle', 5 + SD[0] * 2, 5 + SD[1] * 2); at(T, a, 5 + SD[0] * 2, 5 + SD[1] * 2);
+  const b = T.mkUnit(0, 'rifle', 5 + SD[0] * 2, 5 + SD[1] * 2); at(T, b, 5 + SD[0] * 2, 5 + SD[1] * 2); b.x += .3;
+  T.orderMoveTo(a, 5.5, 5.5); T.orderMoveTo(b, 5.4, 5.6);
+  let both = 0, inA = 0, inB = 0;
+  for (let i = 0; i < 300; i++) { T.rtTick(0.1);
+    const na = Math.hypot(a.x - dx, a.z - dz) < .3, nb = Math.hypot(b.x - dx, b.z - dz) < .3; if (na && nb) both++;
+    if (a.r === 5 && a.c === 5) inA = 1; if (b.r === 5 && b.c === 5) inB = 1; }
+  assert.equal(both, 0, '두 분대가 문에 함께 있었다');
+  assert.ok(inA && inB, '둘 다 들어간다');
 });
