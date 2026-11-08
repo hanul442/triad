@@ -54,7 +54,7 @@ function finishRelief(m,E,objs,canon){const W=N+1;if(!E){for(let r=0;r<N;r++)for
   // 언덕 꼭대기 공원: 높은 곳의 건물 블록 절반을 숲 공원으로 (도시의 산자락 공원처럼)
   const blk=new Map();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=m[r][c];if(x.t!=='bldg'||x.blk==null)continue;if(!blk.has(x.blk))blk.set(x.blk,[]);blk.get(x.blk).push([r,c]);}
   for(const [id,cells] of blk){if(cells.some(([r,c])=>isObj.has(r*N+c)||m[r][c].stn))continue;let h=0;for(const [r,c] of cells)h+=tile(r,c);h/=cells.length;
-    if(h>amp*.72&&propHash(canon(id),77)<.55)for(const [r,c] of cells){const x=m[r][c];x.t='park';x.hill=1;delete x.f;delete x.blk;delete x.bmax;delete x.bhp;}}
+    if(h>amp*.72&&propHash(canon(id),77)<.55)for(const [r,c] of cells){const x=m[r][c];x.t='park';x.hill=1;delete x.f;delete x.blk;delete x.ks;delete x.ind;delete x.bmax;delete x.bhp;}}
   // 건물 블록을 평평하게: 작은 블록부터, 큰 블록이 마지막에 덮어쓴다
   const B=new Map();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=m[r][c];if(x.t!=='bldg')continue;const k=x.blk!=null?'b'+x.blk:'t'+r*N+c;if(!B.has(k))B.set(k,[]);B.get(k).push([r,c]);}
   const flat=cells=>{const vs=new Set();for(const [r,c] of cells)for(const [a,b] of [[0,0],[0,1],[1,0],[1,1]])vs.add((r+a)*W+c+b);let s=0;for(const v of vs)s+=E[v];s/=vs.size;for(const v of vs)E[v]=s;};

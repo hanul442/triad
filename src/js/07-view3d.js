@@ -51,6 +51,25 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');if(typeof v3TerrInstall==='fun
   const roofT=v3Tex(256,256,(g,w,h)=>{g.fillStyle='#8f8d89';g.fillRect(0,0,w,h);for(let i=0;i<9000;i++){const v=90+fr()*90|0;g.fillStyle=`rgba(${v},${v},${v-6},.3)`;g.fillRect(fr()*w,fr()*h,2,2);}
     for(let i=0;i<7;i++){const x=fr()*w,y=fr()*h;g.fillStyle=`rgba(28,27,25,${.25+fr()*.25})`;g.beginPath();for(let j=0;j<9;j++){const a=j/9*6.283,rr=14+fr()*34;g[j?'lineTo':'moveTo'](x+Math.cos(a)*rr,y+Math.sin(a)*rr*.8);}g.closePath();g.fill();}g.strokeStyle='rgba(60,58,54,.35)';g.lineWidth=2;for(let i=0;i<=w;i+=64){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke();}});
   roofT.wrapS=roofT.wrapT=T.RepeatWrapping;
+  // 외벽 종류 셋 더: 유리 커튼월(타워·사무실), 벽돌(빌라·주택·상가·학교), 골함석(창고·공장). 모두 8열×8층 반복 무늬
+  const mkFac=(base,draw)=>{const W2=[];const tx=v3Tex(512,512,(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);draw(g,w,h,W2);
+      for(let i=0;i<3000;i++){g.fillStyle=fr()<.5?'rgba(255,255,255,.04)':'rgba(0,0,0,.05)';g.fillRect(fr()*w,fr()*h,2,2);}
+      for(let i=0;i<24;i++){const x=fr()*w,y=fr()*h,len=30+fr()*100;const gr=g.createLinearGradient(0,y,0,y+len);gr.addColorStop(0,'rgba(45,40,34,.14)');gr.addColorStop(1,'rgba(45,40,34,0)');g.fillStyle=gr;g.fillRect(x,y,2+fr()*4,len);}});
+    const lt=v3Tex(512,512,(g,w,h)=>{g.fillStyle='#000';g.fillRect(0,0,w,h);for(const [X,Y,ww,hh] of W2)if(fr()<.3){g.fillStyle=fr()<.7?'#ffc77a':'#e8f0ff';g.fillRect(X,Y,ww,hh);}});
+    for(const t of [tx,lt]){t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=ren.capabilities.getMaxAnisotropy();}return [tx,lt];};
+  const facG=mkFac('#c9ccd0',(g,w,h,W2)=>{for(let y=0;y<8;y++){g.fillStyle='#b4b7ba';g.fillRect(0,y*64,w,14);g.fillStyle='rgba(0,0,0,.25)';g.fillRect(0,y*64+13,w,2);
+      for(let x=0;x<8;x++){const X=x*64,Y=y*64+15;const gr=g.createLinearGradient(X,Y,X+64,Y+49);const t=fr();gr.addColorStop(0,t<.3?'#56677a':'#3a4652');gr.addColorStop(1,'#1d242c');g.fillStyle=gr;g.fillRect(X,Y,64,49);
+        if(fr()<.35){g.fillStyle='rgba(200,215,225,.16)';g.beginPath();g.moveTo(X+fr()*30,Y);g.lineTo(X+40+fr()*24,Y);g.lineTo(X+10+fr()*20,Y+49);g.lineTo(X,Y+49);g.fill();}
+        W2.push([X+2,Y+2,60,45]);g.fillStyle='#8f969c';g.fillRect(X,Y,3,49);g.fillRect(X+31,Y,2,49);}}});
+  const facB=mkFac('#8e796c',(g,w,h,W2)=>{for(let y=0;y<128;y++)for(let x=0;x<32;x++){const v=fr();g.fillStyle=v<.3?'rgba(60,45,38,.22)':v<.6?'rgba(190,160,140,.12)':'rgba(0,0,0,0)';g.fillRect(x*16+(y%2?8:0),y*4,15,3);}
+      g.fillStyle='rgba(60,45,38,.35)';for(let y=0;y<8;y++)g.fillRect(0,y*64+62,w,2);
+      for(let y=0;y<8;y++)for(let x=0;x<8;x++){if(x%4===3)continue;const X=x*64+18,Y=y*64+16;g.fillStyle='#d8d2c6';g.fillRect(X-3,Y-3,34,38);g.fillStyle='#bcb4a6';g.fillRect(X-5,Y+33,38,4);
+        const r=fr();g.fillStyle=r<.1?'#0e0e0e':'#2c333a';g.fillRect(X,Y,28,32);if(r>.1){g.fillStyle='#d8d2c6';g.fillRect(X+13,Y,2,32);if(r>.7){g.fillStyle='rgba(150,135,110,.8)';g.fillRect(X+1,Y+1,12,14);}}
+        if(r>.85){g.fillStyle='#5a5a52';g.fillRect(X-4,Y+20,36,12);}W2.push([X,Y,28,32]);}});   // 창살·방범창
+  const facI=mkFac('#9ea2a3',(g,w,h,W2)=>{for(let x=0;x<w;x+=8){g.fillStyle='rgba(0,0,0,.12)';g.fillRect(x,0,3,h);g.fillStyle='rgba(255,255,255,.06)';g.fillRect(x+4,0,2,h);}
+      for(let y=0;y<8;y++){g.fillStyle='rgba(40,40,40,.35)';g.fillRect(0,y*64+62,w,2);for(let x=0;x<8;x++){const X=x*64,Y=y*64+6;if(x%2===0){g.fillStyle='#3c464e';g.fillRect(X+6,Y,52,10);W2.push([X+6,Y,52,10]);}
+        if(x%4===1){g.fillStyle='#6d7072';g.fillRect(X+4,Y+22,56,36);g.fillStyle='rgba(0,0,0,.25)';for(let i=0;i<9;i++)g.fillRect(X+4,Y+24+i*4,56,1);}}}
+      for(let i=0;i<30;i++){g.fillStyle='rgba(120,70,40,.18)';g.fillRect(fr()*w,fr()*h,3+fr()*6,10+fr()*40);}});   // 녹물
   for(const t of [facade,lights,roofT])t.anisotropy=ren.capabilities.getMaxAnisotropy();
   const puff=v3Tex(64,64,(g)=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.5,'rgba(255,255,255,.45)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);});
   const M={
@@ -69,8 +88,11 @@ function v3Init(){const T=V3.T;const cv=$('#v3d');if(typeof v3TerrInstall==='fun
     smoke:new T.SpriteMaterial({map:puff,color:'#3e3a35',transparent:true,depthWrite:false,opacity:.55}),
     fire:new T.SpriteMaterial({map:puff,color:'#ff8a3a',transparent:true,depthWrite:false,blending:T.AdditiveBlending}),
   };
+  M.walls=[M.wall];for(const [tx,lt] of [facG,facB,facI])M.walls.push(new T.MeshStandardMaterial({map:tx,emissiveMap:lt,emissive:'#ffffff',emissiveIntensity:0,vertexColors:true,roughness:.92}));
+  M.walls[1].roughness=.55;M.walls[1].metalness=.25;
+  {let ei=0;Object.defineProperty(M.wall,'emissiveIntensity',{configurable:true,get(){return ei;},set(v){ei=v;for(const m of M.walls)if(m!==M.wall)m.emissiveIntensity=v;}});}   // 밤 창불은 모든 외벽이 같이
   V3.fowU={map:{value:null},n:{value:N}};
-  for(const k of ['terr','wall','roof','rubble','tree','trunk','conc'])v3FowMat(M[k]);
+  for(const k of ['terr','wall','roof','rubble','tree','trunk','conc'])v3FowMat(M[k]);for(const m of M.walls.slice(1))v3FowMat(m);
   const G3={world:new T.Group(),city:new T.Group(),sites:new T.Group(),units:new T.Group(),hl:new T.Group(),fx:new T.Group(),amb:new T.Group()};
   for(const k in G3)scene.add(G3[k]);
   Object.assign(V3,{ren,scene,cam,cv,hemi,sun,flash,M,puff,G:G3,cs:{x:12,z:12,yaw:0,pitch:1.38,d:14,gx:12,gz:12,gyaw:0,gd:14},
@@ -162,6 +184,14 @@ function v3GroundTex(){const P=48,W=N*P;const cv=document.createElement('canvas'
     if(cx0.lot){// 주차장: 흰 주차선 두 줄과 가운데 통로
       g.fillStyle='rgba(225,222,210,.55)';for(let i=0;i<=4;i++){const x=X+i*P/4;g.fillRect(Math.min(x,X+P-1),Y+2,1,P*.3);g.fillRect(Math.min(x,X+P-1),Y+P*.68,1,P*.3);}
       g.fillStyle='rgba(0,0,0,.18)';for(let i=0;i<6;i++){g.beginPath();g.arc(X+R()*P,Y+R()*P,2+R()*5,0,7);g.fill();}continue;}
+    if(cx0.field){// 학교 운동장: 흙바닥 위 흰 선, 가장자리에 트랙
+      g.fillStyle='#7a6a55';g.fillRect(X,Y,P,P);g.fillStyle='rgba(150,80,60,.35)';const F=(a,b)=>inb(a,b)&&G.map[a][b].field;
+      if(!F(r-1,c))g.fillRect(X,Y,P,7);if(!F(r+1,c))g.fillRect(X,Y+P-7,P,7);if(!F(r,c-1))g.fillRect(X,Y,7,P);if(!F(r,c+1))g.fillRect(X+P-7,Y,7,P);
+      g.fillStyle='rgba(235,232,220,.55)';if(!F(r-1,c))g.fillRect(X,Y+8,P,1);if(!F(r+1,c))g.fillRect(X,Y+P-9,P,1);if(!F(r,c-1))g.fillRect(X+8,Y,1,P);if(!F(r,c+1))g.fillRect(X+P-9,Y,1,P);
+      for(let i=0;i<10;i++){g.fillStyle='rgba(60,52,40,.22)';g.beginPath();g.arc(X+R()*P,Y+R()*P,2+R()*6,0,7);g.fill();}continue;}
+    if(cx0.gas){// 주유소 마당: 밝은 콘크리트 판과 기름 얼룩
+      g.fillStyle='#8c8981';g.fillRect(X,Y,P,P);g.fillStyle='rgba(0,0,0,.14)';for(let i=0;i<=P;i+=16){g.fillRect(X+i,Y,1,P);g.fillRect(X,Y+i,P,1);}
+      for(let i=0;i<5;i++){g.fillStyle='rgba(20,18,16,.25)';g.beginPath();g.arc(X+R()*P,Y+R()*P,2+R()*5,0,7);g.fill();}continue;}
     if(cx0.al){g.fillStyle='rgba(20,20,20,.35)';cx0.ro==='h'?g.fillRect(X,Y+P/2-1,P,2):g.fillRect(X+P/2-1,Y,2,P);
       for(let i=0;i<10;i++){g.fillStyle=R()<.5?'rgba(25,22,18,.3)':'rgba(120,110,95,.2)';g.beginPath();g.arc(X+R()*P,Y+R()*P,2+R()*6,0,7);g.fill();}continue;}
     if(q==='plaza'){g.fillStyle='rgba(0,0,0,.13)';for(let i=0;i<=P;i+=12){g.fillRect(X+i,Y,1,P);g.fillRect(X,Y+i,P,1);}}
@@ -245,7 +275,7 @@ function v3BuildWorld(){const T=V3.T,g=V3.G.world;v3Clear(g);const M=V3.M;
 function v3Cham(r,c){const R=(a,b)=>inb(a,b)&&G.map[a][b].t==='road'&&!G.map[a][b].al;const B=(a,b)=>R(a,b)&&(G.map[a][b].ro==='d'||G.map[a][b].ro==='c');const out=[];
   for(const [a,b] of [[-1,-1],[-1,1],[1,1],[1,-1]])if(R(r+a,c)&&R(r,c+b)&&R(r+a,c+b)&&(B(r+a,c)||B(r,c+b)))out.push([a,b]);return out;}
 /* ---------- 건물 ---------- */
-function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=[],R1=[],RU=[],RC=[],wt=[],rt=[],rub=[],ac=[];const col=new T.Color();
+function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const WS=[0,1,2,3].map(()=>({P:[],U:[],C:[],t:[]}));let wS=0;const R1=[],RU=[],RC=[],rt=[],rub=[],ac=[],chim=[];const col=new T.Color();
   // 위가 트인 상자: 네 벽(외벽 무늬) + 지붕. 경계 좌표로 받아 같은 블록 칸끼리 이어 붙인다.
   const quad=(A,B,C2,D,cl,k)=>{for(const p of [A,B,C2,A,C2,D]){R1.push(p[0],p[1],p[2]);RU.push(p[0]+p[1]*.7,p[2]+p[1]*.7);RC.push(cl.r,cl.g,cl.b);}rt.push(k,k);};
   const box=(x0,x1,z0,z1,y0,h,k,shade,u0,v0,rim,open,cham)=>{let c4=[[x0,z0],[x1,z0],[x1,z1],[x0,z1]];const y1=y0+h;
@@ -254,8 +284,8 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
         const dl=(ax,az)=>{const d=Math.hypot(ax-px,az-pz)||1,t=Math.min(L,d*.9)/d;return [px+(ax-px)*t,pz+(az-pz)*t];};P.push(dl(qx,qz),dl(nx,nz));});c4=P;rim=null;}
     const n4=c4.length;
     for(let s=0;s<n4;s++){const [ax,az]=c4[(s+1)%n4],[bx,bz]=c4[s];const len=Math.hypot(ax-bx,az-bz);const U=len/.21/8,V=h/FLOOR_H/8;const uu=u0+(Math.abs(az-bz)>Math.abs(ax-bx)?bz:bx)/.21/8;
-      W1.push(ax,y0,az,bx,y0,bz,bx,y1,bz, ax,y0,az,bx,y1,bz,ax,y1,az);U1.push(uu,v0,uu+U,v0,uu+U,v0+V, uu,v0,uu+U,v0+V,uu,v0+V);
-      for(let v=0;v<6;v++)C1.push(shade.r,shade.g,shade.b);wt.push(k,k);}
+      const Q=WS[wS];Q.P.push(ax,y0,az,bx,y0,bz,bx,y1,bz, ax,y0,az,bx,y1,bz,ax,y1,az);Q.U.push(uu,v0,uu+U,v0,uu+U,v0+V, uu,v0,uu+U,v0+V,uu,v0+V);
+      for(let v=0;v<6;v++)Q.C.push(shade.r,shade.g,shade.b);Q.t.push(k,k);}
     const rcol=new T.Color('#b9b7b2').lerp(shade,.35).multiplyScalar(1-(1-shade.g)*.4);
     if(!open){if(n4===4)quad([x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],rcol,k);
       else{let mx=0,mz=0;for(const [px,pz] of c4){mx+=px;mz+=pz;}mx/=n4;mz/=n4;for(let s=0;s<n4;s++){const [ax,az]=c4[s],[bx,bz]=c4[(s+1)%n4];
@@ -268,7 +298,8 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
   const GLASS=['#7d8790','#6a737b','#8a9096','#5f676e','#9a9a94'];const gab=[];// 고층은 유리 외벽 톤, 주택은 박공 지붕
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
     if(x.t==='bldg'){const dmg=1-x.bhp/x.bmax;let h=x.f*FLOOR_H;if(dmg>.5)h*=1-(dmg-.5)*.6;
-      const bt=x.blk!=null?v3Hash(x.blk,3):v3Hash(k,3);col.set(x.lm?'#e2dccb':x.ind?IND_C[Math.floor(bt*IND_C.length)]:x.f>=8?GLASS[Math.floor(bt*GLASS.length)]:TONES[Math.floor(bt*TONES.length)]);col.offsetHSL(0,0,(v3Hash(k,4)-.5)*.04);col.multiplyScalar(1-dmg*.55);
+      const bt=x.blk!=null?v3Hash(x.blk,3):v3Hash(k,3);const ks=x.ks||(x.ind?'ware':x.f>=8?'tower':x.dist==='res'&&x.f<=2?'house':'panel');const KS=KSTY[ks]||KSTY.panel;wS=ks==='house'&&v3Hash(x.blk??k,5)<.45?0:KS.s;const flatH=ks==='house'&&v3Hash(x.blk??k,14)<.3;   // 옥상이 평평한 집도 섞는다
+      col.set(x.lm?'#e2dccb':KS.c[Math.floor(bt*KS.c.length)]);col.offsetHSL(0,0,(v3Hash(k,4)-.5)*.04);col.multiplyScalar(1-dmg*.55);
       const same=(a,b)=>inb(a,b)&&G.map[a][b].t==='bldg'&&x.blk!=null&&G.map[a][b].blk===x.blk&&G.map[a][b].bhp/G.map[a][b].bmax>.5&&dmg<.5;
       const sN=same(r-1,c),sE=same(r,c+1),sS=same(r+1,c),sW=same(r,c-1);
       const x0=cx-.5+(sW?0:IN),x1=cx+.5-(sE?0:IN),z0=cz-.5+(sN?0:IN),z1=cz+.5-(sS?0:IN);
@@ -276,16 +307,21 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
       const ch=dmg<.5?v3Cham(r,c).map(([a,b])=>a<0?(b<0?0:1):(b>0?2:3)):null;if(ch&&ch.length)x._ch=1;else delete x._ch;
       const fl=(bt*8|0);box(x0,x1,z0,z1,.06,h,k,col,fl*.37,Math.floor(v3Hash(x.blk??k,8)*8),dmg<.4?[!sN,!sE,!sS,!sW]:null,false,ch);
       v3Doors(FD,r,c,x0,x1,z0,z1,dmg);
-      if(dmg<.4&&!(x.dist==='res'&&x.f<=2)){const st=v3Stair(r,c),ha=st.sx,hb=st.sx+st.ax*STAIR_L;box(Math.min(ha,hb)-.015,Math.max(ha,hb)+.015,st.sz-STAIR_W-.015,st.sz+STAIR_W+.015,.06+h,FLOOR_H*.6,k,col.clone().multiplyScalar(.8),0,0,null);}   // 옥상 계단 출입구
-      if(x.dist==='res'&&x.f<=2&&dmg<.4){const rd2=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const ew=rd2(r-1,c)||rd2(r+1,c);gab.push({x:(x0+x1)/2,y:.06+h,z:(z0+z1)/2,sx:x1-x0,sz:z1-z0,ry:ew?0:Math.PI/2,k,col:ROOFC[Math.floor(v3Hash(x.blk??k,13)*ROOFC.length)]});}
+      if(dmg<.4&&!(ks==='house'&&x.f<=2&&!flatH)&&ks!=='ware'){const st=v3Stair(r,c),ha=st.sx,hb=st.sx+st.ax*STAIR_L;box(Math.min(ha,hb)-.015,Math.max(ha,hb)+.015,st.sz-STAIR_W-.015,st.sz+STAIR_W+.015,.06+h,FLOOR_H*.6,k,col.clone().multiplyScalar(.8),0,0,null);}   // 옥상 계단 출입구
+      if(ks==='house'&&x.f<=2&&!flatH&&dmg<.4){const rd2=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const ew=rd2(r-1,c)||rd2(r+1,c);gab.push({x:(x0+x1)/2,y:.06+h,z:(z0+z1)/2,sx:x1-x0,sz:z1-z0,ry:ew?0:Math.PI/2,k,col:ROOFC[Math.floor(v3Hash(x.blk??k,13)*ROOFC.length)]});}
       if(x.f>=4&&v3Hash(k,9)<.4&&dmg<.5){const sw=.22+v3Hash(k,10)*.14,ox=cx+(v3Hash(k,11)-.5)*.3,oz=cz+(v3Hash(k,12)-.5)*.3;box(ox-sw/2,ox+sw/2,oz-sw/2,oz+sw/2,.06+h,FLOOR_H*.9,k,col.clone().multiplyScalar(.85),0,0,null);}
-      for(let i=0;i<3;i++)if(v3Hash(k,20+i)<.5&&dmg<.4)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6,v3Hash(k,26+i),k]);
+      if(ks==='ware'&&dmg<.4){const ew=x1-x0>=z1-z0;for(let i=0;i<3;i++){const t0=(i+.5)/3;gab.push({x:ew?(x0+x1)/2:x0+(x1-x0)*t0,y:.06+h,z:ew?z0+(z1-z0)*t0:(z0+z1)/2,sx:ew?x1-x0-.04:(x1-x0)/3-.04,sz:ew?(z1-z0)/3-.04:z1-z0-.04,ry:ew?0:Math.PI/2,sy:.45,k,col:i%2?'#8c9194':'#7d8387'});}}   // 톱날 지붕
+      if(ks==='factory'&&dmg<.4&&v3Hash(k,15)<.35)chim.push([cx+(v3Hash(k,16)-.5)*.4,.06+h,cz+(v3Hash(k,17)-.5)*.4,.6+v3Hash(k,18)*.5,k]);   // 굴뚝
+      if(ks==='tower'&&x.f>=12&&dmg<.4&&v3Hash(k,19)<.3)chim.push([cx+.25,.06+h,cz-.25,.35,k,1]);   // 옥상 안테나
+      for(let i=0;i<3;i++)if(v3Hash(k,20+i)<(ks==='ware'||ks==='house'?.15:.5)&&dmg<.4)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6,v3Hash(k,26+i),k]);
       if(dmg>.25)for(let i=0;i<Math.round(dmg*8);i++){const a=v3Hash(k,30+i)*6.283;rub.push([cx+Math.cos(a)*.5,.03,cz+Math.sin(a)*.5,.08+v3Hash(k,40+i)*.08,v3Hash(k,50+i)*3,k]);}}
     else if(x.t==='rubble'){for(let i=0;i<34;i++){const a=v3Hash(k,60+i)*6.283,rr=Math.sqrt(v3Hash(k,70+i))*.46;rub.push([cx+Math.cos(a)*rr,.01,cz+Math.sin(a)*rr,.025+Math.pow(v3Hash(k,80+i),2)*.09,v3Hash(k,90+i)*3,k]);}
       if(v3Hash(k,99)<.7){const ox=cx+(v3Hash(k,98)-.5)*.4,oz=cz+(v3Hash(k,97)-.5)*.4,w=.12+v3Hash(k,96)*.14;box(ox-w,ox+w,oz-.1,oz+.1,.02,FLOOR_H*(.5+v3Hash(k,95)*1.4),k,col.set('#8b857a'),v3Hash(k,94)*8,0,null);}}}
   const mk=(P,UV,C,mat,tri)=>{if(!P.length)return;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));if(UV)geo.setAttribute('uv',new T.Float32BufferAttribute(UV,2));
     geo.setAttribute('color',new T.Float32BufferAttribute(C,3));geo.computeVertexNormals();const m=new T.Mesh(geo,mat);m.castShadow=m.receiveShadow=true;m.userData.tri=tri;g.add(m);return m;};
-  const mw=mk(W1,U1,C1,V3.M.wall,wt),mr=mk(R1,RU,RC,V3.M.roof,rt);v3FloorMesh(g,FD,FL);V3.cityM={w:mw,r:mr,ac:null,gab:null};
+  // 외벽은 종류별로 이어 붙인 한 메시(재질 묶음). 단면(07f)이 삼각형 순서로 다루므로 키 목록도 같은 순서로 잇는다
+  const W1=[],U1=[],C1=[],wt=[],grp=[];for(let i=0;i<WS.length;i++){const Q=WS[i];grp.push([W1.length/3,Q.P.length/3,i]);for(const v of Q.P)W1.push(v);for(const v of Q.U)U1.push(v);for(const v of Q.C)C1.push(v);for(const v of Q.t)wt.push(v);}
+  const mw=mk(W1,U1,C1,V3.M.walls||V3.M.wall,wt),mr=mk(R1,RU,RC,V3.M.roof,rt);if(mw&&V3.M.walls)for(const [a,n,i] of grp)if(n)mw.geometry.addGroup(a,n,i);v3FloorMesh(g,FD,FL);V3.cityM={w:mw,r:mr,ac:null,gab:null};
   const m4=new T.Matrix4(),q=new T.Quaternion(),s=new T.Vector3(),p=new T.Vector3();
   if(rub.length){const im=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),V3.M.rubble,rub.length);im.castShadow=im.receiveShadow=true;
     rub.forEach(([x,y,z,sz,rot],i)=>{p.set(x,y,z);q.setFromEuler(new T.Euler(rot,rot*2,0));s.set(sz,sz*.5,sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);});im.userData.keys=rub.map(r=>r[5]);g.add(im);}
@@ -296,11 +332,20 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
       const ge=new T.BufferGeometry();ge.setAttribute('position',new T.Float32BufferAttribute(P,3));ge.computeVertexNormals();V3.gabG=ge;}
     if(!V3.M.gab){V3.M.gab=new T.MeshStandardMaterial({color:'#ffffff',roughness:.95,flatShading:true,side:T.DoubleSide});v3FowMat(V3.M.gab);}
     const im=new T.InstancedMesh(V3.gabG,V3.M.gab,gab.length);im.castShadow=im.receiveShadow=true;const e=new T.Euler();
-    gab.forEach((o,i)=>{p.set(o.x,o.y,o.z);const rot=o.ry!==0;q.setFromEuler(e.set(0,o.ry,0));s.set(rot?o.sz+.04:o.sx+.04,1,rot?o.sx+.04:o.sz+.04);m4.compose(p,q,s);im.setMatrixAt(i,m4);im.setColorAt(i,col.set(o.col));});
+    gab.forEach((o,i)=>{p.set(o.x,o.y,o.z);const rot=o.ry!==0;q.setFromEuler(e.set(0,o.ry,0));s.set(rot?o.sz+.04:o.sx+.04,1,rot?o.sx+.04:o.sz+.04);s.y=o.sy||1;m4.compose(p,q,s);im.setMatrixAt(i,m4);im.setColorAt(i,col.set(o.col));});
     im.userData.keys=gab.map(o=>o.k);V3.cityM.gab=im;g.add(im);}
+  if(chim.length){const im=new T.InstancedMesh(new T.CylinderGeometry(.045,.06,1,8).translate(0,.5,0),V3.M.conc,chim.length);im.castShadow=true;
+    chim.forEach(([x,y,z,hh,,thin],i)=>{p.set(x,y,z);q.identity();s.set(thin?.25:1,hh,thin?.25:1);m4.compose(p,q,s);im.setMatrixAt(i,m4);});im.userData.keys=chim.map(a=>a[4]);g.add(im);}
   v3CutPrep();
   if(typeof v3BuildShops==='function')v3BuildShops(g);}
 const IND_C=['#8d9396','#7d8b8e','#a39d92','#6f7a80','#998f7d','#8a8178'];   // 공업지대 창고·공장 외벽(골함석·도장 철판 톤)
+/* 건물 종류(03-mapgen의 ks)별 외벽 무늬(s: 0 패널, 1 유리, 2 벽돌, 3 골함석)와 색 */
+const KSTY={panel:{s:0,c:['#bdbbb6','#a9a8a4','#c8c5be','#9c9b98','#b4afa6','#c2bdb3','#a3a19c','#8f8e8b']},
+  apt:{s:0,c:['#dcd9d2','#d2cfc6','#e4e0d6','#c9c6be','#d8d0c0']},
+  tower:{s:1,c:['#9aa6b0','#8a949c','#a8b0b4','#7d8a96','#b0b0aa']},office:{s:1,c:['#c0c2c0','#b0b4b6','#c8c4bc','#a8aaa8']},
+  villa:{s:2,c:['#f2e8de','#e6d6c8','#ddd0c4','#cdbfb2','#efe4d6','#c8b4a4']},house:{s:2,c:['#f8f2ea','#ece2d4','#e2dcd0','#f0e0cc','#d8d4cc']},
+  shop:{s:2,c:['#e8dccd','#d8c8b8','#cbbfb0','#e0d8cc']},school:{s:2,c:['#f4e6d0','#ece0cc']},
+  ware:{s:3,c:['#c4c8ca','#b4bcbe','#d0ccc2','#a8b0b6','#c8beae']},factory:{s:3,c:['#b8b4aa','#a8aca8','#c0b8a8']}};
 const ROOFC=['#5b4a42','#4a4a4c','#6a5f55','#3f4448','#7a6e60','#584038'];
 
 /* ---------- 거점 표시 ---------- */

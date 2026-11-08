@@ -136,7 +136,7 @@ function v3BuildPonds(g){const T=V3.T,pm=v3PropMats(),m=MU;const stones=[],reeds
 const SHOP_AWN=['#3f4a3a','#5a2e2a','#283548','#7a6a4c','#5d5f5f','#6b4a2e','#8a8476'];
 const SHOP_SIGN=['#d8d2c2','#c9b26a','#9c3b2f','#2f4a63','#e0ddd5','#3a3a3a','#b46a2c'];
 function v3BuildShops(g){const T=V3.T,pm=v3PropMats(),m=MU,IN=.08,y0=.06;const glass=[],awn=[],sign=[],door=[];
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.lm||x.dist==='res'||x._ch||x.ind||x.stn)continue;const dmg=1-x.bhp/x.bmax;if(dmg>=.4)continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.lm||x.dist==='res'||x._ch||x.ind||x.stn||x.ks==='villa'||x.ks==='school'||x.ks==='house'||(x.ks==='apt'&&v3Hash(key(r,c),670)<.7))continue;const dmg=1-x.bhp/x.bmax;if(dmg>=.4)continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
     for(const [a,b,si] of [[-1,0,0],[1,0,1],[0,-1,2],[0,1,3]]){if(!inb(r+a,c+b)||G.map[r+a][c+b].t!=='road'||G.map[r+a][c+b].al)continue;if(v3Hash(k,600+si)<.3)continue;
       const d=.5-IN+.004;const fx=cx+b*d,fz=cz+a*d;const ry=b?Math.PI/2:0;const W=.82;
       // 바깥을 향한 단위벡터 (a,b) → 월드 (b,a)
@@ -146,4 +146,9 @@ function v3BuildShops(g){const T=V3.T,pm=v3PropMats(),m=MU,IN=.08,y0=.06;const g
       sign.push({x:fx+b*.006,y:y0+.27,z:fz+a*.006,ry,sx:W*(.5+v3Hash(k,630+si)*.4),sy:.045,sz:.012,col:SHOP_SIGN[Math.floor(v3Hash(k,640+si)*SHOP_SIGN.length)]});}}
   function H2(k,s){return v3Hash(k,650+s);}
   const box=new T.BoxGeometry(1,1,1);
+  // 주유소: 지붕(캐노피)과 기둥, 주유기
+  const gas=[],gpost=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(!x.gas)continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
+    if(v3Hash(k,660)<.5){gas.push({x:cx,y:y0+.32,z:cz,ry:0,sx:.78,sy:.05,sz:.56,col:'#e4e2dc'});gas.push({x:cx,y:y0+.3,z:cz+.28,ry:0,sx:.78,sy:.02,sz:.012,col:SHOP_SIGN[Math.floor(v3Hash(k,661)*SHOP_SIGN.length)]});
+      for(const o of [-.22,.22]){gpost.push({x:cx+o,y:y0+.15,z:cz,ry:0,sx:.035,sy:.3,sz:.035,col:'#9a9890'});gpost.push({x:cx+o,y:y0+.03,z:cz,ry:0,sx:.06,sy:.06,sz:.28,col:'#bdbab2'});gpost.push({x:cx+o,y:y0+.075,z:cz+.06,ry:0,sx:.04,sy:.07,sz:.035,col:'#a83a30'});}}}
+  if(gas.length)v3Inst(g,box,pm.awn,gas);if(gpost.length)v3Inst(g,box,pm.awn,gpost);
   v3Inst(g,box,pm.shop,glass,{noShadow:1});v3Inst(g,box,pm.awn,awn);v3Inst(g,box,pm.sign,sign,{noShadow:1});}
