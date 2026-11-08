@@ -1226,8 +1226,10 @@ function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const 
   return out;}
 /* ---------- 증원·화력 지원 ---------- */
 function deploySpots(n,type){const out=[];const O=occ();const inc=new Set(G.units.map(o=>key(Math.floor(o.z),Math.floor(o.x))));
+  // 거점 o 근처 2칸 안에 적이 없나: 거점마다 한 번만 센다(칸마다 다시 세면 느리다)
+  const free=[];const objFree=i=>{if(free[i]===undefined){const o=G.objs[i];free[i]=!G.units.some(e=>e.nat!==n&&dist(e.r,e.c,o.r,o.c)<=2);}return free[i];};
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(O.has(key(r,c))||inc.has(key(r,c)))continue;if(mcost(type,x)===Infinity)continue;
-    let ok=inZone(n,r,c);if(!ok)for(const o of G.objs){const y=G.map[o.r][o.c];if(y.owner===n&&dist(o.r,o.c,r,c)<=1&&!G.units.some(e=>e.nat!==n&&dist(e.r,e.c,o.r,o.c)<=2)){ok=true;break;}}
+    let ok=inZone(n,r,c);if(!ok)for(let i=0;i<G.objs.length;i++){const o=G.objs[i];const y=G.map[o.r][o.c];if(y.owner===n&&dist(o.r,o.c,r,c)<=1&&objFree(i)){ok=true;break;}}
     if(ok)out.push(key(r,c));}return out;}
 let UID=1;
 function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,x:c+.5+(Math.random()-.5)*.3,z:r+.5+(Math.random()-.5)*.3,hp:UT[type].hpMax||10,done:false,moved:false,supp:0,ow:false,kills:0,rank:0,path:[],cd:Math.random()*1.5,tgt:null,tgtTile:null,face:n===1?180:n===2?90:n===3?270:0};G.units.push(u);bump();return u;}
@@ -1390,12 +1392,18 @@ function spots(u,e){const t=UT[e.type];if(typeof stairHid==='function'&&stairHid
 /* spots()가 쓰는 시야 거리의 상한: 가장 먼 병종 시야 + 고층 보너스 2 + 차량·항공 1 + 날씨 */
 function visMax(){const w=G.wx;if(G._vmx&&G._vmx.w===w)return G._vmx.v;let m=0;for(const k in UT)m=Math.max(m,UT[k].vis||0);
   const v=m+3+Math.max(0,WX[w].vis)+(G.elv?2:0);Object.defineProperty(G,'_vmx',{value:{w,v},writable:true,configurable:true,enumerable:false});return v;}
+/* seen 캐시 열쇠. 예전 문자열 열쇠 e.id+':'+e.r+','+e.c 와 똑같이 갈린다(문자열 "16"과 숫자 16은 같은 열쇠).
+   흔한 경우(정수 id, 지도 안 칸)는 숫자로 만들어 빠르게 */
+const seenInt=v=>typeof v==='number'?(Number.isInteger(v)?v:null):typeof v==='string'&&v!==''&&String(+v)===v&&Number.isInteger(+v)?+v:null;
+function seenKey(e){const id=seenInt(e.id),r=seenInt(e.r),c=seenInt(e.c);
+  if(id!==null&&r!==null&&c!==null&&Math.abs(id)<1e9&&r>=0&&c>=0&&r<N&&c<N)return (id*N+r)*N+c;return e.id+':'+e.r+','+e.c;}
 function seen(e,n,vs){if(!G.fog||e.nat===n)return true;
   const ck='s'+n;G._sc=G._sc||{};const tq=Math.floor((G.time||0)*4);let c=G._sc[ck];if(!c||c.ver!==G.ver||c.tq!==tq){c=G._sc[ck]={ver:G.ver,tq,m:new Map()};}
-  const pk=e.id+':'+e.r+','+e.c;if(c.m.has(pk))return c.m.get(pk);
+  const pk=seenKey(e);if(c.m.has(pk))return c.m.get(pk);
   // 시야 거리가 아무리 길어도 닿지 않는 부대는 시야선 계산 없이 건너뛴다(성능)
   const [ex,ez]=posOf(e),V=visMax()+1.5;
-  let ok=false;for(const u of G.units){if(u.nat!==n)continue;const [ux,uz]=posOf(u);if(Math.abs(ux-ex)>V||Math.abs(uz-ez)>V)continue;if(spots(u,e)){ok=true;break;}}
+  let ok=false;for(const u of G.units){if(u.nat!==n)continue;const at=u.x!=null&&Math.floor(u.x)===u.c&&Math.floor(u.z)===u.r;const ux=at?u.x:u.c+.5,uz=at?u.z:u.r+.5;   // posOf(u)를 풀어 씀(배열을 안 만든다)
+    if(Math.abs(ux-ex)>V||Math.abs(uz-ez)>V)continue;if(spots(u,e)){ok=true;break;}}
   c.m.set(pk,ok);return ok;}
 
 /* ---------- 사격 가능 판정 ---------- */
@@ -1547,20 +1555,43 @@ function inBox(o,px,pz,c){const dx=px-o.x,dz=pz-o.z,cs=Math.cos(o.ry),sn=Math.si
    지형이 바뀌면(건물 붕괴: damageBldg) G.navV가, 방어물이 바뀌면 G.fortNV가 오른다. 지도를 직접 고친 뒤에는 G.navV를 올려야 한다 */
 const NAV={g:null,grids:{},base:{}};
 const navWreckN=()=>{let n=0;for(const c of G.covers||[])if(c.kind==='wreck'&&c.cov!=null&&!c.fort)n++;return n;};
-function navStamp(cost,W,list,cls){const cs=1/NAV_R,clr=NAV_CLR[cls];
+function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // mask: 이 큰 칸들 안의 작은 칸만 찍는다(navBase 부분 갱신)
   for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
     const j0=Math.max(0,Math.floor((o.x-R)*NAV_R)),j1=Math.min(W-1,Math.floor((o.x+R)*NAV_R)),i0=Math.max(0,Math.floor((o.z-R)*NAV_R)),i1=Math.min(W-1,Math.floor((o.z+R)*NAV_R));
-    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*W+j;if(!cost[k])continue;if(!inBox(o,(j+.5)*cs,(i+.5)*cs,clr))continue;
+    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*W+j;if(mask&&!mask[((i/NAV_R)|0)*N+((j/NAV_R)|0)])continue;if(!cost[k])continue;if(!inBox(o,(j+.5)*cs,(i+.5)*cs,clr))continue;
       if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}}
+/* navBase 기억: 지형(TC)이 그대로면 지형 층을 다시 쓰고, 장애물이 늘기만 했으면(잔해 차량 추가 등) 새 것만 더 찍는다.
+   찍기(navStamp)는 '0으로' 또는 '8 미만이면 +4'라서 순서와 상관없이 결과가 같다 */
+const NAVB={};
+const navObsKey=o=>o.k+'|'+o.x+'|'+o.z+'|'+o.ry+'|'+o.hl+'|'+o.hw;
 function navBase(cls){if(NAV.base[cls])return NAV.base[cls];
-  const W=N*NAV_R,cost=new Uint8Array(W*W),clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':'ifv';
+  const W=N*NAV_R,clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':'ifv';
   const TC=new Uint8Array(N*N);for(let r=0;r<N;r++)for(let c=0;c<N;c++){const m=mcost(ty,G.map[r][c]);TC[r*N+c]=m===Infinity?0:Math.min(250,m);}
+  let C=NAVB[cls];
   const tc=(x,z)=>{if(x<0||z<0||x>=N||z>=N)return 0;return TC[(z|0)*N+(x|0)];};const d=clr+.08;
-  for(let i=0;i<W;i++){const pz=(i+.5)/NAV_R;for(let j=0;j<W;j++){const px=(j+.5)/NAV_R;let m=tc(px,pz);
+  const terrAt=(i,j)=>{const pz=(i+.5)/NAV_R,px=(j+.5)/NAV_R;let m=tc(px,pz);
     // 차량: 차폭만큼 건물·물 칸에서 떨어진다
-    if(m&&clr>.05&&(!tc(px+d,pz)||!tc(px-d,pz)||!tc(px,pz+d)||!tc(px,pz-d)))m=0;
-    cost[i*W+j]=m;}}
-  navStamp(cost,W,NAV.obs.filter(o=>!o.fort),cls);
+    if(m&&clr>.05&&(!tc(px+d,pz)||!tc(px-d,pz)||!tc(px,pz+d)||!tc(px,pz-d)))m=0;return m;};
+  if(!C||C.N!==N||C.W!==W||C.clr!==clr||C.TC.length!==TC.length){
+    const terr=new Uint8Array(W*W);for(let i=0;i<W;i++)for(let j=0;j<W;j++)terr[i*W+j]=terrAt(i,j);
+    C=NAVB[cls]={N,W,clr,TC,terr,keys:null,cost:null,list:null};}
+  else{// 바뀐 칸(건물 붕괴 등)과 그 옆 칸만 다시 계산한다(작은 칸 값은 ±1칸 안의 지형만 본다)
+    const mask=new Uint8Array(N*N);let any=false;
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(C.TC[r*N+c]!==TC[r*N+c]){any=true;for(let a=Math.max(0,r-1);a<=Math.min(N-1,r+1);a++)for(let b=Math.max(0,c-1);b<=Math.min(N-1,c+1);b++)mask[a*N+b]=1;}
+    if(any){const terr=C.terr.slice();const R=NAV_R;
+      for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!mask[r*N+c])continue;for(let i=r*R;i<r*R+R;i++)for(let j=c*R;j<c*R+R;j++)terr[i*W+j]=terrAt(i,j);}
+      if(C.cost){const cost=C.cost.slice();for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!mask[r*N+c])continue;for(let i=r*R;i<r*R+R;i++)for(let j=c*R;j<c*R+R;j++)cost[i*W+j]=terr[i*W+j];}
+        navStamp(cost,W,C.list,cls,mask);C.cost=cost;}
+      C.terr=terr;C.TC=TC;}}
+  // 장애물 열쇠는 NAV.obs 하나에 한 번만 만든다(네 부대 종류가 같이 쓴다)
+  if(NAVB.obs!==NAV.obs){NAVB.obs=NAV.obs;const L=NAV.obs.filter(o=>!o.fort),K=L.map(navObsKey),M=new Map();for(const k of K)M.set(k,(M.get(k)||0)+1);NAVB.ol={L,K,M};}
+  const list=NAVB.ol.L,keys=NAVB.ol.M;
+  let cost=null;
+  if(C.keys){let sub=true;for(const [k,n] of C.keys)if((keys.get(k)||0)<n){sub=false;break;}
+    if(sub){const left=new Map(C.keys);const extra=[],K=NAVB.ol.K;for(let q=0;q<list.length;q++){const k=K[q];const n=left.get(k)||0;if(n>0)left.set(k,n-1);else extra.push(list[q]);}
+      cost=C.cost.slice();navStamp(cost,W,extra,cls);}}
+  if(!cost){cost=C.terr.slice();navStamp(cost,W,list,cls);}
+  C.keys=keys;C.cost=cost;C.list=list;
   return NAV.base[cls]={W,cost};}
 function navGrid(cls){const q=NAV.grids[cls];
   if(q&&NAV.g===G&&NAV.nv===(G.navV||0)&&NAV.fv===(G.fortNV||0)&&NAV.cl===(G.covers?G.covers.length:0)&&NAV.pl===(G.props?G.props.length:0))return q;
@@ -1583,6 +1614,18 @@ function navWallOk(i,j,ni,nj){const R=NAV_R,tr=(i/R)|0,tc=(j/R)|0,nr=(ni/R)|0,nc
   const d=edgePass(tr,tc,nr,nc);if(d==null)return false;if(d===true)return true;
   if(i!==ni&&j!==nj)return false;// 문은 곧게 지난다
   const cx=tr!==nr?(j+.5)/R:Math.max(tc,nc),cz=tr!==nr?Math.max(tr,nr):(i+.5)/R;return Math.hypot(cx-d[0],cz-d[1])<=DOOR_W;}
+/* navPath 작업 배열: W마다 하나. gen을 올려 지난 호출 값을 무효로 만든다 */
+const NAVS={};
+function navScratch(W){let S=NAVS[W];if(!S||S.gen>=2e9){S=NAVS[W]={D:new Float32Array(W*W),P:new Int32Array(W*W),st:new Uint32Array(W*W),hk:new Int32Array(W*W*8+8),hf:new Float64Array(W*W*8+8),gen:0,em:null,eg:null};}
+  S.gen++;return S;}
+/* navWallOk를 칸 쌍마다 기억한다: 큰 칸(r,c)에서 8방향(d) 옆 칸으로. 문 위치가 있으면 작은 칸마다 거리 검사만 다시 한다 */
+function navWallMemo(S,gen){const M=N*N*8;if(!S.em||S.em.length!==M){S.em=new Array(M);S.eg=new Uint32Array(M);}const em=S.em,eg=S.eg,R=NAV_R;
+  return (i,j,ni,nj)=>{const tr=(i/R)|0,tc=(j/R)|0,nr=(ni/R)|0,nc=(nj/R)|0;if(tr===nr&&tc===nc)return true;
+    const di=nr-tr+1,dj=nc-tc+1,q=(tr*N+tc)*8+(di*3+dj>4?di*3+dj-1:di*3+dj);
+    let d;if(eg[q]===gen)d=em[q];else{d=tr!==nr&&tc!==nc?(diagPass(tr,tc,nr,nc)?true:null):edgePass(tr,tc,nr,nc);em[q]=d;eg[q]=gen;}
+    if(d==null)return false;if(d===true)return true;
+    if(i!==ni&&j!==nj)return false;// 문은 곧게 지난다
+    const cx=tr!==nr?(j+.5)/R:Math.max(tc,nc),cz=tr!==nr?Math.max(tr,nr):(i+.5)/R;return Math.hypot(cx-d[0],cz-d[1])<=DOOR_W;};}
 /* A* 경로: 작은 칸 단위. 목표에 못 가면 가장 가까운 곳까지. 반환: 작은 칸 중심점 목록(꺾이는 곳만) */
 function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(cls),W=g.W,C=g.cost;
   const cl=v=>Math.max(0,Math.min(W-1,v));let s=cl(Math.floor(u.z*NAV_R))*W+cl(Math.floor(u.x*NAV_R));const gi=cl(Math.floor(z*NAV_R)),gj=cl(Math.floor(x*NAV_R)),goal=gi*W+gj;
@@ -1590,20 +1633,25 @@ function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(
   if(!C[s]){// 장애물 안에 끼어 있으면 가장 가까운 빈 칸으로 먼저 나온다
     const si=Math.floor(s/W),sj=s%W;let bk=-1,bd=1e9;for(let a=-4;a<=4;a++)for(let b=-4;b<=4;b++){const i=si+a,j=sj+b;if(i<0||j<0||i>=W||j>=W||!C[i*W+j])continue;const d=a*a+b*b;if(d<bd){bd=d;bk=i*W+j;}}
     if(bk<0)return [];s=bk;pre.push([(bk%W+.5)/NAV_R,(Math.floor(bk/W)+.5)/NAV_R]);}
-  const D=new Float32Array(W*W).fill(Infinity),P=new Int32Array(W*W).fill(-1),done=new Uint8Array(W*W);
+  // 작업 배열은 지도 크기마다 하나씩 두고 다시 쓴다(부를 때마다 새로 만들면 느리다). gen 도장이 이번 호출 값이면 유효, 아니면 D=∞·P=-1·done=0
+  const S=navScratch(W);const gen=S.gen,D=S.D,P=S.P,st=S.st,g2=gen*2,g3=gen*2+1;   // st: gen*2 = 열림(D·P 유효), gen*2+1 = 닫힘
   // 휴리스틱을 조금 부풀려(×1.15) 훑는 칸 수를 줄인다. 경로는 거의 최단 그대로
   const H=k=>{const i=(k/W)|0,di=i>gi?i-gi:gi-i,j=k-i*W,dj=j>gj?j-gj:gj-j;return (di>dj?di+.414*dj:dj+.414*di)*1.15;};
-  const hk=[],hf=[];const push=(k,f)=>{hk.push(k);hf.push(f);let i=hk.length-1;while(i>0){const p=(i-1)>>1;if(hf[p]<=hf[i])break;[hk[p],hk[i]]=[hk[i],hk[p]];[hf[p],hf[i]]=[hf[i],hf[p]];i=p;}};
-  const pop=()=>{const k=hk[0];const lk=hk.pop(),lf=hf.pop();if(hk.length){hk[0]=lk;hf[0]=lf;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<hk.length&&hf[l]<hf[m])m=l;if(r<hk.length&&hf[r]<hf[m])m=r;if(m===i)break;[hk[m],hk[i]]=[hk[i],hk[m]];[hf[m],hf[i]]=[hf[i],hf[m]];i=m;}}return k;};
+  const hk=S.hk,hf=S.hf;let hn=0;
+  const push=(k,f)=>{let i=hn++;while(i>0){const p=(i-1)>>1;if(hf[p]<=f)break;hk[i]=hk[p];hf[i]=hf[p];i=p;}hk[i]=k;hf[i]=f;};
+  const pop=()=>{const k=hk[0];hn--;if(hn>0){const lk=hk[hn],lf=hf[hn];let i=0;for(;;){const l=2*i+1,r=l+1;let m=i,mf=lf;if(l<hn&&hf[l]<mf){m=l;mf=hf[l];}if(r<hn&&hf[r]<mf)m=r;if(m===i)break;hk[i]=hk[m];hf[i]=hf[m];i=m;}hk[i]=lk;hf[i]=lf;}return k;};
   const walls=(cls==='inf'||cls==='eng')&&typeof edgePass==='function';
-  D[s]=0;push(s,H(s));let best=s,bh=H(s),n=0;
-  while(hk.length&&n++<120000){const k=pop();if(done[k])continue;done[k]=1;if(k===goal){best=k;break;}const h=H(k);if(h<bh){bh=h;best=k;}
-    const i=Math.floor(k/W),j=k%W;
-    for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){if(!a&&!b)continue;const ni=i+a,nj=j+b;if(ni<0||nj<0||ni>=W||nj>=W)continue;const nk=ni*W+nj;const c=C[nk];if(!c||done[nk])continue;
+  // 칸 경계를 지날 수 있는지(navWallOk)는 이번 길찾기 동안 지도가 그대로라 칸 쌍마다 한 번만 계산한다
+  const wok=walls?navWallMemo(S,gen):null;
+  D[s]=0;P[s]=-1;st[s]=gen*2;push(s,H(s));let best=s,bh=H(s),n=0;
+  while(hn&&n++<120000){const k=pop();if(st[k]===g3)continue;st[k]=g3;if(k===goal){best=k;break;}const h=H(k);if(h<bh){bh=h;best=k;}
+    const i=(k/W)|0,j=k-i*W,dk=D[k];
+    for(let a=-1;a<=1;a++){const ni=i+a;if(ni<0||ni>=W)continue;for(let b=-1;b<=1;b++){if(!a&&!b)continue;const nj=j+b;if(nj<0||nj>=W)continue;const nk=ni*W+nj;const c=C[nk];if(!c||st[nk]===g3)continue;
       if(a&&b&&(!C[i*W+nj]||!C[ni*W+j]))continue;
-      if(walls&&!navWallOk(i,j,ni,nj))continue;
-      const nd=D[k]+c*(a&&b?1.414:1);if(nd<D[nk]){D[nk]=nd;P[nk]=k;push(nk,nd+H(nk));}}}
-  const cells=[];let k=best;while(k!==s&&k>=0){cells.push(k);k=P[k];}cells.reverse();
+      if(walls&&!wok(i,j,ni,nj))continue;
+      const nd=dk+c*(a&&b?1.414:1);if(nd<(st[nk]>=g2?D[nk]:Infinity)){D[nk]=nd;P[nk]=k;st[nk]=g2;push(nk,nd+H(nk));}}}}
+  const Pk=k=>st[k]>=gen*2?P[k]:-1;
+  const cells=[];let k=best;while(k!==s&&k>=0){cells.push(k);k=Pk(k);}cells.reverse();
   // 방향이 바뀌는 곳만 남긴다
   const out=pre.slice();let pd=null;const pt=c=>[(c%W+.5)/NAV_R,(Math.floor(c/W)+.5)/NAV_R];
   const tileOf=c=>[((c/W|0)/NAV_R)|0,((c%W)/NAV_R)|0];
@@ -2523,8 +2571,14 @@ function menTrailNear(u,m){const T=u._tr||[];const a=tileAt(m.x,m.z);let best=nu
   for(const p of T){const b=tileAt(p[0],p[1]);if(!b)continue;const same=a&&((a.t==='bldg')===(b.t==='bldg'))&&(a.t!=='bldg'||a.blk===b.blk);const d=Math.hypot(p[0]-m.x,p[1]-m.z)+(same?0:5);if(d<bd){bd=d;best=p;}}
   return best;}
 /* 점 p에서 옆(nx,nz) 방향으로 몇 칸까지 비어 있는가(벽·건물 전까지, 최대 lim) */
-function menFree(u,x,z,nx,nz,lim){let d=0;const a=tileAt(x,z);for(let s=.05;s<=lim+1e-6;s+=.05){if(!menClear(u,x,z,x+nx*s,z+nz*s))break;
-    const t=tileAt(x+nx*s,z+nz*s);if(t&&t.t==='bldg'&&t!==a&&!(typeof sameBlk==='function'&&sameBlk(t,a)))break;   // 옆으로 비켜서다 문으로 남의 건물에 들어가지 않는다
+function menFree(u,x,z,nx,nz,lim){let d=0;const a=tileAt(x,z);
+  // menClear(u,x,z,…)를 그대로 풀어 쓴 것(결과 같음). 이동 격자는 이 안에서 바뀌지 않으니 한 번만 찾는다(성능)
+  const ty=u.type,cls=typeof navCls==='function'?navCls(u):null,fly=UT[ty].fly,r0=Math.floor(z),c0=Math.floor(x);let g=null;
+  for(let s=.05;s<=lim+1e-6;s+=.05){const x2=x+nx*s,z2=z+nz*s;const r=Math.floor(z2),c=Math.floor(x2);
+    const t=inb(r,c)?G.map[r][c]:null;if(!t||!(mcost(ty,t)<Infinity))break;
+    if(cls){if(!g)g=navGrid(cls);const j=Math.floor(x2*NAV_R),i=Math.floor(z2*NAV_R);if(i<0||j<0||i>=g.W||j>=g.W||!(g.cost[i*g.W+j]>0))break;}
+    if(!fly&&(r!==r0||c!==c0)&&typeof wallCross==='function'&&wallCross(u,x,z,x2,z2))break;
+    if(t.t==='bldg'&&t!==a&&!(typeof sameBlk==='function'&&sameBlk(t,a)))break;   // 옆으로 비켜서다 문으로 남의 건물에 들어가지 않는다
     d=s;}return d;}
 /* 이 분대가 지금 위협을 받는가: 제압, 최근 사격, 최근 피격 */
 function menThreat(u){const t=G.time||0;return u.supp>0||t-(u.firedT??-99)<MEN.threatT||t-(u._hitT??-99)<MEN.threatT;}
@@ -3691,7 +3745,7 @@ function memPut(n,e,x,z,how){const M=memOf(n);const o=M[e.id];const t=G.time||0;
 function memTick(){const t=G.time||0;
   for(const n of G.order){if(!G.nats[n]||!G.nats[n].alive)continue;const M=memOf(n);
     for(const e of G.units){if(e.nat===n||UT[e.type].fly)continue;if(seen(e,n))memPut(n,e,e.x,e.z,'see');}
-    for(const id in M){const o=M[id];if(t-o.t>CMB.memT||!G.units.some(u=>String(u.id)===id))delete M[id];}}}
+    let ids=null;for(const id in M){const o=M[id];if(t-o.t>CMB.memT){delete M[id];continue;}if(!ids)ids=new Set(G.units.map(u=>String(u.id)));if(!ids.has(id))delete M[id];}}}
 /* 총구 섬광: 쏜 적 근처(9칸)에서 그쪽이 트인 부대가 있으면 대강의 자리를 안다 */
 function memFlash(a){const t=G.time||0;if((a._flT||0)>t)return;a._flT=t+1;if(UT[a.type].ind||UT[a.type].fly)return;const [ax,az]=posOf(a),ae=eye(a);
   for(const n of G.order){if(n===a.nat||!G.nats[n]||!G.nats[n].alive)continue;const o=memOf(n)[a.id];if(o&&t-o.t<1.5)continue;
@@ -5432,7 +5486,7 @@ function msnThink(n){tacThink(n);for(const p of tacPl())if(p.nat===n&&p.human)ms
    - 공격헬기는 지휘점수 12로 비싸지고 화력이 조금 줄었다.
    - 손실 원인: 출혈·차량 포기처럼 쏜 쪽 없이 끝난 손실은 마지막으로 피해를 준 부대 몫으로 센다(90초 안).
      화력 지원(포격·폭격)으로 죽은 경우 u._cause에 그 종류를 남긴다. */
-const POL={vcommit:6,vsettle:8,vturn:1.05,truckHot:3.2,truckFlee:30,truckIdle:45,lastBy:90,ffR:{arty:3,air:1.5,tbm:2.2,cruise:1.6}};
+const POL={vcommit:6,vsettle:8,vturn:1.05,truckHot:3.2,truckFlee:30,truckIdle:25,lastBy:90,ffR:{arty:3,air:1.5,tbm:2.2,cruise:1.6}};
 /* ---------- 차량 명령 고정 ---------- */
 const polEnd=u=>u.path&&u.path.length?u.path[u.path.length-1]:null;
 {const _ai=aiThink;aiThink=function(n){const t=G.time||0;const snap=new Map();
@@ -5458,7 +5512,9 @@ if(typeof supTick==='function'){
   const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!isAI(u.nat)||!G.units.includes(u))return;const t=G.time||0;
     const hot=hotAt(u.nat,u.x,u.z,POL.truckHot)||t-(u._hitT??-99)<6;
     if(hot&&!atDepot(u)&&!(u.lj&&u.lj.k==='home'&&u.path&&u.path.length)){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');return;}
-    if(idle(u)&&!atDepot(u)&&!u._srv&&!(u.lj&&u.lj.k==='serve')){if(u._idleT==null)u._idleT=t;else if(t-u._idleT>POL.truckIdle){u._idleT=null;supHome(u);}}else u._idleT=null;};
+    // 할 일 없이 서 있으면: 짐이 넉넉하면 전선 뒤 안전한 곳(아군 중심에서 보급소 쪽 3칸)으로 나가 기다리고, 모자라면 보급소로
+    if(idle(u)&&!u._srv&&!(u.lj&&u.lj.k==='serve')){if(u._idleT==null)u._idleT=t;else if(t-u._idleT>POL.truckIdle){u._idleT=null;
+      if((u.cargo??CARGO)<40){if(!atDepot(u))supHome(u);}else{const P=polStage(u,3);if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)>2.5){u.lj={k:'stage'};u.path=pathPts(u,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}}}}else u._idleT=null;};
   const _ss=supSend;supSend=function(u,e){if(isAI(u.nat)&&hotAt(u.nat,e.x,e.z,POL.truckHot)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}return _ss(u,e);};}
 if(typeof aiLogi==='function'){const _al=aiLogi;aiLogi=function(n){_al(n);
   for(const u of G.units){if(u.nat!==n||!amMax(u)||u.rearm||amOf(u)>=1||inZone(n,u.r,u.c)||u.brk||UT[u.type].fly)continue;
@@ -5512,6 +5568,39 @@ if(typeof vAimPt==='function'){
     for(const m of Object.values(memOf(u.nat))){if((G.time||0)-m.t>15)continue;const d=Math.hypot(m.x-u.x,m.z-u.z);if(d<bd){bd=d;best=m;}}
     if(!best)return null;u._aim=Math.atan2(best.z-u.z,best.x-u.x)*180/Math.PI;u._aimT=G.time||0;return null;};}
 if(typeof VEH==='object'){if(VEH.tank)VEH.tank.tol=8;if(VEH.ifv)VEH.ifv.tol=12;}
+/* ---------- 노는 지원 부대에 일 주기 ---------- */
+// 전선: 세력 n의 지상 전투 부대(보급·구급·곡사 제외) 중심. 대기 자리는 거기서 보급소 쪽으로 back칸, 적이 4.5칸 안에 보이면 더 뒤로.
+function polFront(n){let x=0,z=0,k=0;for(const u of G.units){if(u.nat!==n)continue;const t=UT[u.type];if(t.fly||t.logi||t.ind||u.type==='amb'||!t.rng[1])continue;x+=u.x;z+=u.z;k++;}return k?[x/k,z/k]:null;}
+function polStage(u,back){const n=u.nat;const d=depotOf(n);const f=polFront(n);if(!f)return null;const dx=d.x-f[0],dz=d.z-f[1],L=Math.hypot(dx,dz)||1;
+  for(const k of [back,back+1.5,back+3]){const x=f[0]+dx/L*Math.min(k,L),z=f[1]+dz/L*Math.min(k,L);if(!hotAt(n,x,z,4.5)){const tl=tileAt(x,z);if(tl&&mcost(u.type,tl)<Infinity)return [x,z];}}return null;}
+// 구난차: 고칠 차가 없으면 전선 뒤 4칸에서 기다린다(보급소에 서 있으면 멀리서 고장 난 차까지 너무 오래 걸린다)
+if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!isAI(u.nat)||!G.units.includes(u))return;
+  if(u.tow!=null||u.lj||!idle(u)||u._fixing){u._idleT=null;return;}if(u._idleT==null){u._idleT=t;return;}if(t-u._idleT<POL.truckIdle)return;u._idleT=null;
+  const P=polStage(u,4);if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)>2.5){u.path=pathPts(u,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}};}
+// 구급차: 25초 넘게 할 일이 없으면 전선 4.5칸 뒤로 나가 기다린다(기다리는 구급차는 가까운 응급 후송 지점이 된다)
+if(typeof ambTick==='function'){const _ab=ambTick;ambTick=function(a,dt,t){_ab(a,dt,t);if(!isAI(a.nat)||!G.units.includes(a))return;
+  if(a.mj||(a.load&&a.load.length)||(a.path&&a.path.length)||a.towBy!=null||hotAt(a.nat,a.x,a.z,4)){a._idleT=null;return;}
+  if(a._idleT==null){a._idleT=t;return;}if(t-a._idleT<POL.truckIdle)return;a._idleT=null;
+  const P=polStage(a,4.5);if(P&&Math.hypot(P[0]-a.x,P[1]-a.z)>2.5){a.path=pathPts(a,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}};}
+// 박격포: 20초 넘게 쏠 것이 없으면 기억하는 가장 가까운 적(없으면 가장 가까운 남의 거점)에서 자기 쪽으로 5.5칸 물러난 자리로 옮긴다
+const polObjs=()=>{if(G._pobj&&G._pobj.ver===G.map)return G._pobj.l;const l=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(G.map[r][c].obj!=null)l.push([r,c]);Object.defineProperty(G,'_pobj',{value:{ver:G.map,l},writable:true,configurable:true,enumerable:false});return l;};
+function polMortar(u){const n=u.nat,t=G.time||0;if(u.path&&u.path.length||t-(u.firedT??-99)<20||t-(u._pmT??-99)<15)return;u._pmT=t;
+  let tg=null,bd=1e9;if(typeof memOf==='function')for(const m of Object.values(memOf(n))){if(t-m.t>40)continue;const d=Math.hypot(m.x-u.x,m.z-u.z);if(d<bd){bd=d;tg=[m.x,m.z];}}
+  if(!tg)for(const [r,c] of polObjs()){if(G.map[r][c].owner===n)continue;const d=Math.hypot(c+.5-u.x,r+.5-u.z);if(d<bd){bd=d;tg=[c+.5,r+.5];}}
+  if(!tg)return;const dp=depotOf(n);const dx=dp.x-tg[0],dz=dp.z-tg[1],L=Math.hypot(dx,dz)||1;const want=UT[u.type].rng[1]-1.5;
+  const x=tg[0]+dx/L*Math.min(want,L),z=tg[1]+dz/L*Math.min(want,L);if(Math.hypot(x-u.x,z-u.z)<1.5||hotAt(n,x,z,2.5))return;
+  const tl=tileAt(x,z);if(!tl||tl.t==='bldg'||mcost(u.type,tl)===Infinity)return;const P=pathPts(u,x,z);if(P.length){u.path=P;u.dest=[x,z];if(typeof tacN==='function')tacN('mortarMove');}}
+{const _ai=aiThink;aiThink=function(n){_ai(n);if(G.over)return;for(const u of G.units)if(u.nat===n&&u.type==='mortar')try{polMortar(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+// 구급차 구매 상한: 한 판에 세력마다 작은·중간 지도 2대, 큰 지도 3대까지(살아 있는 수 상한은 05m-med가 따로 둔다)
+if(typeof aiMedBuy==='function'){const _mb=aiMedBuy;aiMedBuy=function(n){G.ambN=G.ambN||{};const c0=G.units.filter(u=>u.nat===n&&u.type==='amb').length;
+  if((G.ambN[n]||0)>=(G.size==='l'?3:2))return;_mb(n);const c1=G.units.filter(u=>u.nat===n&&u.type==='amb').length;if(c1>c0)G.ambN[n]=(G.ambN[n]||0)+c1-c0;};}
+// 막힌 지원 차량: 길이 있는데 8초 동안 0.3칸도 못 갔으면 같은 목적지를 다시 받지 않게 그 일을 내려놓는다(그 부대는 40초 동안 건너뜀)
+function polStuck(){const t=G.time||0;for(const u of G.units){const ty=UT[u.type];if(!(ty.logi||u.type==='amb')||u.towBy!=null)continue;
+  if(!(u.path&&u.path.length)){u._psT=null;continue;}
+  if(u._psT==null||Math.hypot(u.x-u._psX,u.z-u._psZ)>.3){u._psT=t;u._psX=u.x;u._psZ=u.z;continue;}
+  if(t-u._psT<8)continue;u._psT=null;const id=u.lj&&u.lj.id!=null?u.lj.id:u.mj&&u.mj.id!=null?u.mj.id:null;
+  if(id!=null){(u.nog=u.nog||{})[id]=t+40;if(u.type==='amb'){G.ambNog=G.ambNog||{};(G.ambNog[u.nat]=G.ambNog[u.nat]||{})[id]=t+40;}}u.path=[];u.dest=null;if(u.type!=='amb'||!(u.load&&u.load.length))u.lj=null;if(u.mj&&u.mj.k!=='flee')u.mj=null;u._auT=t+3;u._idleT=null;if(typeof tacN==='function')tacN('logiStuck');}}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;const t=G.time||0;if((G._pstT||0)>t)return;G._pstT=t+1;try{polStuck();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 
 /* ---- 06z-radio-ai.js ---- */
 /* ===================== AI 명령도 무전으로 =====================

@@ -140,12 +140,18 @@ function spots(u,e){const t=UT[e.type];if(typeof stairHid==='function'&&stairHid
 /* spots()가 쓰는 시야 거리의 상한: 가장 먼 병종 시야 + 고층 보너스 2 + 차량·항공 1 + 날씨 */
 function visMax(){const w=G.wx;if(G._vmx&&G._vmx.w===w)return G._vmx.v;let m=0;for(const k in UT)m=Math.max(m,UT[k].vis||0);
   const v=m+3+Math.max(0,WX[w].vis)+(G.elv?2:0);Object.defineProperty(G,'_vmx',{value:{w,v},writable:true,configurable:true,enumerable:false});return v;}
+/* seen 캐시 열쇠. 예전 문자열 열쇠 e.id+':'+e.r+','+e.c 와 똑같이 갈린다(문자열 "16"과 숫자 16은 같은 열쇠).
+   흔한 경우(정수 id, 지도 안 칸)는 숫자로 만들어 빠르게 */
+const seenInt=v=>typeof v==='number'?(Number.isInteger(v)?v:null):typeof v==='string'&&v!==''&&String(+v)===v&&Number.isInteger(+v)?+v:null;
+function seenKey(e){const id=seenInt(e.id),r=seenInt(e.r),c=seenInt(e.c);
+  if(id!==null&&r!==null&&c!==null&&Math.abs(id)<1e9&&r>=0&&c>=0&&r<N&&c<N)return (id*N+r)*N+c;return e.id+':'+e.r+','+e.c;}
 function seen(e,n,vs){if(!G.fog||e.nat===n)return true;
   const ck='s'+n;G._sc=G._sc||{};const tq=Math.floor((G.time||0)*4);let c=G._sc[ck];if(!c||c.ver!==G.ver||c.tq!==tq){c=G._sc[ck]={ver:G.ver,tq,m:new Map()};}
-  const pk=e.id+':'+e.r+','+e.c;if(c.m.has(pk))return c.m.get(pk);
+  const pk=seenKey(e);if(c.m.has(pk))return c.m.get(pk);
   // 시야 거리가 아무리 길어도 닿지 않는 부대는 시야선 계산 없이 건너뛴다(성능)
   const [ex,ez]=posOf(e),V=visMax()+1.5;
-  let ok=false;for(const u of G.units){if(u.nat!==n)continue;const [ux,uz]=posOf(u);if(Math.abs(ux-ex)>V||Math.abs(uz-ez)>V)continue;if(spots(u,e)){ok=true;break;}}
+  let ok=false;for(const u of G.units){if(u.nat!==n)continue;const at=u.x!=null&&Math.floor(u.x)===u.c&&Math.floor(u.z)===u.r;const ux=at?u.x:u.c+.5,uz=at?u.z:u.r+.5;   // posOf(u)를 풀어 씀(배열을 안 만든다)
+    if(Math.abs(ux-ex)>V||Math.abs(uz-ez)>V)continue;if(spots(u,e)){ok=true;break;}}
   c.m.set(pk,ok);return ok;}
 
 /* ---------- 사격 가능 판정 ---------- */
