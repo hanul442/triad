@@ -60,11 +60,11 @@ function medTick(dt){const t=G.time||0;G.med=G.med||[];
 function ambWant(n,x,z,R){// 부상자가 기다리는 분대(중상자가 있고 아직 업혀 가지 않은)
   let best=null,bs=0;for(const o of G.units){if(o.nat!==n||!o.ws)continue;const hw=o.ws.filter(w=>w.s==='hw'&&!w.y).length+(G.evac||[]).filter(p=>p.nat===n&&p.u===o.id&&p.ph==='out').length;if(!hw)continue;
     if(inZone(n,o.r,o.c))continue;const d=Math.hypot(o.x-x,o.z-z);if(d>R)continue;
-    if(G.units.some(a=>a.type==='amb'&&a.nat===n&&a.mj&&a.mj.id===o.id))continue;const s=hw/(1+d*.15);if(s>bs){bs=s;best=o;}}
+    if(G.units.some(a=>a.type==='amb'&&a.nat===n&&a.mj&&a.mj.id===o.id))continue;if(ambNo(n,o.id)||ambDanger(n,o.x,o.z,1))continue;const s=hw/(1+d*.15);if(s>bs){bs=s;best=o;}}
   return best;}
 /* 분대 뒤(출발 지역 쪽) 안전한 자리 */
 function ambSpot(a,o){const b=ccpBase(a.nat);const dx=b.x-o.x,dz=b.z-o.z,d=Math.hypot(dx,dz)||1;
-  for(const k of [1.2,1.7,2.3,3]){const x=o.x+dx/d*k,z=o.z+dz/d*k;const t=tileAt(x,z);if(!t||t.t==='bldg'||t.t==='water')continue;if(hotAt(a.nat,x,z,2.2))continue;if(!navOk(a,x,z))continue;return [x,z];}
+  for(const k of [1.2,1.7,2.3,3]){const x=o.x+dx/d*k,z=o.z+dz/d*k;const t=tileAt(x,z);if(!t||t.t==='bldg'||t.t==='water')continue;if(ambDanger(a.nat,x,z))continue;if(!navOk(a,x,z))continue;return [x,z];}
   return null;}
 function ambUnload(a){const fac=ccpOf(a.nat,a.x,a.z,false);for(const l of a.load||[])medQueue(a.nat,fac,l.u,l.i);
   if((a.load||[]).length&&(!isAI(a.nat)||!G.fog||a.nat===G.viewer))L(`${natName(a.nat)} 구급차 부상자 ${a.load.length}명을 ${MED[fac.k].n}에 내려놓음`);a.load=[];a.mj=null;}
@@ -103,7 +103,7 @@ function aiMedBuy(n){const N2=G.nats[n];const mine=G.units.filter(u=>u.nat===n);
 /* ---------- 남겨진 부상자 수습 ----------
    분대가 끝난 자리에 쓰러진 중상자(G.cas)는 예전엔 지나가던 분대가 2칸 안에 와야만 데려갔다.
    이제 구급차가 빈 틈에 직접 실으러 가고, AI는 근처에서 쉬고 있는 분대를 보내 데려온다. */
-function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat!==n||o.taken)continue;const d=Math.hypot(o.x-x,o.z-z);if(d>=bd)continue;if(hotAt(n,o.x,o.z,2.2))continue;bd=d;best=o;}return best;}
+function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat!==n||o.taken)continue;const d=Math.hypot(o.x-x,o.z-z);if(d>=bd)continue;if((o._ambNo||0)>(G.time||0)||ambDanger(n,o.x,o.z))continue;bd=d;best=o;}return best;}
 {const _at=ambTick;ambTick=function(a,dt,t){a.load=a.load||[];const j=a.mj;
   if(j&&j.k==='orph'){const o=(G.cas||[]).find(q=>q.id===j.id);
     if(!o||t-(a._hitT||-99)<3||hotAt(a.nat,a.x,a.z,1.8)){if(o)o.taken=0;a.mj=null;a.path=[];return;}
@@ -130,3 +130,31 @@ function aiOrphan(n){if(!G.cas||!G.cas.length)return;const t=G.time||0;
       const d=Math.hypot(u.x-o.x,u.z-o.z);if(d<bd){bd=d;best=u;}}
     if(best){o._call=t;orderMoveTo(best,o.x,o.z);}}}
 {const _ai=aiThink;aiThink=function(n){if(!G.over)try{aiOrphan(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}return _ai(n);};}
+
+/* ---------- 구급차 안전 (보급 트럭과 같은 규칙, 06e-polish) ----------
+   적이 3.2칸 안에 보이거나 방금 맞았으면 하던 일을 버리고 물러난다(실었으면 시설로, 아니면 환자집결지로).
+   그 분대·부상자는 30초 동안 다시 찾아가지 않는다. 교전 중인 곳(둘레에서 적이 방금 쐈거나 아군이 제압당한 곳)엔 들어가지 않는다.
+   AI는 구급차를 잃으면 60초 동안 새로 사지 않는다. */
+const AMBS={hot:3.2,hit:6,flee:30,fight:5,rebuy:60};
+function ambDanger(n,x,z,sq){if(hotAt(n,x,z,AMBS.hot))return true;const t=G.time||0;
+  for(const e of G.units){if(e.nat===n||!hostile(e.nat,n)||UT[e.type].fly)continue;if(!firedRecently(e))continue;if(G.fog&&!seen(e,n))continue;if(Math.hypot(e.x-x,e.z-z)<AMBS.fight)return true;}
+  if(!sq&&G.units.some(u=>u.nat===n&&UT[u.type].cls==='inf'&&(u.supp||0)>.8&&Math.hypot(u.x-x,u.z-z)<2))return true;   // 분대 자체가 제압당하는 중이면 그 뒤로는 간다(sq)
+  return false;}
+function ambNo(n,id){const m=G.ambNog&&G.ambNog[n];return !!(m&&m[id]>(G.time||0));}
+function ambFlee(a,t){const j=a.mj;G.ambNog=G.ambNog||{};const m=G.ambNog[a.nat]=G.ambNog[a.nat]||{};
+  if(j&&j.id!=null){if(j.k==='orph'){const o=(G.cas||[]).find(q=>q.id===j.id);if(o){o.taken=0;o._ambNo=t+AMBS.flee;}}else m[j.id]=t+AMBS.flee;}
+  if(a.load.length){a.mj={k:'go'};const f=ccpOf(a.nat,a.x,a.z,false);a.path=pathPts(a,f.x,f.z);}
+  else{const b=ccpBase(a.nat);a.mj={k:'flee'};a.path=pathPts(a,b.x,b.z);}
+  a._auT=t+4;a._oT=t+4;if(typeof tacN==='function')tacN('ambFlee');}
+{const _at=ambTick;ambTick=function(a,dt,t){a.load=a.load||[];const j=a.mj;
+  const hot=hotAt(a.nat,a.x,a.z,AMBS.hot)||t-(a._hitT??-99)<AMBS.hit;
+  if(hot&&!a.hold&&!(j&&(j.k==='go'||j.k==='flee'))){const b=ccpBase(a.nat);if(Math.hypot(b.x-a.x,b.z-a.z)>1.5){ambFlee(a,t);return;}}
+  if(j&&j.k==='flee'){if(!(a.path&&a.path.length))a.mj=null;return;}
+  // 가는 길에 목적지가 교전으로 바뀌면 멈춘다
+  if(j&&(j.k==='move'||j.k==='orph')&&a.path&&a.path.length&&(a._dzT||0)<t){a._dzT=t+1;const p=a.path[a.path.length-1];if(ambDanger(a.nat,p[0],p[1],j.k==='move')){ambFlee(a,t);return;}}
+  return _at(a,dt,t);};}
+// 플레이어가 직접 옮기면 물러나기는 끝
+{const _om=orderMoveTo;orderMoveTo=function(u,x,z){if(u&&u.type==='amb'&&u.mj&&u.mj.k==='flee')u.mj=null;return _om(u,x,z);};}
+// AI: 구급차를 막 잃었으면 바로 다시 사지 않는다
+{const _k=kill;kill=function(u,by){if(u&&u.type==='amb'&&G.units.includes(u)){G.ambLost=G.ambLost||{};G.ambLost[u.nat]=G.time||0;}return _k(u,by);};}
+{const _mb=aiMedBuy;aiMedBuy=function(n){if(G.ambLost&&(G.time||0)-(G.ambLost[n]??-999)<AMBS.rebuy)return;return _mb(n);};}
