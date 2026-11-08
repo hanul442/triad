@@ -30,7 +30,7 @@ function memPut(n,e,x,z,how){const M=memOf(n);const o=M[e.id];const t=G.time||0;
 function memTick(){const t=G.time||0;
   for(const n of G.order){if(!G.nats[n]||!G.nats[n].alive)continue;const M=memOf(n);
     for(const e of G.units){if(e.nat===n||UT[e.type].fly)continue;if(seen(e,n))memPut(n,e,e.x,e.z,'see');}
-    for(const id in M){const o=M[id];if(t-o.t>CMB.memT||!G.units.some(u=>String(u.id)===id))delete M[id];}}}
+    let ids=null;for(const id in M){const o=M[id];if(t-o.t>CMB.memT){delete M[id];continue;}if(!ids)ids=new Set(G.units.map(u=>String(u.id)));if(!ids.has(id))delete M[id];}}}
 /* 총구 섬광: 쏜 적 근처(9칸)에서 그쪽이 트인 부대가 있으면 대강의 자리를 안다 */
 function memFlash(a){const t=G.time||0;if((a._flT||0)>t)return;a._flT=t+1;if(UT[a.type].ind||UT[a.type].fly)return;const [ax,az]=posOf(a),ae=eye(a);
   for(const n of G.order){if(n===a.nat||!G.nats[n]||!G.nats[n].alive)continue;const o=memOf(n)[a.id];if(o&&t-o.t<1.5)continue;
