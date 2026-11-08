@@ -51,8 +51,11 @@ function vbBoom(u,k){if(u._boom)return;u._boom=1;const x=u.x,z=u.z,R=DEMO.vbR*k,
   if(typeof fortBlast==='function')fortBlast(x,z,R*.8,120*k);ubBlast(x,z,R,n);L(`${natName(n)} 자폭 차량 폭발`);
   if(G.units.includes(u)){FXH.kill(u);G.units=G.units.filter(o=>o!==u);if(UI.sel===u)UI.sel=null;}bump();}
 {const _k=kill;kill=function(u,by){if(u.type==='vbied'&&!u._boom&&G.units.includes(u)){if(Math.random()<.6){vbBoom(u,.7);if(G.nats[u.nat])G.nats[u.nat].losses++;if(by&&G.nats[by.nat])G.nats[by.nat].kills++;return;}}return _k(u,by);};}
+/* 차체가 있는 차량(05b2-motion)은 서로 파고들지 않으니, 차체 길이만큼 더 가까이 붙었으면 닿은 것으로 친다 */
+if(typeof VEH!=='undefined'&&!VEH.vbied)VEH.vbied={hl:.2,hw:.09,trav:0,tol:180};
+function vbReach(u,e){if(typeof VEH==='undefined')return .6;const a=VEH[u.type],b=UT[e.type].cls==='veh'?VEH[e.type]||{hl:.25}:null;return Math.max(.6,(a?a.hl:0)+(b?b.hl:0)+.2);}
 function vbTick(u){const t=G.time||0;if(u._boom)return;let hit=u.det;
-  if(!hit)for(const e of G.units){if(e.nat===u.nat||UT[e.type].fly||e.tun||e.bsm)continue;if(Math.hypot(e.x-u.x,e.z-u.z)<.6){hit=true;break;}}
+  if(!hit)for(const e of G.units){if(e.nat===u.nat||UT[e.type].fly||e.tun||e.bsm)continue;if(Math.hypot(e.x-u.x,e.z-u.z)<vbReach(u,e)){hit=true;break;}}
   if(!hit&&u.tgtTile!=null){const r=kr(u.tgtTile),c=kc(u.tgtTile);if(Math.hypot(c+.5-u.x,r+.5-u.z)<.95)hit=true;}
   if(hit){vbBoom(u,1);return;}
   // 공격 명령: 표적을 따라가는 길을 3초마다 다시 잡는다(rtFight는 자폭 장비를 쏘게 하지 않는다)

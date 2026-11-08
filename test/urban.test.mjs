@@ -109,7 +109,7 @@ test('자폭 차량: 민병대만 배치하고, 적 가까이 가면 터진다',
   const T = loadGame(); const G = setup(T);
   assert.equal(T.deploySpots(0, 'vbied').length, 0, '정규군은 못 쓴다');
   const v = unit(T, 1, 'vbied', 3.5, 5.5);
-  const tgt = unit(T, 0, 'tank', 8.5, 5.5);
+  const tgt = unit(T, 0, 'tank', 8.5, 5.5); tgt.cd = 1e9;   // 전차가 먼저 쏴서 바퀴를 멈춰 세우면(차량 부위 피해) 닿지 못한다
   T.orderAttack(v, tgt); run(T, 10);
   assert.ok(!G.units.includes(v), '터져서 사라진다');
   assert.ok(tgt.dmgIn > 3, '근처 부대가 크게 다친다');
