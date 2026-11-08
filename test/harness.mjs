@@ -17,6 +17,15 @@ export function loadGame() {
   return ctx.__T;
 }
 
+// 무작위를 고정한다: 이 게임 안의 Math.random만 시드 난수로 바꾼다(다른 테스트에는 영향 없음).
+// 결과가 주사위에 달린 테스트가 가끔 실패하지 않게 쓴다.
+export function seedRandom(T, seed = 1) {
+  let a = seed >>> 0;
+  const M = Object.create(Math);
+  M.random = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  T.__set('Math', M);
+}
+
 // 모든 세력을 AI로 두고(관전 모드) 실시간 한 판을 0.1초씩 끝까지 돌린다.
 export async function playAI(T, cfg = {}) {
   T.newGame({ slots: cfg.slots || ['ai', 'ai', 'none', 'none'], size: cfg.size || 's', diff: cfg.diff || 'normal', fog: cfg.fog ?? true, speed: 0, seed: cfg.seed, maxR: cfg.maxR });

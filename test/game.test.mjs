@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGame, playAI } from './harness.mjs';
+import { loadGame, playAI, seedRandom } from './harness.mjs';
 import { build } from '../build.mjs';
 
 test('빌드 결과가 문법 오류 없이 만들어진다', () => {
@@ -837,7 +837,8 @@ test('차량은 정면보다 측면·후면·위에서 맞을 때 더 다친다'
 });
 
 test('대전차 화기에 맞은 차량은 연막탄을 쏘고 정면을 둔 채 후진한다', () => {
-  const T = loadGame(); const G = setup(T);
+  // 맞은 부위는 주사위로 정해져 가끔 궤도가 끊겨(기동 불능) 후진을 못 한다. 시드를 고정해 후진하는 경우를 본다.
+  const T = loadGame(); seedRandom(T, 1); const G = setup(T);
   const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
   const a = T.mkUnit(0, 'at', 5, 8); a.x = 8.5; a.z = 5.5;
   const harm = F(T, 'harm'); harm(tk, 1, a, { kind: 'blast' });
