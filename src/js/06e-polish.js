@@ -15,19 +15,21 @@ const polEnd=u=>u.path&&u.path.length?u.path[u.path.length-1]:null;
 {const _ai=aiThink;aiThink=function(n){const t=G.time||0;const snap=new Map();
   for(const u of G.units){if(u.nat!==n)continue;const ty=UT[u.type];if(ty.cls!=='veh'||ty.fly||ty.logi)continue;snap.set(u,{p:u.path?u.path.slice():[],e:polEnd(u),d:u.dest});}
   _ai(n);
-  for(const [u,s] of snap){if(!G.units.includes(u))continue;const e=polEnd(u);const c=u._cmE;
+  for(const [u,s] of snap)if(G.units.includes(u))polVeh(u,s,t);};}
+/* 한 차량: s = aiThink 전 {p 길, e 끝, d 목적지} */
+function polVeh(u,s,t){const e=polEnd(u);const c=u._cmE;
     if(!s.e&&c&&Math.hypot(c[0]-u.x,c[1]-u.z)<=.8&&u._arT==null)u._arT=t;          // 도착
-    if(!e)continue;
-    if(s.e&&Math.hypot(e[0]-s.e[0],e[1]-s.e[1])<.6)continue;                       // 같은 길
+    if(!e)return;
+    if(s.e&&Math.hypot(e[0]-s.e[0],e[1]-s.e[1])<.6)return;                       // 같은 길
     const urgent=u.hp<hpMax(u)*.5||u.rearm||u.towBy!=null||(u.vd&&u.vd.mob)||t-(u._hitT??-99)<4;
     // 막 도착한 차량이 몇 칸 뒤로 되돌아가려 하면(왔다 갔다) 그 자리를 지킨다
     if(!urgent&&!s.e&&u._arT!=null&&t-u._arT<POL.vsettle&&Math.hypot(e[0]-u.x,e[1]-u.z)<4){const f=(u.face||0)*Math.PI/180,a2=Math.atan2(e[1]-u.z,e[0]-u.x);
-      if(Math.abs(Math.atan2(Math.sin(f-a2),Math.cos(f-a2)))>POL.vturn+.5){u.path=[];u.dest=null;if(typeof tacN==='function')tacN('vkeep');continue;}}
+      if(Math.abs(Math.atan2(Math.sin(f-a2),Math.cos(f-a2)))>POL.vturn+.5){u.path=[];u.dest=null;if(typeof tacN==='function')tacN('vkeep');return;}}
     if(c&&!urgent&&t-(u._cmT??-99)<POL.vcommit&&Math.hypot(c[0]-u.x,c[1]-u.z)>.6){
       const a1=Math.atan2(c[1]-u.z,c[0]-u.x),a2=Math.atan2(e[1]-u.z,e[0]-u.x);const da=Math.abs(Math.atan2(Math.sin(a1-a2),Math.cos(a1-a2)));
       if(da>POL.vturn){const P=s.p.length&&s.e&&Math.hypot(s.e[0]-c[0],s.e[1]-c[1])<.6?s.p:pathPts(u,c[0],c[1]);
-        if(P.length){u.path=P;u.dest=[c[0],c[1]];if(typeof tacN==='function')tacN('vkeep');continue;}}}
-    u._cmT=t;u._cmE=[e[0],e[1]];u._arT=null;}};}
+        if(P.length){u.path=P;u.dest=[c[0],c[1]];if(typeof tacN==='function')tacN('vkeep');return;}}}
+    u._cmT=t;u._cmE=[e[0],e[1]];u._arT=null;}
 /* ---------- 보급 트럭 ---------- */
 if(typeof supTick==='function'){
   const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!isAI(u.nat)||!G.units.includes(u))return;const t=G.time||0;
