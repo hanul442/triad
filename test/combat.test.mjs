@@ -69,3 +69,22 @@ test('소총분대 편성: 기관총 사수·유탄수·대전차 사수가 있�
   assert.equal(F(T, 'squadRocket')(u), true, '로켓 발사');
   assert.equal(u.rk, 1, '로켓 한 발 남음');
 });
+
+test('전술 AI: 접적하면 기관총은 화력 기반, 소총은 옆으로 돌고, 움직이는 동안은 쏘지 않는다', () => {
+  const T = loadGame(); const G = setup(T, true); G.nats[0].ctrl = 'ai'; G.nats[1].ctrl = 'human';
+  const mg = put(T, 0, 'mg', 4.5, 10.5), r1 = put(T, 0, 'rifle', 4.5, 11.5), r2 = put(T, 0, 'rifle', 4.5, 9.5);
+  const e = put(T, 1, 'rifle', 9.5, 10.5); T.bump(); G.time = 5;
+  F(T, 'memOf')(0)[e.id] = { x: 9.5, z: 10.5, h: .5, t: 5, ty: 'rifle', how: 'see' };
+  F(T, 'tacThink')(0);
+  const p = G.plat.find(q => q.mem.includes(mg.id));
+  assert.ok(p, '소대 편성'); assert.equal(p.st, 'contact');
+  assert.equal(p.roles[mg.id], 'bof');
+  const man = [r1, r2].filter(u => p.roles[u.id] === 'man');
+  assert.ok(man.length >= 1, '측면조 있음');
+  const moved = man.filter(u => u.dest);
+  assert.ok(moved.length >= 1, '측면조가 자리를 잡으러 감');
+  for (const u of moved) { const a = Math.atan2(u.dest[1] - 10.5, u.dest[0] - 9.5); const axis = Math.atan2(10.5 - 10.5, 4.5 - 9.5);
+    const da = Math.abs(Math.atan2(Math.sin(a - axis), Math.cos(a - axis))); assert.ok(da > 0.9, `정면이 아닌 옆(${da.toFixed(2)})`); }
+  const u = moved[0]; u.cd = 0; const cd0 = u.cd; F(T, 'rtFight')(u);
+  assert.equal(u.cd, cd0, '움직이는 측면조는 쏘지 않음');
+});
