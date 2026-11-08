@@ -1,7 +1,7 @@
 // 야간전과 날씨(04e-env) 테스트
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGame } from './harness.mjs';
+import { loadGame, seedRandom } from './harness.mjs';
 
 const F = (T, n) => T.__get(n);
 function setup(T, cfg = {}) {
@@ -84,7 +84,7 @@ test('날씨: 폭우엔 드론을 띄울 수 없고 떠 있던 드론은 떨어�
 });
 
 test('날씨는 몇 라운드씩 이어지며 바뀐다', () => {
-  const T = loadGame(); const G = setup(T, { wx: 'auto' }); G.wx = 'clear';
+  const T = loadGame(); seedRandom(T, 11); const G = setup(T, { wx: 'auto' }); G.wx = 'clear';
   G.tflow = 'fast';   // 기본(보통) 흐름이면 라운드 절반은 날씨 굴림을 건너뛰어 60라운드에 3번도 안 바뀌는 판이 약 10% 나왔다
   const seq = []; for (let i = 0; i < 60; i++) { F(T, 'wxRound')(); seq.push(G.wx); }
   const changes = seq.filter((w, i) => i && w !== seq[i - 1]).length;
