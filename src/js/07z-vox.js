@@ -75,7 +75,7 @@ function voxSubDraw(){const el=typeof document!=='undefined'&&document.getElemen
   el.innerHTML=VOX.lines.map(l=>`<p class="${l.it.jam?'jm':''}${now-l.t>5500?' old':''}"><b style="color:${mapCol(l.it.nat)}">${l.it.who}</b> ${l.it.txt.replace(/</g,'&lt;')}</p>`).join('');el.hidden=!VOX.lines.length||!VOX.sub;
   // 하단 바 바로 위에 붙인다(휴대폰에선 하단 바가 높다). 좁은 화면은 두 줄만
   if(!el.hidden){const ab=document.getElementById(typeof PR!=='undefined'&&PR.on?'press':'actbar');const r=ab&&!ab.hidden?ab.getBoundingClientRect():null;
-    const top=r&&r.height&&!(typeof PR!=='undefined'&&PR.on)?r.top:innerHeight-56;el.style.bottom=Math.max(12,innerHeight-top+8)+'px';
+    let top=r&&r.height&&!(typeof PR!=='undefined'&&PR.on)?r.top:innerHeight-56;const ob=document.getElementById('obj');if(ob&&!ob.hidden){const q=ob.getBoundingClientRect();if(q.height&&q.top<top)top=q.top;}el.style.bottom=Math.max(12,innerHeight-top+8)+'px';
     if(innerWidth<560){const ps=el.querySelectorAll('p');for(let i=0;i<ps.length-2;i++)ps[i].remove();}}}
 /* 줄에서 하나 꺼내 들려준다 */
 function voxPump(){if(VOX.busy||!VOX.q.length||!SFX.on||VOX.mode==='off')return;const test=VOX.q.some(x=>x.k==='test');if(!test&&(typeof G==='undefined'||!G||G.paused||G.boot))return;
