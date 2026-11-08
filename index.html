@@ -3573,6 +3573,10 @@ function tacReact(u){if(!u.tk||tacIdle(u)||u.brk)return;const r=u.tk.role;if(r!=
   const R=UT[u.type].rng[1]+.4;let foe=null;for(const e of G.units){if(e.nat===u.nat||UT[e.type].fly)continue;if(Math.hypot(e.x-u.x,e.z-u.z)>R)continue;if(G.fog&&!selfSees(u,e))continue;if(!canHit(u,e))continue;foe=e;break;}
   if(!foe)return;const objs=coverObjs(u);const s=tacSpot(u,u.x,u.z,[0,.25,.5],(x,z)=>tacCov(x,z,foe.x,foe.z,objs)*4-Math.hypot(x-u.x,z-u.z)*1.5);
   u.path=s&&Math.hypot(s[0]-u.x,s[1]-u.z)>.08?pathPts(u,s[0],s[1]):[];u.dest=null;u.tk.role='react';u.tk.at=t;tacN('react');}
+/* 갇힘 풀기: 길이 있는데 6초 넘게 제자리면 길을 버리고 다음 판단에서 새 자리를 고른다 */
+function tacStall(u){const t=G.time||0;if(tacIdle(u)||u.climb){u._tst=null;return;}const p=u._tst;
+  if(!p||Math.hypot(p[0]-u.x,p[1]-u.z)>.12){u._tst=[u.x,u.z,t];return;}
+  if(t-p[2]>6){u._tst=null;u.path=[];u.dest=null;u.tk.at=-99;tacN('unstick');}}
 /* ---------- 엔진에 끼우기 ---------- */
 {const _ai=aiThink;aiThink=function(n){let hid=[];try{tacThink(n);hid=G.units.filter(u=>u.nat===n&&u.tk&&tacUnit(u)&&u.pl&&!u.job);for(const u of hid)u.job=TAC_HIDE;}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}
   try{_ai(n);}finally{for(const u of hid)if(u.job===TAC_HIDE)u.job=null;}};}
@@ -3582,7 +3586,7 @@ const TAC_QUIET={flank:1,ret:1,move:1,bound:1,bof:1,hold:1,cap:1,assault:1};
     if(!G.units.some(e=>e.nat!==u.nat&&!UT[e.type].fly&&Math.hypot(e.x-u.x,e.z-u.z)<1.2))return;}
   return _f(u);};}
 {const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||G.over||!G.units)return;
-  for(const u of G.units)if(u.tk&&u.pl)try{tacReact(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+  for(const u of G.units)if(u.tk&&u.pl)try{tacReact(u);tacStall(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 
 /* ---- 06d-mission.js ---- */
 /* ===================== MISSION: 임무형 지휘 (개선 묶음 B) =====================
