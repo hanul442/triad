@@ -43,7 +43,26 @@ function objLabel(o){const k=objKind(o);return k?`${OBJK[k].ic} ${o.name}`:o.nam
 
 /* ---------- 지도 만들 때: 거점 이름을 땅 모양에 맞춰 다시 붙이고 건물 색을 입힌다 ---------- */
 {const _gm=genMap;genMap=function(seed,objPer){const out=_gm(seed,objPer);try{objAssign(out,seed);}catch(e){}return out;};}
-function objAssign(out,seed){const {map,objs}=out;const R=mulberry((seed|0)^0x5eed0b);
+/* 거점 자리를 넓은 곳으로 옮긴다: 한 칸짜리 집이나 도로에 낀 빈터면 3칸 안에서 큰 건물(4칸 이상)이나 3×3 빈터를 찾는다.
+   정준 거점 하나(목록에서 넷씩 묶인 첫째)로 찾고 나머지 셋은 90도씩 돌린 자리로 옮겨 대칭을 지킨다. */
+function objRelocate(map,objs){const H=map.length;const at=(r,c)=>r>=0&&c>=0&&r<H&&c<H?map[r][c]:null;
+  const rot=(r,c,k)=>{for(let j=0;j<k;j++){const t=r;r=c;c=H-1-t;}return [r,c];};
+  const blkN=(r,c)=>{const x=map[r][c];if(x.t!=='bldg'||x.blk==null)return 0;let n=0;for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++){const y=at(r+a,c+b);if(y&&y.t==='bldg'&&y.blk===x.blk)n++;}return n;};
+  const open=(r,c)=>{const y=at(r,c);return !!y&&y.t!=='road'&&y.t!=='bldg'&&y.t!=='water'&&!y.lm;};
+  const win3=(r,c)=>{for(let a=-2;a<=0;a++)for(let b=-2;b<=0;b++){let ok=true;for(let i=0;i<3&&ok;i++)for(let j=0;j<3;j++){const R=r+a+i,C=c+b+j;if(!(R===r&&C===c)&&!open(R,C)){ok=false;break;}}if(ok)return true;}return false;};
+  const good=(r,c)=>{const x=at(r,c);if(!x||x.t==='road'||x.t==='water')return false;return x.t==='bldg'?blkN(r,c)>=4:win3(r,c);};
+  for(let i=0;i+3<objs.length;i+=4){const o=objs[i];if(good(o.r,o.c))continue;let best=null,bd=99;
+    for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++){const r=o.r+a,c=o.c+b;const d=Math.max(Math.abs(a),Math.abs(b));if(d>=bd||!good(r,c))continue;
+      if(r<3||c<3||r>H-4||c>H-4)continue;
+      // 다른 거점(넷 모두)과 3칸 이상 떨어지게
+      let far=true;for(let j=0;j<objs.length&&far;j++){if(j>=i&&j<i+4)continue;for(let k=0;k<4;k++){}const q=objs[j];for(let k=0;k<4;k++){const [rr,cc]=rot(r,c,k);if(Math.max(Math.abs(rr-q.r),Math.abs(cc-q.c))<3){far=false;break;}}}
+      // 같은 묶음의 회전 복사본끼리도
+      for(let k=1;k<4&&far;k++){const [rr,cc]=rot(r,c,k);if(Math.max(Math.abs(rr-r),Math.abs(cc-c))<4)far=false;}
+      if(!far)continue;best=[r,c];bd=d;}
+    if(!best)continue;
+    for(let k=0;k<4;k++){const q=objs[i+k];const [or,oc]=[q.r,q.c];const ox=map[or][oc];const idx=ox.obj;ox.obj=null;ox.lm=0;
+      const [nr,nc]=rot(best[0],best[1],k);const y=map[nr][nc];y.obj=idx;y.lm=1;if(y.t==='bldg'){y.f=Math.max(y.f,4);y.bmax=8+y.f*3;y.bhp=y.bmax;}else{y.t='plaza';delete y.lot;}q.r=nr;q.c=nc;}}}
+function objAssign(out,seed){const {map,objs}=out;const R=mulberry((seed|0)^0x5eed0b);objRelocate(map,objs);
   const sh=a=>{for(let j=a.length-1;j>0;j--){const q=Math.floor(R()*(j+1));[a[j],a[q]]=[a[q],a[j]];}return a;};
   const open=sh(OBJ_NAMES.filter(s=>OBJ_OPEN.includes(s))),semi=sh(OBJ_NAMES.filter(s=>OBJ_SEMI.includes(s))),closed=sh(OBJ_NAMES.filter(s=>!OBJ_OPEN.includes(s)&&!OBJ_SEMI.includes(s)));
   // 같은 정준 거점의 네 회전 복사본은 땅 모양이 같다. 광장은 빈터용 → 반쯤 → 건물용, 건물은 건물용 → 반쯤 → 빈터용 순으로 이름을 받는다
@@ -54,8 +73,43 @@ function objAssign(out,seed){const {map,objs}=out;const R=mulberry((seed|0)^0x5e
     x.lkc=OBJK[k].col;
     // 높이: 병원은 5층 이상, 관공서는 4층 이상
     if(x.t==='bldg'){if(k==='hosp')x.f=Math.max(x.f,5);if(k==='gov'||k==='bank'||k==='archive')x.f=Math.max(x.f,4);
-      x.bmax=8+x.f*3;x.bhp=x.bmax;}}}
-
+      x.bmax=8+x.f*3;x.bhp=x.bmax;}}
+  for(let i=0;i+3<objs.length;i+=4)objFpApply(map,objs.slice(i,i+4));}
+/* 거점이 차지하는 땅(모습을 얹을 범위). 건물이면 같은 건물(blk) 전체를 같은 높이로 맞춘 한 덩이,
+   빈터면 둘레 8칸이 모두 빈터(도로·건물·물·다른 거점이 아님)일 때 3×3 단지로 넓힌다. */
+function objFootprint(map,o){const x=map[o.r][o.c];const H=map.length;const at=(r,c)=>r>=0&&c>=0&&r<H&&c<H?map[r][c]:null;
+  if(x.t==='bldg'&&x.blk!=null){
+    // 거점 칸을 품는 3×3(없으면 2×2) 건물 덩어리를 한 채로 합쳐 큰 건물로 만든다(길·빈터는 건드리지 않음)
+    const okB=(r,c)=>{const y=at(r,c);return !!y&&y.t==='bldg'&&r>0&&c>0&&r<H-1&&c<H-1&&!y.lm&&y.obj==null||(r===o.r&&c===o.c);};
+    const M=[];merge:for(const n of [3,2])for(let a=-(n-1);a<=0;a++)for(let b=-(n-1);b<=0;b++){let ok=true;for(let i=0;i<n&&ok;i++)for(let j=0;j<n;j++)if(!okB(o.r+a+i,o.c+b+j)){ok=false;break;}if(!ok)continue;
+      for(let i=0;i<n;i++)for(let j=0;j<n;j++)M.push([o.r+a+i,o.c+b+j]);break merge;}
+    const inM=(r,c)=>M.some(p=>p[0]===r&&p[1]===c);
+    const seen=new Set([o.r*1000+o.c]),q=[[o.r,o.c]],L=[];
+    while(q.length&&L.length<16){const [r,c]=q.shift();L.push([r,c]);for(const [a,b] of [[1,0],[-1,0],[0,1],[0,-1]]){const R=r+a,C=c+b,y=at(R,C);if(!y||y.t!=='bldg'||!(y.blk===x.blk||inM(R,C))||seen.has(R*1000+C))continue;if(Math.abs(R-o.r)>3||Math.abs(C-o.c)>3)continue;seen.add(R*1000+C);q.push([R,C]);}}
+    // 모형은 블록 안에 꽉 차는 가장 큰 직사각형(거점 칸 포함)에 얹는다. ㄱ자 블록에서 길 위로 삐져나오지 않게
+    const S=new Set(L.map(p=>p[0]*1000+p[1]));let best={r0:o.r,r1:o.r,c0:o.c,c1:o.c,n:1},bs=1;
+    for(let r0=o.r-3;r0<=o.r;r0++)for(let c0=o.c-3;c0<=o.c;c0++)for(let r1=o.r;r1<=o.r+3;r1++)for(let c1=o.c;c1<=o.c+3;c1++){
+      const a=(r1-r0+1)*(c1-c0+1);const sq=Math.min(r1-r0,c1-c0)+1;const sc=a+sq*2;if(sc<=bs)continue;let ok=true;
+      for(let r=r0;r<=r1&&ok;r++)for(let c=c0;c<=c1;c++)if(!S.has(r*1000+c)){ok=false;break;}
+      if(ok){bs=sc;best={r0,r1,c0,c1,n:a,blkN:L.length};}}
+    return {fp:best,M,L,plaza:0};}
+  const free=(r,c)=>{const y=at(r,c);return !!y&&y.t!=='road'&&y.t!=='bldg'&&y.t!=='water'&&(!y.lm||(r===o.r&&c===o.c));};
+  // 거점 칸을 품는 3×3(없으면 2×2) 창 가운데 모두 빈터인 것
+  for(const n of [3,2])for(let a=-(n-1);a<=0;a++)for(let b=-(n-1);b<=0;b++){let ok=true;for(let i=0;i<n&&ok;i++)for(let j=0;j<n;j++)if(!free(o.r+a+i,o.c+b+j)){ok=false;break;}if(!ok)continue;
+    const L=[];for(let i=0;i<n;i++)for(let j=0;j<n;j++)L.push([o.r+a+i,o.c+b+j]);
+    return {fp:{r0:o.r+a,r1:o.r+a+n-1,c0:o.c+b,c1:o.c+b+n-1,n:n*n},M:[],L,plaza:1};}
+  return {fp:{r0:o.r,r1:o.r,c0:o.c,c1:o.c,n:1},M:[],L:[[o.r,o.c]],plaza:0};}
+/* 정준 거점에서 고른 땅을 네 회전 복사본에 똑같이 깐다(맵 회전 대칭 유지) */
+function objFpApply(map,g){const H=map.length;const rot=(r,c,k)=>{for(let j=0;j<k;j++){const t=r;r=c;c=H-1-t;}return [r,c];};
+  const res=objFootprint(map,g[0]);const bl=map[g[0].r][g[0].c].t==='bldg';
+  const f=bl?Math.max(...g.map(o=>map[o.r][o.c].f)):0;
+  g.forEach((o,k)=>{const x=map[o.r][o.c];const R=([r,c])=>rot(r,c,k);
+    for(const p of res.M){const [r,c]=R(p);map[r][c].blk=x.blk;}
+    for(const p of res.L){const [r,c]=R(p);const y=map[r][c];
+      if(res.plaza){y.t='plaza';delete y.lot;delete y.yard;y.site=1;}
+      else if(bl){y.f=f;y.bmax=8+f*3;y.bhp=y.bmax;y.lkc=x.lkc;y.lk=x.lk;}}
+    const [a0,b0]=R([res.fp.r0,res.fp.c0]),[a1,b1]=R([res.fp.r1,res.fp.c1]);
+    o.fp={...res.fp,r0:Math.min(a0,a1),r1:Math.max(a0,a1),c0:Math.min(b0,b1),c1:Math.max(b0,b1)};});}
 /* ---------- 감시: 통신탑·첨탑·설계도 ---------- */
 function objOvList(n){if(!objOn())return [];const out=[];
   for(const o of G.objs){const k=objKind(o);const d=k&&OBJK[k];if(!d||!d.ov)continue;const x=G.map[o.r][o.c];if(x.owner!==n||x.t==='rubble')continue;

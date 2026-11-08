@@ -12,11 +12,21 @@ function v3LmMats(){if(V3.lmM)return V3.lmM;const T=V3.T;const S=(c,o)=>{const m
     lamp:new T.MeshStandardMaterial({color:'#ff3b2f',emissive:'#ff2a1a',emissiveIntensity:1.5}),blueL:new T.MeshStandardMaterial({color:'#3b7bff',emissive:'#2a62ff',emissiveIntensity:1.2}),
     sock:new T.MeshStandardMaterial({color:'#ff8a2a',roughness:.9,side:T.DoubleSide})};}
 /* 거점 칸에서 길 쪽(앞) 방향 [dr,dc] */
-function v3LmFront(r,c){for(const [a,b] of [[1,0],[0,1],[-1,0],[0,-1]]){const R=r+a,C=c+b;if(!inb(R,C))continue;const y=G.map[R][C];if(y.t==='road'||y.t==='plaza'||y.t==='park')return [a,b];}return [1,0];}
+function v3LmFront(r,c,fp){// 거점 땅의 네 변 중 길·광장에 가장 많이 닿은 쪽
+  fp=fp||{r0:r,r1:r,c0:c,c1:c};let best=[1,0],bn=-1;const open=(R,C)=>{if(!inb(R,C))return 0;const t=G.map[R][C].t;return t==='road'||t==='plaza'||t==='park'?1:0;};
+  for(const [a,b] of [[1,0],[0,1],[-1,0],[0,-1]]){let n=0;
+    if(a)for(let C=fp.c0;C<=fp.c1;C++)n+=open(a>0?fp.r1+1:fp.r0-1,C);else for(let R=fp.r0;R<=fp.r1;R++)n+=open(R,b>0?fp.c1+1:fp.c0-1);
+    if(n>bn){bn=n;best=[a,b];}}
+  return best;}
 function v3LmBuild(o){const T=V3.T,M=v3LmMats(),m=MU;const x=G.map[o.r][o.c];const k=objKind(o);if(!k||x.t==='rubble'||x.t==='water')return null;
-  const g=new T.Group();const [cx,cz]=v3x(o.r,o.c);g.position.set(cx,0,cz);
   const bl=x.t==='bldg';const dmg=bl?1-x.bhp/x.bmax:0;if(bl&&dmg>=.5)return null;
-  const top=bl?.06+x.f*FLOOR_H:0;const [fr,fc]=v3LmFront(o.r,o.c);const fa=Math.atan2(fr,fc);   // 앞쪽(로컬 +x)으로 돌린 그룹
+  // 거점이 차지한 땅(05l objFootprint) 전체에 맞춰 키운다. 모형은 한 칸 기준으로 짜고 그룹째 S배
+  const fp=o.fp||{r0:o.r,r1:o.r,c0:o.c,c1:o.c,n:1};const W=fp.c1-fp.c0+1,D=fp.r1-fp.r0+1;
+  const S=bl?Math.max(1,Math.min(2.4,Math.min(W,D)*.85)):fp.n>=9?2.5:fp.n>=4?1.8:1.35;
+  const g=new T.Group();g.position.set((fp.c0+fp.c1+1)/2,0,(fp.r0+fp.r1+1)/2);g.scale.setScalar(S);
+  const top=(bl?.06+x.f*FLOOR_H:0)/S;const [fr,fc]=v3LmFront(o.r,o.c,fp);const fa=Math.atan2(fr,fc);   // 앞쪽(로컬 +x)으로 돌린 그룹
+  // 앞 벽면까지 거리(로컬): 한 칸이면 .43
+  const E=(fr?D:W)/2-.07;const fx=E/S;const X=v=>fx+(v-.43);
   const F=new T.Group();F.rotation.y=-fa;g.add(F);
   const add=(geo,mat,px,py,pz,par,rx,ry,rz)=>{const q=new T.Mesh(geo,mat);q.position.set(px,py,pz);if(rx||ry||rz)q.rotation.set(rx||0,ry||0,rz||0);q.castShadow=true;q.receiveShadow=true;(par||g).add(q);return q;};
   const box=(w,h,d,mat,px,py,pz,par)=>add(new T.BoxGeometry(w,h,d),mat,px,py,pz,par);
@@ -33,9 +43,9 @@ function v3LmBuild(o){const T=V3.T,M=v3LmMats(),m=MU;const x=G.map[o.r][o.c];con
   if(k==='hosp'){if(bl){// 옥상 헬기장 + 네 면 붉은 십자
       cyl(.3,.3,.012,M.pad,0,top+.006,0,16);const ring=add(new T.TorusGeometry(.24,.008,4,24),M.white,0,top+.014,0,null,Math.PI/2);ring.castShadow=false;
       box(.03,.004,.18,M.white,-.06,top+.015,0);box(.03,.004,.18,M.white,.06,top+.015,0);box(.12,.004,.03,M.white,0,top+.015,0);
-      cross(.43,top-.12,0,.2,F);cross(.3,top+.02,.3,.2,F,'y');cross(-.3,top+.02,-.3,.2,F,'y');
-      box(.16,.012,.36,M.white,.5,.24,0,F);for(const s of [-1,1])cyl(.008,.008,.24,M.steel,.56,.12,s*.16,5,F);   // 응급실 차양
-      cross(.585,.27,0,.1,F);}
+      cross(X(.43),top-.12/S*1.5,0,.2,F);cross(.3,top+.02,.3,.2,F,'y');cross(-.3,top+.02,-.3,.2,F,'y');
+      box(.16,.012,.36,M.white,X(.5),.24,0,F);for(const s of [-1,1])cyl(.008,.008,.24,M.steel,X(.56),.12,s*.16,5,F);   // 응급실 차양
+      cross(X(.585),.27,0,.1,F);}
     else{// 야전병원: 큰 천막 셋 + 헬기장
       for(const [px,pz] of [[-.2,-.22],[.14,-.22],[-.2,.12]]){const tn=add(new T.CylinderGeometry(.13,.13,.3,3),M.white,px,.07,pz,null,-Math.PI/2,0,Math.PI/2);tn.scale.set(1,1,.62);for(const s2 of [-1,1]){const pl=box(.08,.004,.02,M.red,px,.1,pz+s2*.045);pl.rotation.x=s2*.95;const pl2=box(.02,.004,.08,M.red,px,.1,pz+s2*.045);pl2.rotation.x=s2*.95;}}
       cyl(.17,.17,.01,M.pad,.2,.005,.2,16);box(.025,.004,.13,M.white,.15,.012,.2);box(.025,.004,.13,M.white,.25,.012,.2);box(.1,.004,.025,M.white,.2,.012,.2);
@@ -44,7 +54,7 @@ function v3LmBuild(o){const T=V3.T,M=v3LmMats(),m=MU;const x=G.map[o.r][o.c];con
     for(let i=0;i<6;i++)cyl(.03-i*.004,.03-(i+1)*.004,h/6,i%2?M.white:M.red,0,base+h/6*(i+.5),0,6);
     for(const [y,a] of [[.45,0],[.62,2.2]]){const d=add(new T.SphereGeometry(.07,10,6,0,Math.PI*2,0,Math.PI/2.6),M.white,Math.cos(a)*.05,base+h*y,Math.sin(a)*.05,null,0,a,Math.PI/2);d.material=M.white;}
     const l=add(new T.SphereGeometry(.02,6,6),M.lamp,0,base+h+.02,0);blink.push(l);
-    if(bl){box(.04,.12,.44,M.dark,.43,top-.1,0,F);box(.042,.03,.3,M.red,.43,top-.1,0,F);}else{box(.3,.12,.14,M.white,.28,.06,-.25);cyl(.05,.05,.02,M.white,.28,.14,-.25,10).rotation.x=.6;}}
+    if(bl){box(.04,.12,.44,M.dark,X(.43),top-.1,0,F);box(.042,.03,.3,M.red,X(.43),top-.1,0,F);}else{box(.3,.12,.14,M.white,.28,.06,-.25);cyl(.05,.05,.02,M.white,.28,.14,-.25,10).rotation.x=.6;}}
   else if(k==='comm'){const base=bl?top:0;const h=bl?1.8:2.2;lattice(h,bl?.09:.11,.02,null,0,0,base);
     for(let i=0;i<3;i++){const a=i*2.1;const d=add(new T.CylinderGeometry(.035,.035,.02,10),M.white,Math.cos(a)*.035,base+h*.78,Math.sin(a)*.035,null,0,-a,Math.PI/2);}
     cyl(.004,.004,.25,M.steel,0,base+h+.12,0,4);const l=add(new T.SphereGeometry(.018,6,6),M.lamp,0,base+h+.25,0);blink.push(l);const l2=add(new T.SphereGeometry(.014,6,6),M.lamp,0,base+h*.55,0);blink.push(l2);
@@ -61,22 +71,22 @@ function v3LmBuild(o){const T=V3.T,M=v3LmMats(),m=MU;const x=G.map[o.r][o.c];con
       const cr=new T.Group();cr.position.set(.1,base,.18);F.add(cr);for(const s of [-1,1])cyl(.012,.012,.6,M.gold,s*.25,.3,0,5,cr);box(.6,.03,.03,M.gold,0,.6,0,cr);box(.03,.03,.5,M.gold,0,.6,-.15,cr);}
     else{const base=bl?0:0;const cols=[M.awnA,M.awnB,M.awnC];for(let i=0;i<6;i++){const px=(i%3-1)*.28,pz=Math.floor(i/3)?.2:-.2;const st=box(.2,.07,.13,M.conc,px,base+.035,pz);const aw=box(.24,.01,.17,cols[i%3],px,base+.14,pz);aw.rotation.x=(pz>0?-1:1)*.25;
         for(const s of [-1,1])cyl(.004,.004,.14,M.steel,px+s*.1,base+.07,pz+(pz>0?.07:-.07),4);box(.05,.03,.04,M.cont[i%4],px+.04,base+.085,pz);}
-      if(bl){for(let i=0;i<4;i++){const aw=box(.2,.01,.08,cols[i%3],.5,.22,(i-1.5)*.21,F);aw.rotation.z=-.3;}}}}
-  else if(k==='spire'){const base=bl?top:0;const sx=bl?.3:0,sz=bl?.3:0;
-    box(.22,bl?.5:.9,.22,M.stone,sx,base+(bl?.25:.45),sz,F);const h0=base+(bl?.5:.9);const sp=add(new T.ConeGeometry(.16,1.1,4),M.copper,sx,h0+.55,sz,F,0,Math.PI/4,0);
-    box(.01,.12,.01,M.gold,sx,h0+1.16,sz,F);box(.07,.01,.01,M.gold,sx,h0+1.18,sz,F);
-    if(bl){const rw=add(new T.CylinderGeometry(.09,.09,.006,16),M.glass,.435,top-.15,0,F,0,0,Math.PI/2);for(const s of [-.25,.25]){const pk=add(new T.ConeGeometry(.08,.22,4),M.copper,-.15,top+.11,s,F,0,Math.PI/4,0);}}}
+      if(bl){for(let i=0;i<4;i++){const aw=box(.2,.01,.08,cols[i%3],X(.5),.22,(i-1.5)*.21,F);aw.rotation.z=-.3;}}}}
+  else if(k==='spire'){const base=bl?top:0;const sx=bl?X(.25):0,sz=0;const tw=bl?.3:.22,th=bl?.7:.9,ch=bl?1.4:1.1;
+    box(tw,th,tw,M.stone,sx,base+th/2,sz,F);const h0=base+th;const sp=add(new T.ConeGeometry(tw*.72,ch,4),M.copper,sx,h0+ch/2,sz,F,0,Math.PI/4,0);
+    box(.01,.12,.01,M.gold,sx,h0+ch+.06,sz,F);box(.07,.01,.01,M.gold,sx,h0+ch+.08,sz,F);
+    if(bl){const rw=add(new T.CylinderGeometry(.09,.09,.006,16),M.glass,X(.435),top-.15,0,F,0,0,Math.PI/2);for(const s of [-.25,.25]){const pk=add(new T.ConeGeometry(.08,.22,4),M.copper,-.15,top+.11,s,F,0,Math.PI/4,0);}}}
   else if((k==='gov'||k==='bank'||k==='archive')&&!bl){// 빈터: 기둥이 둘린 작은 기념관
     const rf=k==='bank'?M.gold:k==='archive'?M.copper:M.stone;box(.66,.05,.52,M.stone,0,.025,0,F);for(let i=0;i<3;i++)box(.08,.012*(3-i),.4,M.stone,.37+i*.04,.006*(3-i),0,F);
     for(const cx2 of [-.27,-.09,.09,.27])for(const cz2 of [-.2,.2])cyl(.02,.022,.26,M.white,cx2,.18,cz2,8,F);
     box(.36,.2,.3,M.stone,-.05,.15,0,F);box(.66,.04,.5,M.stone,0,.33,0,F);const pd=add(new T.CylinderGeometry(.1,.1,.5,3),rf,0,.37,0,F);pd.rotation.set(0,0,Math.PI/2);pd.rotation.order='ZYX';pd.rotation.y=Math.PI/2;pd.scale.set(1,1,1);
     if(k==='gov'){flag(-.4,0,.4,.5,'#d9d2c0',F);flag(-.4,0,-.4,.5,'#d9d2c0',F);}}
   else if(k==='gov'||k==='bank'||k==='archive'){// 기둥 현관(앞) + 박공, 관공서는 돔, 도서관은 계단과 청동 지붕
-    const h=bl?Math.min(top,.06+3*FLOOR_H):.4;const nC=k==='archive'?6:4;
-    for(let i=0;i<nC;i++)cyl(.018,.02,h-.06,M.stone,.5,.06+(h-.06)/2,(i/(nC-1)-.5)*.62,8,F);
-    box(.14,.04,.72,M.stone,.48,.02,0,F);box(.16,.035,.72,M.stone,.48,h+.017,0,F);
-    const ped=add(new T.CylinderGeometry(.08,.08,.72,3),k==='bank'?M.gold:M.stone,.48,h+.06,0,F,Math.PI/2,0,0);ped.rotation.set(Math.PI/2,0,0);ped.scale.set(1,1,.45);
-    if(k==='archive')for(let i=0;i<4;i++)box(.04,.012*(4-i),.8,M.stone,.6+i*.04,.006*(4-i),0,F);
+    const h=bl?Math.min(top,(.06+3*FLOOR_H)/S):.4;const nC=k==='archive'?6:4;
+    for(let i=0;i<nC;i++)cyl(.018,.02,h-.06,M.stone,X(.5),.06+(h-.06)/2,(i/(nC-1)-.5)*.62,8,F);
+    box(.14,.04,.72,M.stone,X(.48),.02,0,F);box(.16,.035,.72,M.stone,X(.48),h+.017,0,F);
+    const ped=add(new T.CylinderGeometry(.08,.08,.72,3),k==='bank'?M.gold:M.stone,X(.48),h+.06,0,F,Math.PI/2,0,0);ped.rotation.set(Math.PI/2,0,0);ped.scale.set(1,1,.45);
+    if(k==='archive')for(let i=0;i<4;i++)box(.04,.012*(4-i),.8,M.stone,X(.6+i*.04),.006*(4-i),0,F);
     if(bl){if(k==='gov'){cyl(.3,.32,.16,M.stone,0,top+.08,0,16);for(let i=0;i<12;i++){const a=i/12*6.283;cyl(.012,.012,.16,M.white,Math.cos(a)*.31,top+.08,Math.sin(a)*.31,5);}const d=add(new T.SphereGeometry(.3,18,9,0,Math.PI*2,0,Math.PI/2),M.copper,0,top+.16,0);cyl(.04,.04,.1,M.stone,0,top+.5,0,8);add(new T.SphereGeometry(.03,8,6),M.gold,0,top+.57,0);}
       if(k==='archive')box(.84,.03,.84,M.copper,0,top+.015,0);
       flag(-.3,top,-.3,.4,k==='bank'?'#c6a24a':'#d9d2c0',null);}
@@ -89,8 +99,8 @@ function v3LmBuild(o){const T=V3.T,M=v3LmMats(),m=MU;const x=G.map[o.r][o.c];con
       for(let i=0;i<3;i++)box(.03,.05,.14,i%2?M.white:M.red,.42,.025,(i-1)*.18,F);cyl(.004,.004,.5,M.steel,-.3,.25,-.3,4);}
     else{const base=top;box(.5,.08,.36,M.white,-.1,base+.04,-.1,F);box(.505,.025,.365,M.blue,-.1,base+.06,-.1,F);box(.3,.04,.07,M.dark,.2,base+.02,0,F);const l1=box(.12,.04,.07,M.blueL,.13,base+.05,0,F);const l2=box(.12,.04,.07,M.lamp,.27,base+.05,0,F);blink.push(l1,l2);
     cyl(.004,.004,.5,M.steel,-.3,base+.25,-.3,4);
-    if(bl)box(.04,.05,.6,M.blue,.43,top-.06,0,F);
-    for(let i=0;i<3;i++){const b=box(.03,.05,.14,i%2?M.white:M.red,.68,.025,(i-1)*.18,F);}}}
+    if(bl)box(.04,.05,.6,M.blue,X(.43),top-.06,0,F);
+    for(let i=0;i<3;i++){const b=box(.03,.05,.14,i%2?M.white:M.red,X(.68),.025,(i-1)*.18,F);}}}
   else if(k==='air'){if(o.name==='스타디움'&&!bl){const n=20;for(let i=0;i<n;i++){const a=i/n*Math.PI*2;const q=box(.16,.14,.06,M.conc,Math.cos(a)*.43,.07,Math.sin(a)*.38);q.rotation.y=-a+Math.PI/2;q.rotation.x=0;
         const s2=box(.16,.05,.06,i%2?M.awnA:M.awnB,Math.cos(a)*.47,.17,Math.sin(a)*.42);s2.rotation.y=-a+Math.PI/2;}
       add(new T.CircleGeometry(.36,20),M.awnC,0,.004,0,null,-Math.PI/2);
@@ -99,7 +109,6 @@ function v3LmBuild(o){const T=V3.T,M=v3LmMats(),m=MU;const x=G.map[o.r][o.c];con
       cyl(.15,.1,.1,M.glass,sx,ch+.05,sz,10);cyl(.16,.16,.025,M.white,sx,ch+.11,sz,10);cyl(.004,.004,.1,M.steel,sx,ch+.15,sz,4);const l=add(new T.SphereGeometry(.012,6,6),M.lamp,sx,ch+.2,sz);blink.push(l);
       cyl(.004,.004,.3,M.steel,.35,base+.15,.35,4);const ws=add(new T.ConeGeometry(.025,.1,8,1,true),M.sock,.4,base+.29,.35,null,0,0,Math.PI/2);
       if(!bl){cyl(.22,.22,.01,M.pad,.12,.005,.1,16);box(.03,.004,.14,M.white,.06,.012,.1);box(.03,.004,.14,M.white,.18,.012,.1);box(.1,.004,.03,M.white,.12,.012,.1);}}}
-  if(!bl&&!(k==='air'&&o.name==='스타디움')&&k!=='police'&&k!=='hosp')g.scale.setScalar(1.35);
   g.userData.blink=blink;g.userData.ok=o;return g;}
 function v3BuildLandmarks(par){if(!G||!G.objs||typeof objKind!=='function')return;V3.lmBlink=[];
   for(const o of G.objs){let g=null;try{g=v3LmBuild(o);}catch(e){console.warn(e);}if(!g)continue;par.add(g);V3.lmBlink.push(...g.userData.blink);}}
