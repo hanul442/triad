@@ -84,7 +84,7 @@ function terrSig(){const c=G._ts;if(c&&c.ver===G.ver)return c.s;let s=0;
 /* 한 부대가 보는 안개 점들: 사방으로 광선을 뻗어 가며 지금까지 가장 가파른 장애물보다 높이 보이는 점만 남긴다(높이맵 시야).
    위치가 1/4칸 이상 움직이거나 지형이 바뀔 때만 다시 계산한다. */
 function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.round(uz*4)/4;const v=visRange(u),h=eye(u);const sig=terrSig();
-  const ck=qx+','+qz+','+v+','+h+','+sig+','+N;if(u._fov&&u._fov.k===ck)return u._fov.p;
+  const ar=typeof fovArc==='function'?fovArc(u):null;const ck=qx+','+qz+','+v+','+h+','+sig+','+N+(ar?','+ar.key:'');if(u._fov&&u._fov.k===ck)return u._fov.p;
   const M=N*FOW_R;const r1=u.r,c1=u.c;
   // 칸별 건물 상자·높이를 한 번만 구한다
   const bx0=Math.max(0,Math.floor(qx-v)),bx1=Math.min(N-1,Math.floor(qx+v)),bz0=Math.max(0,Math.floor(qz-v)),bz1=Math.min(N-1,Math.floor(qz+v));
@@ -97,7 +97,7 @@ function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.r
   const mk=new Uint8Array(GW*GH);const mark=(px,pz)=>{const i=Math.floor(px*FOW_R)-gi0,j=Math.floor(pz*FOW_R)-gj0;if(i>=0&&j>=0&&i<GW&&j<GH)mk[j*GW+i]=1;};
   mark(qx,qz);
   const nr=Math.ceil(2*Math.PI*v*FOW_R*1.6),st=.5/FOW_R;
-  for(let k=0;k<nr;k++){const a=k/nr*2*Math.PI,cx=Math.cos(a),cz=Math.sin(a);let maxS=-Infinity;let dOut=-1,dEnd=v;
+  for(let k=0;k<nr;k++){const a=k/nr*2*Math.PI,cx=Math.cos(a),cz=Math.sin(a);let maxS=-Infinity;let dOut=-1,dEnd=ar?v*ar.k(a):v;   // 시야각(05k-optics): 해치 닫은 전차는 옆·뒤가 짧다
     if(inB){const s=segBox(qx,qz,qx+cx*v,qz+cz*v,inB);if(s&&s[0]<1e-9){dOut=s[1]*v;if(!losEnd(qx,qz,h,qx+cx*v,qz+cz*v,h))dEnd=Math.min(v,dOut+.05);}}
     for(let d=st;d<=dEnd;d+=st){const px=qx+cx*d,pz=qz+cz*d;if(px<0||pz<0||px>=N||pz>=N)break;const r=Math.floor(pz),c=Math.floor(px);
       const T=TB[(r-bz0)*W+c-bx0];if(!T)break;let bh=0,th=.3;
