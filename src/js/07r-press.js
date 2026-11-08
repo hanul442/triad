@@ -21,14 +21,16 @@ function prEv(x,z,w,k){if(!PR.on||x==null)return;const now=performance.now();PR.
   W('v3FxBreach',(a,P)=>{if(P&&P.x!=null)prEv(P.x,P.z,3,'breach');});}
 
 /* ---------- 따라갈 대상 ---------- */
-function prUnits(){if(!G)return[];const n=G.viewer;const mine=G.units.filter(u=>u.nat===n&&!UT[u.type].fly&&V3.uo.has(u.id));return mine.length?mine:G.units.filter(u=>!UT[u.type].fly&&V3.uo.has(u.id));}
+/* 관전 중 전 세력 시야면 어느 세력이든 따라간다. 그 밖엔 보는 세력(없으면 아무) 지상 부대 */
+const prAll=()=>typeof specOn==='function'&&specOn()&&UI.specVis==='all';
+function prUnits(){if(!G)return[];if(prAll())return G.units.filter(u=>!UT[u.type].fly&&V3.uo.has(u.id));const n=G.viewer;const mine=G.units.filter(u=>u.nat===n&&!UT[u.type].fly&&V3.uo.has(u.id));return mine.length?mine:G.units.filter(u=>!UT[u.type].fly&&V3.uo.has(u.id));}
 function prHeat(u){const now=performance.now();let s=u.tgt!=null?5:0;if(u.path&&u.path.length)s+=1;
   for(const e of PR.ev)if(now-e.t<5000&&Math.hypot(e.x-u.x,e.z-u.z)<4)s+=e.w*.5;
   if(UT[u.type].cls==='inf')s+=1;if(G.map[u.r][u.c].t==='bldg')s-=12;   // 기자는 거리에 남는다: 건물 안 부대는 덜 고른다
   return s;}
 function prPick(next){const us=prUnits();if(!us.length){PR.sub=null;return null;}
   if(next&&PR.sub){const i=us.indexOf(PR.sub);PR.sub=us[(i+1)%us.length];}
-  else{const sel=UI.sel&&us.includes(UI.sel)?UI.sel:null;PR.sub=sel||us.slice().sort((a,b)=>prHeat(b)-prHeat(a))[0];}
+  else{const fo=typeof specFollowed==='function'&&specOn()?specFollowed():null;const sel=fo&&us.includes(fo)?fo:UI.sel&&us.includes(UI.sel)?UI.sel:null;PR.sub=sel||us.slice().sort((a,b)=>prHeat(b)-prHeat(a))[0];}
   return PR.sub;}
 function prSubPos(u){const o=V3.uo.get(u.id);if(!o)return [u.x,0,u.z];const S=(o.userData.sold||[]).filter(s=>s.m&&s.m.visible);
   if(!S.length)return [o.position.x,o.position.y,o.position.z];let x=0,z=0;for(const s of S){x+=s.wx;z+=s.wz;}return [x/S.length,o.position.y,z/S.length];}
@@ -147,7 +149,7 @@ function prDevelop(g,w,h,film){const im=g.getImageData(0,0,w,h),d=im.data;let se
 function prJudge(){const now=performance.now(),cam=V3.cam;const fx=Math.cos(PR.yaw+PR.lyaw),fz=Math.sin(PR.yaw+PR.lyaw);const ex=cam.position.x,ez=cam.position.z;
   const inView=(x,z,far)=>{const dx=x-ex,dz=z-ez,d=Math.hypot(dx,dz);if(d>far)return 0;if(d<.2)return 1;return (dx*fx+dz*fz)/d>Math.cos(35*Math.PI/180)?1:0;};
   let sc=0;const kinds={};for(const e of PR.ev){if(now-e.t>4000||!inView(e.x,e.z,12))continue;const near=Math.hypot(e.x-ex,e.z-ez);const w=e.w*(near<2?1.6:near<5?1.2:.8);sc+=w;kinds[e.k]=(kinds[e.k]||0)+w;}
-  let hurt=0,foes=0;for(const u of G.units){const o=V3.uo.get(u.id);if(!o||!o.visible||!inView(u.x,u.z,10))continue;if(u.nat!==G.viewer)foes++;if(u.ws)for(const w of u.ws)if(w.s==='lw'||w.s==='hw'||w.s==='evac')hurt++;}
+  let hurt=0,foes=0;for(const u of G.units){const o=V3.uo.get(u.id);if(!o||!o.visible||!inView(u.x,u.z,10))continue;if(u.nat!==(PR.sub?PR.sub.nat:G.viewer))foes++;if(u.ws)for(const w of u.ws)if(w.s==='lw'||w.s==='hw'||w.s==='evac')hurt++;}
   sc+=hurt*2+foes*1.5;let burn=0;if(G.fires)for(const k of G.fires){if(inView(kc(k)+.5,kr(k)+.5,10))burn++;}sc+=Math.min(4,burn);
   const u=PR.sub&&G.units.includes(PR.sub)?PR.sub:null;if(u&&Math.hypot(u.x-ex,u.z-ez)<1.6)sc*=1.25;
   const stars=Math.max(1,Math.min(5,Math.ceil(sc/5)));

@@ -2712,7 +2712,7 @@ function msAllTick(dt){if(!G)return;msTick(dt);strikeTick();}
    - 적 전자전팀 재밍 반경 안의 지상 부대는 교신이 끊긴다. 재송신을 몇 번 하다가 끝내 전령이 뛰어가 전한다.
    - 드론은 조종기로 바로 움직이므로 거의 늦지 않는다(재밍은 05f-air가 따로 다룬다).
    - 명령을 기다리는 동안 부대는 하던 일을 계속하고, 적이 보이면 알아서 쏜다.
-   AI도 재밍 반경 안의 부대에는 새 명령이 잘 닿지 않는다(aiThink 감싸기). */
+   AI 명령도 같은 대기열을 탄다(06c-radio-ai). */
 const RADIO={base:.6,per:.035,max:1.4,talk:.35,fly:.25,jamOk:.35,retry:1.8,tries:3,runner:2.5};
 const radioOn=()=>!!G&&G.radio!==false&&G.scn!=='tut';
 /* 지휘소: 출발 지역 칸들의 가운데 */
@@ -2755,16 +2755,12 @@ function radioTick(){if(!G.rq||!G.rq.length)return;const now=G.time||0;const kee
       if(e.nat===G.viewer&&!e.jam)L(`${UT[cut[0].type].n} 무전 두절 — 재송신 중`);keep.push(r);}
     bump();}
   G.rq=keep;}
-/* 원래 함수 감싸기: 새 판 설정, 매 틱 교신, AI 재밍 */
+/* 원래 함수 감싸기: 새 판 설정, 매 틱 교신 */
 {const _n=newGame;newGame=function(cfg){const r=_n(cfg);let on=cfg&&cfg.radio;
    if(on==null){try{const el=typeof document!=='undefined'&&document.getElementById('opt-radio');on=el?el.value!=='0':true;}catch(e){on=true;}}
    G.radio=!!on;G.rq=[];G.rnet={};G.hq={};return r;};}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(G&&!G.over)radioTick();};}
-{const _a=aiThink;aiThink=function(n){if(!radioOn())return _a(n);
-   const cut=[];for(const u of G.units)if(u.nat===n&&radioCut(u))cut.push([u,u.path?u.path.slice():[],u.tgt,u.tgtTile,u.dest?u.dest.slice():null,u.hold]);
-   const r=_a(n);
-   for(const [u,p,t,tt,d,h] of cut){if(!G.units.includes(u)||Math.random()<RADIO.jamOk)continue;u.path=p;u.tgt=t;u.tgtTile=tt;u.dest=d;u.hold=h;}// 새 명령이 닿지 않았다
-   return r;};}
+/* AI 명령의 무전(재밍 포함)은 06c-radio-ai가 같은 대기열로 다룬다. */
 
 /* ---- 05j-real.js ---- */
 /* ===================== REAL: 공개 교범·실전 사례에서 가져온 시가전 규칙 =====================
@@ -3272,6 +3268,46 @@ function aiArmsAdvance(n,u,E,goal){const t=UT[u.type];if(t.fly||t.dteam)return f
   for(const p of P){const seg=Math.hypot(p[0]-px,p[1]-pz);const dg=Math.hypot(gx-p[0],gz-p[1]);
     if(seg>left||dg<stop){const f=Math.min(seg>left?left/seg:1,1);if(f>.05)out.push([px+(p[0]-px)*f,pz+(p[1]-pz)*f]);break;}out.push(p);left-=seg;px=p[0];pz=p[1];}
   if(!out.length)return false;u.path=out;u.tgt=null;u.dest=null;return true;}
+
+/* ---- 06c-radio-ai.js ---- */
+/* ===================== AI 명령도 무전으로 =====================
+   05j-radio는 사람의 명령만 늦췄다. 이 파일은 AI가 내린 기동·사격 명령도 같은 교신 대기열(G.rq)에 넣는다.
+   - aiThink(다른 모듈이 감싼 것까지 모두)를 한 번 더 감싼다. 생각하기 전 부대마다 명령 상태를 적어 두고,
+     생각한 뒤 바뀐 부대는 원래 명령으로 되돌린 다음 새 명령을 무전으로 보낸다.
+   - 한 번 생각할 때 내린 명령들은 교신 한 번(여러 부대를 함께 부름)으로 친다. 부대가 하나 늘 때마다 교신이 조금 길어진다.
+   - 무전이 아직 닿지 않은 부대에는 AI가 새 명령을 덧씌우지 않는다(계속 바꾸면 영영 닿지 않는다).
+   - 재밍 반경 안이면 사람과 똑같이 재송신하고, 끝내 안 되면 전령이 간다.
+   - 갓 배치된 부대(생각 전엔 없던 부대), 증원·화력 지원 요청은 바로 실행된다. */
+const RADIO_AI={more:.12,maxTalk:1.2};
+function aiOrdState(u){return {p:u.path,pl:u.path?u.path.length:0,tgt:u.tgt??null,tt:u.tgtTile??null,d:u.dest,h:u.hold};}
+function aiOrdChanged(u,s){return u.path!==s.p||(u.path?u.path.length:0)!==s.pl||(u.tgt??null)!==s.tgt||(u.tgtTile??null)!==s.tt||u.dest!==s.d||u.hold!==s.h;}
+/* 무전이 닿으면: 경로는 지금 자리에서 다시 찾는다(그사이 부대가 움직였을 수 있다) */
+function aiOrdApply(u,a){const e=a.tgt!=null?G.units.find(o=>o.id===a.tgt):null;
+  u.tgt=e?e.id:null;u.tgtTile=a.tt!=null&&G.map[kr(a.tt)][kc(a.tt)].t==='bldg'?a.tt:null;u.dest=a.d?a.d.slice():null;u.hold=a.h;
+  if(a.end){u.path=pathPts(u,a.end[0],a.end[1]);if(a.d)u.dest=[a.end[0],a.end[1]];}
+  else if(e&&!canHit(u,e))u.path=pathPts(u,e.x,e.z);
+  else u.path=[];}
+{const _x=radioExec;radioExec=function(k,a,us){if(k!=='ai')return _x(k,a,us);
+   us=us.filter(u=>G.units.includes(u));for(const u of us){const s=a.st&&a.st[u.id];if(s)aiOrdApply(u,s);u._ack=G.time||0;}};}
+/* AI 교신: 부대마다 대기열 한 줄(재밍·표시는 부대별), 무전망 시간은 한 번의 교신으로 묶는다 */
+function aiRadioSend(n,list){if(!list.length)return;const now=G.time||0;G.rq=G.rq||[];G.rnet=G.rnet||{};const h=hqOf(n);
+  const gnd=list.filter(([u])=>!UT[u.type].fly),fly=list.filter(([u])=>UT[u.type].fly);
+  for(const [u,s] of fly)G.rq.push({id:(G.rqI=(G.rqI||0)+1),nat:n,us:[u.id],k:'ai',a:{st:{[u.id]:s}},t0:now,at:now+RADIO.fly,n:0,ai:1});
+  if(!gnd.length)return;const st=Math.max(now,G.rnet[n]||0);const talk=Math.min(RADIO_AI.maxTalk,RADIO.talk+RADIO_AI.more*(gnd.length-1));G.rnet[n]=st+talk;
+  gnd.forEach(([u,s],i)=>{const at=st+Math.min(talk,RADIO.talk+RADIO_AI.more*i)+RADIO.base+Math.min(RADIO.max,RADIO.per*Math.hypot(u.x-h.x,u.z-h.z));
+    G.rq.push({id:(G.rqI=(G.rqI||0)+1),nat:n,us:[u.id],k:'ai',a:{st:{[u.id]:s}},t0:now,at,n:0,ai:1});});}
+/* 새 명령 상태를 무전용으로 떼어 낸다: 경로는 끝점만 */
+function aiOrdPack(u){const p=u.path&&u.path.length?u.path[u.path.length-1]:null;
+  return {end:p?[p[0],p[1]]:null,tgt:u.tgt??null,tt:u.tgtTile??null,d:u.dest?u.dest.slice():null,h:u.hold};}
+{const _a=aiThink;aiThink=function(n){if(!radioOn())return _a(n);
+   const before=new Map();for(const u of G.units)if(u.nat===n)before.set(u,aiOrdState(u));
+   const r=_a(n);const send=[];
+   for(const [u,s] of before){if(!G.units.includes(u)||!aiOrdChanged(u,s))continue;
+     const pk=aiOrdPack(u);
+     // 원래 명령으로 되돌린다(새 명령은 무전이 닿은 뒤에)
+     u.path=s.p;u.tgt=s.tgt;u.tgtTile=s.tt;u.dest=s.d;u.hold=s.h;
+     if(radioPend(u))continue;send.push([u,pk]);}
+   aiRadioSend(n,send);G.aiRadioN=(G.aiRadioN||0)+send.length;return r;};}
 
 /* ---- 07-view3d.js ---- */
 /* ===================== 3D VIEW (three.js) =====================
@@ -4648,14 +4684,16 @@ function prEv(x,z,w,k){if(!PR.on||x==null)return;const now=performance.now();PR.
   W('v3FxBreach',(a,P)=>{if(P&&P.x!=null)prEv(P.x,P.z,3,'breach');});}
 
 /* ---------- 따라갈 대상 ---------- */
-function prUnits(){if(!G)return[];const n=G.viewer;const mine=G.units.filter(u=>u.nat===n&&!UT[u.type].fly&&V3.uo.has(u.id));return mine.length?mine:G.units.filter(u=>!UT[u.type].fly&&V3.uo.has(u.id));}
+/* 관전 중 전 세력 시야면 어느 세력이든 따라간다. 그 밖엔 보는 세력(없으면 아무) 지상 부대 */
+const prAll=()=>typeof specOn==='function'&&specOn()&&UI.specVis==='all';
+function prUnits(){if(!G)return[];if(prAll())return G.units.filter(u=>!UT[u.type].fly&&V3.uo.has(u.id));const n=G.viewer;const mine=G.units.filter(u=>u.nat===n&&!UT[u.type].fly&&V3.uo.has(u.id));return mine.length?mine:G.units.filter(u=>!UT[u.type].fly&&V3.uo.has(u.id));}
 function prHeat(u){const now=performance.now();let s=u.tgt!=null?5:0;if(u.path&&u.path.length)s+=1;
   for(const e of PR.ev)if(now-e.t<5000&&Math.hypot(e.x-u.x,e.z-u.z)<4)s+=e.w*.5;
   if(UT[u.type].cls==='inf')s+=1;if(G.map[u.r][u.c].t==='bldg')s-=12;   // 기자는 거리에 남는다: 건물 안 부대는 덜 고른다
   return s;}
 function prPick(next){const us=prUnits();if(!us.length){PR.sub=null;return null;}
   if(next&&PR.sub){const i=us.indexOf(PR.sub);PR.sub=us[(i+1)%us.length];}
-  else{const sel=UI.sel&&us.includes(UI.sel)?UI.sel:null;PR.sub=sel||us.slice().sort((a,b)=>prHeat(b)-prHeat(a))[0];}
+  else{const fo=typeof specFollowed==='function'&&specOn()?specFollowed():null;const sel=fo&&us.includes(fo)?fo:UI.sel&&us.includes(UI.sel)?UI.sel:null;PR.sub=sel||us.slice().sort((a,b)=>prHeat(b)-prHeat(a))[0];}
   return PR.sub;}
 function prSubPos(u){const o=V3.uo.get(u.id);if(!o)return [u.x,0,u.z];const S=(o.userData.sold||[]).filter(s=>s.m&&s.m.visible);
   if(!S.length)return [o.position.x,o.position.y,o.position.z];let x=0,z=0;for(const s of S){x+=s.wx;z+=s.wz;}return [x/S.length,o.position.y,z/S.length];}
@@ -4774,7 +4812,7 @@ function prDevelop(g,w,h,film){const im=g.getImageData(0,0,w,h),d=im.data;let se
 function prJudge(){const now=performance.now(),cam=V3.cam;const fx=Math.cos(PR.yaw+PR.lyaw),fz=Math.sin(PR.yaw+PR.lyaw);const ex=cam.position.x,ez=cam.position.z;
   const inView=(x,z,far)=>{const dx=x-ex,dz=z-ez,d=Math.hypot(dx,dz);if(d>far)return 0;if(d<.2)return 1;return (dx*fx+dz*fz)/d>Math.cos(35*Math.PI/180)?1:0;};
   let sc=0;const kinds={};for(const e of PR.ev){if(now-e.t>4000||!inView(e.x,e.z,12))continue;const near=Math.hypot(e.x-ex,e.z-ez);const w=e.w*(near<2?1.6:near<5?1.2:.8);sc+=w;kinds[e.k]=(kinds[e.k]||0)+w;}
-  let hurt=0,foes=0;for(const u of G.units){const o=V3.uo.get(u.id);if(!o||!o.visible||!inView(u.x,u.z,10))continue;if(u.nat!==G.viewer)foes++;if(u.ws)for(const w of u.ws)if(w.s==='lw'||w.s==='hw'||w.s==='evac')hurt++;}
+  let hurt=0,foes=0;for(const u of G.units){const o=V3.uo.get(u.id);if(!o||!o.visible||!inView(u.x,u.z,10))continue;if(u.nat!==(PR.sub?PR.sub.nat:G.viewer))foes++;if(u.ws)for(const w of u.ws)if(w.s==='lw'||w.s==='hw'||w.s==='evac')hurt++;}
   sc+=hurt*2+foes*1.5;let burn=0;if(G.fires)for(const k of G.fires){if(inView(kc(k)+.5,kr(k)+.5,10))burn++;}sc+=Math.min(4,burn);
   const u=PR.sub&&G.units.includes(PR.sub)?PR.sub:null;if(u&&Math.hypot(u.x-ex,u.z-ez)<1.6)sc*=1.25;
   const stars=Math.max(1,Math.min(5,Math.ceil(sc/5)));
@@ -4834,26 +4872,30 @@ if(typeof document!=='undefined'){
 
 /* ---- 07r-radio.js ---- */
 /* ===================== 3D·화면: 무전 지연 =====================
-   05j-radio의 교신 대기열을 보여 준다(내 편만).
+   05j-radio의 교신 대기열을 보여 준다(내 편만. 관전 중 전 세력 시야면 모든 세력).
    - 아직 닿지 않은 명령: 부대에서 목적지까지 노란 점선, 목적지에 작은 마름모.
    - 재밍으로 끊긴 명령: 주황 점선. 이름표에 '무전 1.2'·'두절'·'전령', 막 받았으면 '수신'. */
-function v3RadioTag(u,vn){if(u.nat!==vn||!radioOn())return '';const now=G.time||0;const e=radioPend(u);
+/* 이 세력의 무전을 화면에 보여 주나: 내 편, 또는 관전 중 전 세력 시야 */
+const radioShows=n=>n===G.viewer||(typeof specOn==='function'&&specOn()&&UI.specVis==='all');
+function v3RadioTag(u,vn){if(!radioShows(u.nat)||!radioOn())return '';const now=G.time||0;const e=radioPend(u);
   if(e){if(e.run)return '<em class="rd jm" title="재밍으로 무전이 끊겨 전령이 명령을 들고 가는 중">전령</em>';
     if(e.jam)return '<em class="rd jm" title="적 재밍: 무전 두절, 재송신 중">두절</em>';
     return `<em class="rd" title="무전으로 명령 전달 중">무전 ${Math.max(0,e.at-now).toFixed(1)}</em>`;}
   if(u._ack!=null&&now-u._ack<1.2)return '<u class="rk" title="명령 수신">수신</u>';
   if((u===UI.sel||(UI.group||[]).includes(u))&&radioCut(u))return '<em class="rd jm" title="적 재밍 반경 안: 새 명령이 잘 닿지 않음">재밍</em>';return '';}
 function v3RadioDest(e,u){if(e.k==='move')return [e.a[0],e.a[1]];if(e.k==='atk'){const t=G.units.find(o=>o.id===e.a[0]);return t?[t.x,t.z]:null;}
-  if(e.k==='bldg')return [e.a[1]+.5,e.a[0]+.5];return null;}
+  if(e.k==='bldg')return [e.a[1]+.5,e.a[0]+.5];
+  if(e.k==='ai'){const s=e.a.st&&e.a.st[u.id];if(!s)return null;if(s.end)return s.end;const t=s.tgt!=null&&G.units.find(o=>o.id===s.tgt);if(t)return [t.x,t.z];if(s.tt!=null)return [kc(s.tt)+.5,kr(s.tt)+.5];}
+  return null;}
 function v3RadioLines(L,LC,c){if(!radioOn()||!G.rq)return;const vn=G.viewer;
-  for(const e of G.rq){if(e.nat!==vn)continue;c.set(e.jam?'#ff8a3d':'#f0c45a');
+  for(const e of G.rq){if(!radioShows(e.nat))continue;c.set(e.jam?'#ff8a3d':'#f0c45a');
     for(const id of e.us){const u=G.units.find(o=>o.id===id);if(!u)continue;const d=v3RadioDest(e,u);const o=V3.uo.get(u.id);const x1=o?o.position.x:u.x,z1=o?o.position.z:u.z,y=.07;
       if(!d){for(let i=0;i<8;i++){const a1=i/8*6.283,a2=(i+.5)/8*6.283;L.push(x1+Math.cos(a1)*.2,y,z1+Math.sin(a1)*.2,x1+Math.cos(a2)*.2,y,z1+Math.sin(a2)*.2);LC.push(c.r,c.g,c.b,c.r,c.g,c.b);}continue;}
       const [x2,z2]=d,len=Math.hypot(x2-x1,z2-z1),n=Math.max(2,Math.floor(len/.18));
       for(let i=0;i<n;i+=2){const t1=i/n,t2=Math.min(1,(i+1)/n);L.push(x1+(x2-x1)*t1,y,z1+(z2-z1)*t1,x1+(x2-x1)*t2,y,z1+(z2-z1)*t2);LC.push(c.r,c.g,c.b,c.r,c.g,c.b);}
       const r=.11,P=[[x2+r,z2],[x2,z2+r],[x2-r,z2],[x2,z2-r]];for(let s=0;s<4;s++){const [a,b]=P[s],[p,q]=P[(s+1)%4];L.push(a,y,b,p,y,q);LC.push(c.r,c.g,c.b,c.r,c.g,c.b);}}}}
 /* 선택 정보: 무전 상태 한 줄 */
-{const _i=uInfo;uInfo=function(u){let s=_i(u);if(!radioOn()||u.nat!==G.viewer)return s;const e=radioPend(u);
+{const _i=uInfo;uInfo=function(u){let s=_i(u);if(!radioOn()||!radioShows(u.nat))return s;const e=radioPend(u);
    if(e)s+=e.run?' · 전령이 명령을 들고 가는 중':e.jam?' · 무전 두절, 재송신 중':` · 무전 전달 중 ${Math.max(0,e.at-(G.time||0)).toFixed(1)}초`;
    else if(radioCut(u))s+=' · 적 재밍 반경 안(명령 지연)';return s;};}
 
@@ -5613,23 +5655,35 @@ function showSetup(){const cl=$('#camp-list');if(cl&&typeof campList==='function
    - 새 게임 화면의 "AI 관전"에서 세력 수·도시 크기를 골라 시작한다. 자유 전투에서 모든 세력을 AI로 둬도 관전 모드가 된다.
    - AI는 평소처럼 전장의 안개 속에서 싸우고, 관전자는 화면에서만 전 세력 시야(또는 한 세력 시야)를 고른다.
    - 카메라: 자유 이동, 부대를 탭하면 따라가기, 자동 연출(교전이 가장 뜨거운 곳을 따라감).
-   - 배속: 일시정지·1×·2×·4×·8×. 관전 판은 저장하지 않는다(사람이 하던 판의 저장을 덮어쓰지 않게). */
+   - 배속: 일시정지·1×·2×·4×·8×. 관전 판은 저장하지 않는다(사람이 하던 판의 저장을 덮어쓰지 않게).
+   - 전장: 자유 전투(무작위 또는 지도 번호 고정), 시나리오(도심 돌파·최후 방어), 캠페인 임무. 사람 자리는 AI가 맡는다.
+   - 종군기자 카메라(07r-press)도 쓸 수 있고, 자동 연출이면 기자가 뜨거운 교전으로 옮겨 다닌다. */
 const SPEC_SPD=[1,2,4,8];
 const specOn=()=>!!(G&&G.spec&&!G.boot);
 /* 관전 판 설정: 세력 수(2~4)에 맞는 슬롯 */
 function specSlots(n){n=Math.max(2,Math.min(4,n|0||2));return NATS.map((_,i)=>i<n?'ai':'none');}
-function specStart(cfg){cfg=cfg||{};UI.specCfg={n:cfg.n||2,size:cfg.size||'m'};
-  newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,diff:'normal',fog:true,speed:0,seed:cfg.seed});
-  G.spd=1;G.paused=false;return G;}
+/* 관전할 수 있는 전장: free | scn:assault | scn:hold | camp:<임무> */
+const specMaps=()=>[['free','자유 전투'],['scn:assault','시나리오 · 도심 돌파'],['scn:hold','시나리오 · 최후 방어'],
+  ...(typeof CAMP_IDS!=='undefined'?CAMP_IDS.map(id=>['camp:'+id,`캠페인 ${CAMP[id].no} · ${CAMP[id].n}`]):[])];
+function specStart(cfg){cfg=cfg||{};const map=specMaps().some(m=>m[0]===cfg.map)?cfg.map:'free';const seed=cfg.seed==null||cfg.seed===''||!isFinite(+cfg.seed)?null:Math.abs(Math.floor(+cfg.seed));
+  UI.specCfg={n:cfg.n||2,size:cfg.size||'m',map,seed};
+  // 시나리오·캠페인은 원래 사람 자리를 AI로 바꿔 차린다(newGame 감싸기가 UI.specForce를 본다)
+  UI.specForce=true;UI.specSeed=seed;
+  try{if(map==='free')newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,diff:'normal',fog:true,speed:0,seed:seed??undefined});
+    else if(map.startsWith('scn:'))scnSetup(map.slice(4),0);
+    else campStart(map.slice(5));}
+  finally{UI.specForce=false;UI.specSeed=null;}
+  G.boot=false;G.spd=1;G.paused=false;return G;}
+function specMapName(){if(!G)return '';if(G.camp)return `캠페인 ${CAMP[G.camp.id].no} · ${CAMP[G.camp.id].n}`;if(G.scn&&typeof SCN!=='undefined'&&SCN[G.scn])return SCN[G.scn].n;return '자유 전투';}
 /* 교전이 가장 뜨거운 부대: 최근 4초 안에 쏜 부대가 둘레 5칸에 많을수록, 적이 가까울수록 높다.
    교전이 없으면 적과 가장 가까운 부대(전선). skip에 든 부대는 뺀다. */
-function specHot(skip){if(!G||!G.units.length)return null;const t=G.time||0;const hot=u=>t-(u.firedT??-99)<4;
+function specHot(skip,ok){if(!G||!G.units.length)return null;const t=G.time||0;const hot=u=>t-(u.firedT??-99)<4;
   const fire=G.units.filter(hot);let best=null,bs=0;
-  for(const u of G.units){if(skip&&skip.has(u.id))continue;let s=0;
+  for(const u of G.units){if(skip&&skip.has(u.id)||ok&&!ok(u))continue;let s=0;
     for(const o of fire){const d=Math.hypot(o.x-u.x,o.z-u.z);if(d<5)s+=(o.nat===u.nat?1:1.4)*(1-d/6);}
     if(hot(u))s+=1;if(s>bs){bs=s;best=u;}}
   if(best)return {u:best,s:bs};
-  let bd=1e9;for(const u of G.units){if(skip&&skip.has(u.id))continue;for(const e of G.units){if(e.nat===u.nat)continue;const d=Math.hypot(e.x-u.x,e.z-u.z);if(d<bd){bd=d;best=u;}}}
+  let bd=1e9;for(const u of G.units){if(skip&&skip.has(u.id)||ok&&!ok(u))continue;for(const e of G.units){if(e.nat===u.nat)continue;const d=Math.hypot(e.x-u.x,e.z-u.z);if(d<bd){bd=d;best=u;}}}
   return best?{u:best,s:0}:null;}
 function specFollowed(){const id=UI.follow;return id==null?null:G.units.find(u=>u.id===id)||null;}
 /* 지금 관전자에게 보이는 부대인가 */
@@ -5641,7 +5695,20 @@ function specNext(){const cur=specFollowed();const skip=new Set(cur?[cur.id]:[])
   if(cur)for(const o of G.units)if(Math.hypot(o.x-cur.x,o.z-cur.z)<4)skip.add(o.id);
   const h=specHot(skip)||specHot(cur?new Set([cur.id]):null);if(h)specFollow(h.u,UI.specAuto);}
 /* 매 프레임: 따라가는 부대에 카메라를 붙이고, 자동 연출이면 몇 초마다 더 뜨거운 곳으로 옮긴다 */
-function specCam(now){if(!specOn()||typeof V3==='undefined'||!V3.cs)return;let u=specFollowed();
+/* 기자 카메라를 켠 채 관전: 자동 연출이면 기자가 뜨거운 교전의 지상 부대로 옮겨 가고,
+   기자가 손으로 대상을 바꾸면(탭·N) 그 부대를 따라가는 것으로 본다 */
+function specPress(now){const us=prUnits();if(!us.length)return;const ok=new Set(us.map(u=>u.id));
+  // 기자 카메라를 새로 켰으면 지금 대상부터 기억한다
+  if(UI.specPrB!==PR.bak){UI.specPrB=PR.bak;UI.specPr=PR.sub?PR.sub.id:null;if(PR.sub&&!UI.specAuto)UI.follow=PR.sub.id;}
+  // 손으로 바꿨다: 전에 따라가던 부대가 아직 살아 있는데 대상이 달라졌다(대상이 죽어 기자가 스스로 옮긴 것은 빼고)
+  const prev=UI.specPr!=null&&G.units.find(o=>o.id===UI.specPr);
+  if(PR.sub&&G.units.includes(PR.sub)&&PR.sub.id!==UI.specPr&&prev&&ok.has(prev.id)){UI.follow=PR.sub.id;UI.specAuto=false;UI.specPr=PR.sub.id;if(typeof renderActbar==='function')renderActbar();return;}
+  let u=specFollowed();if(u&&!ok.has(u.id))u=null;
+  if(UI.specAuto&&!G.paused&&!G.over&&(!u||now-(UI.specHotT||0)>9000)){UI.specHotT=now;const h=specHot(null,o=>ok.has(o.id));
+    if(h&&(!u||h.u.id!==u.id&&specScore(u)<h.s*.6))u=h.u;}
+  if(u&&PR.sub!==u){PR.sub=u;UI.follow=u.id;if(typeof prHud==='function')prHud(false);}
+  UI.specPr=PR.sub?PR.sub.id:null;}
+function specCam(now){if(!specOn()||typeof V3==='undefined'||!V3.cs)return;if(typeof PR!=='undefined'&&PR.on){specPress(now);return;}let u=specFollowed();
   if(UI.follow!=null&&(!u||!specVisible(u))){u=null;UI.follow=null;if(!UI.specAuto&&!G.over)toast('따라가던 부대를 놓쳤습니다');}
   if(UI.specAuto&&!G.paused&&!G.over&&(!u||now-(UI.specHotT||0)>7000)){UI.specHotT=now;const h=specHot(null);
     // 지금 부대가 아직 충분히 뜨거우면 머문다(화면이 자주 튀지 않게)
@@ -5658,16 +5725,16 @@ function specSetSpd(s){G.spd=s;G.paused=false;}
 
 /* ---------- 화면: 관전 중에는 HUD·하단 바를 바꾼다 ---------- */
 function specHUD(){const r=$('#hud-res');if(!r)return;
-  r.innerHTML=`<span class="rv"><b>관전</b><small class="lbl">시야 ${specVisLabel()}</small></span><span class="rv"><b>${G.order.map(n=>`<span class="spec-sc${G.nats[n].alive?'':' out'}" style="color:${mapCol(n)}" title="${NATS[n].name} 승점">${G.nats[n].vp}</span>`).join(' ')}</b><small class="lbl">승점 / ${G.vpWin}</small></span>`;
+  r.innerHTML=`<span class="rv"><b>관전</b><small class="lbl" title="${specMapName()} · 지도 번호 ${G.seed}">시야 ${specVisLabel()}</small></span><span class="rv"><b>${G.order.map(n=>`<span class="spec-sc${G.nats[n].alive?'':' out'}" style="color:${mapCol(n)}" title="${NATS[n].name} 승점">${G.nats[n].vp}</span>`).join(' ')}</b><small class="lbl">승점 / ${G.vpWin}</small></span>`;
   const t=$('#t-cmd');if(t)t.hidden=true;}
 function specBar(){const el=$('#actbar');if(!el)return;el.hidden=false;
-  if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':`<span style="color:${mapCol(w)}">${NATS[w].full}</span> 승리`}</b><span>${G.over.why} · ${fmtT(G.time||0)}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm primary" data-act="spec-again" id="ab-sagain">다시 관전</button><button class="btn sm" data-act="new" id="ab-new">새 작전</button></div>`;return;}
+  if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':`<span style="color:${mapCol(w)}">${NATS[w].full}</span> 승리`}</b><span>${G.over.why} · ${fmtT(G.time||0)} · ${specMapName()} · 지도 번호 ${G.seed}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm" data-act="spec-same" id="ab-ssame">같은 지도로 다시</button><button class="btn sm primary" data-act="spec-again" id="ab-sagain">다시 관전</button><button class="btn sm" data-act="new" id="ab-new">새 작전</button></div>`;return;}
   const u=specFollowed();
   const t=u?`<span style="color:${mapCol(u.nat)}">${NATS[u.nat].name} ${UT[u.type].n}</span>`:'관전';
   const i=u?`${UI.specAuto?'자동 연출 · ':''}${uInfo(u)}`:UI.specAuto?'교전을 찾는 중':'드래그로 둘러보고, 부대를 탭하면 따라갑니다';
   const seg=`<div class="spec-seg" role="group" aria-label="배속"><button class="btn sm${G.paused?' primary':''}" data-act="spec-pause" id="sp-pause" aria-label="${G.paused?'재개':'일시정지'} (Space)" aria-pressed="${G.paused}">${G.paused?'▶':'❚❚'}</button>`+
     SPEC_SPD.map((s,i)=>`<button class="btn sm${!G.paused&&G.spd===s?' primary':''}" data-act="spec-spd:${s}" id="sp-spd-${s}" aria-label="${s}배속 (${i+1})" aria-pressed="${!G.paused&&G.spd===s}">${s}×</button>`).join('')+`</div>`;
-  const ab=`${seg}<button class="btn sm" data-act="spec-vis" id="sp-vis">시야: ${specVisLabel()}</button><button class="btn sm${UI.specAuto?' primary':''}" data-act="spec-auto" id="sp-auto" aria-pressed="${!!UI.specAuto}">자동 연출</button><button class="btn sm" data-act="spec-next" id="sp-next">다음 교전</button>${u?`<button class="btn sm" data-act="spec-free" id="sp-free">자유 카메라</button>`:''}`;
+  const ab=`${seg}<button class="btn sm" data-act="spec-vis" id="sp-vis">시야: ${specVisLabel()}</button><button class="btn sm${UI.specAuto?' primary':''}" data-act="spec-auto" id="sp-auto" aria-pressed="${!!UI.specAuto}">자동 연출</button><button class="btn sm" data-act="spec-next" id="sp-next">다음 교전</button><button class="btn sm${typeof PR!=='undefined'&&PR.on?' primary':''}" data-act="press" id="sp-press" aria-pressed="${typeof PR!=='undefined'&&PR.on}" title="종군기자 카메라 (V)">기자 카메라</button>${u&&!(typeof PR!=='undefined'&&PR.on)?`<button class="btn sm" data-act="spec-free" id="sp-free">자유 카메라</button>`:''}`;
   // 버튼은 바뀔 때만 다시 그린다(0.25초마다 갈아 끼우면 누르는 사이 버튼이 사라져 탭이 씹힌다)
   const box=el.querySelector('#sp-ab');
   if(!box){el.innerHTML=`<b id="sp-t"></b><span id="sp-i"></span><div class="ab" id="sp-ab"></div>`;return specBar();}
@@ -5678,28 +5745,43 @@ function specSetupBox(){if($('#spec-box'))return;const card=$('#setup .card');co
   const box=document.createElement('div');box.id='spec-box';box.className='spec-box';
   box.innerHTML=`<h3 class="sec">AI 관전</h3><p>모든 세력을 AI가 지휘하고 지켜보기만 합니다. 배속, 전 세력 시야, 부대 따라가기를 쓸 수 있습니다.</p>
 <div class="slot"><span></span><label for="spec-n">세력 수</label><select id="spec-n"><option value="2">2세력</option><option value="3">3세력</option><option value="4">4세력</option></select></div>
+<div class="slot"><span></span><label for="spec-map">전장</label><select id="spec-map">${specMaps().map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></div>
 <div class="slot"><span></span><label for="spec-size">도시 크기</label><select id="spec-size"><option value="s">소형 32×32</option><option value="m" selected>중형 44×44</option><option value="l">대형 56×56</option></select></div>
+<div class="slot"><span></span><label for="spec-seed">지도 번호</label><input id="spec-seed" type="number" inputmode="numeric" min="0" step="1" placeholder="비우면 무작위"></div>
+<p class="spec-note" id="spec-note" hidden></p>
 <button class="btn" data-act="spec-start" id="b-spec">관전 시작</button>`;
-  const h=anchor.previousElementSibling;card.insertBefore(box,h&&h.tagName==='H3'?h:anchor);}
-function specBegin(){$('#setup').hidden=true;clearSel();UI.sheet=false;UI.tab='world';render();rtStart();
+  const h=anchor.previousElementSibling;card.insertBefore(box,h&&h.tagName==='H3'?h:anchor);
+  box.querySelector('#spec-map').addEventListener('change',specSetupSync);}
+/* 시나리오·캠페인은 세력 수·도시 크기가 정해져 있다(캠페인은 지도도) */
+function specSetupSync(){const m=$('#spec-map');if(!m)return;const v=m.value,free=v==='free',camp=v.startsWith('camp:');
+  $('#spec-n').disabled=!free;$('#spec-size').disabled=!free;$('#spec-seed').disabled=camp;
+  const nt=$('#spec-note');nt.hidden=free;nt.textContent=camp?'캠페인 임무는 지도와 병력이 정해져 있습니다. 연방군 쪽도 AI가 지휘합니다(임무 목표는 모르고 싸웁니다).':'시나리오는 2세력·중형 도시입니다. 사람 쪽 자리를 AI가 맡습니다.';}
+function specSetupCfg(){const sd=$('#spec-seed').value.trim();return {n:+$('#spec-n').value,size:$('#spec-size').value,map:$('#spec-map').value,seed:sd===''?null:sd};}
+function specBegin(){$('#setup').hidden=true;for(const id of ['#brief','#debrief']){const el=$(id);if(el)el.hidden=true;}clearSel();UI.sheet=false;UI.tab='world';render();rtStart();
   if(typeof V3!=='undefined'&&V3.cs){const m=N/2;V3.cs.gx=m;V3.cs.gz=m;V3.cs.gd=Math.min(Math.max(48,N*1.35),N*.8);}}
 
 /* ---------- 기존 함수 감싸기 ---------- */
 (function(){
-  const _new=newGame;newGame=function(cfg){const g=_new(cfg);g.spec=!g.nats.some(x=>x.ctrl==='human');
+  const _new=newGame;newGame=function(cfg){
+    if(UI.specForce&&cfg){cfg={...cfg,slots:(cfg.slots||['human','ai','none','none']).map(s=>s==='human'?'ai':s)};if(UI.specSeed!=null&&cfg.scn!=='camp')cfg.seed=UI.specSeed;}
+    const g=_new(cfg);g.spec=!g.nats.some(x=>x.ctrl==='human');
     if(g.spec){UI.specVis='all';UI.follow=null;UI.specAuto=true;UI.specHotT=0;}return g;};
   const _save=save;save=function(){if(G&&G.spec)return;return _save.apply(this,arguments);};
+  // 관전한 캠페인 판은 별을 기록하지 않고, 결과 화면 대신 관전 하단 바를 쓴다
+  if(typeof campRecord==='function'){const _cr=campRecord;campRecord=function(){if(G&&G.spec)return campLoad();return _cr.apply(this,arguments);};}
+  if(typeof campDebrief==='function'){const _cd=campDebrief;campDebrief=function(){if(G&&G.spec)return;return _cd.apply(this,arguments);};}
   // 전 세력 시야: AI의 안개는 그대로 두고, 그리는 동안만 안개를 끈다
   const allView=fn=>function(){if(!specOn()||UI.specVis!=='all'||!G.fog)return fn.apply(this,arguments);G.fog=false;try{return fn.apply(this,arguments);}finally{G.fog=true;}};
   render=allView(render);
   if(typeof document==='undefined')return;
   const st=document.createElement('style');st.textContent=`.spec-seg{display:flex;gap:2px}.spec-seg .btn{min-width:40px;padding:6px 8px;font-family:var(--font-m)}
-.spec-sc.out{opacity:.4}.spec-box{display:flex;flex-direction:column;gap:8px}`;document.head.appendChild(st);
+.spec-sc.out{opacity:.4}.spec-box{display:flex;flex-direction:column;gap:8px}.spec-note{font-size:12px;opacity:.75;margin:0}
+.spec-box input[type=number]{min-width:0;width:100%;font:inherit;background:var(--bg2,#151c22);color:inherit;border:1px solid var(--line,#2a343d);border-radius:6px;padding:6px 8px}`;document.head.appendChild(st);
   const _rh=renderHUD;renderHUD=function(){_rh.apply(this,arguments);if(specOn())specHUD();else{const t=$('#t-cmd');if(t)t.hidden=false;}};
   const _ra=renderActbar;renderActbar=function(){if(specOn())return specBar();return _ra.apply(this,arguments);};
   const _rp=renderPanel;renderPanel=function(){if(specOn()&&UI.tab==='cmd')UI.tab='world';return _rp.apply(this,arguments);};
   renderTip=allView(renderTip);
-  const _ss=showSetup;showSetup=function(){_ss.apply(this,arguments);specSetupBox();if(UI.specCfg){$('#spec-n').value=String(UI.specCfg.n);$('#spec-size').value=UI.specCfg.size;}};
+  const _ss=showSetup;showSetup=function(){_ss.apply(this,arguments);specSetupBox();if(UI.specCfg){$('#spec-n').value=String(UI.specCfg.n);$('#spec-size').value=UI.specCfg.size;$('#spec-map').value=UI.specCfg.map||'free';$('#spec-seed').value=UI.specCfg.seed??'';}specSetupSync();};
   // 관전 중 탭: 보이는 부대를 탭하면 따라간다. 명령은 내리지 않는다.
   const _tap=tap;tap=function(k){if(!specOn())return _tap.apply(this,arguments);const id=typeof V3!=='undefined'?V3.pickId:null;
     const u=id!=null?G.units.find(z=>z.id===id):null;if(u&&specVisible(u)){specFollow(u,false);render();}};
@@ -5711,8 +5793,9 @@ function specBegin(){$('#setup').hidden=true;clearSel();UI.sheet=false;UI.tab='w
   const _fr=v3Frame;v3Frame=function(now){specCam(now);return _fr.apply(this,arguments);};
   v3Frame=allView(v3Frame);
   document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="spec"]');if(!b||b.disabled)return;const a=b.dataset.act;
-    if(a==='spec-start'){specStart({n:+$('#spec-n').value,size:$('#spec-size').value});specBegin();return;}
+    if(a==='spec-start'){specStart(specSetupCfg());specBegin();return;}
     if(a==='spec-again'){specStart(UI.specCfg||{n:G.order.length,size:G.size});specBegin();return;}
+    if(a==='spec-same'){specStart({...(UI.specCfg||{n:G.order.length,size:G.size}),seed:G.seed});specBegin();return;}
     if(!specOn())return;
     if(a==='spec-pause')G.paused=!G.paused;
     else if(a.startsWith('spec-spd:'))specSetSpd(+a.slice(9));
@@ -5855,7 +5938,10 @@ const SCN={
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
 function scnButtons(){return Object.keys(SCN).map(k=>`<button class="btn" data-act="scn:${k}" id="scn-${k}">${SCN[k].n}<small>${SCN[k].d}</small></button>`).join('');}
-function startScn(k){const sp=+($('#opt-speed')?.value??260);
+function startScn(k){const sp=+($('#opt-speed')?.value??260);scnSetup(k,sp);
+  bump();G.boot=false;$('#setup').hidden=true;clearSel();rtStart();UI.sheet=false;render();if(typeof v3HomeCam==='function')v3HomeCam(false);}
+/* 시나리오 판 차리기(화면 없이도 돈다: 관전·테스트용) */
+function scnSetup(k,sp){sp=sp??260;
   if(k==='tut'){newGame({slots:['human','ai','none','none'],size:'s',fog:true,speed:sp,scn:'tut',seed:20261106,force:['rifle','rifle','mg','at'],maxR:30,vpWin:99});
     G.units=G.units.filter(u=>u.nat===0||u.type==='rifle');G.nats[1].cp=0;G.nats[0].cp=8;G.tut=0;G.diff='easy';}
   else if(k==='assault'){newGame({slots:['human','ai','none','none'],size:'m',fog:true,speed:sp,scn:'assault',maxR:16,vpWin:999});
@@ -5866,7 +5952,7 @@ function startScn(k){const sp=+($('#opt-speed')?.value??260);
     for(const o of near){G.map[o.r][o.c].owner=0;}
     for(const u of G.units.filter(u=>u.nat===0)){const o=near[u.id%4];const sp2=[[o.r,o.c],...nbrs(o.r,o.c),...nbrs(o.r,o.c).flatMap(([a,b])=>nbrs(a,b))].find(([a,b])=>!unitAt(a,b)&&mcost(u.type,G.map[a][b])<Infinity);if(sp2){u.r=sp2[0];u.c=sp2[1];}}
     G.nats[1].cp=24;G.diff='hard';}
-  bump();G.boot=false;$('#setup').hidden=true;clearSel();rtStart();UI.sheet=false;render();if(typeof v3HomeCam==='function')v3HomeCam(false);}
+  bump();return G;}
 function scnObjective(){if(!G||!G.scn)return null;const n=0;if(G.camp&&typeof campObjective==='function')return campObjective();
   if(G.scn==='tut'){const S=[
       ['1/6 이동','소총분대를 탭해 고르고 땅을 탭하면 그리로 움직입니다. 건물에 들어가면 엄폐 40%를 받습니다.'],
