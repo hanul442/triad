@@ -408,6 +408,7 @@ test('포탄이 날아가다 건물에 걸리면 그 벽에서 터진다', () =>
 
 test('대전차팀은 건물 안 적이 있는 층 벽을 뚫고, 구멍이 남는다', () => {
   const T = loadGame(); const G = setup(T);
+  seedRandom(T, 1);   // 폭발 피해는 병사마다 주사위를 굴려, 드물게(약 0.7%) 아무도 안 맞는다
   bldg(G, 5, 6, 3); T.bump();
   const e = T.mkUnit(1, 'rifle', 5, 6); e.x = 6.5; e.z = 5.5; e.fl = 1; e.flK = T.key(5, 6);
   const a = T.mkUnit(0, 'at', 5, 3); a.x = 3.5; a.z = 5.5; T.bump();
