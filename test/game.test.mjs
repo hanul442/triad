@@ -847,6 +847,7 @@ test('대전차 화기에 맞은 차량은 연막탄을 쏘고 정면을 둔 채
   assert.ok(G.units.includes(tk));
   assert.ok(G.map[5][5].smoke > 0 || G.map[5][6].smoke > 0, '연막');
   assert.equal(tk.vsm, 1, '연막탄 한 번 사용');
+  assert.ok(!(tk.vd && tk.vd.mob), '궤도는 멀쩡');
   assert.ok(tk.path.length && tk.path[0][0] < tk.x, '적 반대쪽으로 후진');
   for (let i = 0; i < 10; i++) T.rtTick(0.1);
   assert.ok(Math.abs(tk.face) < 1, '후진하는 동안 정면은 적을 본다');
