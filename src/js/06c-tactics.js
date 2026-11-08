@@ -10,7 +10,7 @@
    - 거점을 잡으면 한 분대를 남겨 지키게 하고 다음 거점으로 간다.
    - 움직이다 적을 직접 보면 가까운 엄폐에 붙어 멈추고 응사한다(접적 반응). 측면조·후퇴 중엔 계속 간다.
    차량·곡사·저격·드론·헬기는 예전 AI(06-ai, 06b-arms)가 그대로 맡는다. 플레이어 부대는 임무를 받으면(묶음 B) 같은 두뇌를 쓴다. */
-const TAC={types:{rifle:1,mg:1,at:1,eng:1},size:3,memAge:20,near:9,travel:9,leg:3.2,flankR:[2.4,3.8],ret:.5,regroup:18,think:2};
+const TAC={types:{rifle:1,mg:1,at:1,eng:1},size:3,memAge:20,near:9,travel:9,leg:3.2,flankR:[3,4.2],ret:.42,regroup:18,think:2};
 const tacUnit=u=>!!TAC.types[u.type]&&!u.post&&!u.cqb&&(!u.job||u.job===TAC_HIDE);   // 건물 진입·소탕 중(u.cqb, 05k-cqb)이면 손대지 않는다
 const TAC_HIDE={tac:1};
 const tacCost=t=>(UT[t]&&UT[t].cost)||3;
@@ -82,7 +82,7 @@ function tacPlatoon(p,K0,objs){const M=tacMembers(p);if(!M.length)return;const t
   if(p.st==='retreat'){if(t-p.stT<12&&M.some(u=>!tacIdle(u)))return;p.st='regroup';p.stT=t;if(p.human)msnReport(p,'후퇴 완료, 재편성 중');}
   if(p.st==='regroup'&&t-p.stT<TAC.regroup&&(mor<55||est>str)){tacHold(p,M,K,objs);return;}
   const hurt=M.reduce((a,u)=>a+(u.supp||0),0)/M.length>.8||M.some(u=>t-(u.casT??-99)<8);
-  if(K.length&&p.mode!=='recon'&&t-(p.retT??-99)>40&&(est>=4&&str<est*TAC.ret&&hurt||mor<28&&est>0)){
+  if(K.length&&p.mode!=='recon'&&t-(p.retT??-99)>60&&(est>=4&&str<est*TAC.ret&&hurt||mor<28&&est>0)){
     if(p.human&&p.aut==='semi'&&!msnOK(p,'retreat'))msnReq(p,'retreat');      // 반자동: 물러나기 전에 승인을 받는다
     else{p.retT=t;tacRetreat(p,M,K,objs);return;}}
   if(!K.length){if(p.st!=='move'){p.st='move';p.stT=t;}tacMove(p,M,objs);return;}
@@ -137,10 +137,10 @@ function tacContact(p,M,K,objs,str,est){const t=G.time||0;
   if(!man.length)return;
   const bx=bof.length?bof.reduce((a,u)=>a+u.x,0)/bof.length:c[0],bz=bof.length?bof.reduce((a,u)=>a+u.z,0)/bof.length:c[1];const axis=Math.atan2(bz-fz,bx-fx);
   const fe=F.e;const supd=fe&&G.units.includes(fe)&&((typeof pinned==='function'&&pinned(fe))||fe.brk||(fe.mor??80)<35||UT[fe.type].cls==='inf'&&fe.hp<hpMax(fe)*.35);
-  const weak=est<=str*.45;
-  if(p.st==='contact'&&(supd||weak)&&man.every(u=>tacIdle(u)||u.tk.role==='flank'&&Math.hypot(u.x-fx,u.z-fz)<3.6)&&t-p.stT>6){
+  const weak=est<=str*.35;
+  if(p.st==='contact'&&(supd||weak)&&man.every(u=>tacIdle(u)||u.tk.role==='flank'&&Math.hypot(u.x-fx,u.z-fz)<3.6)&&t-p.stT>10&&t-(p.asT??-99)>30){
     if(p.human&&p.aut==='semi'&&!msnOK(p,'assault'))msnReq(p,'assault');
-    else{p.st='assault';p.stT=t;tacN('assault');if(p.human)msnReport(p,'적 제압, 돌격');}}
+    else{p.st='assault';p.stT=t;p.asT=t;tacN('assault');if(p.human)msnReport(p,'적 제압, 돌격');}}
   if(p.st==='assault'&&!supd&&!weak&&t-p.stT>20){p.st='contact';p.stT=t;}
   for(const u of man){const R=UT[u.type].rng[1];
     if(p.st==='assault'){// 돌격: 초점 1칸 안쪽 엄폐(건물이면 문 앞)
@@ -154,13 +154,14 @@ function tacContact(p,M,K,objs,str,est){const t=G.time||0;
       if(bof.length&&da<1.0)return -1e9;const mx=(x+u.x)/2,mz=(z+u.z)/2;const dd=Math.hypot(x-u.x,z-u.z);if(dd>7)return -1e9;
       let nearE=0;for(const k of K)if(k!==F&&Math.hypot(k.x-x,k.z-z)<2.2)nearE+=6;
       const ax1=u.x+(x-u.x)/3,az1=u.z+(z-u.z)/3,ax2=u.x+(x-u.x)*2/3,az2=u.z+(z-u.z)*2/3;
+      for(const k of K)for(const [qx,qz] of [[ax1,az1],[ax2,az2],[mx,mz]])if(Math.hypot(k.x-qx,k.z-qz)<2)nearE+=4;   // 가는 길에 적 코앞을 지나지 않게
       return tacCov(x,z,fx,fz,objs)*10+Math.min(da,1.9)*2.2-nearE-tacExpo(x,z,K,objs,null)*.6-(tacExpo(ax1,az1,K,objs,null)+tacExpo(ax2,az2,K,objs,null))*.35-dd*.55;});
     if(s){if(tacGo(u,s[0],s[1],'flank')){tacN('flank');tacSmokeLeg(u,K);}}}}
 /* 트인 길을 노출된 채 건너야 하면 연막 수류탄 */
-function tacSmokeLeg(u,K){if(typeof popSmoke!=='function'||!u.path||!u.path.length)return;if(u.ssm==null)u.ssm=(REAL.ssmk||{})[u.type]||0;if(u.ssm<=0||(G.time||0)-(u._smT||-99)<10)return;
+function tacSmokeLeg(u,K){if(typeof popSmoke!=='function'||!u.path||!u.path.length)return;if(u.ssm==null)u.ssm=(REAL.ssmk||{})[u.type]||0;if(u.ssm<=0||(G.time||0)-(u._smT||-99)<10)return;const pl=u.pl&&tacPl().find(q=>q.id===u.pl);if(pl&&(G.time||0)-(pl.smT??-99)<25)return;
   let px=u.x,pz=u.z,L=0;for(const q of u.path){const s=Math.hypot(q[0]-px,q[1]-pz);for(let k=.5;k<=s;k+=.5){const x=px+(q[0]-px)*k/s,z=pz+(q[1]-pz)*k/s;const tl=tileAt(x,z);
       if(tl&&(tl.t==='road'||tl.t==='plaza')&&tacExpo(x,z,K,null,null)>=3){let f=null,fd=1e9;for(const kk of K){const d=Math.hypot(kk.x-x,kk.z-z);if(d<fd){fd=d;f=kk;}}
-        const ux=(f.x-x)/(fd||1),uz=(f.z-z)/(fd||1);const sx=x+ux*.7,sz=z+uz*.7;const st=tileAt(sx,sz);if(st&&st.t!=='bldg'&&popSmoke(sx,sz,18)){u.ssm--;u._smT=G.time||0;if(typeof FXH.ssmoke==='function')FXH.ssmoke(u,sx,sz);tacN('smoke');}return;}}
+        const ux=(f.x-x)/(fd||1),uz=(f.z-z)/(fd||1);const sx=x+ux*.7,sz=z+uz*.7;const st=tileAt(sx,sz);if(st&&st.t!=='bldg'&&popSmoke(sx,sz,18)){u.ssm--;u._smT=G.time||0;if(pl)pl.smT=u._smT;if(typeof FXH.ssmoke==='function')FXH.ssmoke(u,sx,sz);tacN('smoke');}return;}}
     L+=s;if(L>3.5)return;px=q[0];pz=q[1];}}
 /* 후퇴: 엄폐를 타고 집결지 쪽으로 3~5칸, 기관총이 마지막까지 엄호 */
 function tacRetreat(p,M,K,objs){const t=G.time||0;if(p.st!=='retreat'){p.st='retreat';p.stT=t;tacN('retreat');if(p.human)msnReport(p,'불리하여 후퇴');else if(!G.fog)L(`${natName(p.nat)} 소대 후퇴`);}
