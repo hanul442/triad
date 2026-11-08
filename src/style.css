@@ -145,6 +145,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .app.v3 .v3only{display:grid}
 .ib .t3{font-family:var(--font-m,monospace);font-size:12px;font-weight:600;letter-spacing:.02em}
 .v3l{position:absolute;left:0;top:0;white-space:nowrap;will-change:transform}
+.v3o{font:700 8.5px/1 var(--font-m,monospace);color:#0b0f14;background:var(--c);padding:2px 3px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.55);pointer-events:none;white-space:nowrap}
 .v3c{font:600 10.5px/1 var(--font-m,monospace);letter-spacing:.04em;color:#e9e6dc;background:rgba(9,13,18,.82);padding:3px 6px 3px 5px;border-left:3px solid var(--c);border-radius:2px}
 .v3u{display:flex;align-items:center;gap:2px;font:700 9px/1 var(--font-m,monospace);color:#f0b23a}
 .v3u i{display:block;width:22px;height:4px;background:rgba(0,0,0,.72);border:1px solid rgba(0,0,0,.6);border-radius:1px;overflow:hidden}

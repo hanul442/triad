@@ -271,8 +271,8 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const W1=[],U1=[],C1=
       const ch=dmg<.5?v3Cham(r,c).map(([a,b])=>a<0?(b<0?0:1):(b>0?2:3)):null;if(ch&&ch.length)x._ch=1;else delete x._ch;
       const fl=(bt*8|0);box(x0,x1,z0,z1,.06,h,k,col,fl*.37,Math.floor(v3Hash(x.blk??k,8)*8),dmg<.4?[!sN,!sE,!sS,!sW]:null,false,ch);
       v3Doors(FD,r,c,x0,x1,z0,z1,dmg);
-      if(dmg<.4&&!(x.dist==='res'&&x.f<=2)){const st=v3Stair(r,c),ha=st.sx,hb=st.sx+st.ax*STAIR_L;box(Math.min(ha,hb)-.015,Math.max(ha,hb)+.015,st.sz-STAIR_W-.015,st.sz+STAIR_W+.015,.06+h,FLOOR_H*.6,k,col.clone().multiplyScalar(.8),0,0,null);}   // 옥상 계단 출입구
-      if(x.dist==='res'&&x.f<=2&&dmg<.4){const rd2=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const ew=rd2(r-1,c)||rd2(r+1,c);gab.push({x:(x0+x1)/2,y:.06+h,z:(z0+z1)/2,sx:x1-x0,sz:z1-z0,ry:ew?0:Math.PI/2,k,col:ROOFC[Math.floor(v3Hash(x.blk??k,13)*ROOFC.length)]});}
+      if(dmg<.4&&!gableRoof(x)){const st=v3Stair(r,c),ha=st.sx,hb=st.sx+st.ax*STAIR_L;box(Math.min(ha,hb)-.015,Math.max(ha,hb)+.015,st.sz-STAIR_W-.015,st.sz+STAIR_W+.015,.06+h,FLOOR_H*.6,k,col.clone().multiplyScalar(.8),0,0,null);}   // 옥상 계단 출입구
+      if(gableRoof(x)){const rd2=(a,b)=>inb(a,b)&&G.map[a][b].t==='road';const ew=rd2(r-1,c)||rd2(r+1,c);gab.push({x:(x0+x1)/2,y:.06+h,z:(z0+z1)/2,sx:x1-x0,sz:z1-z0,ry:ew?0:Math.PI/2,k,col:ROOFC[Math.floor(v3Hash(x.blk??k,13)*ROOFC.length)]});}
       if(x.f>=4&&v3Hash(k,9)<.4&&dmg<.5){const sw=.22+v3Hash(k,10)*.14,ox=cx+(v3Hash(k,11)-.5)*.3,oz=cz+(v3Hash(k,12)-.5)*.3;box(ox-sw/2,ox+sw/2,oz-sw/2,oz+sw/2,.06+h,FLOOR_H*.9,k,col.clone().multiplyScalar(.85),0,0,null);}
       for(let i=0;i<3;i++)if(v3Hash(k,20+i)<.5&&dmg<.4)ac.push([cx+(v3Hash(k,22+i)-.5)*.6,.06+h,cz+(v3Hash(k,24+i)-.5)*.6,v3Hash(k,26+i),k]);
       if(dmg>.25)for(let i=0;i<Math.round(dmg*8);i++){const a=v3Hash(k,30+i)*6.283;rub.push([cx+Math.cos(a)*.5,.03,cz+Math.sin(a)*.5,.08+v3Hash(k,40+i)*.08,v3Hash(k,50+i)*3,k]);}}
@@ -435,6 +435,7 @@ function v3SyncLabels(vs,vn){const lab=$('#v3d-lab');const want=new Map();
     want.set('u'+u.id,{html:`${typeof v3UnitTag==='function'?v3UnitTag(u):`<i><s style="width:${Math.round(u.hp/hm*100)}%;background:${hc}"></s></i>`}${tags}`,cls:'v3u',col:mapCol(u.nat),uid:u.id});}
   if(typeof ccpOf==='function'&&G.order&&G.order.includes(vn)){const c=ccpOf(vn);want.set('ccp',{html:'<span>환자집결지</span>',cls:'v3c',col:'#e9e6dc',p:[c.x,v3TopAt(c.x,c.z)+.45,c.z]});}
   if(typeof campLabels==='function')campLabels(want);
+  if(typeof occLabels==='function')occLabels(want,vs,vn);   // 건물 안 보병 층 표시(07f-floors)
   for(const [id,o] of V3.labels)if(!want.has(id)){o.el.remove();V3.labels.delete(id);}
   for(const [id,w] of want){let o=V3.labels.get(id);if(!o){const el=document.createElement('div');el.className='v3l '+w.cls;lab.appendChild(el);o={el};V3.labels.set(id,o);}
     if(o.html!==w.html){o.el.innerHTML=w.html;o.html=w.html;}o.el.style.setProperty('--c',w.col);o.p=w.p;o.uid=w.uid;}}
@@ -447,7 +448,7 @@ function v3PlaceLabels(){const v=V3.tmpV||(V3.tmpV=new V3.T.Vector3());const w=V
 function v3Sync(){if(!V3.on||!V3.ren||!G)return;const vn=G.viewer,vs=G.fog?visSet(vn):null;
   const tag=G.seed+'|'+N+'|'+G.map.map(row=>row.map(x=>x.t[0]).join('')).join('');
   if(V3.tag!==tag){const fresh=V3.seed!==G.seed+'|'+N;V3.seed=G.seed+'|'+N;V3.tag=tag;V3.ctag=null;v3BuildWorld();if(fresh){V3.uo.forEach(o=>V3.G.units.remove(o));V3.uo.clear();v3HomeCam(true);}}
-  const ctag=tag+G.map.map(row=>row.map(x=>x.t==='bldg'?Math.round(x.bhp/x.bmax*6):'').join(',')).join('');if(V3.ctag!==ctag){V3.ctag=ctag;v3BuildCity();}v3ApplyCut(V3.press?new Map():v3CutMap(vs,vn));
+  const ctag=tag+G.map.map(row=>row.map(x=>x.t==='bldg'?Math.round(x.bhp/x.bmax*6):'').join(',')).join('');if(V3.ctag!==ctag){V3.ctag=ctag;v3BuildCity();}v3ApplyCut(V3.press?new Map():v3CutMap(vs,vn));if(typeof v3SyncOcc==='function')v3SyncOcc(vs,vn);
   const stag=tag+G.objs.map(o=>G.map[o.r][o.c].owner).join(',');if(V3.stag!==stag){V3.stag=stag;v3BuildSites();}
   const smk=ctag+'|'+G.wx+'|'+G.map.map(row=>row.map(x=>x.smoke?1:0).join('')).join('');
   v3Light();if(V3.smk!==smk){V3.smk=smk;v3SyncSmoke();}
@@ -468,13 +469,19 @@ function v3FxFire(a,r,c){if(typeof v3AirFire==='function'&&v3AirFire(a,r,c,argum
   if(typeof dsDust==='function'&&(UT[a.type].cls!=='inf'||a.type==='mg')&&Math.random()<.35)dsDust(x1,z1,.3,2600,1,'#8e887e',y1);// 총구 연기가 잠시 머문다
   setTimeout(()=>{if(UT[a.type].ex){v3Burst(x2,y2-.05,z2,.6,'#ff8a3d',3,1.5);dsScar(ind?'crater':'scorch',x2,z2,ind?.14:.11);dsSpray(x2,y2,z2,ind?48:26,ind?.7:.5);dsDust(x2,z2,ind?1.4:.8,ind?9000:5000,ind?6:4);if(ind)dsColumn(x2,z2,.7);}else{v3Impact(x2,y2-.05,z2);if(Math.random()<.25)dsScar('spray',x2,z2,.05);}if(UT[a.type].ex)V3.shake=Math.max(V3.shake,.05);if(typeof sndBoom==='function'){if(UT[a.type].ex)sndBoom(x2,z2,ind?1:.5);else sndImpact(x2,z2);}},ind?650:170);}
 function v3FxKill(u){if(UT[u.type].fly&&typeof v3AirKill==='function'){v3AirKill(u);return;}if(!V3.on||UT[u.type].cls==='inf')return;const [x,y,z]=v3Pos(u.r,u.c,u);if(UT[u.type].cls==='veh')dsWreck(u);setTimeout(()=>{v3Burst(x,y,z,1.3,'#ff7a2a',7,4);dsSpray(x,y+.1,z,50,.8);dsScar('scorch',x,z,.25);V3.shake=Math.max(V3.shake,.14);if(typeof sfx==='function')sfx('boom',1.2,x,z);},400);}
-function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const h=Math.max(1,f||3)*FLOOR_H;
-  // 기울어지며 쓰러지는 건물: 밑변 한쪽을 축으로 돌면서 가라앉는다
-  const dir=Math.floor(Math.random()*4);const piv=new T.Group();const ax=[[.45,0],[-.45,0],[0,.45],[0,-.45]][dir];piv.position.set(x+ax[0],.06,z+ax[1]);
-  const geo=new T.BoxGeometry(.88,h,.88);const uv=geo.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*.88/.21/8,uv.getY(i)*h/FLOOR_H/8);
-  const mat=new T.MeshStandardMaterial({map:V3.M.wall.map,color:'#8f8b84',roughness:.95});const m=new T.Mesh(geo,mat);m.position.set(-ax[0],h/2,-ax[1]);m.castShadow=true;piv.add(m);V3.G.fx.add(piv);
-  V3.fx.push({o:piv,t0:performance.now(),dur:1500,upd:(o,k)=>{const e=k*k;const ang=e*1.45;if(dir<2)o.rotation.z=(dir===0?-1:1)*ang;else o.rotation.x=(dir===2?1:-1)*ang;o.position.y=.06-e*h*.55;}});
-  setTimeout(()=>{mat.dispose();},1600);
+function v3FxCollapse(r,c,f){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const nf=Math.max(1,f||3);const h=nf*FLOOR_H;
+  // 층마다 무너져 내려앉는다: 아래층 기둥이 먼저 꺾이고, 위층 바닥판이 차례로 떨어져 포개진다(팬케이크 붕괴).
+  // 무너지는 방향으로 조금씩 기울고 밀려나며, 바닥판마다 부딪힐 때 먼지가 터진다.
+  const dir=Math.random()*6.283,lx=Math.cos(dir),lz=Math.sin(dir);const piv=new T.Group();piv.position.set(x,0,z);V3.G.fx.add(piv);
+  const mat=new T.MeshStandardMaterial({map:V3.M.wall.map,color:'#8f8b84',roughness:.95});const geos=[];const t0=performance.now();const fail=Math.floor(Math.random()*Math.min(2,nf));
+  for(let i=0;i<nf;i++){const geo=new T.BoxGeometry(.86-Math.random()*.06,FLOOR_H*.98,.86-Math.random()*.06);const uv=geo.attributes.uv;for(let q=0;q<uv.count;q++)uv.setXY(q,uv.getX(q)*.88/.21/8,(uv.getY(q)+i)*FLOOR_H/FLOOR_H/8);geos.push(geo);
+    const m=new T.Mesh(geo,mat);m.castShadow=true;const y0=.06+i*FLOOR_H+FLOOR_H/2,yEnd=.03+Math.min(i,nf)*.035+.03;piv.add(m);m.position.y=y0;
+    const below=i<fail?0:i-fail;const dl=i<fail?99999:120+below*110+Math.random()*60;const dur=380+Math.sqrt(Math.max(0,y0-yEnd))*260;const tx=(Math.random()-.5)*.6,tz=(Math.random()-.5)*.6,sh=(i/nf)*.35;
+    let hit=false;m.userData.keepMat=1;m.userData.keepGeo=1;const TOT=4200;
+    V3.fx.push({o:m,t0,dur:TOT,upd:(o,k)=>{const ms=k*TOT;if(i<fail){const q=Math.min(1,ms/900);o.scale.y=1-q*.75;o.position.y=.06+i*FLOOR_H*(1-q*.75)+FLOOR_H*(1-q*.75)/2;return;}
+      if(ms<dl)return;const e=Math.min(1,(ms-dl)/dur);const g=e*e;o.position.y=y0+(yEnd-y0)*g;o.position.x=lx*sh*g;o.position.z=lz*sh*g;o.rotation.x=tz*g;o.rotation.z=tx*g;o.scale.y=1-g*.7;
+      if(e>=1&&!hit){hit=true;const wx=x+lx*sh,wz=z+lz*sh;v3Burst(wx,yEnd+.1,wz,.7,'#cbb79a',2,0);if(i%2===0)v3Debris(wx,yEnd+.1,wz,6,.7);V3.shake=Math.max(V3.shake,.08+.03*i);}}});}
+  setTimeout(()=>{V3.G.fx.remove(piv);for(const g of geos)g.dispose();mat.dispose();},4400);
   // 분진 구름: 크게 퍼지며 천천히 가라앉는다
   for(let i=0;i<28;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%3?'#a99a83':'#6c635a',transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*6.28}));const a=Math.random()*6.283,sp=1.2+Math.random()*3.2,y0=.2+Math.random()*h*.6;s.position.set(x,y0,z);V3.G.fx.add(s);
     V3.fx.push({o:s,t0:performance.now()+300+i*30,dur:12000,upd:(o,k)=>{const e=1-Math.pow(1-k,2.6);o.position.set(x+Math.cos(a)*sp*e+DS.wind[0]*k*12,y0+e*1.4,z+Math.sin(a)*sp*e);o.scale.setScalar(.8+e*3.6);o.material.opacity=.6*(1-k)*(k<.06?k/.06:1);}});}

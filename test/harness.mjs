@@ -14,6 +14,8 @@ export function loadGame() {
   vm.runInContext(code, ctx, { filename: 'triad-bundle.js' });
   Object.defineProperty(ctx.__T, '__get', { value: name => ctx[name] });
   Object.defineProperty(ctx.__T, '__set', { value: (name, fn) => { ctx[name] = fn; } });
+  // const/let로 선언된 전역(화살표 함수 등)은 ctx에 없으니 코드로 읽는다
+  Object.defineProperty(ctx.__T, '__eval', { value: src => vm.runInContext(src, ctx) });
   return ctx.__T;
 }
 
