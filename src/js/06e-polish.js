@@ -81,3 +81,11 @@ if(typeof OPT==='object')OPT.gl.mortar=4;
 if(typeof ARMS_MIX==='object'){ARMS_MIX.mortar=.1;}
 if(typeof obsReady==='function'){const _or=obsReady;obsReady=function(a,e){if(_or(a,e))return true;const r=G.cff&&G.cff[a.nat]&&G.cff[a.nat][e.id];const t=G.time||0;
   return !!(r&&t-r.last<3&&t-r.t0>=(r.c===1?OBS.fast:OBS.call));};}
+/* ---------- 차량 사격량(차량 움직임 #43 뒤) ---------- */
+// 포탑이 돌아야 쏘게 되면서 차량 사격이 판당 25%쯤 줄었다. 보이는 표적이 없을 때도 기억하는 가장 가까운 적 쪽으로 포탑을 미리 돌려 두고,
+// 안정화 포(전차·장갑차)는 조금 덜 맞아도(전차 5→8도, 장갑차 8→12도) 쏜다.
+if(typeof vAimPt==='function'){
+  const _va=vAimPt;vAimPt=function(u){const P=_va(u);if(P||typeof memOf!=='function')return P;const R=UT[u.type].rng[1]+2;let best=null,bd=R;
+    for(const m of Object.values(memOf(u.nat))){if((G.time||0)-m.t>15)continue;const d=Math.hypot(m.x-u.x,m.z-u.z);if(d<bd){bd=d;best=m;}}
+    if(!best)return null;u._aim=Math.atan2(best.z-u.z,best.x-u.x)*180/Math.PI;u._aimT=G.time||0;return null;};}
+if(typeof VEH==='object'){if(VEH.tank)VEH.tank.tol=8;if(VEH.ifv)VEH.ifv.tol=12;}
