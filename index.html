@@ -2592,7 +2592,7 @@ function casTick(u,dt){const M=menOf(u);const t=G.time||0;const S=casStats(u.nat
       if((w.a||t-(w.dt||0)>25)&&(u.supp||0)<1.2){const F=free().filter(m=>m.i!==0&&roleOf(u,m.i)!=='위생병');const able=casAble(u).length;
         if(F.length&&able>=3){F.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z));evStart(u,F[0],{u:u.id,i:c.i,x:c.x,z:c.z});busy.add(c.i);ch=true;}}}
     // 쓰러진 채 남겨진 아군 부상자(분대가 끝난 자리)를 데려간다
-    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken)continue;if(Math.hypot(o.x-u.x,o.z-u.z)>2&&!M.some(m=>menAct(m)&&Math.hypot(m.x-o.x,m.z-o.z)<.8))continue;   // 분대 근처이거나 병사 하나라도 곁에 있으면
+    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken)continue;if(Math.hypot(o.x-u.x,o.z-u.z)>(typeof hotAt==='function'&&!hotAt(u.nat,o.x,o.z,2.5)?3.5:2)&&!M.some(m=>menAct(m)&&Math.hypot(m.x-o.x,m.z-o.z)<.8))continue;   // 분대 근처이거나 병사 하나라도 곁에 있으면
       const F=free().filter(m=>m.i!==0);if(!F.length)break;F.sort((a,b)=>Math.hypot(a.x-o.x,a.z-o.z)-Math.hypot(b.x-o.x,b.z-o.z));o.taken=1;evStart(u,F[0],{orph:o.id,x:o.x,z:o.z});ch=true;break;}}
   if(ch)casSync(u,null);}
 /* ---------- 후송조: 전우 한 명이 부상자를 업고 환자집결지로, 넘기고 돌아온다 ---------- */
@@ -3979,6 +3979,33 @@ const OBJ_AIW={hosp:6,bcast:5,comm:6,power:7,rail:5,supply:5,spire:4,gov:8,bank:
 {const _ps=aiPosScore;aiPosScore=function(u,r,c,goal,vis,n){let s=_ps(u,r,c,goal,vis,n);if(!objOn())return s;const x=G.map[r][c];
    if(x.obj!=null&&x.owner!==n&&UT[u.type].cap){const k=objKind(G.objs[x.obj]);if(k)s+=(OBJ_AIW[k]||0)*(objsOf(n,k).length?.4:1);}return s;};}
 
+/* ---------- 점령은 버텨야 넘어간다 ----------
+   남의 거점은 밟는 순간 넘어가지 않는다. 점령할 수 있는 병력이 거점 땅에 머물러야 하고(기본 12초),
+   주인 쪽 병력이 거점 둘레 1칸 안에 있으면 다툼 중이라 진행이 멈춘다. 진지로 굳힌 건물(fb)·벙커는 더 오래 걸린다.
+   병력이 빠지면 진행은 천천히 줄어든다. 주인 없는 거점은 예전처럼 밟으면 바로 확보. */
+const CAP={t:12,fb:1.6,bunker:1.3,decay:.5};
+{const _am=afterMove;afterMove=function(u){const x=cell(u.r,u.c);
+  if(!objOn()||!UT[u.type].cap||x.obj==null||x.owner==null||x.owner===u.nat)return _am(u);
+  const was=x.owner;x.owner=u.nat;try{_am(u);}finally{x.owner=was;}   // 경계 사격 등 나머지는 그대로, 소유만 미룬다
+  if(!x.cap||x.cap.n!==u.nat)x.cap={n:u.nat,p:x.cap&&x.cap.n===u.nat?x.cap.p:0};};}
+function capArea(o,m){const f=o.fp||{r0:o.r,r1:o.r,c0:o.c,c1:o.c};return {x0:f.c0-m,x1:f.c1+1+m,z0:f.r0-m,z1:f.r1+1+m};}
+function capIn(u,A){return u.x>=A.x0&&u.x<=A.x1&&u.z>=A.z0&&u.z<=A.z1;}
+function capNeed(o){const x=G.map[o.r][o.c];let k=CAP.t;if(x.fb!=null&&x.fb===x.owner)k*=CAP.fb;
+  if((G.forts||[]).some(f=>f.k==='bunker'&&f.nat===x.owner&&f.prog>=1&&Math.hypot(f.x-(o.c+.5),f.z-(o.r+.5))<2.5))k*=CAP.bunker;return k;}
+function capTick(dt){for(const o of G.objs){const x=G.map[o.r][o.c];const c=x.cap;if(!c)continue;
+  if(x.owner==null||x.owner===c.n||x.t==='rubble'){delete x.cap;continue;}
+  const inA=capArea(o,.3),near=capArea(o,1.3);
+  const atk=G.units.filter(u=>u.nat===c.n&&UT[u.type].cap&&!UT[u.type].fly&&capIn(u,inA));
+  if(!atk.length){c.p-=dt*CAP.decay;if(c.p<=0)delete x.cap;continue;}
+  c.k=G.units.some(u=>u.nat===x.owner&&!UT[u.type].fly&&u.type!=='amb'&&capIn(u,near))?1:0;   // 다툼 중
+  if(c.k)continue;c.p+=dt*Math.min(1.5,.75+atk.length*.25);
+  if(c.p>=capNeed(o)){const was=x.owner;x.owner=c.n;delete x.cap;
+    L(`${natName(c.n)} ${o.name} 확보 (${natName(was)}에게서 탈환)`);sfx('build');
+    if(typeof giveXp==='function'&&typeof VET!=='undefined')for(const u of atk)giveXp(u,VET.xp.cap);}}}
+function capPct(o){const x=G.map[o.r][o.c];return x.cap?Math.min(99,Math.floor(x.cap.p/capNeed(o)*100)):null;}
+{const _ot=objTick;objTick=function(dt){if(objOn()&&G.objs)capTick(dt);return _ot(dt);};}
+{const _ol=objLabel;objLabel=function(o){const s=_ol(o);const p=G&&G.map&&capPct(o);if(p==null)return s;const x=G.map[o.r][o.c];return `${s} · ${natName(x.cap.n)} 점령 ${p}%${x.cap.k?' (다툼)':''}`;};}
+
 /* ---- 05m-med.js ---- */
 /* ===================== 의료 2: 구호소·구급차·병원, 치료 후 복귀 =====================
    05g-casualty의 후송은 출발 지역 환자집결지까지 걸어가 끝났다(후송된 병사는 그 판에서 영영 빠짐). 여기서 바꾸는 것:
@@ -4077,10 +4104,41 @@ function ambTick(a,dt,t){a.load=a.load||[];const moving=a.path&&a.path.length;co
  const man=f=>function(u){if(u&&u.type==='amb')u.mj=null;return f.apply(null,arguments);};orderMoveTo=man(orderMoveTo);orderStop=man(orderStop);}
 /* ---------- AI: 부상자가 쌓이면 구급차 ---------- */
 {const _ai=aiThink;aiThink=function(n){if(!G.over)try{aiMedBuy(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}return _ai(n);};}
-function aiMedBuy(n){const N2=G.nats[n];const mine=G.units.filter(u=>u.nat===n);const amb=mine.filter(u=>u.type==='amb').length;const want=G.size==='l'?2:1;if(amb>=want)return;
-  const hurt=mine.reduce((a,u)=>a+(u.ws?u.ws.filter(w=>w.s==='hw'&&!w.y).length:0),0)+(G.evac||[]).filter(p=>p.nat===n&&p.ph==='out').length;
+function aiMedBuy(n){const N2=G.nats[n];const mine=G.units.filter(u=>u.nat===n);const amb=mine.filter(u=>u.type==='amb').length;const hurt=mine.reduce((a,u)=>a+(u.ws?u.ws.filter(w=>w.s==='hw'&&!w.y).length:0),0)+(G.evac||[]).filter(p=>p.nat===n&&p.ph==='out').length+(G.cas||[]).filter(o=>o.nat===n).length;
+  const want=(G.size==='l'?2:1)+(hurt>=8?1:0);if(amb>=want)return;
   if(hurt<3||N2.cp<UT.amb.cost+3)return;const sp=deploySpots(n,'amb');if(!sp.length)return;const b=ccpBase(n);
   sp.sort((p,q)=>Math.hypot(kc(p)+.5-b.x,kr(p)+.5-b.z)-Math.hypot(kc(q)+.5-b.x,kr(q)+.5-b.z));buy(n,'amb',kr(sp[0]),kc(sp[0]));}
+
+/* ---------- 남겨진 부상자 수습 ----------
+   분대가 끝난 자리에 쓰러진 중상자(G.cas)는 예전엔 지나가던 분대가 2칸 안에 와야만 데려갔다.
+   이제 구급차가 빈 틈에 직접 실으러 가고, AI는 근처에서 쉬고 있는 분대를 보내 데려온다. */
+function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat!==n||o.taken)continue;const d=Math.hypot(o.x-x,o.z-z);if(d>=bd)continue;if(hotAt(n,o.x,o.z,2.2))continue;bd=d;best=o;}return best;}
+{const _at=ambTick;ambTick=function(a,dt,t){a.load=a.load||[];const j=a.mj;
+  if(j&&j.k==='orph'){const o=(G.cas||[]).find(q=>q.id===j.id);
+    if(!o||t-(a._hitT||-99)<3||hotAt(a.nat,a.x,a.z,1.8)){if(o)o.taken=0;a.mj=null;a.path=[];return;}
+    if(Math.hypot(o.x-a.x,o.z-a.z)<.75){G.cas=G.cas.filter(q=>q!==o);a.load.push({u:null,i:null,w:o});a._lt=t;a.mj=null;
+      if(!isAI(a.nat)||!G.fog||a.nat===G.viewer)L(`${natName(a.nat)} 구급차 남겨진 부상자 수습`);return;}
+    if(!(a.path&&a.path.length)){if((j.tries=(j.tries||0)+1)>4){o.taken=0;o.noAmb=1;a.mj=null;return;}a.path=pathPts(a,o.x,o.z);}
+    return;}
+  _at(a,dt,t);
+  if(a.mj||a.hold||(a.path&&a.path.length)||a.load.length>=AMB_CAP||(a._oT||0)>t)return;a._oT=t+2;
+  const o=orphFree(a.nat,a.x,a.z,isAI(a.nat)?40:10);if(!o||o.noAmb)return;o.taken=1;a.mj={k:'orph',id:o.id};a.path=pathPts(a,o.x,o.z);};}
+// 적 보병이 곁을 지나고 아군이 멀면 남겨진 부상자는 포로로 잡혀 간다
+function orphPow(){if(!G.cas||!G.cas.length)return;G.cas=G.cas.filter(o=>{if(o.taken)return true;
+  const foe=G.units.find(e=>hostile(e.nat,o.nat)&&UT[e.type].cls==='inf'&&Math.hypot(e.x-o.x,e.z-o.z)<1.2);if(!foe)return true;
+  if(G.units.some(u=>u.nat===o.nat&&!UT[u.type].fly&&Math.hypot(u.x-o.x,u.z-o.z)<3))return true;
+  medStats(o.nat).pow++;if(!isAI(o.nat)||!G.fog||o.nat===G.viewer||foe.nat===G.viewer)L(`${natName(foe.nat)} ${UT[foe.type].n}이(가) 남겨진 ${natName(o.nat)} 부상자를 포로로 잡음`);return false;});}
+{const _mt=medTick;medTick=function(dt){_mt(dt);orphPow();};}
+// 차가 움직이면(손으로 옮기면) 수습은 그만둔다
+{const _om=orderMoveTo;orderMoveTo=function(u,x,z){if(u&&u.mj&&u.mj.k==='orph'){const o=(G.cas||[]).find(q=>q.id===u.mj.id);if(o)o.taken=0;}return _om(u,x,z);};}
+// AI: 싸우지 않는 보병 분대를 가까운 부상자에게 보낸다(분대가 2칸 안에 오면 05g가 업고 간다)
+function aiOrphan(n){if(!G.cas||!G.cas.length)return;const t=G.time||0;
+  for(const o of G.cas){if(o.nat!==n||o.taken||(o._call||-99)>t-25)continue;if(hotAt(n,o.x,o.z,2.5))continue;
+    let best=null,bd=14;for(const u of G.units){if(u.nat!==n||UT[u.type].cls!=='inf'||!u.ws||(u.supp||0)>.5||u.tgt||(u.path&&u.path.length))continue;
+      if(typeof casAble==='function'&&casAble(u).length<3)continue;if(hotAt(n,u.x,u.z,4))continue;const x=cell(u.r,u.c);if(x.obj!=null&&x.cap)continue;
+      const d=Math.hypot(u.x-o.x,u.z-o.z);if(d<bd){bd=d;best=u;}}
+    if(best){o._call=t;orderMoveTo(best,o.x,o.z);}}}
+{const _ai=aiThink;aiThink=function(n){if(!G.over)try{aiOrphan(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}return _ai(n);};}
 
 /* ---- 05n-0core.js ---- */
 /* ===================== URBAN CORE: 폭발 소식과 "누가 쐈나" =====================

@@ -95,7 +95,38 @@ function ambTick(a,dt,t){a.load=a.load||[];const moving=a.path&&a.path.length;co
  const man=f=>function(u){if(u&&u.type==='amb')u.mj=null;return f.apply(null,arguments);};orderMoveTo=man(orderMoveTo);orderStop=man(orderStop);}
 /* ---------- AI: 부상자가 쌓이면 구급차 ---------- */
 {const _ai=aiThink;aiThink=function(n){if(!G.over)try{aiMedBuy(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}return _ai(n);};}
-function aiMedBuy(n){const N2=G.nats[n];const mine=G.units.filter(u=>u.nat===n);const amb=mine.filter(u=>u.type==='amb').length;const want=G.size==='l'?2:1;if(amb>=want)return;
-  const hurt=mine.reduce((a,u)=>a+(u.ws?u.ws.filter(w=>w.s==='hw'&&!w.y).length:0),0)+(G.evac||[]).filter(p=>p.nat===n&&p.ph==='out').length;
+function aiMedBuy(n){const N2=G.nats[n];const mine=G.units.filter(u=>u.nat===n);const amb=mine.filter(u=>u.type==='amb').length;const hurt=mine.reduce((a,u)=>a+(u.ws?u.ws.filter(w=>w.s==='hw'&&!w.y).length:0),0)+(G.evac||[]).filter(p=>p.nat===n&&p.ph==='out').length+(G.cas||[]).filter(o=>o.nat===n).length;
+  const want=(G.size==='l'?2:1)+(hurt>=8?1:0);if(amb>=want)return;
   if(hurt<3||N2.cp<UT.amb.cost+3)return;const sp=deploySpots(n,'amb');if(!sp.length)return;const b=ccpBase(n);
   sp.sort((p,q)=>Math.hypot(kc(p)+.5-b.x,kr(p)+.5-b.z)-Math.hypot(kc(q)+.5-b.x,kr(q)+.5-b.z));buy(n,'amb',kr(sp[0]),kc(sp[0]));}
+
+/* ---------- 남겨진 부상자 수습 ----------
+   분대가 끝난 자리에 쓰러진 중상자(G.cas)는 예전엔 지나가던 분대가 2칸 안에 와야만 데려갔다.
+   이제 구급차가 빈 틈에 직접 실으러 가고, AI는 근처에서 쉬고 있는 분대를 보내 데려온다. */
+function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat!==n||o.taken)continue;const d=Math.hypot(o.x-x,o.z-z);if(d>=bd)continue;if(hotAt(n,o.x,o.z,2.2))continue;bd=d;best=o;}return best;}
+{const _at=ambTick;ambTick=function(a,dt,t){a.load=a.load||[];const j=a.mj;
+  if(j&&j.k==='orph'){const o=(G.cas||[]).find(q=>q.id===j.id);
+    if(!o||t-(a._hitT||-99)<3||hotAt(a.nat,a.x,a.z,1.8)){if(o)o.taken=0;a.mj=null;a.path=[];return;}
+    if(Math.hypot(o.x-a.x,o.z-a.z)<.75){G.cas=G.cas.filter(q=>q!==o);a.load.push({u:null,i:null,w:o});a._lt=t;a.mj=null;
+      if(!isAI(a.nat)||!G.fog||a.nat===G.viewer)L(`${natName(a.nat)} 구급차 남겨진 부상자 수습`);return;}
+    if(!(a.path&&a.path.length)){if((j.tries=(j.tries||0)+1)>4){o.taken=0;o.noAmb=1;a.mj=null;return;}a.path=pathPts(a,o.x,o.z);}
+    return;}
+  _at(a,dt,t);
+  if(a.mj||a.hold||(a.path&&a.path.length)||a.load.length>=AMB_CAP||(a._oT||0)>t)return;a._oT=t+2;
+  const o=orphFree(a.nat,a.x,a.z,isAI(a.nat)?40:10);if(!o||o.noAmb)return;o.taken=1;a.mj={k:'orph',id:o.id};a.path=pathPts(a,o.x,o.z);};}
+// 적 보병이 곁을 지나고 아군이 멀면 남겨진 부상자는 포로로 잡혀 간다
+function orphPow(){if(!G.cas||!G.cas.length)return;G.cas=G.cas.filter(o=>{if(o.taken)return true;
+  const foe=G.units.find(e=>hostile(e.nat,o.nat)&&UT[e.type].cls==='inf'&&Math.hypot(e.x-o.x,e.z-o.z)<1.2);if(!foe)return true;
+  if(G.units.some(u=>u.nat===o.nat&&!UT[u.type].fly&&Math.hypot(u.x-o.x,u.z-o.z)<3))return true;
+  medStats(o.nat).pow++;if(!isAI(o.nat)||!G.fog||o.nat===G.viewer||foe.nat===G.viewer)L(`${natName(foe.nat)} ${UT[foe.type].n}이(가) 남겨진 ${natName(o.nat)} 부상자를 포로로 잡음`);return false;});}
+{const _mt=medTick;medTick=function(dt){_mt(dt);orphPow();};}
+// 차가 움직이면(손으로 옮기면) 수습은 그만둔다
+{const _om=orderMoveTo;orderMoveTo=function(u,x,z){if(u&&u.mj&&u.mj.k==='orph'){const o=(G.cas||[]).find(q=>q.id===u.mj.id);if(o)o.taken=0;}return _om(u,x,z);};}
+// AI: 싸우지 않는 보병 분대를 가까운 부상자에게 보낸다(분대가 2칸 안에 오면 05g가 업고 간다)
+function aiOrphan(n){if(!G.cas||!G.cas.length)return;const t=G.time||0;
+  for(const o of G.cas){if(o.nat!==n||o.taken||(o._call||-99)>t-25)continue;if(hotAt(n,o.x,o.z,2.5))continue;
+    let best=null,bd=14;for(const u of G.units){if(u.nat!==n||UT[u.type].cls!=='inf'||!u.ws||(u.supp||0)>.5||u.tgt||(u.path&&u.path.length))continue;
+      if(typeof casAble==='function'&&casAble(u).length<3)continue;if(hotAt(n,u.x,u.z,4))continue;const x=cell(u.r,u.c);if(x.obj!=null&&x.cap)continue;
+      const d=Math.hypot(u.x-o.x,u.z-o.z);if(d<bd){bd=d;best=u;}}
+    if(best){o._call=t;orderMoveTo(best,o.x,o.z);}}}
+{const _ai=aiThink;aiThink=function(n){if(!G.over)try{aiOrphan(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}return _ai(n);};}

@@ -178,3 +178,30 @@ if(typeof morTick==='function'){const _m=morTick;morTick=function(u,dt){const m0
 const OBJ_AIW={hosp:6,bcast:5,comm:6,power:7,rail:5,supply:5,spire:4,gov:8,bank:5,archive:3,police:5,air:3};
 {const _ps=aiPosScore;aiPosScore=function(u,r,c,goal,vis,n){let s=_ps(u,r,c,goal,vis,n);if(!objOn())return s;const x=G.map[r][c];
    if(x.obj!=null&&x.owner!==n&&UT[u.type].cap){const k=objKind(G.objs[x.obj]);if(k)s+=(OBJ_AIW[k]||0)*(objsOf(n,k).length?.4:1);}return s;};}
+
+/* ---------- 점령은 버텨야 넘어간다 ----------
+   남의 거점은 밟는 순간 넘어가지 않는다. 점령할 수 있는 병력이 거점 땅에 머물러야 하고(기본 12초),
+   주인 쪽 병력이 거점 둘레 1칸 안에 있으면 다툼 중이라 진행이 멈춘다. 진지로 굳힌 건물(fb)·벙커는 더 오래 걸린다.
+   병력이 빠지면 진행은 천천히 줄어든다. 주인 없는 거점은 예전처럼 밟으면 바로 확보. */
+const CAP={t:12,fb:1.6,bunker:1.3,decay:.5};
+{const _am=afterMove;afterMove=function(u){const x=cell(u.r,u.c);
+  if(!objOn()||!UT[u.type].cap||x.obj==null||x.owner==null||x.owner===u.nat)return _am(u);
+  const was=x.owner;x.owner=u.nat;try{_am(u);}finally{x.owner=was;}   // 경계 사격 등 나머지는 그대로, 소유만 미룬다
+  if(!x.cap||x.cap.n!==u.nat)x.cap={n:u.nat,p:x.cap&&x.cap.n===u.nat?x.cap.p:0};};}
+function capArea(o,m){const f=o.fp||{r0:o.r,r1:o.r,c0:o.c,c1:o.c};return {x0:f.c0-m,x1:f.c1+1+m,z0:f.r0-m,z1:f.r1+1+m};}
+function capIn(u,A){return u.x>=A.x0&&u.x<=A.x1&&u.z>=A.z0&&u.z<=A.z1;}
+function capNeed(o){const x=G.map[o.r][o.c];let k=CAP.t;if(x.fb!=null&&x.fb===x.owner)k*=CAP.fb;
+  if((G.forts||[]).some(f=>f.k==='bunker'&&f.nat===x.owner&&f.prog>=1&&Math.hypot(f.x-(o.c+.5),f.z-(o.r+.5))<2.5))k*=CAP.bunker;return k;}
+function capTick(dt){for(const o of G.objs){const x=G.map[o.r][o.c];const c=x.cap;if(!c)continue;
+  if(x.owner==null||x.owner===c.n||x.t==='rubble'){delete x.cap;continue;}
+  const inA=capArea(o,.3),near=capArea(o,1.3);
+  const atk=G.units.filter(u=>u.nat===c.n&&UT[u.type].cap&&!UT[u.type].fly&&capIn(u,inA));
+  if(!atk.length){c.p-=dt*CAP.decay;if(c.p<=0)delete x.cap;continue;}
+  c.k=G.units.some(u=>u.nat===x.owner&&!UT[u.type].fly&&u.type!=='amb'&&capIn(u,near))?1:0;   // 다툼 중
+  if(c.k)continue;c.p+=dt*Math.min(1.5,.75+atk.length*.25);
+  if(c.p>=capNeed(o)){const was=x.owner;x.owner=c.n;delete x.cap;
+    L(`${natName(c.n)} ${o.name} 확보 (${natName(was)}에게서 탈환)`);sfx('build');
+    if(typeof giveXp==='function'&&typeof VET!=='undefined')for(const u of atk)giveXp(u,VET.xp.cap);}}}
+function capPct(o){const x=G.map[o.r][o.c];return x.cap?Math.min(99,Math.floor(x.cap.p/capNeed(o)*100)):null;}
+{const _ot=objTick;objTick=function(dt){if(objOn()&&G.objs)capTick(dt);return _ot(dt);};}
+{const _ol=objLabel;objLabel=function(o){const s=_ol(o);const p=G&&G.map&&capPct(o);if(p==null)return s;const x=G.map[o.r][o.c];return `${s} · ${natName(x.cap.n)} 점령 ${p}%${x.cap.k?' (다툼)':''}`;};}

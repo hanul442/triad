@@ -114,3 +114,28 @@ test('AI끼리 한 판: 오류 없이 끝나고 진지·의료를 쓴다', async
   assert.ok(forts.has('aid') || forts.has('fortb'), [...forts].join(','));
   assert.ok(rtd > 0, '치료 후 복귀가 있음');
 });
+
+test('점령: 남의 거점은 버텨야 넘어가고, 지키는 병력이 있으면 멈춘다', () => {
+  const T = loadGame(); const G = setup(T); G.objs = [];
+  G.map[15][15] = { t: 'plaza', owner: 1, obj: 0, smoke: 0 }; G.objs.push({ r: 15, c: 15, name: '중앙시장' });
+  const cap = F(T, 'capTick'), tick = s => { for (let i = 0; i < s * 10; i++) cap(0.1); };
+  const a = T.mkUnit(0, 'rifle', 15, 15); F(T, 'afterMove')(a);
+  assert.equal(G.map[15][15].owner, 1, '밟자마자 넘어가지 않음'); assert.ok(G.map[15][15].cap);
+  const d = T.mkUnit(1, 'rifle', 16, 15); tick(20);
+  assert.equal(G.map[15][15].owner, 1, '지키는 병력이 있으면 다툼'); assert.ok(T.__get('objLabel')(G.objs[0]).includes('다툼'));
+  G.units = G.units.filter(u => u !== d); tick(5); assert.equal(G.map[15][15].owner, 1, '아직 시간이 모자람');
+  tick(10); assert.equal(G.map[15][15].owner, 0, '버티면 넘어감'); assert.ok(!G.map[15][15].cap);
+  // 주인 없는 거점은 바로
+  G.map[5][5] = { t: 'plaza', owner: null, obj: 1, smoke: 0 }; G.objs.push({ r: 5, c: 5, name: '발전소' });
+  const b = T.mkUnit(0, 'rifle', 5, 5); F(T, 'afterMove')(b); assert.equal(G.map[5][5].owner, 0);
+});
+
+test('남겨진 부상자: 구급차가 실어 가고, 적 지역에 남으면 포로가 된다', () => {
+  const T = loadGame(); const G = setup(T);
+  G.cas = [{ id: 'cx1', nat: 0, x: 20.5, z: 20.5, b: 999, a: 1, w: 'leg', s: 'hw' }];
+  const a = T.mkUnit(0, 'amb', 20, 14); run(T, 12);
+  assert.equal(G.cas.length, 0, '수습함'); assert.equal(a.load.length + (G.med || []).length >= 1, true);
+  G.cas = [{ id: 'cx2', nat: 0, x: 10.5, z: 25.5, b: 999, a: 1, w: 'leg', s: 'hw' }];
+  G.units = G.units.filter(u => u !== a); T.mkUnit(1, 'rifle', 25, 10); run(T, .5);
+  assert.equal(G.cas.length, 0, '적이 데려감'); assert.equal(G.nats[0].cas.pow, 1);
+});
