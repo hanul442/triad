@@ -5839,7 +5839,7 @@ function specHot(skip,ok){if(!G||!G.units.length)return null;const t=G.time||0;c
   const fire=G.units.filter(hot);let best=null,bs=0;
   for(const u of G.units){if(skip&&skip.has(u.id)||ok&&!ok(u))continue;let s=0;
     for(const o of fire){const d=Math.hypot(o.x-u.x,o.z-u.z);if(d<5)s+=(o.nat===u.nat?1:1.4)*(1-d/6);}
-    if(hot(u))s+=1;if(s>bs){bs=s;best=u;}}
+    if(hot(u))s+=1;if(s&&specSmoky(u))s*=.6;if(s>bs){bs=s;best=u;}}
   if(best)return {u:best,s:bs};
   let bd=1e9;for(const u of G.units){if(skip&&skip.has(u.id)||ok&&!ok(u))continue;for(const e of G.units){if(e.nat===u.nat)continue;const d=Math.hypot(e.x-u.x,e.z-u.z);if(d<bd){bd=d;best=u;}}}
   return best?{u:best,s:0}:null;}
@@ -5869,9 +5869,25 @@ function specPress(now){const us=prUnits();if(!us.length)return;const ok=new Set
 function specCam(now){if(!specOn()||typeof V3==='undefined'||!V3.cs)return;if(typeof PR!=='undefined'&&PR.on){specPress(now);return;}let u=specFollowed();
   if(UI.follow!=null&&(!u||!specVisible(u))){u=null;UI.follow=null;if(!UI.specAuto&&!G.over)toast('따라가던 부대를 놓쳤습니다');}
   if(UI.specAuto&&!G.paused&&!G.over&&(!u||now-(UI.specHotT||0)>7000)){UI.specHotT=now;const h=specHot(null);
+    // 아직 교전이 없으면 부대 하나(맵 가장자리일 수 있다) 대신 두 세력이 가장 가까운 전선을 넓게 비춘다
+    if(h&&h.s===0){UI.follow=null;u=null;UI.specFront=specFront();}
     // 지금 부대가 아직 충분히 뜨거우면 머문다(화면이 자주 튀지 않게)
-    if(h&&specVisible(h.u)&&(!u||h.u.id!==u.id&&specScore(u)<h.s*.6)){UI.follow=h.u.id;u=h.u;if(V3.cs.gd>22)V3.cs.gd=15;}}
-  if(u){V3.cs.gx=u.x;V3.cs.gz=u.z;}}
+    else if(h&&specVisible(h.u)&&(!u||h.u.id!==u.id&&specScore(u)<h.s*.6)){UI.follow=h.u.id;u=h.u;UI.specFront=null;if(V3.cs.gd>22)V3.cs.gd=15;}}
+  if(u){V3.cs.gx=u.x;V3.cs.gz=u.z;
+    // 연막·먼지 속이면 조금 물러나 둘레를 같이 보여 준다
+    if(UI.specAuto&&specSmoky(u)&&V3.cs.gd<20)V3.cs.gd=20;}
+  else if(UI.specAuto&&UI.specFront){const f=UI.specFront;const fu=f.u!=null&&G.units.find(o=>o.id===f.u);if(fu){f.x=fu.x;f.z=fu.z;}
+    // 맵 밖 빈 곳이 화면 절반을 차지하지 않게 카메라 가운데를 안쪽으로 당긴다
+    const mg=Math.min(N/2,f.d*.38),cl=v=>Math.max(mg,Math.min(N-mg,v));V3.cs.gx=cl(f.x);V3.cs.gz=cl(f.z);if(!f.z0){f.z0=1;V3.cs.gd=f.d;}}}
+/* 전선: 서로 가장 가까운 두 적 지상 부대의 가운데. 맵 안쪽으로 당기고, 둘이 다 보이게 물러난다 */
+function specFront(){let best=null,bd=1e9;const gnd=G.units.filter(u=>!UT[u.type].fly);
+  for(const a of gnd)for(const b of gnd){if(a.nat>=b.nat)continue;const d=Math.hypot(a.x-b.x,a.z-b.z);if(d<bd){bd=d;best=[a,b];}}
+  const m=N/2;if(!best)return {x:m,z:m,d:Math.min(Math.max(48,N*1.35),N*.8)};const cl=v=>Math.max(N*.2,Math.min(N*.8,v));
+  // 아직 멀면 둘 중 도시 가운데에 더 가까운(앞서 나간) 부대를 지켜본다. 가까워지면 둘 사이를 비춘다
+  if(bd>16){const u=best.slice().sort((a,b)=>Math.hypot(a.x-m,a.z-m)-Math.hypot(b.x-m,b.z-m))[0];return {u:u.id,x:u.x,z:u.z,d:18};}
+  return {x:cl((best[0].x+best[1].x)/2),z:cl((best[0].z+best[1].z)/2),d:Math.max(16,Math.min(26,bd*.8+10))};}
+/* 부대 둘레에 연막이 짙은가 */
+function specSmoky(u){let n=0;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const r=u.r+dr,c=u.c+dc;if(inb(r,c)&&G.map[r][c].smoke>0)n++;}return n>=3||(inb(u.r,u.c)&&G.map[u.r][u.c].smoke>0);}
 function specScore(u){const t=G.time||0;let s=t-(u.firedT??-99)<4?1:0;for(const o of G.units){if(t-(o.firedT??-99)>=4)continue;const d=Math.hypot(o.x-u.x,o.z-u.z);if(d<5)s+=(o.nat===u.nat?1:1.4)*(1-d/6);}return s;}
 function specVisLabel(){return UI.specVis==='all'?'전체':NATS[G.viewer].name;}
 /* 시야 순환: 전체 → 각 세력 → 전체 */
@@ -5933,12 +5949,15 @@ function specBegin(){$('#setup').hidden=true;for(const id of ['#brief','#debrief
   render=allView(render);
   if(typeof document==='undefined')return;
   const st=document.createElement('style');st.textContent=`.spec-seg{display:flex;gap:2px}.spec-seg .btn{min-width:40px;padding:6px 8px;font-family:var(--font-m)}
-.spec-sc.out{opacity:.4}.spec-box{display:flex;flex-direction:column;gap:8px}.spec-note{font-size:12px;opacity:.75;margin:0}
+.spec-sc.out{opacity:.4}#v3d-lab.spec-clean .v3u:not(.fol)>:not(i){display:none}.spec-box{display:flex;flex-direction:column;gap:8px}.spec-note{font-size:12px;opacity:.75;margin:0}
 .spec-box input[type=number]{min-width:0;width:100%;font:inherit;background:var(--bg2,#151c22);color:inherit;border:1px solid var(--line,#2a343d);border-radius:6px;padding:6px 8px}`;document.head.appendChild(st);
   const _rh=renderHUD;renderHUD=function(){_rh.apply(this,arguments);if(specOn())specHUD();else{const t=$('#t-cmd');if(t)t.hidden=false;}};
   const _ra=renderActbar;renderActbar=function(){if(specOn())return specBar();return _ra.apply(this,arguments);};
   const _rp=renderPanel;renderPanel=function(){if(specOn()&&UI.tab==='cmd')UI.tab='world';return _rp.apply(this,arguments);};
   renderTip=allView(renderTip);
+  // 관전 화면은 깔끔하게: 따라가는 부대만 엄폐·사기·무전 같은 표시를 달고, 나머지는 체력 막대만
+  const _sl=v3SyncLabels;v3SyncLabels=function(){const r=_sl.apply(this,arguments);const lab=$('#v3d-lab');const on=specOn();if(lab)lab.classList.toggle('spec-clean',on);
+    if(on)for(const o of V3.labels.values())if(o.uid!=null)o.el.classList.toggle('fol',o.uid===UI.follow);return r;};
   const _ss=showSetup;showSetup=function(){_ss.apply(this,arguments);specSetupBox();if(UI.specCfg){$('#spec-n').value=String(UI.specCfg.n);$('#spec-size').value=UI.specCfg.size;$('#spec-map').value=UI.specCfg.map||'free';$('#spec-seed').value=UI.specCfg.seed??'';}specSetupSync();};
   // 관전 중 탭: 보이는 부대를 탭하면 따라간다. 명령은 내리지 않는다.
   const _tap=tap;tap=function(k){if(!specOn())return _tap.apply(this,arguments);const id=typeof V3!=='undefined'?V3.pickId:null;
