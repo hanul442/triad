@@ -66,8 +66,8 @@ function jetDrop(j){const {n,r,c}=j;
       L(`${natName(e.nat)} ${UT[e.type].n} 전투기 격추! 폭격 실패`);G.nats[e.nat].kills++;e.kills=(e.kills||0)+1;
       crashAt({x,z,t:G.time+1.6,big:1,nat:n,kind:'jet'});if(FXH.jetDown)FXH.jetDown(j,x,z);sfx('boom',1.2,x,z);bump();return;}}
   if(FXH.bomb)FXH.bomb(r,c);
-  for(const [a,b] of supArea(r,c,0)){const x=G.map[a][b];const u=unitAt(a,b);
-    if(u){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const d=Math.max(1,Math.round(9*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:.6});}
+  for(const [a,b] of supArea(r,c,0)){const x=G.map[a][b];
+    for(const u of unitsAt(a,b)){const cov=UT[u.type].fly?0:TT[x.t].cov*.5;const d=Math.max(1,Math.round(9*(1-cov)*(.85+Math.random()*.3)*(typeof flShield==='function'?flShield(u):1)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:.6});}
     if(x.t==='bldg'){damageBldg(a,b,24);if(typeof ignite==='function')ignite(a,b,.7);}}
   // 폭풍: 주변 부대도 제압
   for(const u of G.units)if(!UT[u.type].fly&&Math.hypot(u.x-(c+.5),u.z-(r+.5))<1.8)u.supp=Math.max(u.supp||0,1.5);

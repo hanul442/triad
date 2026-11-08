@@ -45,6 +45,7 @@ function losEnd(px,pz,ph,ox,oz,oh){const r=Math.floor(pz),c=Math.floor(px);if(!i
 function losPt(x1,z1,h1,x2,z2,h2){const dx=x2-x1,dz=z2-z1;
   const r1=Math.floor(z1),c1=Math.floor(x1),r2=Math.floor(z2),c2=Math.floor(x2);
   if(inb(r1,c1)&&inb(r2,c2)){const A=G.map[r1][c1],B=G.map[r2][c2];
+    if(r1===r2&&c1===c2&&A.t==='bldg'){const bh=bldgH(A);if((h1<bh-.05||h2<bh-.05)&&Math.abs(h1-h2)>=.6)return false;}  // 같은 칸 다른 층: 바닥·천장이 막는다
     if(A.t==='bldg'&&B.t==='bldg'&&A.blk!=null&&A.blk===B.blk&&Math.abs(r1-r2)+Math.abs(c1-c2)<=1&&Math.abs(h1-h2)<.6&&h1<bldgH(A)&&h2<bldgH(B))return true;}  // 같은 건물 같은 층의 옆방
   if(!losEnd(x1,z1,h1,x2,z2,h2)||!losEnd(x2,z2,h2,x1,z1,h1))return false;
   if(r1===r2&&c1===c2)return true;

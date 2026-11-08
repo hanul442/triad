@@ -64,7 +64,7 @@ function aiArmsPos(u,r,c,goal,vis,n){const t=UT[u.type];if(t.fly)return 0;let s=
 /* 보병이 차량을 따라 붙는다: 진격하는 장갑차 곁 빈 보병을 끌어 온다 */
 function aiArmsEscort(n){for(const v of G.units){if(v.nat!==n||UT[v.type].cls!=='veh'||UT[v.type].ind||!v.path||!v.path.length)continue;
   const end=v.path[v.path.length-1];if(G.units.some(o=>o.nat===n&&UT[o.type].cls==='inf'&&Math.hypot(o.x-v.x,o.z-v.z)<2.5&&o.path&&o.path.length))continue;
-  let bi=null,bd=6;for(const o of G.units){if(o.nat!==n||!(o.type==='rifle'||o.type==='at'||o.type==='mg')||(o.path&&o.path.length)||o.job||o.climb||inside(o))continue;
+  let bi=null,bd=6;for(const o of G.units){if(o.nat!==n||!(o.type==='rifle'||o.type==='at'||o.type==='mg')||(o.path&&o.path.length)||o.job||o.cqb||o.climb||inside(o))continue;
     const d=Math.hypot(o.x-v.x,o.z-v.z);if(d<bd){bd=d;bi=o;}}
   if(bi){const a=Math.random()*6.283;orderMoveTo(bi,end[0]+Math.cos(a)*1.1,end[1]+Math.sin(a)*1.1);bi.dest=null;}}}
 
