@@ -840,10 +840,13 @@ test('대전차 화기에 맞은 차량은 연막탄을 쏘고 정면을 둔 채
   const T = loadGame(); const G = setup(T);
   const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
   const a = T.mkUnit(0, 'at', 5, 8); a.x = 8.5; a.z = 5.5;
-  const harm = F(T, 'harm'); harm(tk, 1, a, { kind: 'blast' });
+  // 맞은 부위(궤도·탄약고 등)가 난수라 고정한다
+  const harm = F(T, 'harm'); const rnd = Math.random; Math.random = () => 0.5;
+  try { harm(tk, 1, a, { kind: 'blast' }); } finally { Math.random = rnd; }
   assert.ok(G.units.includes(tk));
   assert.ok(G.map[5][5].smoke > 0 || G.map[5][6].smoke > 0, '연막');
   assert.equal(tk.vsm, 1, '연막탄 한 번 사용');
+  assert.ok(!(tk.vd && tk.vd.mob), '궤도는 멀쩡');
   assert.ok(tk.path.length && tk.path[0][0] < tk.x, '적 반대쪽으로 후진');
   for (let i = 0; i < 10; i++) T.rtTick(0.1);
   assert.ok(Math.abs(tk.face) < 1, '후진하는 동안 정면은 적을 본다');
