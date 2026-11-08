@@ -19,6 +19,7 @@ function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
   if(t.ind||u.type==='sniper'){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-(u.type==='spg'?7:5))*2.2+(vis.length?0:gd*(t.ind?.6:2));}
   else if(t.fly){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-4)*2+gd*.6;}
   else s-=gd*2.6;
+  if(x.el&&(t.cls==='inf'||t.ind))s+=Math.min(3,x.el)*(u.type==='sniper'||u.type==='mg'?1.4:.8);   // 높은 곳 선호
   if(t.cls==='inf'){if(x.t==='bldg')s+=5+Math.min(4,x.f)*.6;else if(x.t==='rubble')s+=3;else if(x.t==='park')s+=1.2;}
   let threat=0;const sv=u.r,sc=u.c;u.r=r;u.c=c;
   for(const e of vis){const de=dist(e.r,e.c,r,c);if(de>UT[e.type].rng[1]+2)continue;if(canHit(e,u)){threat+=calcDmg(e,u,false);}

@@ -13,10 +13,11 @@ function specSlots(n){n=Math.max(2,Math.min(4,n|0||2));return NATS.map((_,i)=>i<
 const specMaps=()=>[['free','자유 전투'],['scn:assault','시나리오 · 도심 돌파'],['scn:hold','시나리오 · 최후 방어'],
   ...(typeof CAMP_IDS!=='undefined'?CAMP_IDS.map(id=>['camp:'+id,`캠페인 ${CAMP[id].no} · ${CAMP[id].n}`]):[])];
 function specStart(cfg){cfg=cfg||{};const map=specMaps().some(m=>m[0]===cfg.map)?cfg.map:'free';const seed=cfg.seed==null||cfg.seed===''||!isFinite(+cfg.seed)?null:Math.abs(Math.floor(+cfg.seed));
-  UI.specCfg={n:cfg.n||2,size:cfg.size||'m',map,seed};
+  const opt=id=>typeof document!=='undefined'&&document.getElementById(id)?document.getElementById(id).value:null;
+  UI.specCfg={n:cfg.n||2,size:cfg.size||'m',map,seed,layout:cfg.layout||opt('opt-layout')||'sym',relief:cfg.relief||opt('opt-relief')||'flat'};   // 자유 전투 지형은 새 게임 설정을 따른다
   // 시나리오·캠페인은 원래 사람 자리를 AI로 바꿔 차린다(newGame 감싸기가 UI.specForce를 본다)
   UI.specForce=true;UI.specSeed=seed;
-  try{if(map==='free')newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,diff:'normal',fog:true,speed:0,seed:seed??undefined});
+  try{if(map==='free')newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,layout:UI.specCfg.layout,relief:UI.specCfg.relief,diff:'normal',fog:true,speed:0,seed:seed??undefined});
     else if(map.startsWith('scn:'))scnSetup(map.slice(4),0);
     else campStart(map.slice(5));}
   finally{UI.specForce=false;UI.specSeed=null;}
@@ -160,8 +161,8 @@ function specBegin(){$('#setup').hidden=true;for(const id of ['#brief','#debrief
   v3Frame=allView(v3Frame);
   document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="spec"]');if(!b||b.disabled)return;const a=b.dataset.act;
     if(a==='spec-start'){specStart(specSetupCfg());specBegin();return;}
-    if(a==='spec-again'){specStart(UI.specCfg||{n:G.order.length,size:G.size});specBegin();return;}
-    if(a==='spec-same'){specStart({...(UI.specCfg||{n:G.order.length,size:G.size}),seed:G.seed});specBegin();return;}
+    if(a==='spec-again'){specStart(UI.specCfg||{n:G.order.length,size:G.size,layout:G.feat?.layout,relief:G.feat?.relief});specBegin();return;}
+    if(a==='spec-same'){specStart({...(UI.specCfg||{n:G.order.length,size:G.size,layout:G.feat?.layout,relief:G.feat?.relief}),seed:G.seed});specBegin();return;}
     if(!specOn())return;
     if(a==='spec-pause')G.paused=!G.paused;
     else if(a.startsWith('spec-spd:'))specSetSpd(+a.slice(9));

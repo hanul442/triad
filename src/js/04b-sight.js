@@ -32,10 +32,14 @@ function segBox(x1,z1,x2,z2,b){let t0=0,t1=1;const dx=x2-x1,dz=z2-z1;
    광선이 자기 칸 상자를 바깥쪽 외벽(같은 블록과 붙지 않은 면)으로, WIN칸 안에서 빠져나가야 한다.
    옥상(눈높이가 건물 높이 이상)이면 자기 칸은 가리지 않는다. 같은 블록의 다른 칸도 보통 건물처럼 가린다. */
 const WIN=.4;
+const TREE_H=2;                // 공원 나무 높이(층). 이보다 낮게 지나는 시야선만 숲에 가린다
+const WOOD_L=1.6;              // 숲을 이 길이(칸)보다 오래 지나면 안 보인다(약 20m)
+/* 선 자리의 지면 높이(층): 건물 칸은 다진 칸 높이, 나머지는 꼭짓점 높이를 보간한 실제 비탈 높이 */
+function gndAt(x,z){if(!G.elv)return 0;const r=Math.floor(z),c=Math.floor(x);if(!inb(r,c))return 0;const t=G.map[r][c];return t.t==='bldg'?t.el||0:elAt(x,z);}
 function losOwn(r,c,rr,cc){return r===rr&&c===cc;}
 /* 끝점 P(px,pz,ph)가 다른 끝 O를 향해 자기 칸을 벗어날 수 있는가 */
 function losEnd(px,pz,ph,ox,oz,oh){const r=Math.floor(pz),c=Math.floor(px);if(!inb(r,c))return true;const x=G.map[r][c];if(x.t!=='bldg')return true;
-  const bh=bldgH(x);if(ph>=bh-.05)return true;const b=bldgBox(r,c);const s=segBox(px,pz,ox,oz,b);if(!s)return true;
+  const bh=bldgH(x)+(x.el||0);   /* 높이는 지형 높이(03a)를 더한 절대값 */if(ph>=bh-.05)return true;const b=bldgBox(r,c);const s=segBox(px,pz,ox,oz,b);if(!s)return true;
   const L=Math.hypot(ox-px,oz-pz);const inside=px>=b[0]&&px<=b[1]&&pz>=b[2]&&pz<=b[3];
   if(!inside){const hmin=Math.min(ph+(oh-ph)*s[0],ph+(oh-ph)*s[1]);return bh<hmin-.05;}
   if(s[1]>=1-1e-9)return true;                       // 같은 방 안
@@ -47,17 +51,24 @@ function losPt(x1,z1,h1,x2,z2,h2){const dx=x2-x1,dz=z2-z1;
   if(inb(r1,c1)&&inb(r2,c2)){const A=G.map[r1][c1],B=G.map[r2][c2];
     if(r1===r2&&c1===c2&&A.t==='bldg'){const bh=bldgH(A);if((h1<bh-.05||h2<bh-.05)&&Math.abs(h1-h2)>=.6)return false;}  // 같은 칸 다른 층: 바닥·천장이 막는다
     if(A.t==='bldg'&&B.t==='bldg'&&A.blk!=null&&A.blk===B.blk&&Math.abs(r1-r2)+Math.abs(c1-c2)<=1&&Math.abs(h1-h2)<.6&&h1<bldgH(A)&&h2<bldgH(B))return true;}  // 같은 건물 같은 층의 옆방
+  if(G.elv){h1+=gndAt(x1,z1);h2+=gndAt(x2,z2);}   // 언덕 위 눈높이(비탈이면 선 자리 높이)
   if(!losEnd(x1,z1,h1,x2,z2,h2)||!losEnd(x2,z2,h2,x1,z1,h1))return false;
   if(r1===r2&&c1===c2)return true;
+  const L=Math.hypot(dx,dz);let wood=0;
   let c=c1,r=r1;const sx=dx>0?1:-1,sz=dz>0?1:-1;
   const tdx=Math.abs(dx)>1e-12?Math.abs(1/dx):Infinity,tdz=Math.abs(dz)>1e-12?Math.abs(1/dz):Infinity;
   let tmx=Math.abs(dx)>1e-12?((dx>0?c+1-x1:x1-c)*tdx):Infinity,tmz=Math.abs(dz)>1e-12?((dz>0?r+1-z1:z1-r)*tdz):Infinity;
   for(let g=0;g<4*N;g++){if(tmx<tmz){c+=sx;tmx+=tdx;}else{r+=sz;tmz+=tdz;}
     if(Math.min(tmx,tmz)>1+tdx&&Math.min(tmx,tmz)>1+tdz)break;
     if(!inb(r,c))break;if(r===r2&&c===c2)break;
-    const x=G.map[r][c];if(!(x.smoke>0)&&x.t!=='bldg')continue;
+    const x=G.map[r][c];const te=x.el||0;
+    if(G.elv&&x.t!=='bldg'&&Math.max(G.elv[r*(N+1)+c],G.elv[r*(N+1)+c+1],G.elv[(r+1)*(N+1)+c],G.elv[(r+1)*(N+1)+c+1])>Math.min(h1,h2)-.5){
+      const s=segBox(x1,z1,x2,z2,[c,c+1,r,r+1]);if(s){for(const t of [s[0],(s[0]+s[1])/2,s[1]]){if(elAt(x1+dx*t,z1+dz*t)>h1+(h2-h1)*t-.05)return false;}}}   // 땅(언덕 능선)이 가린다: 칸 안 세 점의 실제 지면 높이
+    if(x.t==='park'&&!x.yard&&!(x.smoke>0)){const s=segBox(x1,z1,x2,z2,[c,c+1,r,r+1]);   // 숲: 나무 높이(약 6m)보다 낮게 숲을 오래 지나면 가린다
+      if(s&&Math.min(h1+(h2-h1)*s[0],h1+(h2-h1)*s[1])<te+TREE_H){wood+=(s[1]-s[0])*L;if(wood>WOOD_L)return false;}continue;}
+    if(!(x.smoke>0)&&x.t!=='bldg')continue;
     if(x.t!=='bldg')return false;           // 연막
-    const bh=x.smoke>0?99:bldgH(x);const s=segBox(x1,z1,x2,z2,bldgBox(r,c));if(!s)continue;
+    const bh=x.smoke>0?99:bldgH(x)+te;const s=segBox(x1,z1,x2,z2,bldgBox(r,c));if(!s)continue;
     const hmin=Math.min(h1+(h2-h1)*s[0],h1+(h2-h1)*s[1]);if(bh>=hmin-.05)return false;}
   if(typeof propBlocks==='function'&&propBlocks(x1,z1,h1,x2,z2,h2))return false;   // 세워 둔 차·불탄 차(04c-cover)
   return true;}
@@ -72,7 +83,7 @@ function los(r1,c1,h1,r2,c2,h2){return losPt(c1+.5,r1+.5,h1,c2+.5,r2+.5,h2);}
 /* 부대 a가 부대 b를 시야선으로 보는가 */
 function losU(a,b){const [ax,az]=posOf(a),[bx,bz]=posOf(b);return losPt(ax,az,eye(a),bx,bz,eye(b));}
 
-function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg'){const f=Math.round(eye(u)+.5);v+=f>=5?2:f>=3?1:0;}
+function visRange(u){const t=UT[u.type];let v=t.vis;const x=cell(u.r,u.c);if(x.t==='bldg'){const f=Math.round(eye(u)+.5);v+=f>=5?2:f>=3?1:0;}else if(x.el){v+=x.el>=3?2:x.el>=1.5?1:0;}   // 언덕 위는 멀리 본다
   v+=typeof envVis==='function'?envVis(u):(isNight()?-(t.fly?1:2):0)+WX[G.wx].vis;if(x.smoke>0&&!t.fly)v=1;return Math.max(1,v);}
 /* 숨은 상태: 쏜 지 얼마 안 됐으면 드러난다 */
 const firedRecently=e=>e.firedT!=null&&(G.time||0)-e.firedT<FIRE_REVEAL;
@@ -92,20 +103,23 @@ function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.r
   const bx0=Math.max(0,Math.floor(qx-v)),bx1=Math.min(N-1,Math.floor(qx+v)),bz0=Math.max(0,Math.floor(qz-v)),bz1=Math.min(N-1,Math.floor(qz+v));
   const W=bx1-bx0+1;const TB=new Array(W*(bz1-bz0+1));
   for(let r=bz0;r<=bz1;r++)for(let c=bx0;c<=bx1;c++){const x=G.map[r][c];const own=r===r1&&c===c1;
-    TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0&&!own,own}:{b:null,h:0,sm:x.smoke>0&&!own,own};}
+    TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0&&!own,own,e:x.el||0}:{b:null,h:0,sm:x.smoke>0&&!own,own,e:x.el||0,wd:x.t==='park'&&!x.yard};}
   // 건물 안이면 창가로만 내다본다
-  const oc=G.map[r1]&&G.map[r1][c1];const inB=oc&&oc.t==='bldg'&&h<bldgH(oc)-.05?bldgBox(r1,c1):null;
+  const oc=G.map[r1]&&G.map[r1][c1];const h0=h+gndAt(qx,qz);   // 지형 높이를 더한 눈높이
+  const inB=oc&&oc.t==='bldg'&&h<bldgH(oc)-.05?bldgBox(r1,c1):null;
   const gi0=Math.max(0,Math.floor((qx-v)*FOW_R)),gj0=Math.max(0,Math.floor((qz-v)*FOW_R)),GW=Math.min(M,Math.ceil((qx+v)*FOW_R)+1)-gi0,GH=Math.min(M,Math.ceil((qz+v)*FOW_R)+1)-gj0;
   const mk=new Uint8Array(GW*GH);const mark=(px,pz)=>{const i=Math.floor(px*FOW_R)-gi0,j=Math.floor(pz*FOW_R)-gj0;if(i>=0&&j>=0&&i<GW&&j<GH)mk[j*GW+i]=1;};
   mark(qx,qz);
   const nr=Math.ceil(2*Math.PI*v*FOW_R*1.6),st=.5/FOW_R;
-  for(let k=0;k<nr;k++){const a=k/nr*2*Math.PI,cx=Math.cos(a),cz=Math.sin(a);let maxS=-Infinity;let dOut=-1,dEnd=ar?v*ar.k(a):v;   // 시야각(05k-optics): 해치 닫은 전차는 옆·뒤가 짧다
-    if(inB){const s=segBox(qx,qz,qx+cx*v,qz+cz*v,inB);if(s&&s[0]<1e-9){dOut=s[1]*v;if(!losEnd(qx,qz,h,qx+cx*v,qz+cz*v,h))dEnd=Math.min(v,dOut+.05);}}
+  for(let k=0;k<nr;k++){const a=k/nr*2*Math.PI,cx=Math.cos(a),cz=Math.sin(a);let maxS=-Infinity;let dOut=-1,dEnd=ar?v*ar.k(a):v,wood=0;   // 시야각(05k-optics): 해치 닫은 전차는 옆·뒤가 짧다
+    if(inB){const s=segBox(qx,qz,qx+cx*v,qz+cz*v,inB);if(s&&s[0]<1e-9){dOut=s[1]*v;if(!losEnd(qx,qz,h0,qx+cx*v,qz+cz*v,h0))dEnd=Math.min(v,dOut+.05);}}
     for(let d=st;d<=dEnd;d+=st){const px=qx+cx*d,pz=qz+cz*d;if(px<0||pz<0||px>=N||pz>=N)break;const r=Math.floor(pz),c=Math.floor(px);
       const T=TB[(r-bz0)*W+c-bx0];if(!T)break;let bh=0,th=.3;
       if(!(T.own&&(d<=dOut||!inB))){if(T.b&&px>=T.b[0]&&px<=T.b[1]&&pz>=T.b[2]&&pz<=T.b[3]){bh=T.h;th=Math.max(.5,T.h-.3);}if(T.sm)bh=99;}
-      if(d<.9||(th-h)/d>=maxS-.02)mark(px,pz);
-      if(bh>0){const sl=(bh-h)/d;if(sl>maxS)maxS=sl;}}}
+      const ge=T.b?T.e:G.elv?elAt(px,pz):0;th+=ge;if(bh>0)bh+=ge;else if(ge>0&&!T.own)bh=ge;     // 땅 자체도 가린다(언덕 너머)
+      if(T.wd&&!T.own){if(h0<ge+TREE_H+.3)wood+=st;if(wood>WOOD_L)bh=Math.max(bh,ge+TREE_H);}   // 숲을 오래 지나면 나무 높이만큼 가린다
+      if(d<.9||(th-h0)/d>=maxS-.02)mark(px,pz);
+      if(bh>0){const sl=(bh-h0)/d;if(sl>maxS)maxS=sl;}}}
   const out=[];for(let j=0;j<GH;j++)for(let i=0;i<GW;i++)if(mk[j*GW+i])out.push((j+gj0)*M+i+gi0);
   u._fov={k:ck,p:out};return out;}
 /* 세력 n의 시야: 칸 집합(예전 호환) + 잘게 나눈 안개 점(.fine). 위치가 계속 바뀌므로 0.25초마다 갱신 */
@@ -125,7 +139,7 @@ function spots(u,e){const t=UT[e.type];if(typeof stairHid==='function'&&stairHid
   const d=udist(u,e);if(d>v)return false;return d<.9||losU(u,e);}
 /* spots()가 쓰는 시야 거리의 상한: 가장 먼 병종 시야 + 고층 보너스 2 + 차량·항공 1 + 날씨 */
 function visMax(){const w=G.wx;if(G._vmx&&G._vmx.w===w)return G._vmx.v;let m=0;for(const k in UT)m=Math.max(m,UT[k].vis||0);
-  const v=m+3+Math.max(0,WX[w].vis);Object.defineProperty(G,'_vmx',{value:{w,v},writable:true,configurable:true,enumerable:false});return v;}
+  const v=m+3+Math.max(0,WX[w].vis)+(G.elv?2:0);Object.defineProperty(G,'_vmx',{value:{w,v},writable:true,configurable:true,enumerable:false});return v;}
 function seen(e,n,vs){if(!G.fog||e.nat===n)return true;
   const ck='s'+n;G._sc=G._sc||{};const tq=Math.floor((G.time||0)*4);let c=G._sc[ck];if(!c||c.ver!==G.ver||c.tq!==tq){c=G._sc[ck]={ver:G.ver,tq,m:new Map()};}
   const pk=e.id+':'+e.r+','+e.c;if(c.m.has(pk))return c.m.get(pk);

@@ -46,7 +46,7 @@ function coverOf(d,a){const td=UT[d.type];if(td.fly)return {cov:0,kind:null};con
     const ind=a&&UT[a.type].ind;const [px,pz]=posOf(d);const objs=coverObjs(d);
     if(td.cls==='inf'&&typeof trenchAt==='function'&&trenchAt(px,pz))put({cov:COVK.trench.v,kind:'trench'});// 참호 안: 사방·곡사 모두 (04d-fort)
     if(!ind){let dirs;if(a){const [ax,az]=posOf(a);const L=Math.hypot(ax-px,az-pz)||1;dirs=[[(ax-px)/L,(az-pz)/L]];}else dirs=DIR8.map(([p,q])=>{const L=Math.hypot(p,q);return [q/L,p/L];});
-      const low=a&&eye(a)>=eye(d)+2;
+      const low=a&&eye(a)+elU(a)>=eye(d)+elU(d)+2;   // 내려다보는 사격(높은 건물·언덕)은 엄폐를 반만 쓴다
       for(const [ux,uz] of dirs){const c=dirCoverAt(px,pz,ux,uz,td.cls,d,objs);if(low)c.cov*=.5;put(c);}}
     if(td.cls==='inf'&&d.supp>0&&best.cov>0)best={cov:best.cov+.1,kind:best.kind};}
   if(x.smoke>0)best={cov:best.cov+.15,kind:best.kind||'smoke'};

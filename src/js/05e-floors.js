@@ -55,7 +55,9 @@ function sepFree(u){if(UT[u.type].cls!=='inf')return false;
 const STAIR_OFF=.09;
 function stairPos(r,c){const h=dHash(key(r,c),40);const sx=h<.5?-1:1,sz=(h*4|0)%2?-1:1;return [c+.5+sx*STAIR_OFF,r+.5+sz*.04];}
 /* 박공지붕(낮은 주택): 비탈진 지붕이라 올라설 수 없다. 화면(07-view3d)이 박공을 그리는 조건과 같다. */
-function gableRoof(x){return isB(x)&&x.dist==='res'&&x.f<=2&&x.bhp/x.bmax>.6;}
+/* 박공지붕: 주택(ks='house', 예전 지도는 주거 구역) 2층 이하. 집 열에 셋은 옥상이 평평하다(블록 번호로 정해 그림과 규칙이 같다) */
+function roofFlatH(b){let h=Math.imul((b|0)^0x9e3779b9,2654435761)>>>0;h=Math.imul(h^h>>>15,2246822507)>>>0;h^=h>>>13;return (h>>>0)/4294967296<.3;}
+function gableRoof(x){return isB(x)&&x.f<=2&&x.bhp/x.bmax>.6&&(x.ks?x.ks==='house'&&!roofFlatH(x.blk):x.dist==='res');}
 /* 옥상 층 번호: 실내 층은 0..f-1, f는 옥상. 부서져 낮아진 만큼 줄어든다. */
 function roofFl(x){if(!isB(x))return 0;return Math.max(0,Math.ceil(bldgH(x)-.05));}
 /* 칸에서 오를 수 있는 가장 높은 곳: 평지붕이면 옥상, 박공지붕이면 맨 위 실내층 */
