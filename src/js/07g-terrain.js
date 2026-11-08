@@ -60,7 +60,7 @@ function v3RailDir(x,z){const pts=G.feat&&G.feat.rail?G.feat.rail.pts:[];let bd=
     if(d<bd){bd=d;const L=Math.hypot(bx-ax,bz-az)||1;u=[(bx-ax)/L,(bz-az)/L];}}return u;}
 function v3TerrMats(){if(V3.terrM)return V3.terrM;const T=V3.T;
   const M={water:new T.MeshStandardMaterial({color:'#2c3e45',roughness:.22,metalness:.35,transparent:true,opacity:.92}),
-    deck:new T.MeshStandardMaterial({color:'#8a8780',roughness:.95}),rail:new T.MeshStandardMaterial({color:'#5d5f60',roughness:.7,metalness:.3}),
+    deck:new T.MeshStandardMaterial({color:'#ffffff',roughness:.95}),rail:new T.MeshStandardMaterial({color:'#5d5f60',roughness:.7,metalness:.3}),
     pier:new T.MeshStandardMaterial({color:'#6e6b64',roughness:1}),steel:new T.MeshStandardMaterial({color:'#3e4447',roughness:.6,metalness:.5}),
     wag:new T.MeshStandardMaterial({color:'#ffffff',roughness:.75,metalness:.2}),dark:new T.MeshStandardMaterial({color:'#1e2022',roughness:.8}),
     stripe:new T.MeshStandardMaterial({color:'#c9c4b8',roughness:.6}),red:new T.MeshStandardMaterial({color:'#9c3128',roughness:.6}),
@@ -71,16 +71,18 @@ function v3BuildTerrain(g){const f=G.feat;if(!f||G.camp)return;const T=V3.T,M=v3
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(!x.rv)continue;const [cx,cz]=v3x(r,c);
     water.push({x:cx,y:.016,z:cz,rx:-Math.PI/2,sx:1.002,sy:1.002});
     if(!x.br)continue;
-    if(x.br===3){// 철교: 상판 + 양옆 강철 거더
-      deck.push({x:cx,y:.05,z:cz,sx:1,sy:.05,sz:1,col:'#6f6c66'});
-      const [ux,uz]=v3RailDir(cx,cz);const ry=-Math.atan2(uz,ux);
-      for(const s of [-1,1])gird.push({x:cx-uz*s*.3,y:.13,z:cz+ux*s*.3,ry,sx:1.1,sy:.14,sz:.04});
-      if((r+c)%2===0)piers.push({x:cx,y:-.1,z:cz,sx:.5,sy:.3,sz:.16,ry});continue;}
-    const H2=x.ro!=='v';deck.push({x:cx,y:.045,z:cz,sx:1,sy:.05,sz:1});
+    if(x.br===3)continue;   // 철교는 아래에서 철길 꺾은선을 따라 잇는다
+    const H2=x.ro!=='v';deck.push({x:cx,y:.045,z:cz,sx:1,sy:.05,sz:1,col:'#8a8780'});
     for(const s of [-1,1]){const y=H2?at(r+s,c):at(r,c+s);if(y&&y.br)continue;   // 다리 바깥 가장자리에만 난간
       rails.push(H2?{x:cx,y:.1,z:cz+s*.47,sx:1,sy:.06,sz:.03}:{x:cx+s*.47,y:.1,z:cz,sx:.03,sy:.06,sz:1});
       if((H2?c:r)%2===0)piers.push(H2?{x:cx,y:-.1,z:cz+s*.36,sx:.12,sy:.3,sz:.12}:{x:cx+s*.36,y:-.1,z:cz,sx:.12,sy:.3,sz:.12});}}
   if(f.rail){const pts=f.rail.pts;
+    // 철교: 물 위 구간마다 상판과 양옆 강철 거더를 꺾은선 방향으로
+    for(let i=0;i+1<pts.length;i++){const [ax,az]=pts[i],[bx,bz]=pts[i+1];const mx=(ax+bx)/2,mz=(az+bz)/2;const t=at(Math.floor(mz),Math.floor(mx));if(!t||t.br!==3)continue;
+      const L=Math.hypot(bx-ax,bz-az)||1,ux=(bx-ax)/L,uz=(bz-az)/L,ry=-Math.atan2(uz,ux);
+      deck.push({x:mx,y:.05,z:mz,ry,sx:L+.03,sy:.05,sz:.56,col:'#6f6c66'});
+      for(const s2 of [-1,1])gird.push({x:mx-uz*s2*.27,y:.12,z:mz+ux*s2*.27,ry,sx:L+.03,sy:.11,sz:.035});
+      if(i%3===0)piers.push({x:mx,y:-.1,z:mz,ry,sx:.14,sy:.3,sz:.5});}
     // 전차선 기둥: 1.6칸마다 철길 한쪽에
     let acc=0;for(let i=0;i+1<pts.length;i++){const [ax,az]=pts[i],[bx,bz]=pts[i+1];const L=Math.hypot(bx-ax,bz-az)||1,ux=(bx-ax)/L,uz=(bz-az)/L;acc+=L;if(acc<1.6)continue;acc=0;
       const x=ax-uz*.3,z=az+ux*.3;const r=Math.floor(z),c=Math.floor(x);const t=at(r,c);if(!t||t.t==='bldg'||t.t==='road'&&!t.rail||t.rv&&!t.br)continue;
@@ -94,7 +96,7 @@ function v3BuildTerrain(g){const f=G.feat;if(!f||G.camp)return;const T=V3.T,M=v3
     if(p.k==='wagon'){const col=p.burnt?'#2a2622':p.col;wag.push({x:p.x,y:.11,z:p.z,ry:p.ry,sx:.5,sy:p.loco?.17:.15,sz:.17,col});
       wtop.push({x:p.x,y:.035,z:p.z,ry:p.ry,sx:.46,sy:.05,sz:.13});
       if(p.loco)wag.push({x:p.x+Math.cos(p.ry)*.12,y:.22,z:p.z-Math.sin(p.ry)*.12,ry:p.ry,sx:.18,sy:.08,sz:.15,col:'#3a4045'});}
-    else if(p.k==='xing'){const r=Math.floor(p.z),c=Math.floor(p.x);const x=G.map[r][c];const H2=x.ro==='h';
+    else if(p.k==='xing'){const r=Math.floor(p.z),c=Math.floor(p.x);const x=G.map[r][c];if(x.ro!=='h'&&x.ro!=='v')continue;const H2=x.ro==='h';
       for(const s of [-1,1]){const ox=H2?s*.5:s*.42,oz=H2?s*.42:s*.5;xing.push({x:p.x+ox,y:.08,z:p.z+oz,sx:.025,sy:.16,sz:.025});
         xbar.push({x:p.x+ox+(H2?0:-s*.2),y:.15,z:p.z+oz+(H2?-s*.2:0),ry:H2?Math.PI/2:0,sx:.4,sy:.018,sz:.018});}}}
   const box=()=>new T.BoxGeometry(1,1,1);
