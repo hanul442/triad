@@ -85,7 +85,9 @@ test('날씨: 폭우엔 드론을 띄울 수 없고 떠 있던 드론은 떨어�
 
 test('날씨는 몇 라운드씩 이어지며 바뀐다', () => {
   const T = loadGame(); const G = setup(T, { wx: 'auto' }); G.wx = 'clear';
-  const seq = []; for (let i = 0; i < 60; i++) { F(T, 'wxRound')(); seq.push(G.wx); }
+  // 확률로 바뀌므로 난수를 고정한다(고정하지 않으면 드물게 60라운드 내내 안 바뀌어 실패했다)
+  const rnd = Math.random; let sd = 12345; Math.random = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  const seq = []; try { for (let i = 0; i < 60; i++) { F(T, 'wxRound')(); seq.push(G.wx); } } finally { Math.random = rnd; }
   const changes = seq.filter((w, i) => i && w !== seq[i - 1]).length;
   assert.ok(changes >= 3 && changes < 40, `바뀐 횟수 ${changes}`);
 });
