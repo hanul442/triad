@@ -919,5 +919,7 @@ test('공습: 진입 → 투하 → 낙하 → 탄착 순서이고, 투하 전�
   for (let i = 0; i < 6; i++) { const a = T.mkUnit(1, 'aa', 4 + (i % 3), 7 + (i / 3 | 0)); a.hold = true; }
   const rnd = Math.random; Math.random = () => 0.01;
   try { T.__get('jetRun')(0, 5, 5); T.rtRun(1.7); } finally { Math.random = rnd; }
-  assert.equal((G2.bombs || []).length, 0, '격추되면 폭탄 없음'); T.rtRun(2); assert.equal(e2.hp, 10);
+  assert.equal((G2.bombs || []).length, 0, '격추되면 폭탄 없음');
+  for (const cr of G2.crash || []) { cr.x = 1.5; cr.z = 1.5; }   // 떨어진 기체 잔해(목표에서 1.5칸)가 흩어진 분대원을 칠 때가 있어(약 1%) 멀리 옮기고, 폭탄 피해만 본다
+  T.rtRun(2); assert.equal(e2.hp, 10);
 });
