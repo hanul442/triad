@@ -88,3 +88,34 @@ test('전술 AI: 접적하면 기관총은 화력 기반, 소총은 옆으로 �
   const u = moved[0]; u.cd = 0; const cd0 = u.cd; F(T, 'rtFight')(u);
   assert.equal(u.cd, cd0, '움직이는 측면조는 쏘지 않음');
 });
+
+test('임무형 지휘: 묶어서 공격 임무를 주면 소대가 알아서 가고, 직접 명령을 받으면 임무에서 빠진다', () => {
+  const T = loadGame(); const G = setup(T, true); G.nats[0].ctrl = 'human'; G.nats[1].ctrl = 'human';
+  const us = [put(T, 0, 'rifle', 3.5, 10.5), put(T, 0, 'mg', 3.5, 11.5), put(T, 0, 'rifle', 3.5, 9.5), put(T, 0, 'ifv', 2.5, 10.5)];
+  T.bump();
+  F(T, 'radioExec')('mis', ['attack', 14.5, 10.5, 'full'], us);
+  const p = G.plat.find(q => q.human && q.mem.includes(us[0].id));
+  assert.ok(p, '소대 생김'); assert.equal(p.mode, 'attack'); assert.equal(p.mem.length, 3, '보병 셋이 한 소대');
+  assert.ok(us[3].msn, '장갑차는 소대를 따름');
+  T.rtRun(40);
+  assert.ok(us[0].x > 6, `소총분대가 목표 쪽으로 감 (${us[0].x.toFixed(1)})`);
+  assert.ok(us[3].x > 4, `장갑차도 따라감 (${us[3].x.toFixed(1)})`);
+  F(T, 'radioExec')('move', [3.5, 3.5], [us[1]]);
+  assert.equal(us[1].pl, null, '직접 명령 → 임무 해제'); assert.ok(!p.mem.includes(us[1].id));
+});
+
+test('임무형 지휘: 반자동 소대는 돌격 전에 승인을 요청하고, 승인하면 돌격한다', () => {
+  const T = loadGame(); const G = setup(T, true); G.nats[0].ctrl = 'human'; G.nats[1].ctrl = 'human';
+  const us = [put(T, 0, 'mg', 4.5, 10.5), put(T, 0, 'rifle', 4.5, 11.5)];
+  const e = put(T, 1, 'rifle', 9.5, 10.5); T.bump(); G.time = 20;
+  F(T, 'radioExec')('mis', ['attack', 9.5, 10.5, 'semi'], us);
+  const p = G.plat.find(q => q.human);
+  F(T, 'memOf')(0)[e.id] = { x: 9.5, z: 10.5, h: .5, t: 20, ty: 'rifle', how: 'see' };
+  e.supp = 3; e.brk = 1; p.st = 'contact'; p.stT = 0; for (const u of us) { u.path = []; }
+  F(T, 'tacThink')(0);
+  assert.equal(p.req && p.req.k, 'assault', '돌격 승인 요청');
+  assert.notEqual(p.st, 'assault');
+  F(T, 'msnAnswer')(p.id, true); for (const u of us) u.path = [];
+  F(T, 'tacThink')(0);
+  assert.equal(p.st, 'assault');
+});

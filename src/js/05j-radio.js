@@ -6,7 +6,7 @@
    - 적 전자전팀 재밍 반경 안의 지상 부대는 교신이 끊긴다. 재송신을 몇 번 하다가 끝내 전령이 뛰어가 전한다.
    - 드론은 조종기로 바로 움직이므로 거의 늦지 않는다(재밍은 05f-air가 따로 다룬다).
    - 명령을 기다리는 동안 부대는 하던 일을 계속하고, 적이 보이면 알아서 쏜다.
-   AI 명령도 같은 대기열을 탄다(06c-radio-ai). */
+   AI 명령도 같은 대기열을 탄다(06z-radio-ai). */
 const RADIO={base:.6,per:.035,max:1.4,talk:.35,fly:.25,jamOk:.35,retry:1.8,tries:3,runner:2.5};
 const radioOn=()=>!!G&&G.radio!==false&&G.scn!=='tut';
 /* 지휘소: 출발 지역 칸들의 가운데 */
@@ -54,4 +54,4 @@ function radioTick(){if(!G.rq||!G.rq.length)return;const now=G.time||0;const kee
    if(on==null){try{const el=typeof document!=='undefined'&&document.getElementById('opt-radio');on=el?el.value!=='0':true;}catch(e){on=true;}}
    G.radio=!!on;G.rq=[];G.rnet={};G.hq={};return r;};}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(G&&!G.over)radioTick();};}
-/* AI 명령의 무전(재밍 포함)은 06c-radio-ai가 같은 대기열로 다룬다. */
+/* AI 명령의 무전(재밍 포함)은 06z-radio-ai가 같은 대기열로 다룬다. */
