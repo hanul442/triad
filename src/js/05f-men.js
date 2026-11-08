@@ -73,10 +73,13 @@ function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menT
   u._plan=1;u._planT=G.time||0;u._planF=th;
   if(here.t==='bldg'){// 건물 안: 쏘는 쪽 벽(창가)을 따라 늘어선다
     const ax=Math.abs(ux)>Math.abs(uz);const cx=u.c+.5,cz=u.r+.5;const n=L.length;
-    L.forEach((m,k)=>{const lat=(k-(n-1)/2)/Math.max(1,n-1)*.62;let x,z;
-      if(k<6){if(ax){x=cx+Math.sign(ux)*.31;z=cz+lat;}else{z=cz+Math.sign(uz)*.31;x=cx+lat;}}
-      else{x=cx+(menHash(u.id,90+k)-.5)*.4;z=cz+(menHash(u.id,95+k)-.5)*.4;}
-      m.sp=[x,z];m.sec=th+(k%3-1)*.35;});return;}
+    // 앞벽에 최대 5명을 고르게 펼치고, 나머지는 양옆 벽 앞쪽 절반에 번갈아 선다(한 줄로 몰려 서지 않게)
+    const nf=Math.min(n,5),sx=Math.sign(ax?ux:uz)||1;
+    L.forEach((m,k)=>{let x,z,sec=th;
+      if(k<nf){const lat=nf>1?(k-(nf-1)/2)/(nf-1)*.6:0;if(ax){x=cx+sx*.31;z=cz+lat;}else{z=cz+sx*.31;x=cx+lat;}sec=th+(k-(nf-1)/2)*.18;}
+      else{const j=k-nf,side=j%2?1:-1,d=.22-Math.floor(j/2)*.16;const a=Math.max(-.2,Math.min(.2,sx*d));if(ax){x=cx+a;z=cz+side*.31;}else{z=cz+a;x=cx+side*.31;}
+        sec=ax?(side>0?Math.PI/2:-Math.PI/2):(side>0?0:Math.PI);sec=(sec+th)/2+(Math.abs(sec-th)>Math.PI?Math.PI:0);}
+      m.sp=[x,z];m.sec=sec;});return;}
   const objs=typeof coverObjs==='function'?coverObjs(u):[];const C=[];
   for(const rad of [0,.1,.18,.26,.34,.42]){const na=rad?Math.round(rad*40):1;for(let i=0;i<na;i++){const a=i/na*6.283+menHash(u.id,i)*.3;const x=u.x+Math.cos(a)*rad,z=u.z+Math.sin(a)*rad;
       if(rad&&!menClear(u,u.x,u.z,x,z))continue;const t=tileAt(x,z);if(!t||t.t==='bldg')continue;
