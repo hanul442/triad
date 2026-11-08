@@ -122,23 +122,32 @@ test('관전한 캠페인 판은 별을 기록하지 않는다', () => {
   assert.equal(store.get('triad-campaign'), undefined);
 });
 
-test('무전 음성: 호출부호와 교신 문장을 만든다', () => {
+test('무전 음성: 영어 호출부호와 교신 문장(한국어 번역 포함)을 만든다', () => {
   const T = loadGame();
   fn(T, 'specStart')({ n: 2, size: 's', seed: 9 });
   const G = T.G, line = fn(T, 'voxLine'), cs = fn(T, 'voxCs');
   const r = G.units.filter(u => u.nat === 0 && u.type === 'rifle');
-  assert.equal(cs(r[0]), '소총 1분대');
-  if (r[1]) assert.equal(cs(r[1]), '소총 2분대');
+  assert.equal(cs(r[0]), 'Rifle 1');
+  if (r[1]) assert.equal(cs(r[1]), 'Rifle 2');
   const e = G.units.find(u => u.nat === 1);
-  const u = r[0];
+  const tank = T.mkUnit(1, 'tank', 3, 3);
+  const u = r[0], obj = G.objs[0].name;
   const L = {
-    order: line('order', { u, kind: 'move', place: '시청' }), ack: line('ack', { u, kind: 'move' }), jam: line('jam', { u }), run: line('run', { u }),
-    contact: line('contact', { u, e }), cas: line('cas', { u, out: 'hw' }), kill: line('kill', { u, e }), gone: line('gone', { u }),
-    cap: line('cap', { u, obj: '시청' }), lost: line('lost', { nat: 0, obj: '시청' }), sup: line('sup', { nat: 0, kind: 'arty', place: '시청' }), arr: line('arr', { u }),
+    order: line('order', { u, kind: 'move', x: u.x, z: u.z }), ack: line('ack', { u, kind: 'move' }), jam: line('jam', { u }), run: line('run', { u }),
+    contact: line('contact', { u, e }), cas: line('cas', { u, hw: 2, kia: 1 }), kill: line('kill', { u, e: tank }), gone: line('gone', { u }),
+    cap: line('cap', { u, obj }), lost: line('lost', { nat: 0, obj }), sup: line('sup', { nat: 0, kind: 'arty', x: 5, z: 5 }), arr: line('arr', { u }),
+    pin: line('pin', { u, e }), fall: line('fall', { u }), rally: line('rally', { u }), spot: line('spot', { u, e: tank }), air: line('air', { nat: 0, kind: 'gunship', x: 5, z: 5 }),
+    splash: line('splash', { nat: 0 }), rounds: line('rounds', { u }), breach: line('breach', { u }), clear: line('clear', { u }), ammo: line('ammo', { u }), inpos: line('inpos', { u }),
   };
-  for (const [k, v] of Object.entries(L)) { assert.ok(v && v.txt.length > 5 && /[가-힣]/.test(v.txt), k); assert.ok(!/undefined|NaN/.test(v.txt), k + ': ' + v.txt); }
-  assert.match(L.order.txt, /^소총 1분대, 여기 독수리\. 시청 쪽으로 이동하라/);
-  assert.match(L.contact.txt, /미터/);
+  for (const [k, v] of Object.entries(L)) {
+    assert.ok(v && v.txt.length > 5, k);
+    assert.ok(!/[가-힣]/.test(v.txt), k + ' 영어: ' + v.txt);
+    assert.ok(/[가-힣]/.test(v.ko), k + ' 한국어 번역: ' + v.ko);
+    assert.ok(!/undefined|NaN|null/.test(v.txt + v.ko + v.who + v.whoKo), k + ': ' + v.txt + ' / ' + v.ko);
+  }
+  assert.match(L.order.txt, /^Rifle 1, this is Eagle\. Move to .+\. Over\.$/);
+  assert.match(L.contact.txt, /meters/);
+  assert.match(L.cas.txt, /two wounded, one K-I-A/i);
   // 화면 없이 도는 판에서는 줄에 넣지 않는다(오류도 없다)
   T.rtRun(40);
   assert.equal((G.errs || []).length, 0);

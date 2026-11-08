@@ -913,11 +913,13 @@ test('공습: 진입 → 투하 → 낙하 → 탄착 순서이고, 투하 전�
   G.nats[1].ctrl = 'human'; const e = T.mkUnit(1, 'rifle', 5, 5); const s = T.mkUnit(0, 'drone', 5, 2); e.hold = s.hold = true; G.nats[0].cp = 50; G.wx = 'clear';
   assert.ok(T.support(0, 'air', 5, 5)); const j = G.airq[0];
   assert.ok(j.imp - G.time > 2.5 && j.imp - G.time < 3.2, '부른 뒤 약 3초에 탄착'); assert.ok(Math.abs(Math.hypot(j.hx, j.hz) - 1) < 1e-6);
-  T.rtRun(1.7); assert.equal(e.hp, 10, '투하 직후엔 아직 떨어지는 중'); assert.equal(G.bombs.length, 1);
+  T.rtRun(1.7); assert.equal(e.hp, 10, '투하 직후엔 아직 떨어지는 중'); assert.equal(G.bombs.length, 3, '폭탄 세 발'); assert.equal(G.bombs.filter(b => b.main).length, 1);
   T.rtRun(1.5); assert.ok(e.hp < 10 || !G.units.includes(e), '탄착'); assert.equal(G.bombs.length, 0);
   const G2 = setup(T); G2.nats[1].ctrl = 'human'; const e2 = T.mkUnit(1, 'rifle', 5, 5); e2.hold = true;
   for (let i = 0; i < 6; i++) { const a = T.mkUnit(1, 'aa', 4 + (i % 3), 7 + (i / 3 | 0)); a.hold = true; }
   const rnd = Math.random; Math.random = () => 0.01;
   try { T.__get('jetRun')(0, 5, 5); T.rtRun(1.7); } finally { Math.random = rnd; }
-  assert.equal((G2.bombs || []).length, 0, '격추되면 폭탄 없음'); T.rtRun(2); assert.equal(e2.hp, 10);
+  assert.equal((G2.bombs || []).length, 0, '격추되면 폭탄 없음');
+  for (const cr of G2.crash || []) { cr.x = 1.5; cr.z = 1.5; }   // 떨어진 기체 잔해(목표에서 1.5칸)가 흩어진 분대원을 칠 때가 있어(약 1%) 멀리 옮기고, 폭탄 피해만 본다
+  T.rtRun(2); assert.equal(e2.hp, 10);
 });

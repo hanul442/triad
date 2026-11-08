@@ -139,3 +139,39 @@ test('남겨진 부상자: 구급차가 실어 가고, 적 지역에 남으면 �
   G.units = G.units.filter(u => u !== a); T.mkUnit(1, 'rifle', 25, 10); run(T, .5);
   assert.equal(G.cas.length, 0, '적이 데려감'); assert.equal(G.nats[0].cas.pow, 1);
 });
+
+test('구급차 안전: 적이 가까우면 물러나고 그 분대는 한동안 찾아가지 않는다', () => {
+  const T = loadGame(); const G = setup(T);
+  const s = T.mkUnit(0, 'rifle', 20, 20); run(T, .2); s.ws[4] = { s: 'hw', w: 'leg', b: 999, a: 1 }; F(T, 'casSync')(s, null);
+  const a = T.mkUnit(0, 'amb', 20, 14); run(T, 2); assert.ok(a.mj && a.mj.id === s.id, '부상자 쪽으로 감');
+  const e = T.mkUnit(1, 'rifle', 18, 16); e.x = a.x + 2; e.z = a.z; T.bump(); run(T, .3);
+  assert.ok(a.mj && (a.mj.k === 'flee' || a.mj.k === 'go'), `물러남 ${a.mj && a.mj.k}`);
+  assert.ok(F(T, 'ambNo')(0, s.id), '그 분대는 30초 동안 안 찾아감');
+});
+
+test('제네바 협약: 지키는 세력은 구급차를 겨누지 않고, 일부러 쏘면 승점과 사기를 잃는다', () => {
+  const T = loadGame(); const G = setup(T); G.geneva = 'all';
+  const pick = F(T, 'rtPick');
+  const s = T.mkUnit(0, 'rifle', 10, 10); const a = T.mkUnit(1, 'amb', 10, 12); T.bump();
+  assert.equal(pick(s), null, '구급차는 고르지 않음');
+  const e = T.mkUnit(1, 'rifle', 12, 10); T.bump(); assert.equal(pick(s), e, '다른 적은 쏨');
+  G.geneva = 'off'; assert.ok(pick(s), '끄면 다 쏨');
+  G.geneva = 'all'; G.nats[0].vp = 10; const m0 = s.mor ?? 80;
+  T.rtShoot(s, a); assert.equal(G.nats[0].vp, 8, '위반 승점 −2'); assert.ok((s.mor ?? 80) < m0, '사기 하락');
+  T.rtShoot(s, a); assert.equal(G.nats[0].vp, 8, '15초에 한 번만');
+  assert.ok(G.log.some(l => String(l.m || l).includes('제네바')), '무전 기록');
+  // 민병대(2)는 무시
+  G.geneva = 'mil'; assert.equal(F(T, 'genKeeps')(2), false); assert.equal(F(T, 'genKeeps')(0), true);
+});
+
+test('제네바 협약: AI는 구호소 둘레에 포격을 부르지 않고, 곁에서 쏘면 보호를 잃는다', () => {
+  const T = loadGame(); const G = setup(T); G.geneva = 'all';
+  G.forts.push({ id: 900, k: 'aid', nat: 0, x: 15.5, z: 15.5, ry: 0, hp: 10, prog: 1 });
+  G.nats[1].ctrl = 'ai'; G.nats[1].cp = 99;
+  const can = T.canSupport;
+  T.mkUnit(1, 'rifle', 15, 19); T.bump();
+  G.geneva = 'off'; assert.equal(can(1, 'arty', 15, 15), true, '협약을 끄면 부름');
+  G.geneva = 'all'; assert.equal(can(1, 'arty', 15, 15), false, '구호소 자리엔 안 부름');
+  const g = T.mkUnit(0, 'rifle', 15, 16); g.x = 16; g.z = 15.6; g.firedT = G.time; run(T, .2);
+  assert.ok(G.forts.find(f => f.id === 900)._genOff > G.time, '사격 진지로 써서 보호 잃음');
+});
