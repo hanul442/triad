@@ -1555,20 +1555,43 @@ function inBox(o,px,pz,c){const dx=px-o.x,dz=pz-o.z,cs=Math.cos(o.ry),sn=Math.si
    지형이 바뀌면(건물 붕괴: damageBldg) G.navV가, 방어물이 바뀌면 G.fortNV가 오른다. 지도를 직접 고친 뒤에는 G.navV를 올려야 한다 */
 const NAV={g:null,grids:{},base:{}};
 const navWreckN=()=>{let n=0;for(const c of G.covers||[])if(c.kind==='wreck'&&c.cov!=null&&!c.fort)n++;return n;};
-function navStamp(cost,W,list,cls){const cs=1/NAV_R,clr=NAV_CLR[cls];
+function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // mask: 이 큰 칸들 안의 작은 칸만 찍는다(navBase 부분 갱신)
   for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
     const j0=Math.max(0,Math.floor((o.x-R)*NAV_R)),j1=Math.min(W-1,Math.floor((o.x+R)*NAV_R)),i0=Math.max(0,Math.floor((o.z-R)*NAV_R)),i1=Math.min(W-1,Math.floor((o.z+R)*NAV_R));
-    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*W+j;if(!cost[k])continue;if(!inBox(o,(j+.5)*cs,(i+.5)*cs,clr))continue;
+    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*W+j;if(mask&&!mask[((i/NAV_R)|0)*N+((j/NAV_R)|0)])continue;if(!cost[k])continue;if(!inBox(o,(j+.5)*cs,(i+.5)*cs,clr))continue;
       if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}}
+/* navBase 기억: 지형(TC)이 그대로면 지형 층을 다시 쓰고, 장애물이 늘기만 했으면(잔해 차량 추가 등) 새 것만 더 찍는다.
+   찍기(navStamp)는 '0으로' 또는 '8 미만이면 +4'라서 순서와 상관없이 결과가 같다 */
+const NAVB={};
+const navObsKey=o=>o.k+'|'+o.x+'|'+o.z+'|'+o.ry+'|'+o.hl+'|'+o.hw;
 function navBase(cls){if(NAV.base[cls])return NAV.base[cls];
-  const W=N*NAV_R,cost=new Uint8Array(W*W),clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':'ifv';
+  const W=N*NAV_R,clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':'ifv';
   const TC=new Uint8Array(N*N);for(let r=0;r<N;r++)for(let c=0;c<N;c++){const m=mcost(ty,G.map[r][c]);TC[r*N+c]=m===Infinity?0:Math.min(250,m);}
+  let C=NAVB[cls];
   const tc=(x,z)=>{if(x<0||z<0||x>=N||z>=N)return 0;return TC[(z|0)*N+(x|0)];};const d=clr+.08;
-  for(let i=0;i<W;i++){const pz=(i+.5)/NAV_R;for(let j=0;j<W;j++){const px=(j+.5)/NAV_R;let m=tc(px,pz);
+  const terrAt=(i,j)=>{const pz=(i+.5)/NAV_R,px=(j+.5)/NAV_R;let m=tc(px,pz);
     // 차량: 차폭만큼 건물·물 칸에서 떨어진다
-    if(m&&clr>.05&&(!tc(px+d,pz)||!tc(px-d,pz)||!tc(px,pz+d)||!tc(px,pz-d)))m=0;
-    cost[i*W+j]=m;}}
-  navStamp(cost,W,NAV.obs.filter(o=>!o.fort),cls);
+    if(m&&clr>.05&&(!tc(px+d,pz)||!tc(px-d,pz)||!tc(px,pz+d)||!tc(px,pz-d)))m=0;return m;};
+  if(!C||C.N!==N||C.W!==W||C.clr!==clr||C.TC.length!==TC.length){
+    const terr=new Uint8Array(W*W);for(let i=0;i<W;i++)for(let j=0;j<W;j++)terr[i*W+j]=terrAt(i,j);
+    C=NAVB[cls]={N,W,clr,TC,terr,keys:null,cost:null,list:null};}
+  else{// 바뀐 칸(건물 붕괴 등)과 그 옆 칸만 다시 계산한다(작은 칸 값은 ±1칸 안의 지형만 본다)
+    const mask=new Uint8Array(N*N);let any=false;
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(C.TC[r*N+c]!==TC[r*N+c]){any=true;for(let a=Math.max(0,r-1);a<=Math.min(N-1,r+1);a++)for(let b=Math.max(0,c-1);b<=Math.min(N-1,c+1);b++)mask[a*N+b]=1;}
+    if(any){const terr=C.terr.slice();const R=NAV_R;
+      for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!mask[r*N+c])continue;for(let i=r*R;i<r*R+R;i++)for(let j=c*R;j<c*R+R;j++)terr[i*W+j]=terrAt(i,j);}
+      if(C.cost){const cost=C.cost.slice();for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!mask[r*N+c])continue;for(let i=r*R;i<r*R+R;i++)for(let j=c*R;j<c*R+R;j++)cost[i*W+j]=terr[i*W+j];}
+        navStamp(cost,W,C.list,cls,mask);C.cost=cost;}
+      C.terr=terr;C.TC=TC;}}
+  // 장애물 열쇠는 NAV.obs 하나에 한 번만 만든다(네 부대 종류가 같이 쓴다)
+  if(NAVB.obs!==NAV.obs){NAVB.obs=NAV.obs;const L=NAV.obs.filter(o=>!o.fort),K=L.map(navObsKey),M=new Map();for(const k of K)M.set(k,(M.get(k)||0)+1);NAVB.ol={L,K,M};}
+  const list=NAVB.ol.L,keys=NAVB.ol.M;
+  let cost=null;
+  if(C.keys){let sub=true;for(const [k,n] of C.keys)if((keys.get(k)||0)<n){sub=false;break;}
+    if(sub){const left=new Map(C.keys);const extra=[],K=NAVB.ol.K;for(let q=0;q<list.length;q++){const k=K[q];const n=left.get(k)||0;if(n>0)left.set(k,n-1);else extra.push(list[q]);}
+      cost=C.cost.slice();navStamp(cost,W,extra,cls);}}
+  if(!cost){cost=C.terr.slice();navStamp(cost,W,list,cls);}
+  C.keys=keys;C.cost=cost;C.list=list;
   return NAV.base[cls]={W,cost};}
 function navGrid(cls){const q=NAV.grids[cls];
   if(q&&NAV.g===G&&NAV.nv===(G.navV||0)&&NAV.fv===(G.fortNV||0)&&NAV.cl===(G.covers?G.covers.length:0)&&NAV.pl===(G.props?G.props.length:0))return q;
