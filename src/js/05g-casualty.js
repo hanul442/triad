@@ -20,7 +20,7 @@ Object.assign(FXH,{cas(){},cook(){},vhit(){}});
 const casStats=n=>{const N2=G.nats[n];return N2.cas||(N2.cas={kia:0,wia:0,lw:0,evac:0,dow:0,veh:0});};
 const wiaDn=S=>{S.wia=Math.max(0,S.wia-1);};
 function casLog(m){G.log.unshift(m);G.log=G.log.slice(0,8);}
-const roleOf=(u,i)=>i===0?'분대장':i===1&&(u._men||[]).length>=5?'위생병':'';
+const roleOf=(u,i)=>i===0?'분대장':i===1&&(u._men||[]).length>=5?'위생병':(typeof kitName==='function'&&kitName(u.type,i))||'';
 /* 저장해 둔 부상 기록(u.ws)을 병사 목록에 입힌다. menInit(05f) 끝에서 부른다. */
 function casLoad(u,M){if(!u.ws||u.ws.length!==M.length)u.ws=M.map(()=>({s:'ok'}));if(u.mor==null)u.mor=80+(u.rank||0)*5;
   for(const m of M)manFlags(u,m);}
