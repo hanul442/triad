@@ -146,3 +146,24 @@ function v3SyncOcc(vs,vn){const T=V3.T;const m=V3.press?new Map():v3OccMap(vs,vn
 function occLabels(want,vs,vn){if(V3.press)return;const m=v3OccMap(vs,vn);
   for(const [k,o] of m){const r=kr(k),c=kc(k);const [cx,cz]=v3x(r,c);const fl=[...o.fls].sort((a,b)=>(a==='옥상')-(b==='옥상')||parseInt(a)-parseInt(b)).join('·');
     want.set('occ'+k,{html:`<span>${fl}</span>`,cls:'v3o',col:o.mix?'#ffffff':mapCol(o.nat),p:[cx+.32,v3Top(r,c)+(gableRoof(G.map[r][c])?.3:.12),cz-.32]});}}
+
+/* ---------- 창가에서 내다보기 ----------
+   단면도를 끈 뒤로는 실내 병사가 벽에 가려 안 보인다. 창가(바깥 외벽 가까이)에 선 병사는 쏘거나 막 쏜 뒤에
+   상체를 창 밖으로 내밀었다가(PEEK_OUT) 다시 벽 안으로 숨는다(PEEK_IN). 총구 화염도 그 자리에서 난다.
+   돌려주는 값: 병사가 갈 자리 {x,z,f(바라볼 방향)} 또는 null(창가가 아님) */
+const PEEK_OUT=.014,PEEK_IN=.07,PEEK_T=1.3;
+function v3WinPeek(uu,m,t){const x=cell(uu.r,uu.c);if(x.t!=='bldg'||onRoof(uu)||uu.climb)return null;const b=bldgBox(uu.r,uu.c),e=1e-6,r=uu.r,c=uu.c;
+  // 바깥과 맞닿은 외벽(같은 블록과 붙지 않은 면)만: [벽 좌표, 축(0=x,1=z), 바깥 방향]
+  const W=[];if(b[0]>c+e)W.push([b[0],0,-1]);if(b[1]<c+1-e)W.push([b[1],0,1]);if(b[2]>r+e)W.push([b[2],1,-1]);if(b[3]<r+1-e)W.push([b[3],1,1]);
+  let best=null,bd=.2;for(const w of W){const d=Math.abs((w[1]?m.z:m.x)-w[0]);if(d<bd){bd=d;best=w;}}if(!best)return null;
+  const [wv,ax,sg]=best;const peek=t-(m.ft??-99)<PEEK_T;const off=peek?PEEK_OUT:-PEEK_IN;
+  const lo=ax?b[0]+.06:b[2]+.06,hi=ax?b[1]-.06:b[3]-.06;let along=Math.min(hi,Math.max(lo,ax?m.x:m.z));
+  // 외벽 무늬(07-view3d facade)의 창 한가운데로 맞춘다: 창은 .21칸마다, 건물마다 무늬가 u0만큼 밀려 있다.
+  // 무늬 u는 벽 사각형의 첫 꼭짓점 A에서 B 쪽으로 감긴다(07-view3d box): 북·동쪽 벽은 좌표가 줄어드는 쪽으로.
+  {const bt=x.blk!=null?v3Hash(x.blk,3):v3Hash(key(r,c),3);const P=.5-8*((bt*8|0)*.37);const L0=ax?b[0]:b[2],L1=ax?b[1]:b[3];const rev=ax?sg<0:sg>0;
+    const at=n=>rev?L0+L1-.21*(n+P):.21*(n+P)+L0-L1;const n0=Math.round((rev?(L0+L1-along):(along-L0+L1))/.21-P);let bw=null,bdd=1e9;
+    for(const n of [n0-1,n0,n0+1]){const v=at(n);if(v<lo-.02||v>hi+.02)continue;const dd=Math.abs(v-along);if(dd<bdd){bdd=dd;bw=v;}}
+    if(bw!=null)along=bw+(m.i%2?.012:-.012);}
+  const px=ax?along:wv+sg*off,pz=ax?wv+sg*off:along;
+  const f=peek&&m.aim?Math.atan2(m.aim[1]-pz,m.aim[0]-px):ax?(sg>0?Math.PI/2:-Math.PI/2):(sg>0?0:Math.PI);
+  return {x:px,z:pz,f,peek,y:peek?.06:0};}   // 내밀 때는 창턱 높이로 몸을 올린다(창은 층 높이의 .31~.78)
