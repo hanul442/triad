@@ -5,7 +5,10 @@ const SCN={
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
 function scnButtons(){return Object.keys(SCN).map(k=>`<button class="btn" data-act="scn:${k}" id="scn-${k}">${SCN[k].n}<small>${SCN[k].d}</small></button>`).join('');}
-function startScn(k){const sp=+($('#opt-speed')?.value??260);
+function startScn(k){const sp=+($('#opt-speed')?.value??260);scnSetup(k,sp);
+  bump();G.boot=false;$('#setup').hidden=true;clearSel();rtStart();UI.sheet=false;render();if(typeof v3HomeCam==='function')v3HomeCam(false);}
+/* 시나리오 판 차리기(화면 없이도 돈다: 관전·테스트용) */
+function scnSetup(k,sp){sp=sp??260;
   if(k==='tut'){newGame({slots:['human','ai','none','none'],size:'s',fog:true,speed:sp,scn:'tut',seed:20261106,force:['rifle','rifle','mg','at'],maxR:30,vpWin:99});
     G.units=G.units.filter(u=>u.nat===0||u.type==='rifle');G.nats[1].cp=0;G.nats[0].cp=8;G.tut=0;G.diff='easy';}
   else if(k==='assault'){newGame({slots:['human','ai','none','none'],size:'m',fog:true,speed:sp,scn:'assault',maxR:16,vpWin:999});
@@ -16,7 +19,7 @@ function startScn(k){const sp=+($('#opt-speed')?.value??260);
     for(const o of near){G.map[o.r][o.c].owner=0;}
     for(const u of G.units.filter(u=>u.nat===0)){const o=near[u.id%4];const sp2=[[o.r,o.c],...nbrs(o.r,o.c),...nbrs(o.r,o.c).flatMap(([a,b])=>nbrs(a,b))].find(([a,b])=>!unitAt(a,b)&&mcost(u.type,G.map[a][b])<Infinity);if(sp2){u.r=sp2[0];u.c=sp2[1];}}
     G.nats[1].cp=24;G.diff='hard';}
-  bump();G.boot=false;$('#setup').hidden=true;clearSel();rtStart();UI.sheet=false;render();if(typeof v3HomeCam==='function')v3HomeCam(false);}
+  bump();return G;}
 function scnObjective(){if(!G||!G.scn)return null;const n=0;if(G.camp&&typeof campObjective==='function')return campObjective();
   if(G.scn==='tut'){const S=[
       ['1/6 이동','소총분대를 탭해 고르고 땅을 탭하면 그리로 움직입니다. 건물에 들어가면 엄폐 40%를 받습니다.'],

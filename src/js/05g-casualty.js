@@ -20,7 +20,7 @@ Object.assign(FXH,{cas(){},cook(){},vhit(){}});
 const casStats=n=>{const N2=G.nats[n];return N2.cas||(N2.cas={kia:0,wia:0,lw:0,evac:0,dow:0,veh:0});};
 const wiaDn=S=>{S.wia=Math.max(0,S.wia-1);};
 function casLog(m){G.log.unshift(m);G.log=G.log.slice(0,8);}
-const roleOf=(u,i)=>i===0?'분대장':i===1&&(u._men||[]).length>=5?'위생병':'';
+const roleOf=(u,i)=>i===0?'분대장':i===1&&(u._men||[]).length>=5?'위생병':(typeof kitName==='function'&&kitName(u.type,i))||'';
 /* 저장해 둔 부상 기록(u.ws)을 병사 목록에 입힌다. menInit(05f) 끝에서 부른다. */
 function casLoad(u,M){if(!u.ws||u.ws.length!==M.length)u.ws=M.map(()=>({s:'ok'}));if(u.mor==null)u.mor=80+(u.rank||0)*5;
   for(const m of M)manFlags(u,m);}
@@ -84,7 +84,7 @@ function hurtVeh(u,amt,by,o){const V=vdOf(u);const ta=by?UT[by.type]:null;const 
   const heavy=kind==='blast'||kind==='crush'||(ta&&ta.atk.veh>=5);const S=casStats(u.nat);const nm=`${natName(u.nat)} ${UT[u.type].n}`;
   const rolls=Math.min(3,Math.max(1,o.hits||1));const crewHit=()=>{const i=V.crew.findIndex(c=>c==='ok');if(i<0)return;V.crew[i]=Math.random()<.4?'kia':'hw';if(V.crew[i]==='kia')S.kia++;else S.wia++;};
   for(let k=0;k<rolls;k++){
-    if(heavy){let pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(o.arm||1));if(Math.random()>pen)continue;
+    if(heavy){let pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(o.arm||1))*Math.min(1,amt/2.5);if(Math.random()>pen)continue;   // 파편 몇 점(피해 1~2)은 부품까지 잘 안 뚫는다
       const r=Math.random();
       if(r<.28){if(!V.mob){V.mob=1;L(`${nm} 기동 불능`);}}
       else if(r<.5){if(!V.gun){V.gun=1;L(`${nm} 무장 파손`);}}
@@ -141,7 +141,7 @@ function casTick(u,dt){const M=menOf(u);const t=G.time||0;const S=casStats(u.nat
       if((w.a||t-(w.dt||0)>25)&&(u.supp||0)<1.2){const F=free().filter(m=>m.i!==0&&roleOf(u,m.i)!=='위생병');const able=casAble(u).length;
         if(F.length&&able>=3){F.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z));evStart(u,F[0],{u:u.id,i:c.i,x:c.x,z:c.z});busy.add(c.i);ch=true;}}}
     // 쓰러진 채 남겨진 아군 부상자(분대가 끝난 자리)를 데려간다
-    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken)continue;if(Math.hypot(o.x-u.x,o.z-u.z)>2&&!M.some(m=>menAct(m)&&Math.hypot(m.x-o.x,m.z-o.z)<.8))continue;   // 분대 근처이거나 병사 하나라도 곁에 있으면
+    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken)continue;if(Math.hypot(o.x-u.x,o.z-u.z)>(typeof hotAt==='function'&&!hotAt(u.nat,o.x,o.z,2.5)?3.5:2)&&!M.some(m=>menAct(m)&&Math.hypot(m.x-o.x,m.z-o.z)<.8))continue;   // 분대 근처이거나 병사 하나라도 곁에 있으면
       const F=free().filter(m=>m.i!==0);if(!F.length)break;F.sort((a,b)=>Math.hypot(a.x-o.x,a.z-o.z)-Math.hypot(b.x-o.x,b.z-o.z));o.taken=1;evStart(u,F[0],{orph:o.id,x:o.x,z:o.z});ch=true;break;}}
   if(ch)casSync(u,null);}
 /* ---------- 후송조: 전우 한 명이 부상자를 업고 환자집결지로, 넘기고 돌아온다 ---------- */
@@ -160,11 +160,11 @@ function evTick(dt){G.evac=G.evac||[];const keep=[];const S=n=>casStats(n);
           p.ph='out';p.path=null;if(u)casSync(u,null);}}}
     if(p.ph==='out'){const cw=p.cas.w||w;if(cw&&cw.s==='hw'){cw.b-=dt*(cw.a?.35:.5);if(cw.b<=0){cw.s='kia';S(p.nat).dow++;wiaDn(S(p.nat));S(p.nat).kia++;p.drop=[p.x,p.z];
           if(p.cas.u!=null&&u){cw.y=0;const m=u._men[p.cas.i];if(m){m.x=p.x;m.z=p.z;manFlags(u,m);}}else FXH.cas(null,{x:p.x,z:p.z,orph:1},'kia');p.ph=u?'back':'rear';p.path=null;}}
-      if(p.ph==='out'){const c=ccpOf(p.nat);goal=[c.x,c.z];
-        if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){if(cw){cw.s='evac';cw.y=0;}S(p.nat).evac++;wiaDn(S(p.nat));if(u&&p.cas.u!=null){const m=u._men[p.cas.i];if(m)manFlags(u,m);}
+      if(p.ph==='out'){const c=ccpOf(p.nat,p.x,p.z);goal=[c.x,c.z];
+        if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){if(cw){cw.s='evac';cw.y=0;}S(p.nat).evac++;if(typeof medAdmit==='function')medAdmit(c,p,cw);wiaDn(S(p.nat));if(u&&p.cas.u!=null){const m=u._men[p.cas.i];if(m)manFlags(u,m);}
           p.ph=u?'back':'rear';p.path=null;}}}
     if(p.ph==='back'){if(!u){p.ph='rear';p.path=null;}else{goal=[u.x,u.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.35){const m=u._men[p.ci];u.ws[p.ci].y=0;if(m){m.x=p.x;m.z=p.z;m.lag=0;manFlags(u,m);}casSync(u,null);continue;}}}
-    if(p.ph==='rear'){const c=ccpOf(p.nat);goal=[c.x,c.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){continue;}}
+    if(p.ph==='rear'){const c=ccpOf(p.nat,p.x,p.z,false);goal=[c.x,c.z];if(Math.hypot(goal[0]-p.x,goal[1]-p.z)<.3){continue;}}
     if(!goal){continue;}
     // 길 따라 걷기(업고 가면 느리다)
     const pu={type:'rifle',nat:p.nat,x:p.x,z:p.z,r:Math.floor(p.z),c:Math.floor(p.x),path:p.path||[]};

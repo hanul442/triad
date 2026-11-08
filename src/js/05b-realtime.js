@@ -58,7 +58,7 @@ function orderGroupMove(us,x,z){if(us.length===1){orderMoveTo(us[0],x,z);return;
     let [tx,tz]=s;if(!walkable(u,tx,tz)){tx=x;tz=z;}orderMoveTo(u,tx,tz);}}
 /* 사격 한 발: 분대가 VOLLEY발을 쏘고 한 발씩 명중률(엄폐·거리)로 맞았는지 굴린다 */
 function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(d.z-a.z,d.x-a.x)*180/Math.PI;
-  const h=hitP(a,d),k=VOLLEY[a.type]||1;let hits=0;for(let i=0;i<k;i++)if(Math.random()<h.p)hits++;
+  const h=hitP(a,d),k=(typeof volleyOf==='function'?volleyOf(a):VOLLEY[a.type])||1;let hits=0;for(let i=0;i<k;i++)if(Math.random()<h.p)hits++;
   if(UT[d.type].fly&&typeof airHit==='function')hits=airHit(a,d,hits);
   a.lastShot={t:G.time||0,hits,k,cover:h.kind,cov:h.cov,tgt:d.id};FXH.fire(a,d.r,d.c,d,a.lastShot);
   const dmg=Math.round(rawDmg(a,d,false)*hits/k*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;if(ta.sup)d.supp=Math.max(d.supp||0,hits?1.2:.8);   // 기관총·박격포는 빗나가도 고개를 숙이게 한다
@@ -68,24 +68,28 @@ function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.fac
   G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;harm(d,dmg,a,{kind:ta.ex?'blast':'bullet',hits});if(d.hp<=0&&G.units.includes(d))kill(d,a);return dmg;}   // FPV는 한 발에 떨어진다(피해가 0이어도)
 function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(r-a.r,c-a.c)*180/Math.PI;FXH.fire(a,r,c);
   const amt=Math.max(1,Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*DPS_K*COOL[a.type]*1.2*(.85+Math.random()*.3)));damageBldg(r,c,amt);
-  const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.supp=Math.max(u.supp||0,1);harm(u,amt*.2,a,{kind:'frag'});}}
+  for(const u of unitsAt(r,c)){if(G.units.includes(u)&&u.nat!==a.nat&&!UT[u.type].fly){u.supp=Math.max(u.supp||0,1);harm(u,amt*.2*(typeof flShield==='function'?flShield(u,1):1),a,{kind:'frag'});}}}
 /* 자동 표적: 가장 이득이 큰 적 */
 function rtPick(u){const vs=G.fog?1:null;let best=null,bs=0;
   const R=UT[u.type].rng[1]+.6;
-  for(const e of G.units){if(e.nat===u.nat)continue;const dx=u.x-e.x,dz=u.z-e.z;if(dx*dx+dz*dz>R*R)continue;if(vs&&!seen(e,u.nat))continue;if(!canHit(u,e))continue;   // 싼 사거리 검사를 먼저(성능)
+  for(const e of G.units){if(e.nat===u.nat)continue;const dx=u.x-e.x,dz=u.z-e.z;if(dx*dx+dz*dz>R*R)continue;if(vs&&!seen(e,u.nat))continue;if(!canHit(u,e))continue;if(vs&&typeof selfSees==='function'&&!selfSees(u,e))continue;   // 쏘는 부대가 직접 봐야 겨눈다(05k-combat)   // 싼 사거리 검사를 먼저(성능)
     const s=calcDmg(u,e,false)*UT[e.type].cost/Math.max(1,e.hp)+(u.tgt===e.id?99:0);if(s>bs){bs=s;best=e;}}
   return best;}
 function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];const t=tileAt(u.x,u.z);
-  const sp=UT[u.type].mv*SPD_K/(t?mcost(u.type,t):1)*(u.supp>0?.65:1);const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);
+  const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);const sp=UT[u.type].mv*SPD_K/(t?mcost(u.type,t):1)*(u.supp>0?.65:1)*slopeK(u,dx,dz);
   if(d>.001)u.face=Math.atan2(dz,dx)*180/Math.PI;
   const st=Math.min(d,sp*dt),nx=d>.001?u.x+dx/d*st:tx,nz=d>.001?u.z+dz/d*st:tz;
   // 바로 옆에 새 잔해·방어물이 생겨 지금 자리부터 막혔으면 빠져나가는 걸음은 허용한다(갇힘 방지)
   const esc=!walkable(u,u.x,u.z)&&!!tileAt(nx,nz)&&mcost(u.type,tileAt(nx,nz))<Infinity;
-  if((!esc&&!walkable(u,nx,nz))||wallCross(u,u.x,u.z,nx,nz)){const end=u.path[u.path.length-1];u.path=[];if(!u._rp){u._rp=1;u.path=pathPts(u,end[0],end[1]);}return;}
-  u._rp=0;u.x=nx;u.z=nz;if(d<=sp*dt)u.path.shift();
+  if((!esc&&!walkable(u,nx,nz))||wallCross(u,u.x,u.z,nx,nz)){u._blk=(u._blk||0)+1;
+    // 같은 경유점에서 계속 막히면(길찾기 격자와 실제 통행 여유폭이 어긋남) 그 점을 건너뛰고 다음 점으로 간다
+    if(u._blk>=3&&u.path.length>1){u.path.shift();return;}
+    const end=u.path[u.path.length-1];u.path=[];if(!u._rp){u._rp=1;u.path=pathPts(u,end[0],end[1]);}return;}
+  u._rp=0;u._blk=0;u.x=nx;u.z=nz;if(d<=sp*dt)u.path.shift();
   // 서로 밀어 제자리걸음(목적지가 다른 부대 바로 옆): 4초 넘게 못 나아가면 목적지 근처면 거기서 멈추고, 멀면 길을 다시 찾는다
-  {const t=G.time||0,g=u._pg;if(!g||Math.hypot(g[0]-u.x,g[1]-u.z)>.08)u._pg=[u.x,u.z,t];else if(t-g[2]>4){u._pg=[u.x,u.z,t];const e=u.path[u.path.length-1];
-    if(!e||Math.hypot(e[0]-u.x,e[1]-u.z)<.9)u.path=[];else u.path=pathPts(u,e[0],e[1]);}}
+  {const t=G.time||0,g=u._pg;if(!g||Math.hypot(g[0]-u.x,g[1]-u.z)>.08){u._pg=[u.x,u.z,t];u._pgN=0;}else if(t-g[2]>4){u._pg=[u.x,u.z,t];u._pgN=(u._pgN||0)+1;const e=u.path[u.path.length-1];
+    // 두 번째부터는 길을 다시 찾아도 같은 자리에서 밀리니: 목적지가 2칸 안이면 멈추고, 아니면 막힌 경유점을 건너뛴다
+    if(!e||Math.hypot(e[0]-u.x,e[1]-u.z)<(u._pgN>=2?2:.9))u.path=[];else if(u._pgN>=2&&u.path.length>1)u.path.shift();else u.path=pathPts(u,e[0],e[1]);}}
   u.moved=true;if(typeof fortCrush==='function')fortCrush(u);rtCell(u);if(!G.units.includes(u))return;
   if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);if(e&&canHit(u,e))u.path=[];}
   if(u.tgtTile!=null&&canHitTile(u,kr(u.tgtTile),kc(u.tgtTile)))u.path=[];}
@@ -93,11 +97,14 @@ function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];
 function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c)return;u.r=r;u.c=c;bump();afterMove(u);}
 /* 겹친 부대는 서로 조금씩 밀어낸다 */
 function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];const dx=b.x-a.x,dz=b.z-a.z;if(dx>.75||dx<-.75||dz>.75||dz<-.75)continue;   // 먼 쌍은 바로 건너뛴다(성능)
-    if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 건물 안·문간에서는 서로 밀지 않는다(문에서 막히지 않게)
-    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:.55;if(d>=R)continue;
+    if(UT[b.type].fly||a.climb||b.climb)continue;if(typeof sepFree==='function'&&(sepFree(a)||sepFree(b)))continue;   // 문간에서는 서로 밀지 않는다(문에서 막히지 않게)
+    const inB=cell(a.r,a.c).t==='bldg'||cell(b.r,b.c).t==='bldg';if(inB&&(a.r!==b.r||a.c!==b.c||(typeof flOf==='function'&&flOf(a)!==flOf(b))))continue;   // 건물 안: 같은 칸 같은 층끼리만
+    const d=Math.hypot(dx,dz),R=(UT[a.type].cls==='veh'||UT[b.type].cls==='veh')?.75:inB?.4:.55;if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
-    const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
-    const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);}}
+    const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(inB&&(Math.floor(x)!==u.c||Math.floor(z)!==u.r))return;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
+    const am=a.path&&a.path.length,bm=b.path&&b.path.length;mv(a,bm&&!am?-.4:-1);mv(b,am&&!bm?.4:1);
+    // 마주 오며 밀어내기만 하면 둘 다 제자리: 움직이는 차량끼리는 옆으로도 비켜 서로 지나간다
+    if(am&&bm&&UT[a.type].cls==='veh'&&UT[b.type].cls==='veh'){const px=-nz*push*1.5,pz=nx*push*1.5;const sd=(u,s)=>{const x=u.x+px*s,z=u.z+pz*s;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};sd(a,1);sd(b,-1);}}}
   for(const u of us.slice())if(G.units.includes(u))rtCell(u);}
 function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb||t.kami)return;const moving=!!(u.path&&u.path.length);if(t.ind&&moving)return;
   // 명령받은 표적을 쫓는다
@@ -106,7 +113,8 @@ function rtFight(u){const t=UT[u.type];if(!t.rng[1]||u.cd>0||u.climb||t.kami)ret
   let tg=rtPick(u);
   if(!tg&&u.tgtTile!=null){const r=kr(u.tgtTile),c=kc(u.tgtTile);if(G.map[r][c].t!=='bldg'){u.tgtTile=null;}else if(canHitTile(u,r,c)){rtShootBldg(u,r,c);u.cd=COOL[u.type]*(.9+Math.random()*.2);return;}}
   if(typeof breachPick==='function'){const P=breachPick(u,tg);if(P){breach(u,P);u.cd=COOL[u.type]*(.9+Math.random()*.2)*(moving?1.5:1);return;}}   // 건물 안 적: 그 층 벽을 친다(05i-breach)
-  if(!tg)return;rtShoot(u,tg);u.cd=COOL[u.type]*(.85+Math.random()*.3)*(moving?1.5:1);}
+  if(!tg){if(typeof supFire==='function'&&supFire(u,moving))u.cd=COOL[u.type]*(1+Math.random()*.3)*(moving?1.5:1);return;}   // 안 보이면 마지막 본 자리에 제압 사격(05k-combat)
+  rtShoot(u,tg);u.cd=COOL[u.type]*(.85+Math.random()*.3)*(moving?1.5:1);}
 /* 30초마다: 수입·승점·날씨·연막 */
 function rtRound(){G.turn++;for(const n of G.order){if(!G.nats[n].alive)continue;G.nats[n].cp+=income(n);G.nats[n].vp+=objCount(n);}
   if(typeof wxRound==='function')wxRound();else if(Math.random()<.35)G.wx=rollWx();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.smoke>0)x.smoke--;}

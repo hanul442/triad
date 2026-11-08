@@ -6,7 +6,7 @@
    (3) 장갑차·전차는 보병과 붙어서 진격하고, 자주포·박격포는 보병 뒤에서 쏜다. */
 
 // 부대 구성 목표(비율). 대공·전자전은 적 비행체가 보일 때 05f-air의 aiAirW가 따로 더한다.
-const ARMS_MIX={rifle:.28,mg:.1,at:.08,eng:.05,sniper:.04,mortar:.08,hmv:.06,ifv:.13,tank:.09,spg:.08,drone:.02,fpv:.01,dteam:.02};
+const ARMS_MIX={rifle:.26,mg:.1,at:.08,eng:.05,sniper:.04,mortar:.08,hmv:.06,ifv:.13,tank:.11,spg:.09,drone:.02,fpv:.01,dteam:.02};
 const ARMS_VEH=['ifv','tank','spg'];
 
 /* 증원 가중치: 목표보다 모자란 병종일수록 크게 */
@@ -64,7 +64,7 @@ function aiArmsPos(u,r,c,goal,vis,n){const t=UT[u.type];if(t.fly)return 0;let s=
 /* 보병이 차량을 따라 붙는다: 진격하는 장갑차 곁 빈 보병을 끌어 온다 */
 function aiArmsEscort(n){for(const v of G.units){if(v.nat!==n||UT[v.type].cls!=='veh'||UT[v.type].ind||!v.path||!v.path.length)continue;
   const end=v.path[v.path.length-1];if(G.units.some(o=>o.nat===n&&UT[o.type].cls==='inf'&&Math.hypot(o.x-v.x,o.z-v.z)<2.5&&o.path&&o.path.length))continue;
-  let bi=null,bd=6;for(const o of G.units){if(o.nat!==n||!(o.type==='rifle'||o.type==='at'||o.type==='mg')||(o.path&&o.path.length)||o.job||o.climb||inside(o))continue;
+  let bi=null,bd=6;for(const o of G.units){if(o.nat!==n||!(o.type==='rifle'||o.type==='at'||o.type==='mg')||(o.path&&o.path.length)||o.job||o.cqb||o.climb||inside(o))continue;
     const d=Math.hypot(o.x-v.x,o.z-v.z);if(d<bd){bd=d;bi=o;}}
   if(bi){const a=Math.random()*6.283;orderMoveTo(bi,end[0]+Math.cos(a)*1.1,end[1]+Math.sin(a)*1.1);bi.dest=null;}}}
 

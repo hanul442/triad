@@ -27,24 +27,16 @@ function dsDraw(sc){const g=V3.gctx,P=V3.gP;if(!g)return;const R=mulberry(sc.s);
   else if(sc.k==='tread'){// 차량 바퀴 자국·기름
     const gr=g.createRadialGradient(0,0,0,0,0,rr);gr.addColorStop(0,'rgba(6,6,8,.75)');gr.addColorStop(1,'rgba(6,6,8,0)');g.fillStyle=gr;g.beginPath();g.ellipse(0,0,rr,rr*.7,R()*3,0,7);g.fill();}
   g.restore();}
-/* ---------- 먼지 구름: 크고 뿌옇게, 오래 ---------- */
-function dsDust(x,z,size,dur,n,col,y0){if(!V3.on)return;const T=V3.T;n=n||10;const now=performance.now();
-  for(let i=0;i<n;i++){const c=col||(i%4===0?'#7d7569':i%4===1?'#bfb29a':i%4===2?'#a79b86':'#8f8678');const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:c,transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*6.28}));
-    const a=Math.random()*6.283,rd=Math.pow(Math.random(),.7)*size*.55,px=x+Math.cos(a)*rd,pz=z+Math.sin(a)*rd,py=(y0||.1)+Math.random()*size*.3;const sz=size*(.28+Math.random()*.4),rise=.15+Math.random()*.4,ph=Math.random()*9,spin=(Math.random()-.5)*.3;
-    s.position.set(px,py,pz);s.renderOrder=2;V3.G.fx.add(s);
-    V3.fx.push({o:s,t0:now+i*70,dur:dur*(.7+Math.random()*.6),upd:(o,k)=>{const e=1-Math.pow(1-k,2);const t=k*dur/1000;o.position.set(px+DS.wind[0]*t+Math.sin(t*.4+ph)*.06,py+rise*e,pz+DS.wind[1]*t);o.scale.setScalar(sz*(.4+e*.9));o.material.rotation+=spin*.016;o.material.opacity=.62*(k<.06?k/.06:1)*Math.pow(1-k,.7);}});}}
-/* 먼지 기둥: 착탄점에서 위로 솟구친 뒤 옆으로 퍼진다 */
-function dsColumn(x,z,size){if(!V3.on)return;const T=V3.T;const now=performance.now();
-  for(let i=0;i<9;i++){const s=new T.Sprite(new T.SpriteMaterial({map:V3.puffD||V3.puff,color:i%2?'#c2b49b':'#8f8375',transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*6.28}));const a=Math.random()*6.283,sp=.2+Math.random()*.5,h=size*(1.2+Math.random()*1.2),sz=size*(.4+Math.random()*.4);
-    s.position.set(x,.1,z);V3.G.fx.add(s);
-    V3.fx.push({o:s,t0:now+i*45,dur:1800+Math.random()*900,upd:(o,k)=>{const e=1-Math.pow(1-k,3);o.position.set(x+Math.cos(a)*sp*e*size,.1+h*e,z+Math.sin(a)*sp*e*size);o.scale.setScalar(sz*(.3+e*1.5));o.material.opacity=.9*(1-k*k);}});}}
-/* ---------- 작은 불길: 한동안 일렁인다 ---------- */
-function dsFires(x,z,n,dur,spread,y){if(!V3.on)return;const T=V3.T;const now=performance.now();
-  for(let i=0;i<n;i++){const f=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:Math.random()<.3?'#ffd27a':'#ff8a2a',transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:0}));
-    const px=x+(Math.random()-.5)*(spread||.6),pz=z+(Math.random()-.5)*(spread||.6),py=(y||.03)+Math.random()*.05,ph=Math.random()*20,sz=.08+Math.random()*.1;f.position.set(px,py,pz);V3.G.fx.add(f);
-    const sm=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:'#2a2622',transparent:true,depthWrite:false,opacity:0}));sm.position.set(px,py+.15,pz);V3.G.fx.add(sm);
-    V3.fx.push({o:f,t0:now+Math.random()*600,dur:dur,upd:(o,k)=>{const t=performance.now()/1000;const fl=.7+Math.sin(t*17+ph)*.2+Math.sin(t*9.3+ph*2)*.1;const life=k<.1?k/.1:1-Math.max(0,k-.7)/.3;o.scale.set(sz*fl,sz*fl*(1.3+Math.sin(t*11+ph)*.3),1);o.position.y=py+sz*.6;o.material.opacity=.95*fl*life;}});
-    V3.fx.push({o:sm,t0:now+Math.random()*600,dur:dur,upd:(o,k)=>{const t=performance.now()/1000;const l=(t*.35+ph)%1;const life=k<.1?k/.1:1-Math.max(0,k-.7)/.3;o.position.set(px+l*.2+DS.wind[0]*l*4,py+.1+l*.9,pz+DS.wind[1]*l*4);o.scale.setScalar(.12+l*.5);o.material.opacity=.45*Math.sin(l*Math.PI)*life;}});}}
+/* ---------- 먼지 구름: 크고 뿌옇게, 오래 (입자: 07q-pfx) ---------- */
+function dsDust(x,z,size,dur,n,col,y0){if(!V3.on)return;if(!PFX.on)pfxInit();if(!PFX.on)return;n=pfxN(n||10);const life=dur/1000;
+  for(let i=0;i<n;i++){const a=Math.random()*6.283,rd=Math.pow(Math.random(),.7)*size*.55;
+    pfx({x:x+Math.cos(a)*rd,y:(y0||.1)+Math.random()*size*.3,z:z+Math.sin(a)*rd,vx:Math.cos(a)*size*pfxR(.1,.45),vy:pfxR(.05,.3),vz:Math.sin(a)*size*pfxR(.1,.45),drag:1,acc:.003,
+      life:life*pfxR(.7,1.3),s0:size*.22,s1:size*pfxR(.6,1.05),col:col||pfxDustC(),a:.6,fi:.05,dl:i*.05,rs:(Math.random()-.5)*.3});}}
+/* 먼지 기둥: 착탄점에서 위로 솟구친 뒤 멈춰 걸리고, 흙은 다시 떨어진다 */
+function dsColumn(x,z,size){if(!V3.on)return;if(!PFX.on)pfxInit();if(!PFX.on)return;const y=v3TopAt(x,z);const n=pfxN(7);
+  for(let i=0;i<n;i++){const a=Math.random()*6.283,sp=pfxR(.1,.6)*size;pfx({x,y:y+.1,z,vx:Math.cos(a)*sp,vy:pfxR(3,5)*Math.sqrt(size),vz:Math.sin(a)*sp,drag:2.2,acc:-.6,life:pfxR(2.5,5),s0:.15*size,s1:pfxR(.6,1)*size,col:i%2?'#958871':'#6e6354',a:.75,fi:.02});}}
+/* ---------- 작은 불길: 한동안 일렁이며 검은 연기를 올린다 ---------- */
+function dsFires(x,z,n,dur,spread,y){pfxFire(x,z,y,n,dur/1000,spread);}
 /* ---------- 파편 비: 검은 조각이 넓게 흩어져 떨어지고, 떨어진 자리는 바닥에 남는다 ---------- */
 function dsSpray(x,y,z,n,pow,scar){if(!V3.on)return;const T=V3.T;const P=new Float32Array(n*3),V=[];
   for(let i=0;i<n;i++){const a=Math.random()*6.283,sp=(Math.random()*.9+.3)*pow*2.4,vy=(Math.random()*2.2+.8)*pow;V.push([Math.cos(a)*sp,vy,Math.sin(a)*sp]);P.set([x,y,z],i*3);}
@@ -66,7 +58,7 @@ function dsShell(x,z,big){if(!V3.on)return;const T=V3.T;const y0=v3TopAt(x,z);
   const tr=new T.Mesh(V3.tracerG||(V3.tracerG=new T.BoxGeometry(.012,.012,.35)),new T.MeshBasicMaterial({color:'#ffe9b0',blending:T.AdditiveBlending,transparent:true,depthWrite:false}));tr.userData.keepGeo=1;
   const sx=x+2.5,sz=z-1.5,sy=y0+9;tr.position.set(sx,sy,sz);tr.lookAt(x,y0,z);V3.G.fx.add(tr);
   V3.fx.push({o:tr,t0:performance.now(),dur:380,upd:(o,k)=>{o.position.set(sx+(x-sx)*k,sy+(y0-sy)*k,sz+(z-sz)*k);}});
-  setTimeout(()=>{if(!V3.on)return;const s=big?1.6:1.1;v3Burst(x,y0+.15,z,s*1.1,'#ffb060',0,2.5);dsColumn(x,z,s*1.3);dsDust(x,z,s*2.4,16000+Math.random()*10000,18);
+  setTimeout(()=>{if(!V3.on)return;const s=big?1.6:1.1;pfxBlast(x,y0+.1,z,s,{});
     dsSpray(x,y0+.3,z,big?110:70,s*.9);v3Debris(x,y0+.2,z,big?16:9,1.1);dsScar('crater',x,z,s*.2);if(Math.random()<.5)dsFires(x,z,1+Math.round(Math.random()*2),20000+Math.random()*25000,s*.7,y0+.03);
     V3.shake=Math.max(V3.shake,big?.2:.12);if(typeof sfx==='function')sfx('arty',big?1.2:1,x,z);},380);}
 function dsBarrage(r,c,n,spread){const [cx,cz]=v3x(r,c);for(let i=0;i<n;i++)setTimeout(()=>{const ox=(Math.random()-.5)*spread,oz=(Math.random()-.5)*spread;dsShell(cx+ox,cz+oz,i===0||Math.random()<.25);},200+i*(260+Math.random()*220));}

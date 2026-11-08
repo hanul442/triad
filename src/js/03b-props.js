@@ -27,6 +27,7 @@ function genProps(){const P=[];const t=(r,c)=>inb(r,c)?G.map[r][c].t:'void';cons
       sides.forEach(([a,b],si)=>{if(H(k,10+si)<.28)P.push({k:'lamp',x:cx+b*.42,z:cz+a*.42,ry:Math.atan2(a,-b)});});
       if(H(k,270)<.1){const burnt=H(k,271)<.5;P.push({k:'car',kind:['suv','sedan','pickup'][Math.floor(H(k,272)*3)],x:cx+(H(k,273)-.5)*.4,z:cz+(H(k,274)-.5)*.4,ry:(me.ro==='d'?(me.dd>0?Math.PI/4:-Math.PI/4):H(k,275)*6.28)+(H(k,276)-.5)*.5,burnt,flip:burnt&&H(k,277)<.3,col:burnt?'#2b2723':PROP_COLS[Math.floor(H(k,278)*PROP_COLS.length)]});}
       continue;}
+    if(rd(r,c)&&me.rail)continue;   // 건널목: 철길 위엔 아무것도 두지 않는다 (차단기는 railProps)
     if(rd(r,c)){const ro=me.ro||((rd(r,c-1)||rd(r,c+1))&&(rd(r-1,c)||rd(r+1,c))?'x':(rd(r,c-1)||rd(r,c+1))?'h':'v');const h=ro==='h';
       if(ro==='x'){// 교차로: 막힌 길모퉁이 두 곳에 신호등
         [[-1,-1],[1,1],[-1,1],[1,-1]].filter(([a,b])=>curb(r+a,c+b)).slice(0,2).forEach(([a,b])=>P.push({k:'light',x:cx+b*.43,z:cz+a*.43,dx:-b*Math.SQRT1_2,dz:-a*Math.SQRT1_2,red:H(k,1+a+b*3)<.5}));
@@ -38,7 +39,7 @@ function genProps(){const P=[];const t=(r,c)=>inb(r,c)?G.map[r][c].t:'void';cons
       sides.forEach(([a,b],si)=>{
         if(H(k,10+si)<.3)P.push({k:'lamp',x:cx+b*.42,z:cz+a*.42,ry:Math.atan2(a,-b)});
         if(H(k,15+si)<.1)P.push({k:'bin',x:cx+b*.4+(a?(H(k,16+si)-.5)*.5:0),z:cz+a*.4+(b?(H(k,16+si)-.5)*.5:0),ry:a?0:Math.PI/2});
-        const n=H(k,20+si)<.42?1+(H(k,24+si)<.35?1:0):0;
+        const n=me.br?0:H(k,20+si)<.42?1+(H(k,24+si)<.35?1:0):0;
         for(let i=0;i<n;i++){const j=si*7+i*31;const along=n===1?(H(k,30+j)-.5)*.3:(i?.21:-.21);
           const kind=['suv','suv','sedan','sedan','pickup'][Math.floor(H(k,40+j)*5)];const burnt=H(k,50+j)<.14;const flip=burnt&&H(k,55+j)<.3;
           const x=a?cx+along:cx+b*.24,z=b?cz+along:cz+a*.24;
@@ -46,6 +47,7 @@ function genProps(){const P=[];const t=(r,c)=>inb(r,c)?G.map[r][c].t:'void';cons
           P.push({k:'car',kind,x,z,ry,burnt,flip,col:burnt?'#2b2723':PROP_COLS[Math.floor(H(k,80+j)*PROP_COLS.length)]});}});}
     else if(t(r,c)==='park'){// 도로와 맞닿은 공원 가장자리에 낮은 생울타리
       [[-1,0],[1,0],[0,-1],[0,1]].forEach(([a,b],si)=>{if(t(r+a,c+b)!=='road'||H(k,90+si)<.35)return;P.push({k:'hedge',x:cx+b*.44,z:cz+a*.44,ry:b?Math.PI/2:0});});}}
+  if(typeof railProps==='function')railProps(P);
   return P;}
 
 // 엄폐가 되는 소품만 골라 G.covers로. 시야·엄폐 규칙이 읽는다.
@@ -54,5 +56,6 @@ function propCovers(){if(!G||!G.map)return;G.props=genProps();const C=[];
     if(p.k==='car')C.push({x:p.x,z:p.z,r:.2,kind:p.burnt?'wreck':'car',h:.13});
     else if(p.k==='barrier')C.push({x:p.x,z:p.z,r:.14,kind:'barrier',h:.07});
     else if(p.k==='bin')C.push({x:p.x,z:p.z,r:.1,kind:'bin',h:.1});
+    else if(p.k==='wagon'){const ax=Math.cos(p.ry),az=-Math.sin(p.ry);for(const s of [-.28,0,.28])C.push({x:p.x+ax*s,z:p.z+az*s,r:.16,kind:p.burnt?'wreck':'car',h:.2});}   // 화차: 차보다 큰 엄폐
     else if(p.k==='hedge'){const ax=p.ry?0:1,az=p.ry?1:0;for(const s of [-.25,.25])C.push({x:p.x+ax*s,z:p.z+az*s,r:.25,kind:'hedge',h:.08});}}
   G.covers=C;return C;}

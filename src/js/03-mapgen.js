@@ -11,7 +11,7 @@ function genLines(rnd){const H=N/2;const st=new Array(N).fill(0);st[2]=1;let i=3
     const maxb=Math.min(7,left-w-4);if(maxb<4)break;const b=4+Math.floor(rnd()*(maxb-3));i+=b;
     for(let j=0;j<w;j++)st[i+j]=w;i+=w;n++;}
   st[H-1]=2;for(let j=0;j<H;j++)st[N-1-j]=st[j];return st;}
-function genMap(seed,objPer){const rnd=mulberry(seed);const H=N/2;const mid=(N-1)/2;
+function genMap(seed,objPer,opt){if(opt&&opt.layout==='river')return terrFinish(genMapRiver(seed,objPer,opt),seed,opt);const rnd=mulberry(seed);const H=N/2;const mid=(N-1)/2;
   const st=genLines(rnd);const hyp=(r,c)=>Math.hypot(r-mid,c-mid);
   const can=[];for(let r=0;r<H;r++){can[r]=[];for(let c=0;c<H;c++)can[r][c]=null;}
   const isRd=(r,c)=>r>=0&&c>=0&&r<H&&c<H&&can[r][c]&&can[r][c].t==='road';
@@ -54,7 +54,7 @@ function genMap(seed,objPer){const rnd=mulberry(seed);const H=N/2;const mid=(N-1
   let oi=0;const names=OBJ_NAMES.slice();for(let j=names.length-1;j>0;j--){const q=Math.floor(rnd()*(j+1));[names[j],names[q]]=[names[q],names[j]];}
   const list=[];for(const [r,c] of objs)for(let k=0;k<4;k++){const [a,b]=rot(r,c,k);m[a][b].obj=oi;list.push({r:a,c:b,name:names[oi%names.length]});oi++;}
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=m[r][c];if(x.t==='bldg'){x.bmax=8+x.f*3;x.bhp=x.bmax;}x.smoke=0;}
-  return {map:m,objs:list};}
+  return terrFinish({map:m,objs:list},seed,opt);}
 /* 블록 하나 채우기. comp = 도로로 둘러싸인 칸 목록(모양이 제각각).
    구역(가운데일수록 높다)에 따라 안뜰·막다른 골목을 내고, 필지를 무작위로 자라게 해 ㄱ자·ㄷ자 건물을 만든다. */
 function growPieces(rnd,cells,H,lo,hi){const free=new Set(cells.map(([r,c])=>r*H+c));const out=[];
@@ -66,11 +66,12 @@ function growPieces(rnd,cells,H,lo,hi){const free=new Set(cells.map(([r,c])=>r*H
     out.push(got.map(v=>[Math.floor(v/H),v%H]));}
   return out;}
 let FILL_BID=0;
-function fillComp(rnd,can,comp,bid,mid,H,isRd){const n=comp.length;
+function fillComp(rnd,can,comp,bid,mid,H,isRd,dfn){const n=comp.length;
   // 거리가 끊겨 아주 커진 덩어리는 몇 조각으로 나눠 따로 채운다(조각마다 공원·주차장·건물이 섞이게)
-  if(n>30){for(const pc of growPieces(rnd,comp,H,14,24))fillComp(rnd,can,pc,1000+(++FILL_BID),mid,H,isRd);return;}
-  let d=0;for(const [r,c] of comp)d+=Math.max(Math.abs(r-mid),Math.abs(c-mid));d=d/n/H;// 0 = 도심, 1 = 가장자리
-  const dist=d<.36?'down':d<.66?'mid':'res';
+  if(n>30){for(const pc of growPieces(rnd,comp,H,14,24))fillComp(rnd,can,pc,1000+(++FILL_BID),mid,H,isRd,dfn);return;}
+  let d=0,dist;if(dfn)({d,dist}=dfn(comp));   // 비대칭 도시(03a-terrain)는 구역을 직접 정한다
+  else{for(const [r,c] of comp)d+=Math.max(Math.abs(r-mid),Math.abs(c-mid));d=d/n/H;// 0 = 도심, 1 = 가장자리
+    dist=d<.36?'down':d<.66?'mid':'res';}
   const set=(r,c,x)=>{x.dist=dist;can[r][c]=x;};
   const inC=new Set(comp.map(([r,c])=>r*H+c));const has=(r,c)=>inC.has(r*H+c);
   const p=rnd();
@@ -79,6 +80,17 @@ function fillComp(rnd,can,comp,bid,mid,H,isRd){const n=comp.length;
   if(p<.07){comp.forEach(([r,c])=>set(r,c,{t:rnd()<.06?'water':'park'}));return;}                                   // 공원
   if(p<.11&&dist!=='down'){comp.forEach(([r,c])=>set(r,c,rnd()<.08?{t:'rubble'}:{t:'plaza',lot:1}));return;}        // 큰 주차장
   if(p<.15){comp.forEach(([r,c])=>{const q=rnd();set(r,c,q<.55?{t:'rubble'}:{t:'bldg',f:1+Math.floor(rnd()*3),blk:bid*64});});return;}// 폭격 맞은 폐허
+  if(n<=3&&dist!=='down'&&dist!=='ind'&&p>=.15&&p<.21&&comp.some(([r,c])=>[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].some(([a,b])=>isRd(a,b)&&!can[a][b].al))){comp.forEach(([r,c])=>set(r,c,{t:'plaza',gas:1}));return;}   // 주유소
+  if(n>=12&&dist!=='down'&&dist!=='ind'&&p>=.15&&p<.27){// 아파트 단지: 나란한 고층 판상동 사이에 주차장·놀이터
+    let r0=1e9,r1=-1,c0=1e9,c1=-1;for(const [r,c] of comp){r0=Math.min(r0,r);r1=Math.max(r1,r);c0=Math.min(c0,c);c1=Math.max(c1,c);}
+    const ew=c1-c0>=r1-r0;const f=dist==='mid'?11+Math.floor(rnd()*5):8+Math.floor(rnd()*4);let seg=0;const runs=new Map();
+    comp.forEach(([r,c])=>{const row=ew?r-r0:c-c0,col=ew?c-c0:r-r0;if(row%3===1){set(r,c,rnd()<.3?{t:'park',yard:1}:{t:'plaza',lot:1});return;}
+      const k=row+':'+Math.floor(col/4);if(!runs.has(k))runs.set(k,bid*64+40+(++seg));set(r,c,{t:'bldg',f:row%3===2&&rnd()<.25?f-3:f,blk:runs.get(k),ks:'apt'});});
+    return;}
+  if(n>=8&&n<=26&&dist!=='down'&&dist!=='ind'&&p>=.27&&p<.31){// 학교: 한쪽에 ㄱ자 4층 교사, 나머지는 운동장
+    let r0=1e9,c0=1e9;for(const [r,c] of comp){r0=Math.min(r0,r);c0=Math.min(c0,c);}const id=bid*64+60;
+    comp.forEach(([r,c])=>set(r,c,(r===r0||c===c0)?{t:'bldg',f:4,blk:id,ks:'school'}:{t:'plaza',field:1}));
+    if(!comp.some(([r,c])=>can[r][c].t==='plaza'))comp.forEach(([r,c])=>set(r,c,{t:'bldg',f:4,blk:id,ks:'school'}));return;}
   const free=new Set(inC);
   // 안뜰: 사방이 같은 블록인 안쪽 칸을 비워 ㅁ자·ㄷ자 건물
   if(dist!=='res'&&n>=12){const cp=dist==='down'?.2:.45;
@@ -91,22 +103,35 @@ function fillComp(rnd,can,comp,bid,mid,H,isRd){const n=comp.length;
     let len=2+Math.floor(rnd()*4),turn=1+Math.floor(rnd()*len);
     for(let s=0;s<len&&free.has(r*H+c);s++){set(r,c,{t:'road',ro:dc?'h':'v',rw:1,al:1});free.delete(r*H+c);
       if(s===turn){const t=rnd()<.5?[dc,dr]:[-dc,-dr];if(free.has((r+t[0])*H+c+t[1])){dr=t[0];dc=t[1];}}r+=dr;c+=dc;}}
-  // 필지: 남은 칸에서 씨앗을 골라 무작위로 자라게 한다
-  const size={down:[3,8],mid:[2,5],res:[1,3]}[dist];let lot=0;
+  // 필지: 남은 칸에서 씨앗을 골라 무작위로 자라게 한다. 필지마다 건물 종류(ks)를 정해 높이·지붕·외벽이 달라진다
+  const size={down:[3,8],mid:[2,5],res:[1,3],ind:[4,9]}[dist];let lot=0;
+  const fronts=(r,c,w)=>[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].some(([a,b])=>isRd(a,b)&&!can[a][b].al&&(can[a][b].rw||1)>=w);
+  const B=(r,c,f,id,ks,o)=>set(r,c,Object.assign({t:'bldg',f,blk:id,ks},o||{}));
   for(const C of growPieces(rnd,comp.filter(([r,c])=>free.has(r*H+c)),H,size[0],size[1])){
     const id=bid*64+(++lot);const q=rnd();
     if(dist==='down'){
       if(q<.08)C.forEach(([r,c])=>set(r,c,{t:'plaza'}));
-      else{const f=Math.max(5,Math.min(12,Math.round(12-d*14+(rnd()-.4)*4)));C.forEach(([r,c])=>set(r,c,{t:'bldg',f,blk:id}));}}
+      else if(q<.42&&C.length>=3){// 고층 타워: 가운데는 높고, 큰길 쪽 일부는 3~4층 기단부
+        const f=Math.max(9,Math.min(16,Math.round(14-d*10+(rnd()-.3)*5))),pf=3+(rnd()<.5?1:0);
+        C.forEach(([r,c],i)=>B(r,c,i>0&&C.length>=4&&fronts(r,c,1)&&rnd()<.45?pf:f,id,'tower'));}
+      else if(q<.6&&C.length<=5)C.forEach(([r,c])=>B(r,c,3+Math.floor(rnd()*2),id,'shop'));   // 오래된 3~4층 상가
+      else{const f=Math.max(5,Math.min(11,Math.round(10-d*10+(rnd()-.4)*4)));C.forEach(([r,c])=>B(r,c,f,id,'office'));}}
+    else if(dist==='ind'){// 공업지대: 넓은 1층 창고(톱날 지붕)와 2층 공장(굴뚝), 트럭 마당
+      if(q<.16)C.forEach(([r,c])=>set(r,c,{t:'plaza',lot:1}));
+      else if(q<.22)C.forEach(([r,c])=>set(r,c,{t:'rubble'}));
+      else{const fac=rnd()<.3;C.forEach(([r,c])=>B(r,c,fac?2:1,id,fac?'factory':'ware',{ind:1}));}}
     else if(dist==='mid'){
       if(q<.06)C.forEach(([r,c])=>set(r,c,{t:'plaza',lot:1}));
       else if(q<.09)C.forEach(([r,c])=>set(r,c,{t:'rubble'}));
       else if(q<.11)C.forEach(([r,c])=>set(r,c,{t:'plaza'}));
-      else{const f=Math.max(2,Math.min(7,Math.round(6-d*5+(rnd()-.5)*3)));C.forEach(([r,c])=>set(r,c,{t:'bldg',f,blk:id}));}}
-    else{// 주택가: 마당 있는 1~2층 집, 가끔 3층 연립, 가끔 상가 주차장
+      else if(q<.36&&C.some(([r,c])=>fronts(r,c,2)))C.forEach(([r,c])=>B(r,c,3+Math.floor(rnd()*2),id,'shop'));   // 큰길가 상가 건물(1층 가게)
+      else if(q<.5)C.forEach(([r,c])=>B(r,c,3+Math.floor(rnd()*2),id,'villa'));   // 벽돌 빌라
+      else{const f=Math.max(4,Math.min(9,Math.round(7-d*5+(rnd()-.4)*3)));C.forEach(([r,c])=>B(r,c,f,id,'panel'));}}   // 판상형 패널 아파트
+    else{// 주택가: 마당 있는 1~2층 집, 가끔 3~4층 빌라, 가끔 상가 주차장
       if(q<.08)C.forEach(([r,c])=>set(r,c,{t:'plaza',lot:1}));
-      else{const f=rnd()<.15?3:rnd()<.5?2:1;const front=(r,c)=>[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].some(([a,b])=>isRd(a,b)&&!can[a][b].al);
-        C.forEach(([r,c])=>set(r,c,front(r,c)?(rnd()<.85?{t:'bldg',f,blk:id}:{t:'park',yard:1}):(rnd()<.2?{t:'bldg',f:1,blk:id}:{t:'park',yard:1})));}}}
+      else if(q<.26&&C.length>=2)C.forEach(([r,c])=>B(r,c,3+(rnd()<.4?1:0),id,'villa'));
+      else{const f=rnd()<.12?3:rnd()<.5?2:1;const front=(r,c)=>[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].some(([a,b])=>isRd(a,b)&&!can[a][b].al);
+        C.forEach(([r,c])=>set(r,c,front(r,c)?(rnd()<.85?{t:'bldg',f,blk:id,ks:'house'}:{t:'park',yard:1}):(rnd()<.2?{t:'bldg',f:1,blk:id,ks:'house'}:{t:'park',yard:1})));}}}
   // 밖으로 통하는 면이 하나도 없는 건물(다른 건물에 갇힘)은 안뜰로 바꾼다. 문이 바깥에만 나기 때문
   const blks=new Map();for(const [r,c] of comp){const x=can[r][c];if(x.t!=='bldg')continue;if(!blks.has(x.blk))blks.set(x.blk,[]);blks.get(x.blk).push([r,c]);}
   for(const cells of blks.values()){const open=cells.some(([r,c])=>[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].some(([a,b])=>a<0||b<0||a>=H||b>=H||!can[a][b]||(can[a][b].t!=='bldg'&&can[a][b].t!=='water')));

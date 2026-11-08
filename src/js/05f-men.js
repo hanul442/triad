@@ -49,7 +49,9 @@ function menTrailNear(u,m){const T=u._tr||[];const a=tileAt(m.x,m.z);let best=nu
   for(const p of T){const b=tileAt(p[0],p[1]);if(!b)continue;const same=a&&((a.t==='bldg')===(b.t==='bldg'))&&(a.t!=='bldg'||a.blk===b.blk);const d=Math.hypot(p[0]-m.x,p[1]-m.z)+(same?0:5);if(d<bd){bd=d;best=p;}}
   return best;}
 /* 점 p에서 옆(nx,nz) 방향으로 몇 칸까지 비어 있는가(벽·건물 전까지, 최대 lim) */
-function menFree(u,x,z,nx,nz,lim){let d=0;for(let s=.05;s<=lim+1e-6;s+=.05){if(!menClear(u,x,z,x+nx*s,z+nz*s))break;d=s;}return d;}
+function menFree(u,x,z,nx,nz,lim){let d=0;const a=tileAt(x,z);for(let s=.05;s<=lim+1e-6;s+=.05){if(!menClear(u,x,z,x+nx*s,z+nz*s))break;
+    const t=tileAt(x+nx*s,z+nz*s);if(t&&t.t==='bldg'&&t!==a&&!(typeof sameBlk==='function'&&sameBlk(t,a)))break;   // 옆으로 비켜서다 문으로 남의 건물에 들어가지 않는다
+    d=s;}return d;}
 /* 이 분대가 지금 위협을 받는가: 제압, 최근 사격, 최근 피격 */
 function menThreat(u){const t=G.time||0;return u.supp>0||t-(u.firedT??-99)<MEN.threatT||t-(u._hitT??-99)<MEN.threatT;}
 /* 위협 방향(라디안): 마지막으로 쏜 적 → 내가 노리는 적 → 바라보는 쪽 */
@@ -71,10 +73,13 @@ function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menT
   u._plan=1;u._planT=G.time||0;u._planF=th;
   if(here.t==='bldg'){// 건물 안: 쏘는 쪽 벽(창가)을 따라 늘어선다
     const ax=Math.abs(ux)>Math.abs(uz);const cx=u.c+.5,cz=u.r+.5;const n=L.length;
-    L.forEach((m,k)=>{const lat=(k-(n-1)/2)/Math.max(1,n-1)*.62;let x,z;
-      if(k<6){if(ax){x=cx+Math.sign(ux)*.31;z=cz+lat;}else{z=cz+Math.sign(uz)*.31;x=cx+lat;}}
-      else{x=cx+(menHash(u.id,90+k)-.5)*.4;z=cz+(menHash(u.id,95+k)-.5)*.4;}
-      m.sp=[x,z];m.sec=th+(k%3-1)*.35;});return;}
+    // 앞벽에 최대 5명을 고르게 펼치고, 나머지는 양옆 벽 앞쪽 절반에 번갈아 선다(한 줄로 몰려 서지 않게)
+    const nf=Math.min(n,5),sx=Math.sign(ax?ux:uz)||1;
+    L.forEach((m,k)=>{let x,z,sec=th;
+      if(k<nf){const lat=nf>1?(k-(nf-1)/2)/(nf-1)*.6:0;if(ax){x=cx+sx*.31;z=cz+lat;}else{z=cz+sx*.31;x=cx+lat;}sec=th+(k-(nf-1)/2)*.18;}
+      else{const j=k-nf,side=j%2?1:-1,d=.22-Math.floor(j/2)*.16;const a=Math.max(-.2,Math.min(.2,sx*d));if(ax){x=cx+a;z=cz+side*.31;}else{z=cz+a;x=cx+side*.31;}
+        sec=ax?(side>0?Math.PI/2:-Math.PI/2):(side>0?0:Math.PI);sec=(sec+th)/2+(Math.abs(sec-th)>Math.PI?Math.PI:0);}
+      m.sp=[x,z];m.sec=sec;});return;}
   const objs=typeof coverObjs==='function'?coverObjs(u):[];const C=[];
   for(const rad of [0,.1,.18,.26,.34,.42]){const na=rad?Math.round(rad*40):1;for(let i=0;i<na;i++){const a=i/na*6.283+menHash(u.id,i)*.3;const x=u.x+Math.cos(a)*rad,z=u.z+Math.sin(a)*rad;
       if(rad&&!menClear(u,u.x,u.z,x,z))continue;const t=tileAt(x,z);if(!t||t.t==='bldg')continue;
@@ -89,11 +94,21 @@ function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menT
     // 경계 방향: 위협 쪽 부채꼴로 나눠 보고, 맨 뒤 한 명은 뒤를 본다
     const n=L.length;m.sec=(k===n-1&&n>=4&&!menThreat(u))?th+Math.PI:th+((k%5)-2)*.32;});}
 /* 쏠 수 있는 병사 고르기(분대 사격 때) */
-function menShooters(u,k){const M=u._men;if(!M)return [];const t=G.time||0;
-  const ok=M.filter(m=>menAct(m)&&m.rl<=0&&m.lag<=0&&!(m.pr>0&&m.crawl));const mv=ok.filter(m=>m.spd<.05);const pool=(mv.length?mv:ok).slice();
+function menShooters(u,k,see){const M=u._men;if(!M)return [];const t=G.time||0;
+  const ok=M.filter(m=>menAct(m)&&m.rl<=0&&m.lag<=0&&!(m.pr>0&&m.crawl)&&(!see||see(m)));const mv=ok.filter(m=>m.spd<.05);const pool=(mv.length?mv:ok).slice();
   const out=[];for(let i=0;i<k&&pool.length;i++){const j=Math.floor(Math.random()*pool.length);out.push(pool.splice(j,1)[0]);}
   for(const m of out){m.ft=t;m.mag--;if(m.mag<=0){const bud=M[m.i^1];if(bud&&menAct(bud)&&bud.rl>0&&m.mag>-2)continue;m.rl=(MEN.rl[u.type]||2.5)*(.85+Math.random()*.3);}}
   return out;}
+/* 병사 m이 표적 d를 볼 수 있는가(병사 실제 자리에서 분대 눈높이로) */
+function menSees(u,d){const he=eye(u),[dx,dz]=posOf(d),hd=eye(d);const own=key(u.r,u.c);
+  return m=>{const r=Math.floor(m.z),c=Math.floor(m.x);if(!inb(r,c))return false;
+    // 분대와 다른 칸에 선 병사(문간·옆 칸)는 분대 눈높이가 안 맞으니 그 칸 기준으로 본다
+    const h=key(r,c)===own?he:eyeAt(u.type,r,c);if(Math.hypot(m.x-dx,m.z-dz)<.15)return true;return losPt(m.x,m.z,h,dx,dz,hd);};}
+/* 아무도 표적을 못 보면 분대 기준점(건물 안이면 표적 쪽 창가)에 가장 가까운 병사를 그리로 보낸다 */
+function menToLos(u,d){const L=(u._men||[]).filter(menAct);if(!L.length)return;const [dx,dz]=posOf(d);let p=posOf(u);
+  if(cell(u.r,u.c).t==='bldg'&&typeof winPt==='function'){const w=winPt(u.r,u.c,dx,dz);if(w)p=w;}
+  let best=null,bd=1e9;for(const m of L){const q=Math.hypot(m.x-p[0],m.z-p[1]);if(q<bd){bd=q;best=m;}}
+  if(best){best.sp=[p[0],p[1]];best.aim=[dx,dz];best.ft=G.time||0;}}
 /* 매 틱: 병사들 */
 function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
   // 사상자는 체력에서 거꾸로 셈하지 않고, 맞을 때마다 병사 한 명씩 정한다(05g-casualty의 hurtMen)
@@ -131,6 +146,10 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
     if(menClear(u,a.x,a.z,a.x-nx*p,a.z-nz*p)){a.x-=nx*p;a.z-=nz*p;}if(menClear(u,b.x,b.z,b.x+nx*p,b.z+nz*p)){b.x+=nx*p;b.z+=nz*p;}}}
 /* 엔진에 끼우기: 틱 끝에 병사 갱신, 사격 때 실제로 쏜 병사·맞은 쪽 위협 방향 기록 */
 {const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||!G.units)return;for(const u of G.units)if(UT[u.type].cls==='inf')try{menTick(u,dt);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};
- const _shoot=rtShoot;rtShoot=function(a,d){if(UT[a.type].cls==='inf'){if(!a._men)menInit(a);const sh=menShooters(a,VOLLEY[a.type]||1);for(const m of sh)m.aim=[d.x,d.z];a._sh=sh.map(m=>m.i);}
+ const _shoot=rtShoot;rtShoot=function(a,d){if(UT[a.type].cls==='inf'){if(!a._men)menInit(a);
+     // 표적이 보이는 병사만 쏜다. 아무도 안 보이면 한 명이 보이는 자리(분대 위치·창가)로 가고 이번에는 쏘지 않는다.
+     const see=UT[a.type].ind?null:menSees(a,d);
+     if(see&&!a._men.some(m=>menAct(m)&&see(m))){menToLos(a,d);a._sh=[];return 0;}
+     const sh=menShooters(a,VOLLEY[a.type]||1,see);for(const m of sh)m.aim=[d.x,d.z];a._sh=sh.map(m=>m.i);}
    d._thr=[a.x,a.z,G.time||0];d._hitT=G.time||0;return _shoot(a,d);};
  const _sb=rtShootBldg;rtShootBldg=function(a,r,c){if(UT[a.type].cls==='inf'){if(!a._men)menInit(a);const sh=menShooters(a,Math.min(3,VOLLEY[a.type]||1));for(const m of sh)m.aim=[c+.5,r+.5];a._sh=sh.map(m=>m.i);}return _sb(a,r,c);};}

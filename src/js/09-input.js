@@ -13,6 +13,7 @@ function tap(k){if(!G||G.over||G.boot||!$('#setup').hidden)return;const r=kr(k),
     if(u===s&&now-(UI.lastTap||0)<400){UI.group=G.units.filter(o=>o.nat===n&&o!==u&&Math.hypot(o.x-u.x,o.z-u.z)<4.5);toast(`${UI.group.length+1}개 부대 선택`);render();return;}
     UI.lastTap=now;if(u===s&&!UI.group.length){clearSel();render();return;}UI.group=[];select(u);return;}
   if(s&&UI.phase==='fort'&&typeof fortTap==='function'){fortTap(grp,pt[0],pt[1]);render();return;}
+  if(s&&UI.phase==='clear'){const cl=grp.filter(g=>typeof canClear==='function'&&canClear(g));if(G.map[r][c].t==='bldg'&&cl.length){radioSend(n,cl,'clear',[r,c]);if(typeof v3Ping==='function')v3Ping(c+.5,r+.5,'#ff5a3c');L(`${cl.length>1?cl.length+'개 분대':UT[cl[0].type].n} 건물 돌입 명령`);}else toast('돌입할 건물을 탭하세요');UI.phase='select';render();return;}
   if(s&&UI.phase==='demo'){if(G.map[r][c].t==='bldg'){radioSend(n,[s],'bldg',[r,c]);L(`${UT[s.type].n} 건물 사격 명령`);}UI.phase='select';render();return;}
   if(grp.length){if(u&&u.nat!==n){radioSend(n,grp.filter(g=>UT[g.type].rng[1]),'atk',[u.id]);if(typeof v3Ping==='function')v3Ping(u.x,u.z,'#ff5a3c');sfx('click',.6);if(typeof sndRadio==='function')sndRadio('ack');render();return;}
     radioSend(n,grp,'move',[pt[0],pt[1]]);if(typeof v3Ping==='function')v3Ping(pt[0],pt[1]);sfx('click',.4);if(typeof sndRadio==='function'&&Math.random()<.6)sndRadio('ack');render();return;}
@@ -23,7 +24,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;const a=b.dataset.act;const n=G?G.viewer:0;sfx('click',.4);
   if(a==='start'){const slots=NATS.map((_,i)=>$('#slot-'+i).value);const act=slots.filter(s=>s!=='none');
     if(act.length<2){$('#setup-err').textContent='세력을 둘 이상 활성화하세요.';return;}
-    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size:$('#opt-size').value,diff:$('#opt-diff').value,fog:$('#opt-fog').value==='1',hour:$('#opt-hour')?.value||'day',wx:$('#opt-wx')?.value||'auto',tflow:$('#opt-tflow')?.value||'normal',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.sheet=false;
+    $('#setup-err').textContent='';UI.setupSlots=slots;newGame({slots,size:$('#opt-size').value,layout:$('#opt-layout')?.value||'sym',relief:$('#opt-relief')?.value||'flat',diff:$('#opt-diff').value,fog:$('#opt-fog').value==='1',hour:$('#opt-hour')?.value||'day',wx:$('#opt-wx')?.value||'auto',tflow:$('#opt-tflow')?.value||'normal',speed:+$('#opt-speed').value});$('#setup').hidden=true;clearSel();UI.sheet=false;
     render();rtStart();return;}
   if(a.startsWith('scn:')){startScn(a.slice(4));return;}
   if(a.startsWith('camp:')){const d=$('#debrief');if(d)d.hidden=true;campBrief(a.slice(5));return;}
@@ -67,6 +68,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a==='hold'){const pe=radioPend(s);const h=!(pe&&pe.k==='hold'?pe.a[0]:s.hold);radioSend(n,grp,'hold',[h]);render();return;}
   if(a==='fort'){UI.phase=UI.phase==='fortmenu'||UI.phase==='fort'?'select':'fortmenu';render();return;}
   if(a.startsWith('fort:')){UI.phase='fort';UI.fortK=a.slice(5);render();return;}
+  if(a==='clear'){UI.phase=UI.phase==='clear'?'select':'clear';render();return;}
   if(a==='demo'){UI.phase=UI.phase==='demo'?'select':'demo';render();return;}
   if(a==='cancel'){clearSel();render();}});
 document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if(e.key===' '&&G&&!G.boot&&$('#setup').hidden){e.preventDefault();G.paused=!G.paused;render();return;}if((e.key==='c'||e.key==='C')&&G&&typeof v3Cine==='function'){v3Cine();return;}if((e.key==='n'||e.key==='N')&&G&&typeof nvgSet==='function'&&nightK()>.2){nvgSet(!UI.nvg);return;}if(e.key==='Escape'){if(UI.sheet){UI.sheet=false;render();}else if(UI.sel||UI.phase||UI.pane){clearSel();UI.pane=null;render();}}});

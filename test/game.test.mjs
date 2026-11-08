@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGame, playAI } from './harness.mjs';
+import { loadGame, playAI, seedRandom } from './harness.mjs';
 import { build } from '../build.mjs';
 
 test('빌드 결과가 문법 오류 없이 만들어진다', () => {
@@ -80,11 +80,13 @@ test('엄폐: 건물 안 보병은 피해를 덜 받고, 폭발물은 엄폐를 
 
 test('건물이 무너지면 잔해가 되고 안의 부대가 피해를 입는다', () => {
   const T = loadGame(); const G = setup(T);
-  bldg(G, 5, 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5);
+  bldg(G, 5, 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); const hp0 = d.hp;
   T.damageBldg(5, 5, 999);
   assert.equal(G.map[5][5].t, 'rubble');
   assert.ok(d.ws.some(w => w.s !== 'ok') || !G.units.includes(d), '무너진 건물에 깔린 병사');
-  assert.ok(d.dmgIn === 5 && d.supp >= 2);
+  // 남은 체력의 30~95%: 병사마다 다치거나 죽는다
+  assert.ok(d.dmgIn >= hp0 * .3 - 1e-6 && d.dmgIn <= hp0 * .95 + 1e-6 && d.supp >= 2, `피해 ${d.dmgIn}/${hp0}`);
+  assert.equal(d.fl, 0, '잔해 위(땅)로 떨어진다');
 });
 
 test('폭발물로 건물을 쏘면 숨은 적도 맞는다', () => {
@@ -142,7 +144,7 @@ test('건물은 문으로만 드나들고, 안에서는 계단으로 한 층씩 
   // 옥상에서는 건물 높이보다 조금 위에서 본다
   assert.ok(Math.abs(T.eye(u) - 4.3) < 1e-9);
   // 나가라고 하면 먼저 1층까지 내려온 뒤 문으로 나간다
-  T.orderMoveTo(u, 1.5, 1.5); T.rtTick(0.1);
+  T.orderMoveTo(u, 1.5, 1.5); for (let i = 0; i < 15 && !(u.fl < 4); i++) T.rtTick(0.1);   // 계단 자리로 몇 걸음 돌아간 뒤
   assert.ok(u.r === 5 && u.c === 5 && u.fl < 4 && u.fl > 0, '계단으로 내려오는 중');
   lx = u.x; lz = u.z; let outT = 0;
   for (let i = 0; i < 600 && !(u.r === 1 && u.c === 1); i++) { T.rtTick(0.1); assert.ok(!wc(u, lx, lz, u.x, u.z)); if (G.map[u.r][u.c].t !== 'bldg' && !outT) { outT = 1; assert.equal(u.fl, 0); } lx = u.x; lz = u.z; }
@@ -153,7 +155,7 @@ test('계단을 오르내리는 동안은 쏘지 않는다', () => {
   const T = loadGame(); const G = setup(T);
   bldg(G, 5, 5, 4); G.map[5][5].blk = 1; T.bump();
   const u = T.mkUnit(0, 'rifle', 5, 5); u.x = 5.5; u.z = 5.5; u.fl = 0; u.flK = T.key(5, 5);
-  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; e.hp = 999; e.cd = 999;
+  const e = T.mkUnit(1, 'rifle', 5, 8); e.x = 8.5; e.z = 5.5; e.hp = 999; e.cd = 999; e.post = 1;   // AI가 돌입하지 않게 제자리
   let shotWhileClimb = false;
   for (let i = 0; i < 200; i++) { const was = u.climb; const f0 = u.firedT; T.rtTick(0.1); if (u.firedT !== f0 && (was || u.climb)) shotWhileClimb = true; }
   assert.ok(!shotWhileClimb);
@@ -390,7 +392,7 @@ test('박격포: 건물 안에서는 못 쏘고, 포탄이 날아가 떨어진 �
   assert.ok(T.canHit(m, e), '지상에서는 쏜다');
   const hp0 = e.hp; T.rtShoot(m, e);
   assert.equal(e.hp, hp0, '쏘는 순간에는 피해 없음');
-  assert.equal(T.G.shells.length, 1, '포탄이 날아간다');
+  assert.equal(T.G.shells.length, 2, '포탄이 날아간다(박격포는 두 발씩)');
   for (let i = 0; i < 60 && T.G.shells.length; i++) { T.G.time += .1; T.shellTick(); }
   assert.equal(T.G.shells.length, 0, '포탄이 떨어졌다');
 });
@@ -837,13 +839,20 @@ test('차량은 정면보다 측면·후면·위에서 맞을 때 더 다친다'
 });
 
 test('대전차 화기에 맞은 차량은 연막탄을 쏘고 정면을 둔 채 후진한다', () => {
-  const T = loadGame(); const G = setup(T);
-  const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
+  const T = loadGame(); seedRandom(T, 1); const G = setup(T);
   const a = T.mkUnit(0, 'at', 5, 8); a.x = 8.5; a.z = 5.5;
-  const harm = F(T, 'harm'); harm(tk, 1, a, { kind: 'blast' });
+  const harm = F(T, 'harm');
+  // 맞은 부위는 무작위다: 궤도가 끊겨 기동 불능이 되면 후진할 수 없으니, 움직일 수 있는 전차로 본다
+  let tk;
+  for (let i = 0; i < 40; i++) {
+    G.units = G.units.filter(u => u.type !== 'tank'); for (const row of G.map) for (const x of row) x.smoke = 0;
+    tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
+    harm(tk, 1, a, { kind: 'blast' }); if (G.units.includes(tk) && !(tk.vd && tk.vd.mob)) break;
+  }
   assert.ok(G.units.includes(tk));
   assert.ok(G.map[5][5].smoke > 0 || G.map[5][6].smoke > 0, '연막');
   assert.equal(tk.vsm, 1, '연막탄 한 번 사용');
+  assert.ok(!(tk.vd && tk.vd.mob), '궤도는 멀쩡');
   assert.ok(tk.path.length && tk.path[0][0] < tk.x, '적 반대쪽으로 후진');
   for (let i = 0; i < 10; i++) T.rtTick(0.1);
   assert.ok(Math.abs(tk.face) < 1, '후진하는 동안 정면은 적을 본다');
@@ -897,4 +906,18 @@ test('제병협동 AI: 적 무더기엔 포격·폭격을 부르고, 장갑차�
   const w = T.__get('aiArmsW')(0, [], cnt, 10);
   assert.ok(w.tank > w.drone * 3 && w.spg > w.drone * 3);
   assert.ok(T.__get('aiArmsSave')(0, 'tank', 10) && !T.__get('aiArmsSave')(0, 'tank', 2));
+});
+
+test('공습: 진입 → 투하 → 낙하 → 탄착 순서이고, 투하 전에 대공에 격추되면 폭탄이 없다', () => {
+  const T = loadGame(); const G = setup(T);
+  G.nats[1].ctrl = 'human'; const e = T.mkUnit(1, 'rifle', 5, 5); const s = T.mkUnit(0, 'drone', 5, 2); e.hold = s.hold = true; G.nats[0].cp = 50; G.wx = 'clear';
+  assert.ok(T.support(0, 'air', 5, 5)); const j = G.airq[0];
+  assert.ok(j.imp - G.time > 2.5 && j.imp - G.time < 3.2, '부른 뒤 약 3초에 탄착'); assert.ok(Math.abs(Math.hypot(j.hx, j.hz) - 1) < 1e-6);
+  T.rtRun(1.7); assert.equal(e.hp, 10, '투하 직후엔 아직 떨어지는 중'); assert.equal(G.bombs.length, 1);
+  T.rtRun(1.5); assert.ok(e.hp < 10 || !G.units.includes(e), '탄착'); assert.equal(G.bombs.length, 0);
+  const G2 = setup(T); G2.nats[1].ctrl = 'human'; const e2 = T.mkUnit(1, 'rifle', 5, 5); e2.hold = true;
+  for (let i = 0; i < 6; i++) { const a = T.mkUnit(1, 'aa', 4 + (i % 3), 7 + (i / 3 | 0)); a.hold = true; }
+  const rnd = Math.random; Math.random = () => 0.01;
+  try { T.__get('jetRun')(0, 5, 5); T.rtRun(1.7); } finally { Math.random = rnd; }
+  assert.equal((G2.bombs || []).length, 0, '격추되면 폭탄 없음'); T.rtRun(2); assert.equal(e2.hp, 10);
 });
