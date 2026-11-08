@@ -58,6 +58,7 @@ function losPt(x1,z1,h1,x2,z2,h2){const dx=x2-x1,dz=z2-z1;
     if(x.t!=='bldg')return false;           // 연막
     const bh=x.smoke>0?99:bldgH(x);const s=segBox(x1,z1,x2,z2,bldgBox(r,c));if(!s)continue;
     const hmin=Math.min(h1+(h2-h1)*s[0],h1+(h2-h1)*s[1]);if(bh>=hmin-.05)return false;}
+  if(typeof propBlocks==='function'&&propBlocks(x1,z1,h1,x2,z2,h2))return false;   // 세워 둔 차·불탄 차(04c-cover)
   return true;}
 /* 건물 칸 (r,c) 안에서 (tx,tz)를 향한 창가 자리: 바깥쪽 외벽에서 .16칸 안쪽. 바깥 벽이 없으면 null */
 function winPt(r,c,tx,tz){const b=bldgBox(r,c),e=1e-6;const cand=[];const cx=c+.5,cz=r+.5;
@@ -117,7 +118,7 @@ function seenPt(n,x,z){const s=visSet(n);const M=N*FOW_R;const i=Math.floor(x*FO
 
 /* 세력 n이 부대 e를 보는가: n의 부대 중 하나라도 시야 거리 안에서 시야선이 트이면 보인다.
    숨은 보병은 더 가까이 와야 보이고, 건물 안 저격수는 바로 옆(1.5칸)이어야 보인다. 쏘면 잠시 드러난다. */
-function spots(u,e){const t=UT[e.type];let v=visRange(u)+(t.cls==='veh'?1:t.fly?1:0);
+function spots(u,e){const t=UT[e.type];if(typeof stairHid==='function'&&stairHid(e,u))return false;let v=visRange(u)+(t.cls==='veh'?1:t.fly?1:0);
   if(concealed(e))v*=SPOT_HIDE;
   if(t.hide&&inside(e)&&!firedRecently(e)&&e.shot!==G.turn)v=Math.min(v,1.5);
   const d=udist(u,e);if(d>v)return false;return d<.9||losU(u,e);}
@@ -137,7 +138,7 @@ function seen(e,n,vs){if(!G.fog||e.nat===n)return true;
 function hypoPos(a,r,c,tx,tz){const x=cell(r,c);if(x.t==='bldg'&&UT[a.type].cls==='inf'&&!UT[a.type].ind){const w=winPt(r,c,tx,tz);if(w)return w;}return [c+.5,r+.5];}
 /* 곡사 화기는 하늘이 트인 곳(지상·옥상)에서만 쏜다 */
 function indOK(a,ax,az,ae){const r=Math.floor(az),c=Math.floor(ax);const x=inb(r,c)?G.map[r][c]:null;if(!x||x.t!=='bldg')return true;return ae>=bldgH(x)-.05;}
-function canHit(a,d,fromR,fromC,moved){const t=UT[a.type];if(!t.rng[1])return false;
+function canHit(a,d,fromR,fromC,moved){const t=UT[a.type];if(!t.rng[1])return false;if(typeof stairHid==='function'&&stairHid(d,a))return false;
   let ax,az,ae;const [dx,dz]=posOf(d);if(fromR!=null){[ax,az]=hypoPos(a,fromR,fromC,dx,dz);ae=eyeAt(a.type,fromR,fromC);}else{[ax,az]=posOf(a);ae=eye(a);}const dd=Math.hypot(ax-dx,az-dz);
   if(dd<t.rng[0]-.4||dd>t.rng[1]+.6)return false;if(!(t.atk[UT[d.type].cls]>0))return false;if(t.ind&&moved)return false;if(t.ind&&UT[d.type].fly)return false;
   if(t.ind)return indOK(a,ax,az,ae)&&seen(d,a.nat);

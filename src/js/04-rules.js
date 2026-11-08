@@ -20,7 +20,9 @@ function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
 function damageBldg(r,c,amt){const x=G.map[r][c];if(x.t!=='bldg'||amt<=0)return;x.bhp-=amt;bump();
   if(x.bhp<=0){const f0=x.f;x.t='rubble';G.navV=(G.navV||0)+1;x.f=0;x.bhp=0;FXH.collapse(r,c,f0);sfx('boom',1.3,c+.5,r+.5);L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 붕괴`);
-    const u=unitAt(r,c);if(u){u.supp=2;harm(u,5,null,{kind:'crush'});}}}
+    // 안·위에 있던 부대는 무너지는 건물과 함께 떨어진다: 병사마다 다치거나 죽는다. 높은 층일수록 더 크게(남은 체력의 30~95%)
+    for(const u of G.units.filter(v=>v.r===r&&v.c===c&&!UT[v.type].fly)){const fl=UT[u.type].cls==='inf'&&u.fl!=null&&u.flK===key(r,c)?u.fl:0;
+      u.fl=0;u.climb=0;u.onSt=0;u.supp=2;harm(u,Math.max(1,u.hp*Math.min(.95,.3+.1*fl+Math.random()*.3)),null,{kind:'crush'});}}}
 /* 부대가 피해를 입는다(체력 단위). 보병은 병사 한 명 한 명이, 차량은 부위별로 다친다(05g-casualty의 harmX). */
 function harm(u,amt,by,o){if(!u||!G.units.includes(u))return 0;if(!(amt>0)){if(u.hp<=0)kill(u,by);return 0;}   // 피해 0이어도 체력이 이미 0이면(FPV 한 발 격추) 없앤다
   o=o||{};u.dmgIn=Math.round(((u.dmgIn||0)+amt)*10)/10;

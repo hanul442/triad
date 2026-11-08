@@ -7,16 +7,18 @@ function v3MenAnim(o,uu,dt,now,fa){const M=uu._men,S=o.userData.sold;const ox=o.
   S.forEach((s,i)=>{const m=M[i];if(!m||!s.m.visible)return;let gx=m.x,gz=m.z,y=0;
     const ins=typeof v3InSoldier==='function'?v3InSoldier(uu,s,i,dt):null;
     if(ins){y=ins.y||0;if(ins.stair&&ins.x!=null){gx=ins.x;gz=ins.z;}}
+    const pk=ins&&!ins.stair&&!moving&&typeof v3WinPeek==='function'?v3WinPeek(uu,m,t):null;if(pk){gx=pk.x;gz=pk.z;y+=pk.y;}   // 창가 병사: 쏠 때 창 밖으로 몸을 내민다
     const dx=gx-s.wx,dz=gz-s.wz,d=Math.hypot(dx,dz);
     if(d>.8){s.wx=gx;s.wz=gz;}else{s.wx+=dx*k;s.wz+=dz*k;}
     const v=ins&&ins.stair?d*k/dt:m.spd;s.spd+=(v-s.spd)*Math.min(1,dt*8);
     const fig=s.m;
     const prone=m.pr>0||(!moving&&uu.supp>0&&m.spd<.05);
     const kneel=!prone&&m.spd<.05&&(m.rl>0||t-m.ft<2.5||m.hold||uu.tgt!=null);
-    const head=ins&&ins.stair&&s.spd>.05?Math.atan2(dz,dx):m.f;
+    const head=ins&&ins.stair&&s.spd>.05?Math.atan2(dz,dx):pk?pk.f:m.f;
     let cur=fig.rotation.y,want=-head,dd=want-cur;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;fig.rotation.y=cur+dd*Math.min(1,dt*9);
     const tilt=prone?-1.42:0;fig.rotation.z+=(tilt-fig.rotation.z)*Math.min(1,dt*7);
     const sy=kneel?.72:1;fig.scale.y+=(sy-fig.scale.y)*Math.min(1,dt*7);
+    if(pk){s.py=(s.py??y)+(y-(s.py??y))*k;y=s.py;}else s.py=y;   // 창턱으로 오르내림은 부드럽게
     fig.position.set(s.wx-ox,y+(prone?.012:0)-(typeof trenchAt==='function'&&trenchAt(s.wx,s.wz)?.9*MU:0),s.wz-oz);/* 참호 안 병사는 허리까지 잠긴다 */
     const gait=prone?.25:1,sw=Math.min(1,s.spd/.35)*Math.sin(now/(prone?160:70)+s.ph)*.7*gait;
     if(fig.userData.legL){fig.userData.legL.rotation.z=sw;fig.userData.legR.rotation.z=-sw;}});}

@@ -51,16 +51,20 @@ function wallCross(u,x1,z1,x2,z2){if(UT[u.type].fly)return false;if(Math.floor(x
 function sepFree(u){if(UT[u.type].cls!=='inf')return false;const x=cell(u.r,u.c);if(isB(x))return true;
   for(let s=0;s<4;s++){const [a,b]=SIDES[s];const r=u.r+a,c=u.c+b;if(!inb(r,c)||!isB(G.map[r][c]))continue;const ds=doorSides(r,c);const o=(s+2)%4;if(!ds||!ds[o])continue;const d=doorPos(r,c,o);if(Math.hypot(d[0]-u.x,d[1]-u.z)<.35)return true;}
   return false;}
-/* 계단 자리: 칸마다 한 모서리 */
-function stairPos(r,c){const h=dHash(key(r,c),40);const sx=h<.5?-1:1,sz=(h*4|0)%2?-1:1;return [c+.5+sx*.27,r+.5+sz*.27];}
-/* 칸에서 오를 수 있는 가장 높은 곳: 실내 층은 0..f-1, f는 옥상. 부서져 낮아진 만큼 줄어든다. */
-function topFl(x){if(!isB(x))return 0;return Math.max(0,Math.ceil(bldgH(x)-.05));}
-function roofFl(x){return isB(x)?topFl(x):0;}
+/* 계단 자리: 칸 한가운데 계단실(코어). 창에서 멀어 밖에서는 계단 위 병사가 보이지 않는다(04b spots). */
+const STAIR_OFF=.09;
+function stairPos(r,c){const h=dHash(key(r,c),40);const sx=h<.5?-1:1,sz=(h*4|0)%2?-1:1;return [c+.5+sx*STAIR_OFF,r+.5+sz*.04];}
+/* 박공지붕(낮은 주택): 비탈진 지붕이라 올라설 수 없다. 화면(07-view3d)이 박공을 그리는 조건과 같다. */
+function gableRoof(x){return isB(x)&&x.dist==='res'&&x.f<=2&&x.bhp/x.bmax>.6;}
+/* 옥상 층 번호: 실내 층은 0..f-1, f는 옥상. 부서져 낮아진 만큼 줄어든다. */
+function roofFl(x){if(!isB(x))return 0;return Math.max(0,Math.ceil(bldgH(x)-.05));}
+/* 칸에서 오를 수 있는 가장 높은 곳: 평지붕이면 옥상, 박공지붕이면 맨 위 실내층 */
+function topFl(x){if(!isB(x))return 0;const f=roofFl(x);return gableRoof(x)?Math.max(0,f-1):f;}
 const onRoof=u=>{const x=cell(u.r,u.c);return isB(x)&&UT[u.type].cls==='inf'&&curFl(u)>=roofFl(x)-1e-6&&roofFl(x)>0;};
 /* 눈높이(층 단위): 실내는 그 층 +0.5, 옥상은 건물 높이 +0.3 */
 function flEye(u){const x=cell(u.r,u.c);const f=curFl(u);return f>=roofFl(x)-1e-6?bldgH(x)+.3:f+.5;}
 /* 지금 층을 아는가: 실제 서 있는 칸이 층을 기록한 칸과 같을 때만 (AI가 가상 칸에 옮겨 놓고 계산할 때는 꼭대기로 본다) */
-function curFl(u){const x=cell(u.r,u.c);if(!isB(x))return 0;if(u.fl==null||u.flK!==key(u.r,u.c))return Math.max(0,topFl(x)-1);return Math.min(u.fl,topFl(x));}   // 모르면 맨 위 실내층
+function curFl(u){const x=cell(u.r,u.c);if(!isB(x))return 0;if(u.fl==null||u.flK!==key(u.r,u.c))return Math.max(0,roofFl(x)-1);return Math.min(u.fl,topFl(x));}   // 모르면 맨 위 실내층
 /* 남은 경로를 걷는 동안 머물 수 있는 가장 높은 층: 건물을 나가면 0, 같은 블록 안이면 지나는 칸 중 가장 낮은 꼭대기 */
 function pathFlLim(u){const here=cell(u.r,u.c);let lim=topFl(here);let px=u.x,pz=u.z;
   for(const p of u.path){const n=Math.max(1,Math.ceil(Math.hypot(p[0]-px,p[1]-pz)/.25));
@@ -81,7 +85,7 @@ function stairStep(u,dt,goal){const [sx,sz]=stairPos(u.r,u.c);const dx=sx-u.x,dz
    이동 중에 지금 층에서는 못 가는 곳이 남아 있으면 true(먼저 내려와야 하니 걷지 않는다). */
 function flTick(u,dt){if(UT[u.type].cls!=='inf'){u.fl=0;return false;}const k=key(u.r,u.c),x=cell(u.r,u.c);
   if(u.flK!==k){const was=u.flK!=null&&inb(kr(u.flK),kc(u.flK))?G.map[kr(u.flK)][kc(u.flK)]:null;
-    u.fl=u.fl==null&&isB(x)?Math.max(0,topFl(x)-1):isB(x)&&sameBlk(was,x)?Math.min(u.fl||0,topFl(x)):0;u.flK=k;u._efl=Math.floor(u.fl);bump();}
+    u.fl=u.fl==null&&isB(x)?Math.max(0,roofFl(x)-1):isB(x)&&sameBlk(was,x)?Math.min(u.fl||0,topFl(x)):0;u.flK=k;u._efl=Math.floor(u.fl);bump();}
   if(!isB(x)){u.fl=0;if(u.climb)endClimb(u);return false;}
   if(u.fl>topFl(x))u.fl=topFl(x);
   const moving=u.path&&u.path.length;
@@ -89,6 +93,8 @@ function flTick(u,dt){if(UT[u.type].cls!=='inf'){u.fl=0;return false;}const k=ke
   const goal=Math.min(topFl(x),u.flT==null?99:u.flT);
   if(Math.abs(u.fl-goal)>1e-6){stairStep(u,dt,goal);return true;}
   if(u.climb)endClimb(u);return false;}
+/* 계단실 안의 부대는 같은 건물 안에서만 보이고 맞는다(계단은 창이 없는 코어에 있다) */
+function stairHid(e,a){if(!e.climb||!e.onSt)return false;const x=cell(e.r,e.c);if(!isB(x))return false;if(!a)return true;const y=cell(a.r,a.c);return !(y===x||sameBlk(x,y));}
 /* 계단에서 내려선 뒤 자리 잡는 데 잠깐 걸린다(그동안 사격 없음) */
 function endClimb(u){u.climb=0;u.onSt=0;u.cd=Math.max(u.cd||0,1);bump();}
 /* 층 명령: 꼭대기로 / 1층으로 (UI 버튼) */
