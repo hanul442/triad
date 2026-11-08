@@ -60,7 +60,8 @@ if(typeof document!=='undefined'){
 /* ---------- 외벽: 벽돌과 돌 창틀 ----------
    창 자리(64px 칸, 창 34×30)는 원래 무늬와 같다: 밤 창불(emissiveMap)이 같은 자리를 쓴다. */
 function grFacade(){const T=V3.T,M=V3.M;if(!M||M.wall.userData.brick)return;
-  if(Array.isArray(M.walls))return;   // 건물 종류별 외벽(V3.M.walls)이 있으면 그쪽 무늬를 그대로 쓴다const fr=mulberry(17);
+  if(Array.isArray(M.walls))return;   // 건물 종류별 외벽(V3.M.walls)이 있으면 그쪽 무늬를 그대로 쓴다
+  const fr=mulberry(17);
   const tex=v3Tex(512,512,(g,w,h)=>{
     g.fillStyle='#9b9184';g.fillRect(0,0,w,h);   // 줄눈
     // 벽돌: 한 층(64px)에 8단, 한 장 16×7, 단마다 반 장씩 어긋나게
