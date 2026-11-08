@@ -82,7 +82,7 @@
     <div class="grid" id="scn-list"></div>
     <h3 class="sec">자유 전투</h3>
     <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
-    <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 32×32 (거점 4)</option><option value="m" selected>중형 44×44 (거점 12)</option><option value="l">대형 56×56 (거점 16)</option></select></div>
+    <div class="slot"><span></span><label for="opt-size">도시 크기</label><select id="opt-size"><option value="s">소형 36×36 (거점 4)</option><option value="m" selected>중형 52×52 (거점 12)</option><option value="l">대형 64×64 (거점 16)</option></select></div>
     <div class="slot"><span></span><label for="opt-layout">도시 배치</label><select id="opt-layout"><option value="sym" selected>대칭 도시 (4세력 공정)</option><option value="river">강이 흐르는 도시 (비대칭: 강·다리·철도·역)</option></select></div>
     <div class="slot"><span></span><label for="opt-relief">지형 고저차</label><select id="opt-relief"><option value="flat">평지</option><option value="hills" selected>완만한 언덕 (최고 약 10m)</option><option value="steep">가파른 구릉 (최고 약 18m)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
@@ -91,6 +91,7 @@
     <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비</option><option value="fog">짙은 안개</option><option value="storm">폭우</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
     <div class="slot"><span></span><label for="opt-radio">무전 지연</label><select id="opt-radio"><option value="1">켜기 (명령이 무전으로 1~3초 늦게 닿음)</option><option value="0">끄기</option></select></div>
+    <div class="slot"><span></span><label for="opt-geneva">제네바 협약</label><select id="opt-geneva"><option value="mil" selected>민병대는 무시 (나머지는 구급차·구호소를 쏘지 않음)</option><option value="all">모두 지킴</option><option value="off">끄기 (보호 없음)</option></select></div>
     <input type="hidden" id="opt-speed" value="0">
     <div class="err" id="setup-err"></div>
     <button class="btn primary" data-act="start" id="b-start">작전 개시</button>
