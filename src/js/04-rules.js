@@ -5,16 +5,19 @@ function mcost(type,x){const t=UT[type];if(t.fly)return 1;if(x.t==='water')retur
 const inside=u=>!UT[u.type].fly&&cell(u.r,u.c).t==='bldg';
 /* 시야·사격 판정(eye, los, visSet, seen, canHit…)은 04b-sight.js, 엄폐·피해(calcDmg)는 04c-cover.js */
 const bump=()=>{G.ver=(G.ver||0)+1;};
-/* 이동 가능 칸 (다익스트라). 아군은 지나갈 수 있고 적은 막는다. 보이는 적 지상 부대 옆에 들어서면 거기서 멈춘다. */
-function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(),prev=new Map();const O=occ();const vs=G.fog?1:null;
-  const stopAt=(r,c)=>{if(t.fly)return false;for(const [a,b] of nbrs(r,c)){const e=O.get(key(a,b));if(e&&hostile(e.nat,u.nat)&&!UT[e.type].fly&&(!vs||seen(e,u.nat)))return true;}return false;};
+/* 이동 가능 칸 (다익스트라). 아군은 지나갈 수 있고 적은 막는다. 보이는 적 지상 부대 옆에 들어서면 거기서 멈춘다.
+   한 칸에는 한 부대가 서지만, 건물 칸은 층마다 한 분대씩 아군 보병이 함께 들 수 있다(05k-cqb bldgRoom). 하늘의 부대는 땅의 칸을 차지하지 않는다. */
+function reach(u){const t=UT[u.type];let mv=t.mv-(u.supp?1:0);const res=new Map(),prev=new Map();const OA=occAll();const vs=G.fog?1:null;
+  const foeOn=k=>{const a=OA.get(k);return !!a&&a.some(e=>e.nat!==u.nat&&!!UT[e.type].fly===!!t.fly);};
+  const stopAt=(r,c)=>{if(t.fly)return false;for(const [a,b] of nbrs(r,c)){const L=OA.get(key(a,b));if(L&&L.some(e=>hostile(e.nat,u.nat)&&!UT[e.type].fly&&(!vs||seen(e,u.nat))))return true;}return false;};
   const st=key(u.r,u.c);res.set(st,0);const q=[[0,u.r,u.c]];
   while(q.length){q.sort((a,b)=>a[0]-b[0]);const [d,r,c]=q.shift();if(d>res.get(key(r,c)))continue;if(key(r,c)!==st&&stopAt(r,c))continue;
     for(const [a,b] of nbrs(r,c)){const x=G.map[a][b];const mc=mcost(u.type,x);if(mc===Infinity)continue;if(!t.fly&&typeof stepPass==='function'&&!stepPass(r,c,a,b))continue;
       if(t.cls==='veh'&&a!==r&&b!==c&&(G.map[a][c].t==='bldg'&&G.map[r][b].t==='bldg'))continue;
-      const nd=d+mc;if(nd>mv)continue;const k=key(a,b);const o=O.get(k);if(o&&o.nat!==u.nat)continue;if(o&&UT[o.type].fly!==t.fly&&false)continue;
+      const nd=d+mc;if(nd>mv)continue;const k=key(a,b);if(foeOn(k))continue;
       if(!res.has(k)||nd<res.get(k)){res.set(k,nd);prev.set(k,key(r,c));q.push([nd,a,b]);}}}
-  for(const k of [...res.keys()]){const o=O.get(k);if(o&&o!==u)res.delete(k);}
+  for(const k of [...res.keys()]){if(k===st)continue;const L=(OA.get(k)||[]).filter(o=>o!==u&&!!UT[o.type].fly===!!t.fly);if(!L.length)continue;
+    if(typeof bldgRoom==='function'&&bldgRoom(u,kr(k),kc(k),L))continue;res.delete(k);}
   res.prev=prev;return res;}
 /* ---------- 전투 ---------- */
 function rollDmg(v){return Math.max(v>0?1:0,Math.round(v*(.85+Math.random()*.3)));}
@@ -36,7 +39,7 @@ function attack(a,d){const ta=UT[a.type];a.shot=G.turn;FXH.fire(a,d.r,d.c);const
   if(G.units.includes(d)&&!UT[d.type].ind&&canHit(d,a)){const cd=rollDmg(calcDmg(d,a,true));if(cd>0){d.shot=G.turn;FXH.fire(d,a.r,a.c);harm(a,cd,d,{kind:UT[d.type].ex?'blast':'bullet'});}}
   bump();return dmg;}
 function shootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;FXH.fire(a,r,c);const amt=Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*(.85+Math.random()*.3));damageBldg(r,c,amt);
-  const u=unitAt(r,c);if(u&&G.units.includes(u)&&u.nat!==a.nat){u.supp=2;harm(u,Math.max(1,Math.round(amt*.25)),a,{kind:'frag'});}bump();}
+  for(const u of unitsAt(r,c)){if(G.units.includes(u)&&u.nat!==a.nat&&!UT[u.type].fly){u.supp=2;harm(u,Math.max(1,Math.round(amt*.25*(typeof flShield==='function'?flShield(u,1):1))),a,{kind:'frag'});}}bump();}
 /* 이동 직후: 거점 점령, 적의 경계 사격 */
 function afterMove(u){const x=cell(u.r,u.c);if(UT[u.type].cap&&x.obj!=null&&x.owner!==u.nat){const was=x.owner;x.owner=u.nat;L(`${natName(u.nat)} ${G.objs[x.obj].name} 확보${was!=null?` (${natName(was)}에게서 탈환)`:''}`);sfx('build');}
   for(const w of G.units.slice()){if(!w.ow||w.nat===u.nat||!G.units.includes(u))continue;if(G.fog&&!seen(u,w.nat))continue;if(!canHit(w,u))continue;
@@ -67,7 +70,7 @@ function support(n,kind,r,c){if(!canSupport(n,kind,r,c))return false;const N2=G.
   if(n===G.viewer&&!isAI(n))sndRadio('support');L(`${natName(n)} ${SUP[kind].n}`);
   if(kind==='arty'&&typeof shellBarrage==='function'){shellBarrage(n,r,c,9,2.8);bump();return true;}   // 포격은 실제 포탄으로(05g-shells)
   for(const [a,b] of supArea(r,c,SUP[kind].rad)){const ctr=a===r&&b===c;const x=G.map[a][b];
-    const u=unitAt(a,b);if(u){const cov=UT[u.type].fly?0:Math.max(TT[x.t].cov*.5,typeof trenchAt==='function'&&UT[u.type].cls==='inf'&&trenchAt(u.x,u.z)?.5:0);/* 참호는 포격도 막는다 */const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;harm(u,d,null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
+    for(const u of unitsAt(a,b)){const cov=UT[u.type].fly?0:Math.max(TT[x.t].cov*.5,typeof trenchAt==='function'&&UT[u.type].cls==='inf'&&trenchAt(u.x,u.z)?.5:0);/* 참호는 포격도 막는다 */const base=kind==='air'?9:(ctr?6:4);const d=Math.max(1,Math.round(base*(1-cov)*(.85+Math.random()*.3)));u.supp=2;const fk=typeof flShield==='function'?flShield(u):1;harm(u,Math.max(1,Math.round(d*fk)),null,{kind:'blast',x:b+.5,z:a+.5,rad:kind==='air'?.5:.7});}
     if(x.t==='bldg'){damageBldg(a,b,kind==='air'?24:(ctr?9:6));if(kind==='air'&&typeof ignite==='function')ignite(a,b,ctr?.8:.35);}}
   if(typeof fortBlast==='function')fortBlast(c+.5,r+.5,kind==='air'?.7:1.5,kind==='air'?90:24);
   bump();return true;}

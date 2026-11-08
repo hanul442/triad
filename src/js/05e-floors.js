@@ -90,12 +90,14 @@ function flTick(u,dt){if(UT[u.type].cls!=='inf'){u.fl=0;return false;}const k=ke
   if(u.fl>topFl(x))u.fl=topFl(x);
   const moving=u.path&&u.path.length;
   if(moving){const lim=pathFlLim(u);if(u.fl>lim+1e-6){stairStep(u,dt,lim);return true;}if(u.climb)endClimb(u);return false;}
-  const goal=Math.min(topFl(x),u.flT==null?99:u.flT);
+  const goal=Math.min(topFl(x),typeof flWant==='function'?flWant(u,x):u.flT==null?99:u.flT);   // 같은 칸 아군 분대와 층을 나눈다(05k-cqb)
   if(Math.abs(u.fl-goal)>1e-6){stairStep(u,dt,goal);return true;}
   if(u.climb)endClimb(u);return false;}
 /* 계단실 안의 부대는 같은 건물 안에서만 보이고 맞는다(계단은 창이 없는 코어에 있다) */
 function stairHid(e,a){if(!e.climb||!e.onSt)return false;const x=cell(e.r,e.c);if(!isB(x))return false;if(!a)return true;const y=cell(a.r,a.c);return !(y===x||sameBlk(x,y));}
 /* 계단에서 내려선 뒤 자리 잡는 데 잠깐 걸린다(그동안 사격 없음) */
 function endClimb(u){u.climb=0;u.onSt=0;u.cd=Math.max(u.cd||0,1);bump();}
+/* 부대가 차지한 층(칸+층 점유): 건물 안 보병은 지금 층, 옥상은 topFl, 그 밖의 지상 부대는 0, 하늘은 -1 */
+function flOf(u){if(UT[u.type].fly)return -1;if(UT[u.type].cls!=='inf')return 0;const x=cell(u.r,u.c);if(!isB(x))return 0;return Math.floor(curFl(u)+1e-6);}
 /* 층 명령: 꼭대기로 / 1층으로 (UI 버튼) */
 function orderFloor(u,up){u.flT=up?null:0;}

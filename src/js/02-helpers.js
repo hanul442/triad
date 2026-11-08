@@ -10,8 +10,12 @@ const dist=(a,b,c,d)=>Math.max(Math.abs(a-c),Math.abs(b-d));
 const DIR8=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
 function nbrs(r,c){const o=[];for(const [a,b] of DIR8){const x=r+a,y=c+b;if(inb(x,y))o.push([x,y]);}return o;}
 const cell=(r,c)=>G.map[r][c];
-function unitAt(r,c){for(const u of G.units)if(u.r===r&&u.c===c)return u;return null;}
+/* 칸 (r,c)의 부대. fl을 주면 그 층의 부대만(건물 한 칸에 층마다 다른 분대가 있을 수 있다, 05e flOf) */
+function unitAt(r,c,fl){for(const u of G.units)if(u.r===r&&u.c===c&&(fl==null||flOf(u)===fl))return u;return null;}
+function unitsAt(r,c){return G.units.filter(u=>u.r===r&&u.c===c);}
 function occ(){const m=new Map();for(const u of G.units)m.set(key(u.r,u.c),u);return m;}
+/* 칸마다 그 칸의 부대 목록 */
+function occAll(){const m=new Map();for(const u of G.units){const k=key(u.r,u.c);const a=m.get(k);if(a)a.push(u);else m.set(k,[u]);}return m;}
 const natName=n=>n==null?'중립':NATS[n].name;
 const mapCol=n=>n==null?'#8b9294':MAPCOL[n];
 const isAI=n=>G.nats[n].ctrl==='ai';
