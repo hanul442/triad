@@ -3105,6 +3105,367 @@ if(typeof showSetup==='function'){const _ss=showSetup;showSetup=function(){_ss()
     b.innerHTML=`<h3 class="sec">고참 명부</h3>`+vetSetupHtml();};}
 if(typeof renderPanel==='function'){const _rp=renderPanel;renderPanel=function(){_rp();const p=typeof document!=='undefined'&&$('#panel');if(!p||!UI.sheet||UI.tab!=='world')return;const h=vetPanel();if(h)p.insertAdjacentHTML('beforeend',h);};}
 
+/* ---- 05n-0core.js ---- */
+/* ===================== URBAN CORE: 폭발 소식과 "누가 쐈나" =====================
+   민간인(05n-civ)·폭파(05n-demo)·지하(05n-under)가 같이 쓰는 작은 바탕.
+   - UB.by: 지금 건물·사람을 다치게 하는 쪽 세력 번호(사격·포탄·폭탄 함수가 도는 동안만 정해진다).
+     건물 피해(damageBldg)에는 쏜 쪽이 넘어오지 않아서, 감싼 함수들이 여기에 적어 둔다.
+   - ubBlast(x,z,R,n): 폭발이 났다는 소식. 등록된 함수(onBlast)들이 받는다. G.ubHot에 최근 12초 폭발이 남는다. */
+const UB={by:null,hooks:[]};
+const onBlast=fn=>{UB.hooks.push(fn);};
+function ubBlast(x,z,R,n){if(!G)return;const t=G.time||0;G.ubHot=(G.ubHot||[]).filter(b=>t-b.t<12);G.ubHot.push({x,z,R,n,t});
+  for(const fn of UB.hooks)try{fn(x,z,R,n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}
+/* 최근 폭발이 (x,z) 반경 r 안에 있었나 (초) */
+const ubHotNear=(x,z,r,sec)=>(G.ubHot||[]).some(b=>(G.time||0)-b.t<sec&&Math.hypot(b.x-x,b.z-z)<=r+b.R);
+/* fn을 세력 n이 한 일로 돌린다 */
+function ubAs(n,fn){const p=UB.by;UB.by=n;try{return fn();}finally{UB.by=p;}}
+{const _s=rtShoot;rtShoot=function(a,d){const ex=UT[a.type].ex;const r=ubAs(a.nat,()=>_s(a,d));if(ex&&r>0&&G.units)ubBlast(d.x,d.z,.35,a.nat);return r;};}
+{const _s=rtShootBldg;rtShootBldg=function(a,r,c){ubAs(a.nat,()=>_s(a,r,c));ubBlast(c+.5,r+.5,.5,a.nat);};}
+{const _s=shellBoom;shellBoom=function(s,x,z,h,r,c){const v=ubAs(s.n,()=>_s(s,x,z,h,r,c));ubBlast(x,z,SHELL_R,s.n);return v;};}
+{const _s=support;support=function(n,kind,r,c){const ok=ubAs(n,()=>_s(n,kind,r,c));
+  if(ok&&SUP[kind]&&!SUP[kind].fn&&kind!=='smoke'&&kind!=='heli'&&kind!=='arty')ubBlast(c+.5,r+.5,(SUP[kind].rad||1)+.5,n);return ok;};}
+if(typeof jetDrop==='function'){const _s=jetDrop;jetDrop=function(j){const v=ubAs(j.n,()=>_s(j));ubBlast(j.c+.5,j.r+.5,1.3,j.n);return v;};}
+if(typeof fpvBoom==='function'){const _s=fpvBoom;fpvBoom=function(u,e){const x=e.x,z=e.z,n=u.nat;const v=ubAs(n,()=>_s(u,e));ubBlast(x,z,.45,n);return v;};}
+if(typeof msBlast==='function'){const _s=msBlast;msBlast=function(x,z,R,base,n,bc,br){const v=ubAs(n,()=>_s(x,z,R,base,n,bc,br));ubBlast(x,z,R,n);return v;};}
+if(typeof msHit==='function'){const _s=msHit;msHit=function(m,e,r,c){const v=ubAs(m.n,()=>_s(m,e,r,c));ubBlast(m.x,m.z,.5,m.n);return v;};}
+if(typeof breach==='function'){const _s=breach;breach=function(a,P){return ubAs(a.nat,()=>_s(a,P));};}
+{const _s=attack;attack=function(a,d){return ubAs(a.nat,()=>_s(a,d));};}
+{const _s=shootBldg;shootBldg=function(a,r,c){return ubAs(a.nat,()=>_s(a,r,c));};}
+/* 건물 칸에 마지막으로 피해를 준 세력(불이 번져 무너져도 그 세력 몫) */
+{const _d=damageBldg;damageBldg=function(r,c,amt){const x=G.map[r][c];if(x&&x.t==='bldg'&&amt>0&&UB.by!=null)x.lastBy=UB.by;return _d(r,c,amt);};}
+
+/* ---- 05n-civ.js ---- */
+/* ===================== CIV: 민간인과 대피 =====================
+   근거(공개 자료): MWI 모술 사례 연구(전단·전화로 대피 유도, 좁은 탈출로, 저격수 건물 공습으로 민간인 200명 넘게 사망),
+   MWI 팔루자 사례 연구(주민 25~30만 중 약 3만 명이 남아 있었음), FM 3-21.71(민간인이 있을 수 있는 건물엔 수류탄 대신 섬광탄).
+   - 건물 몇 곳(약 4분의 1)에 민간인이 남아 있다(층이 많을수록 많다). 지도에 표시된다.
+   - 건물이 맞으면 피해만큼 민간인이 다치고, 무너지면 대부분 죽는다. 그 건물을 친 세력이 승점을 잃는다(약 3명에 1점).
+     불이 번져 무너져도 마지막으로 친 세력 몫이다.
+   - 근처에서 총격·폭발이 나면 민간인이 몇 명씩 무리 지어 지도 가장자리로 피란한다. 길 위 피란민도 폭발에 다친다.
+   - 아군 보병이 민간인이 있는 건물 칸에 4초 머무르면(적이 가깝지 않을 때) 모두를 자기 편 뒤쪽으로 안내한다.
+     무사히 빠져나가면 4명에 지휘점수 1을 얻는다.
+   - AI는 민간인이 여섯 명 이상 있는 곳에는 포격·폭격을 부르지 않는다. */
+const CIV={occ:.25,cap:9,vp:.34,kill:1.4,fleeR:2.5,panicP:.35,spd:.32,escort:4,cpEsc:.25,aiMax:6,bullet:.12};
+const civRoll=v=>Math.floor(v)+(Math.random()<v%1?1:0);
+const civOn=()=>!!(G&&G.civOn);
+function civStats(n){const N2=G.nats[n];if(N2.civK==null){N2.civK=0;N2.civE=0;N2.civPen=0;N2.civCp=0;}return N2;}
+function civKill(n,cnt,x,z){if(!(cnt>0))return;G.civDead=(G.civDead||0)+cnt;if(FXH.civDead)FXH.civDead(x,z,cnt);
+  if(n!=null&&G.nats[n]){const N2=civStats(n);N2.civK+=cnt;N2.civPen+=cnt*CIV.vp;while(N2.civPen>=1){N2.civPen-=1;N2.vp=Math.max(0,N2.vp-1);}
+    L(`${natName(n)} 공격에 민간인 ${cnt}명 사망`);}else L(`민간인 ${cnt}명 사망`);}
+/* 피란 무리: 가장자리로 걸어간다. esc = 안내한 세력 */
+function civEdge(n,x,z){if(n!=null&&typeof airEdge==='function')return airEdge(n,x,z);
+  const d=[[x,0],[N-x,1],[z,2],[N-z,3]].sort((a,b)=>a[0]-b[0])[0][1];return d===0?[.2,z]:d===1?[N-.2,z]:d===2?[x,.2]:[x,N-.2];}
+function civFlee(r,c,cnt,esc){if(!(cnt>0))return null;const x=G.map[r][c];x.civ=Math.max(0,(x.civ||0)-cnt);
+  let sx=c+.5,sz=r+.5;if(x.t==='bldg'&&typeof doorSides==='function'){const ds=doorSides(r,c);if(ds){const s=ds.findIndex(v=>v);if(s>=0){const [a,b]=SIDES[s];[sx,sz]=doorPos(r,c,s);sx+=b*.12;sz+=a*.12;}}}
+  const [tx,tz]=civEdge(esc,sx,sz);let path=null;
+  try{if(typeof navPath==='function')path=navPath({type:'rifle',x:sx,z:sz,nat:-1,id:-1},tx,tz);}catch(e){path=null;}
+  if(!path||!path.length)path=[[tx,tz]];else if(Math.hypot(path[path.length-1][0]-tx,path[path.length-1][1]-tz)>1)path.push([tx,tz]);
+  const g={id:UID++,x:sx,z:sz,n:cnt,path,esc:esc??null,t0:G.time||0};(G.civF=G.civF||[]).push(g);bump();return g;}
+function civGroupTick(dt){const keep=[];
+  for(const g of G.civF||[]){if(g.n<=0)continue;const p=g.path[0];if(!p){civOut(g);continue;}
+    const dx=p[0]-g.x,dz=p[1]-g.z,d=Math.hypot(dx,dz);const st=CIV.spd*dt*(g.esc!=null?.85:1);
+    if(d<=st){g.x=p[0];g.z=p[1];g.path.shift();}else{g.x+=dx/d*st;g.z+=dz/d*st;}
+    if(g.x<.35||g.z<.35||g.x>N-.35||g.z>N-.35||(G.time||0)-g.t0>240){civOut(g);continue;}keep.push(g);}
+  G.civF=keep;}
+function civOut(g){G.civOut=(G.civOut||0)+g.n;if(g.esc!=null&&G.nats[g.esc]){const N2=civStats(g.esc);N2.civE+=g.n;N2.civCp+=g.n*CIV.cpEsc;const a=Math.floor(N2.civCp);if(a>0){N2.civCp-=a;N2.cp+=a;}
+  if(g.esc===G.viewer)L(`민간인 ${g.n}명 안전하게 대피`);}g.n=0;}
+/* 건물 피해 → 안의 민간인 */
+{const _d=damageBldg;damageBldg=function(r,c,amt){const x=G.map[r][c];const pop=x.civ||0;if(!civOn()||!pop||x.t!=='bldg'||!(amt>0))return _d(r,c,amt);
+  const by=UB.by!=null?UB.by:x.lastBy!=null?x.lastBy:null;_d(r,c,amt);
+  let dead=Math.min(pop,civRoll(pop*Math.min(1,amt/(x.bmax||10)*CIV.kill)));
+  if(x.t!=='bldg')dead=Math.min(pop,dead+civRoll((pop-dead)*.7));
+  x.civ=pop-dead;x.civP=1;civKill(by,dead,c+.5,r+.5);if(x.t!=='bldg'&&x.civ>0)civFlee(r,c,x.civ,null);};}
+onBlast((x,z,R,n)=>{if(!civOn())return;for(const g of G.civF||[]){if(g.n<=0)continue;const d=Math.hypot(g.x-x,g.z-z);if(d>R)continue;
+  const dead=Math.min(g.n,civRoll(g.n*(1-d/R)*.8));if(dead){g.n-=dead;civKill(n,dead,g.x,g.z);}}});
+{const _s=rtShoot;rtShoot=function(a,d){const r=_s(a,d);if(!civOn()||!(r>0)||!G.civF)return r;
+  for(const g of G.civF){if(g.n>0&&Math.hypot(g.x-d.x,g.z-d.z)<.35&&Math.random()<CIV.bullet){g.n--;civKill(a.nat,1,g.x,g.z);break;}}return r;};}
+/* 무서워서 나간다: 근처 총격·폭발 */
+function civPanic(){const t=G.time||0;const sh=G.units.filter(u=>u.firedT!=null&&t-u.firedT<2);
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(!x.civ||x.t!=='bldg')continue;const cx=c+.5,cz=r+.5;
+    const dz=x.civP||ubHotNear(cx,cz,CIV.fleeR,3)||sh.some(u=>Math.hypot(u.x-cx,u.z-cz)<CIV.fleeR);if(!dz||Math.random()>CIV.panicP)continue;
+    x.civP=0;civFlee(r,c,Math.min(x.civ,2+Math.floor(Math.random()*4)),null);}}
+/* 아군 보병이 건물에 머물면 안내해서 내보낸다 */
+function civEscort(dt){for(const u of G.units){if(UT[u.type].cls!=='inf'||u.tun||u.bsm){u._esc=0;continue;}const r=Math.floor(u.z),c=Math.floor(u.x);if(!inb(r,c))continue;const x=G.map[r][c];
+  if(!x.civ||x.t!=='bldg'||(u.path&&u.path.length)||(u.supp||0)>.6){u._esc=0;continue;}
+  if(u._escK!==key(r,c)){u._escK=key(r,c);u._esc=0;}
+  if(G.units.some(e=>e.nat!==u.nat&&!UT[e.type].fly&&Math.hypot(e.x-u.x,e.z-u.z)<2)){u._esc=0;continue;}
+  u._esc=(u._esc||0)+dt;if(u._esc<CIV.escort)continue;u._esc=0;const n=x.civ;civFlee(r,c,n,u.nat);L(`${natName(u.nat)} ${UT[u.type].n} 민간인 ${n}명 대피 안내`);}}
+const civIn=(r,c,rad)=>{let s=0;for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))s+=G.map[a][b].civ||0;
+  for(const g of G.civF||[])if(Math.abs(g.x-(c+.5))<=rad+.5&&Math.abs(g.z-(r+.5))<=rad+.5)s+=g.n;return s;};
+{const _c=canSupport;canSupport=function(n,kind,r,c){if(!_c(n,kind,r,c))return false;
+  if(civOn()&&isAI(n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&civIn(r,c,(SUP[kind].rad||1))>=CIV.aiMax)return false;return true;};}
+{const _n=newGame;newGame=function(cfg){const g=_n(cfg);G.civOn=!(cfg&&cfg.civ===false);G.civF=[];G.civDead=0;G.civOut=0;
+  if(G.civOn)for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.civ!=null)continue;const k=key(r,c);
+    x.civ=dHash(k,51)<CIV.occ?Math.min(CIV.cap,Math.max(1,Math.round((x.f||1)*(1+dHash(k,52)*1.5)))):0;}
+  for(const n of G.order||[])civStats(n);return g;};}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!civOn()||!G.units||G.over)return;try{const t=G.time||0;civGroupTick(dt);civEscort(dt);
+  if(t>=(G._civT||0)){G._civT=t+1;civPanic();}}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+
+/* ---- 05n-demo.js ---- */
+/* ===================== DEMO: 건물 폭파와 자폭 차량 =====================
+   근거(공개 자료): MWI 모술 사례 연구(IS의 자폭 차량 482회, 대로에 구덩이·도랑을 파서 속도를 늦춰 막음, 대전차 화기로 격파),
+   MWI 팔루자 사례 연구(건물 문·옥상에 폭발물, 건물째 무너뜨리는 함정), FM 3-21.71(장애물은 화력으로 덮어야 한다).
+   - 건물 폭파: 공병(6초)이나 소총분대(10초)가 건물 칸 안에 들어가 폭약을 설치한다(지휘 1). 설치된 폭약은 적에게 보이지 않는다.
+     적 보병이 그 칸에 들어오고 아군이 그 칸에 없고, 우리 편 누군가 그 적을 보고 있으면 1.2초 뒤 터진다(원격 기폭).
+     직접 터뜨릴 수도 있다. 터지면 건물이 무너지고 안의 부대가 크게 다치며 옆 건물도 상한다.
+     적 공병이 아무도 안 보는 사이 그 칸에 5초 머무르면 폭약을 찾아 해체한다.
+   - 자폭 차량(민병대 전용): 빠르고 싸지만 무장이 없다. 적 부대 0.6칸 안에 들어가거나, 공격 명령을 받은 건물에 닿으면
+     터진다(반경 1.7칸, 건물·방어물·주변 부대 모두에 큰 피해, 아군도 다친다). 맞아서 부서지면 60% 확률로 그 자리에서 터진다.
+     방벽·고슴도치·구덩이는 경로를 막아 늦춘다(04d 길찾기). AI는 적 차량·무리·적이 든 건물을 노린다. */
+const DEMO={plant:6,plantR:10,cost:1,fuse:1.2,defuse:5,vbR:1.7,vbInf:14,vbBld:30};
+Object.assign(UT,{vbied:{n:'자폭 차량',cls:'veh',mv:8,vis:3,rng:[0,.6],atk:{inf:0,veh:0,air:0},cost:5,hpMax:6,kami:1,
+  desc:'민병대 전용. 적에게 몰고 가 터뜨린다(반경 1.7칸). 무장 없음, 장갑 얇음. 방벽·구덩이에 막힌다'}});
+if(!TYPES.includes('vbied'))TYPES.splice(TYPES.indexOf('hmv')+1,0,'vbied');
+COOL.vbied=1;
+{const _n=newGame;newGame=function(cfg){ARMS_MIX.vbied=ARMS_MIX.vbied||.04;if(!ARMS_MIX._ub){ARMS_MIX._ub=1;ARMS_MIX.eng+=.02;}return _n(cfg);};}   // ARMS_MIX(06b)는 뒤에서 만들어진다
+{const _d=deploySpots;deploySpots=function(n,type){if(type==='vbied'&&!militia(n))return [];return _d(n,type);};}
+if(typeof aiArmsW==='function'){const _w=aiArmsW;aiArmsW=function(n,E,cnt,total){const w=_w(n,E,cnt,total);if(!militia(n))delete w.vbied;else if(w.vbied&&cnt('vbied')>=2)w.vbied*=.1;return w;};}
+/* ---------- 건물 폭파 ---------- */
+const inTile=(u,r,c)=>Math.floor(u.z)===r&&Math.floor(u.x)===c;
+function demoOrder(u,r,c){if(u.type!=='eng'&&u.type!=='rifle')return '공병·소총분대만 폭약을 설치합니다';if(!inb(r,c)||G.map[r][c].t!=='bldg')return '건물을 고르세요';
+  if((G.demo||[]).some(d=>d.r===r&&d.c===c&&d.nat===u.nat))return '이미 폭약이 있습니다';if(G.nats[u.nat].cp<DEMO.cost)return `지휘점수 ${DEMO.cost}이 필요합니다`;
+  u.demo={r,c,t:0,t0:G.time||0};u.tgt=null;u.tgtTile=null;if(!inTile(u,r,c)){u.path=pathPts(u,c+.5,r+.5);u.dest=[c+.5,r+.5];}else{u.path=[];u.dest=null;}bump();return null;}
+function demoPlantTick(u,dt){const D=u.demo;const t=G.time||0;if(t-D.t0>60||G.map[D.r][D.c].t!=='bldg'){u.demo=null;return;}
+  if(u.dest&&Math.hypot(u.dest[0]-(D.c+.5),u.dest[1]-(D.r+.5))>.05&&!inTile(u,D.r,D.c)){u.demo=null;return;}   // 다른 명령을 받음
+  if(!inTile(u,D.r,D.c)||(u.path&&u.path.length)||(u.supp||0)>=1.6)return;D.t+=dt;if(D.t<(u.type==='eng'?DEMO.plant:DEMO.plantR))return;
+  const N2=G.nats[u.nat];u.demo=null;if(u.job==='ug')u.job=null;if(N2.cp<DEMO.cost)return;N2.cp-=DEMO.cost;
+  (G.demo=G.demo||[]).push({id:UID++,nat:u.nat,r:D.r,c:D.c,t:t,fuse:null,df:{}});L(`${natName(u.nat)} 공병 건물에 폭약 설치`);bump();}
+function demoBoom(d){const x=G.map[d.r][d.c];d.gone=1;const cx=d.c+.5,cz=d.r+.5;if(FXH.demo)FXH.demo(cx,cz,x.f||1);sfx('boom',1.6,cx,cz);
+  ubAs(d.nat,()=>{for(const u of G.units.slice()){if(!G.units.includes(u)||UT[u.type].fly)continue;const dd=Math.hypot(u.x-cx,u.z-cz);if(dd>1.2)continue;
+      const k=inTile(u,d.r,d.c)?1:.35;harm(u,Math.round(9*k*10)/10,null,{kind:inTile(u,d.r,d.c)?'crush':'blast',x:cx,z:cz,rad:.8});if(G.units.includes(u))u.supp=Math.min(3,(u.supp||0)+2);}
+    if(x.t==='bldg')damageBldg(d.r,d.c,x.bmax+5);
+    for(const [p,q] of SIDES){const r=d.r+p,c=d.c+q;if(inb(r,c)&&G.map[r][c].t==='bldg')damageBldg(r,c,6);}});
+  if(typeof fortBlast==='function')fortBlast(cx,cz,1.2,60);ubBlast(cx,cz,1.3,d.nat);L(`${natName(d.nat)} 건물 폭파`);bump();}
+function demoFire(d){if(!d.gone&&d.fuse==null){d.fuse=(G.time||0)+DEMO.fuse;return true;}return false;}
+function demoTick(dt){const t=G.time||0;
+  for(const d of G.demo||[]){if(d.gone)continue;if(G.map[d.r][d.c].t!=='bldg'){d.gone=1;continue;}
+    if(d.fuse!=null){if(t>=d.fuse)demoBoom(d);continue;}
+    const inT=G.units.filter(u=>inTile(u,d.r,d.c)&&!UT[u.type].fly&&!u.tun);const mine=inT.some(u=>u.nat===d.nat);
+    const foes=inT.filter(u=>u.nat!==d.nat&&UT[u.type].cls==='inf');
+    if(foes.length&&!mine&&foes.some(e=>seen(e,d.nat))&&G.nats[d.nat].alive){demoFire(d);continue;}
+    for(const e of foes)if(e.type==='eng'&&!(e.path&&e.path.length)&&!foes.some(f=>seen(f,d.nat))){d.df[e.nat]=(d.df[e.nat]||0)+dt;
+      if(d.df[e.nat]>=DEMO.defuse){d.gone=1;L(`${natName(e.nat)} 공병 폭약 해체`);bump();break;}}}
+  if(G.demo&&G.demo.length>40)G.demo=G.demo.filter(d=>!d.gone);}
+/* ---------- 자폭 차량 ---------- */
+function vbBoom(u,k){if(u._boom)return;u._boom=1;const x=u.x,z=u.z,R=DEMO.vbR*k,n=u.nat;if(FXH.vbBoom)FXH.vbBoom(x,z,R);sfx('boom',2,x,z);
+  ubAs(n,()=>{for(const e of G.units.slice()){if(e===u||!G.units.includes(e)||UT[e.type].fly)continue;const d=Math.hypot(e.x-x,e.z-z);if(d>R)continue;
+      const dm=Math.round(((1-d/R)*DEMO.vbInf*k+2)*10)/10;harm(e,dm,u,{kind:'blast',x,z,rad:R*.5});if(G.units.includes(e))e.supp=Math.min(3,(e.supp||0)+2.2);}
+    const r0=Math.floor(z),c0=Math.floor(x),C=Math.ceil(R);for(let r=r0-C;r<=r0+C;r++)for(let c=c0-C;c<=c0+C;c++){if(!inb(r,c)||G.map[r][c].t!=='bldg')continue;const d=Math.hypot(c+.5-x,r+.5-z);if(d>R+.4)continue;
+      damageBldg(r,c,Math.round((1-Math.min(1,d/(R+.4)))*DEMO.vbBld*k)+4);if(typeof ignite==='function'&&G.map[r][c].t==='bldg')ignite(r,c,.4*k);}});
+  if(typeof fortBlast==='function')fortBlast(x,z,R*.8,120*k);ubBlast(x,z,R,n);L(`${natName(n)} 자폭 차량 폭발`);
+  if(G.units.includes(u)){FXH.kill(u);G.units=G.units.filter(o=>o!==u);if(UI.sel===u)UI.sel=null;}bump();}
+{const _k=kill;kill=function(u,by){if(u.type==='vbied'&&!u._boom&&G.units.includes(u)){if(Math.random()<.6){vbBoom(u,.7);if(G.nats[u.nat])G.nats[u.nat].losses++;if(by&&G.nats[by.nat])G.nats[by.nat].kills++;return;}}return _k(u,by);};}
+function vbTick(u){const t=G.time||0;if(u._boom)return;let hit=u.det;
+  if(!hit)for(const e of G.units){if(e.nat===u.nat||UT[e.type].fly||e.tun||e.bsm)continue;if(Math.hypot(e.x-u.x,e.z-u.z)<.6){hit=true;break;}}
+  if(!hit&&u.tgtTile!=null){const r=kr(u.tgtTile),c=kc(u.tgtTile);if(Math.hypot(c+.5-u.x,r+.5-u.z)<.95)hit=true;}
+  if(hit){vbBoom(u,1);return;}
+  // 공격 명령: 표적을 따라가는 길을 3초마다 다시 잡는다(rtFight는 자폭 장비를 쏘게 하지 않는다)
+  if(u.tgt!=null&&t>=(u._vbP||0)){u._vbP=t+3;const e=G.units.find(o=>o.id===u.tgt);if(!e)u.tgt=null;else u.path=pathPts(u,e.x,e.z);}
+  if(u.tgtTile!=null&&(!u.path||!u.path.length)&&t>=(u._vbP||0)){u._vbP=t+3;const r=kr(u.tgtTile),c=kc(u.tgtTile);u.path=pathPts(u,c+.5,r+.5);}}
+function vbAI(n){for(const u of G.units){if(u.nat!==n||u.type!=='vbied')continue;u.job='vb';if(u.tgt!=null&&G.units.some(e=>e.id===u.tgt))continue;if(u.tgtTile!=null)continue;
+  let best=null,bs=-1e9;for(const e of G.units){if(e.nat===n||!hostile(e.nat,n)||UT[e.type].fly||e.tun||e.bsm)continue;if(G.fog&&!seen(e,n))continue;
+    const d=Math.hypot(e.x-u.x,e.z-u.z);if(d>16)continue;const near=G.units.filter(o=>o.nat===e.nat&&Math.hypot(o.x-e.x,o.z-e.z)<1.5).length;
+    const s=(UT[e.type].cls==='veh'?3:0)+(e.type==='tank'?2:0)+near*2+(cell(e.r,e.c).t==='bldg'?1.5:0)-d*.35;if(s>bs){bs=s;best=e;}}
+  if(best){const B=cell(best.r,best.c);if(B.t==='bldg'&&UT[best.type].cls==='inf'){u.tgtTile=key(best.r,best.c);u.tgt=null;u.path=pathPts(u,best.c+.5,best.r+.5);}else{u.tgt=best.id;u.tgtTile=null;u.path=pathPts(u,best.x,best.z);}}}}
+function vbDet(u){if(u&&u.type==='vbied'){u.det=1;return true;}return false;}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;try{const t=G.time||0;
+  for(const u of G.units.slice()){if(u.demo)demoPlantTick(u,dt);if(u.type==='vbied'&&G.units.includes(u))vbTick(u);}
+  demoTick(dt);
+  if(t>=(G._dmAI||0)){G._dmAI=t+1.5;for(const n of G.order||[])if(G.nats[n].alive&&isAI(n)){vbAI(n);demoAI(n);}}}
+  catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+/* AI: 지키는 거점 둘레 건물에 폭약을 심어 둔다(나라당 셋까지) */
+function demoAI(n){const N2=G.nats[n];if(N2.cp<DEMO.cost||(G.demo||[]).filter(d=>!d.gone&&d.nat===n).length>=3||Math.random()>.3)return;
+  for(const u of G.units){if(u.nat!==n||(u.type!=='eng'&&u.type!=='rifle')||u.job||u.demo||u.tunDig||u.mh)continue;
+    for(const o of G.objs){if(G.map[o.r][o.c].owner!==n||dist(o.r,o.c,u.r,u.c)>4)continue;
+      for(const [p,q] of SIDES){const r=o.r+p,c=o.c+q;if(!inb(r,c)||G.map[r][c].t!=='bldg'||(G.demo||[]).some(d=>!d.gone&&d.r===r&&d.c===c))continue;
+        if(!demoOrder(u,r,c)){u.job='ug';u._ugT=(G.time||0)+40;return;}}}}}
+
+/* ---- 05n-snipe.js ---- */
+/* ===================== SNIPE: 저격수와 대저격 =====================
+   근거(공개 자료): FM 3-21.71 6장(분대·소대는 저격에 매우 약하다, 대저격 훈련, 저격수는 후송도 막는다),
+   MWI 모술 사례 연구(IS 저격수가 건물 위층에서 진격을 늦춤, 저격수 건물에 대한 공습).
+   - 저격수의 한 발은 분대에서 한 사람을 고른다: 분대장(0번)을 먼저 노리고, 움직이거나 드러난 사람을 노린다.
+     방탄판이 잘 막지 못하고 치명상이 많다. 맞은 분대는 크게 제압되고 사기가 떨어진다(누가 쐈는지 못 보면 더).
+   - 쏘면 위치가 드러난다: 밖이나 옥상에서는 5초, 건물 안 깊숙이서는 60% 확률로 2.5초 동안 맞은 쪽 세력이 볼 수 있다.
+     맞은 쪽 지도에는 8초 동안 "저격 추정 위치"가 뜬다(조금 빗나간 자리).
+   - AI 대저격: 추정 위치가 건물이면 근처 전차·대전차팀·박격포·자주포가 그 건물을 친다.
+     AI 저격수는 한자리에서 세 발 넘게 쏘고 들켰으면 다른 건물로 자리를 옮긴다. */
+const SNP={supp:1,mor:6,morUnseen:10,revIn:2.5,revOut:5,revInP:.6,mark:8,jit:.6,relocN:3};
+function snpVictim(u){const M=menOf(u);const L=M.filter(m=>!m.dead&&!m.gone&&!m.down);if(!L.length)return null;
+  let best=null,bs=-1e9;for(const m of L){const s=Math.random()+(m.i===0?1.2:0)+(m.spd>.05?.5:0)-(m.pr>0?.4:0);if(s>bs){bs=s;best=m;}}return best;}
+{const _h=hurtMen;hurtMen=function(u,amt,by,o){o=o||{};
+  if(!by||by.type!=='sniper'||(o.kind||'bullet')!=='bullet'||u.nocas)return _h(u,amt,by,o);
+  const m=snpVictim(u);u._hitT=G.time||0;u._thr=[by.x,by.z,G.time||0];
+  if(m)woundMan(u,m,'blast',0,by);   // 겨눈 한 발: 방탄판에 잘 안 막히고 치명상이 많다
+  const unseen=G.fog&&!seen(by,u.nat);u.supp=Math.min(3,(u.supp||0)+SNP.supp);if(u.mor!=null)u.mor=Math.max(0,u.mor-(unseen?SNP.morUnseen:SNP.mor));
+  casSync(u,by);};}
+{const _s=rtShoot;rtShoot=function(a,d){const r=_s(a,d);if(a.type!=='sniper'||!G.units)return r;const t=G.time||0;
+  const k=key(a.r,a.c);a._snpN=a._snpK===k?(a._snpN||0)+1:1;a._snpK=k;
+  const inB=cell(a.r,a.c).t==='bldg'&&!(typeof onRoof==='function'&&onRoof(a));
+  if(!inB||Math.random()<SNP.revInP)a._snpRev={n:d.nat,t:t+(inB?SNP.revIn:SNP.revOut)};
+  const j=SNP.jit;G.snpMk=(G.snpMk||[]).filter(m=>m.t>t);G.snpMk.push({x:a.x+(Math.random()-.5)*j*2,z:a.z+(Math.random()-.5)*j*2,t:t+SNP.mark,n:d.nat,id:a.id});
+  if(d.nat===G.viewer&&!isAI(d.nat)&&t-(G._snpAl||-99)>6){G._snpAl=t;L('저격! 추정 위치를 지도에 표시');}
+  return r;};}
+{const _s=seen;seen=function(e,n,vs){if(e&&e.type==='sniper'&&e._snpRev&&e._snpRev.n===n&&e._snpRev.t>(G.time||0))return true;return _s(e,n,vs);};}
+function snpAI(n){const t=G.time||0;
+  for(const m of G.snpMk||[]){if(m.n!==n||m.used||m.t<=t)continue;const r=Math.floor(m.z),c=Math.floor(m.x);if(!inb(r,c)||G.map[r][c].t!=='bldg')continue;
+    let best=null,bd=1e9;for(const u of G.units){if(u.nat!==n||u.job||u.tgt!=null||u.tgtTile!=null||(u.path&&u.path.length))continue;const ta=UT[u.type];if(!ta.ex||!ta.rng[1])continue;
+      if(!canHitTile(u,r,c))continue;const d=Math.hypot(u.x-m.x,u.z-m.z);if(d<bd){bd=d;best=u;}}
+    if(best){orderBldg(best,r,c);m.used=1;}}
+  for(const u of G.units){if(u.nat!==n||u.type!=='sniper'||u.job||(u._snpN||0)<SNP.relocN||!(u._snpRev&&u._snpRev.t>t-4))continue;
+    let best=null,bs=-1e9;for(let r=u.r-3;r<=u.r+3;r++)for(let c=u.c-3;c<=u.c+3;c++){if(!inb(r,c)||(r===u.r&&c===u.c))continue;const X=G.map[r][c];if(X.t!=='bldg'||X.f<2)continue;
+      if(G.units.some(e=>e.nat!==n&&Math.hypot(e.x-(c+.5),e.z-(r+.5))<2))continue;const s=X.f-Math.hypot(r-u.r,c-u.c)*.5+Math.random();if(s>bs){bs=s;best=[r,c];}}
+    if(best){orderMove(u,best[0],best[1]);u._snpN=0;u.job='ug';u._ugT=t+12;}}}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;const t=G.time||0;if(t<(G._snpAI||0))return;G._snpAI=t+1;
+  try{for(const n of G.order||[])if(G.nats[n].alive&&isAI(n))snpAI(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+
+/* ---- 05n-under.js ---- */
+/* ===================== UNDER: 쥐구멍·지하실·땅굴 =====================
+   근거(공개 자료): FM 3-21.71 6장(벽에 쥐구멍을 뚫어 건물 사이를 오간다, 문은 "죽음의 깔때기"),
+   MWI 팔루자 사례 연구(저항세력이 건물 사이 벽을 뚫고 땅굴로 빠져나감), 모술 사례 연구(공병이 땅굴을 찾아 막음),
+   마리우폴·바흐무트(지하실과 지하망에서 포격을 버팀).
+   - 쥐구멍: 소총분대·공병이 붙어 있는 건물 벽에 폭약을 붙여 구멍을 낸다(공병 3.5초, 소총 6초).
+     구멍은 문처럼 쓰인다(05e edgePass). 다른 건물끼리, 또는 길에서 건물로 새 출입구를 낸다.
+     터질 때 벽 너머 적은 제압되고 파편에 다친다.
+   - 지하실: 일부 건물(층이 많을수록 자주)에 있다. 내려가면 포격·폭탄·붕괴에 거의 안 다치고, 드론·적에게 안 보이지만
+     같은 칸에 들어온 적하고만 싸울 수 있다. 건물이 무너져도 살아남지만 잔해에 8초 갇힌다. 오르내리는 데 2.2초.
+   - 땅굴: 공병이 건물·잔해 안에서 최대 7칸까지 판다(지휘 2, 1칸에 약 5.5초). 다 파면 아군 보병이 길찾기에서
+     알아서 쓴다(땅 위로 돌아가는 것보다 빠를 때). 안에 있는 동안은 보이지도 맞지도 않는다.
+     적 부대가 입구 1.3칸 안에 오면 입구가 드러나고, 드러난 입구에 적 공병이 모두 4초 붙어 있거나 큰 폭발이 나면 무너진다.
+     무너질 때 안에 있던 부대는 다치고 들어간 쪽으로 밀려난다.
+   AI: 적과 가까운 건물 안에서는 적 쪽으로 쥐구멍을 내고, 포격을 맞으면 지하실로 내려가며, 공병이 남의 거점 밑으로 땅굴을 판다. */
+const UG={mhT:{eng:3.5,rifle:6},mhDmg:2,bsmP:[0,.15,.4,.55],bsmT:2.2,bsmBlast:.15,trap:8,
+  tunCost:2,tunRate:.18,tunMax:7,tunSpd:.8,tunFind:1.3,tunCut:4,aiTunMax:2};
+const mhTypes=t=>t==='rifle'||t==='eng';
+const mhKey=(r,c,a,b)=>{const k1=key(r,c),k2=key(a,b);return k1<k2?k1+'_'+k2:k2+'_'+k1;};
+/* 두 칸 사이 벽 가운데(조금 비킨) 점 */
+function mhPt(r,c,a,b){const j=(dHash(Math.min(key(r,c),key(a,b)),7)-.5)*.3;return r===a?[Math.max(c,b),r+.5+j]:[c+.5+j,Math.max(r,a)];}
+const mhAt=(r,c,a,b)=>G.mh&&G.mh[mhKey(r,c,a,b)];
+{const _ep=edgePass;edgePass=function(r,c,a,b){const v=_ep(r,c,a,b);if(v===true||!G.mh)return v;const h=G.mh[mhKey(r,c,a,b)];return h?[h.x,h.z]:v;};}
+/* 건물 칸 (r2,c2)에 구멍을 낼 수 있는 옆 칸 고르기: u에서 가장 가까운 쪽 */
+function mhPlan(u,r2,c2){if(!inb(r2,c2)||G.map[r2][c2].t!=='bldg')return null;let best=null,bd=1e9;
+  for(const [p,q] of SIDES){const r=r2+p,c=c2+q;if(!inb(r,c))continue;const A=G.map[r][c],B=G.map[r2][c2];if(A.t==='water'||!wallBetween(A,B)||mhAt(r,c,r2,c2))continue;
+    if(A.t!=='bldg'&&mcost(u.type,A)===Infinity)continue;const [hx,hz]=mhPt(r,c,r2,c2);
+    const sx=hx+(c+.5-hx)*.36,sz=hz+(r+.5-hz)*.36;const d=Math.hypot(sx-u.x,sz-u.z);if(d<bd){bd=d;best={r,c,a:r2,b:c2,hx,hz,sx,sz};}}
+  return best;}
+function mhOrder(u,r2,c2){if(!mhTypes(u.type))return '소총분대와 공병만 벽을 뚫을 수 있습니다';const P=mhPlan(u,r2,c2);if(!P)return '구멍을 낼 벽이 없습니다(건물 벽을 탭하세요)';
+  u.mh=Object.assign(P,{t:0,t0:G.time||0,need:UG.mhT[u.type]});u.tgt=null;u.tgtTile=null;u.path=pathPts(u,P.sx,P.sz);u.dest=[P.sx,P.sz];bump();return null;}
+function mhMake(u){const P=u.mh;u.mh=null;if(u.job==='ug')u.job=null;const k=mhKey(P.r,P.c,P.a,P.b);if(G.mh[k])return;
+  G.mh[k]={x:P.hx,z:P.hz,nat:u.nat,t:G.time||0,r:P.r,c:P.c,a:P.a,b:P.b};G.navV=(G.navV||0)+1;
+  ubAs(u.nat,()=>{for(const [r,c] of [[P.a,P.b],[P.r,P.c]])if(G.map[r][c].t==='bldg')damageBldg(r,c,UG.mhDmg);});
+  for(const e of G.units.slice()){if(e.nat===u.nat||UT[e.type].cls!=='inf'||!G.units.includes(e))continue;if(Math.floor(e.z)!==P.a||Math.floor(e.x)!==P.b)continue;
+    e.supp=Math.min(3,(e.supp||0)+1.5);harm(e,1.2,u,{kind:'frag',x:P.hx,z:P.hz,rad:.4});}
+  if(FXH.mhole)FXH.mhole(G.mh[k]);sfx('boom',.7,P.hx,P.hz);ubBlast(P.hx,P.hz,.25,u.nat);L(`${natName(u.nat)} ${UT[u.type].n} 벽에 쥐구멍`);bump();}
+function mhTick(u,dt){const P=u.mh;if(!P)return;const t=G.time||0;
+  if(t-P.t0>45||!u.dest||Math.hypot(u.dest[0]-P.sx,u.dest[1]-P.sz)>.05){u.mh=null;if(u.job==='ug')u.job=null;return;}
+  if(Math.floor(u.z)!==P.r||Math.floor(u.x)!==P.c||Math.hypot(u.x-P.sx,u.z-P.sz)>.6||(u.path&&u.path.length))return;
+  if((u.supp||0)<(typeof PINNED!=='undefined'?PINNED:1.6))P.t+=dt;if(P.t>=P.need)mhMake(u);}
+/* ---------- 지하실 ---------- */
+const bsmHas=x=>!!x&&!!x.bsm&&(x.t==='bldg'||x.t==='rubble');
+const sameTile=(a,b)=>Math.floor(a.x)===Math.floor(b.x)&&Math.floor(a.z)===Math.floor(b.z);
+function bsmOrder(u,down){if(UT[u.type].cls!=='inf')return '보병만 지하실을 씁니다';const t=G.time||0;
+  if(down){if(u.bsm||u.bsmGo)return null;if(!bsmHas(cell(u.r,u.c)))return '이 건물에는 지하실이 없습니다';u.bsmGo={down:1,t:t+UG.bsmT};u.path=[];u.tgt=null;u.tgtTile=null;u.flT=0;bump();return null;}
+  if(!u.bsm||u.bsmGo)return null;if((u.trapT||0)>t)return '잔해에 갇혀 나갈 수 없습니다';u.bsmGo={down:0,t:t+UG.bsmT};bump();return null;}
+function bsmTick(u,dt){const t=G.time||0;
+  if(u.bsmGo&&u.bsmGo.down&&(u.fl||0)>.01){u.bsmGo.t=t+UG.bsmT;u.flT=0;}   // 위층이면 먼저 1층까지 내려온다
+  if(u.bsmGo&&t>=u.bsmGo.t){const d=u.bsmGo.down;u.bsmGo=null;u.bsm=d?1:0;if(!d&&u._bp){u.path=u._bp;u._bp=null;}bump();
+    if(u.nat===G.viewer&&!isAI(u.nat))L(`${UT[u.type].n} ${d?'지하실로 대피':'지상으로'}`);}
+  if(u.bsm){u.supp=Math.max(0,(u.supp||0)-dt*.4);if(u.mor!=null)u.mor=Math.min(100,u.mor+dt*.8);
+    if(!bsmHas(cell(u.r,u.c)))u.bsm=0;}}
+/* ---------- 땅굴 ---------- */
+const tunLive=T=>!T.dead;
+const tunDone=T=>!T.dead&&T.prog>=1;
+const tunById=id=>(G.tun||[]).find(T=>T.id===id);
+function tunOrder(u,x,z){if(u.type!=='eng')return '공병만 땅굴을 팝니다';const X=cell(u.r,u.c);if(X.t!=='bldg'&&X.t!=='rubble')return '땅굴은 건물이나 잔해 안에서 시작합니다';
+  const N2=G.nats[u.nat];const cost=isAI(u.nat)?Math.min(UG.tunCost,Math.max(1,N2.cp)):UG.tunCost;if(N2.cp<cost)return `지휘점수 ${UG.tunCost}이 필요합니다`;if(u.tunDig&&tunById(u.tunDig)&&tunById(u.tunDig).prog<1)return '이미 땅굴을 파는 중입니다';
+  const d=Math.hypot(x-u.x,z-u.z);if(d>UG.tunMax)return `땅굴은 ${UG.tunMax}칸까지 팔 수 있습니다`;if(d<1.2)return '너무 가깝습니다';
+  const E=tileAt(x,z);if(!E||mcost('rifle',E)===Infinity)return '나갈 곳을 팔 수 없는 땅입니다';
+  N2.cp-=cost;const T={id:UID++,nat:u.nat,a:[u.x,u.z],b:[x,z],len:Math.round(d*100)/100,prog:0,dig:u.id,kn:{},cut:{},born:G.time||0};
+  (G.tun=G.tun||[]).push(T);u.tunDig=T.id;u.path=[];u.tgt=null;u.tgtTile=null;u.dest=null;L(`${natName(u.nat)} 공병 땅굴 파기 시작`);bump();return null;}
+function tunDigTick(T,dt){if(T.prog>=1)return;let dg=G.units.find(o=>o.id===T.dig);
+  const ok=o=>o&&o.nat===T.nat&&o.type==='eng'&&!o.tun&&!(o.path&&o.path.length)&&Math.hypot(o.x-T.a[0],o.z-T.a[1])<.5;
+  if(!ok(dg)){dg=G.units.find(ok);if(dg){T.dig=dg.id;dg.tunDig=T.id;}}
+  if(!dg||(dg.supp||0)>=1.6)return;T.prog=Math.min(1,T.prog+dt*UG.tunRate/T.len*(1+.1*(dg.rank||0)));
+  if(T.prog>=1){dg.tunDig=null;if(dg.job==='ug')dg.job=null;L(`${natName(T.nat)} 땅굴 완성 (${Math.round(T.len*12)}m)`);bump();}}
+function tunCollapse(T,why){if(T.dead)return;T.dead=1;bump();
+  for(const u of G.units.slice()){if(!u.tun||u.tun.id!==T.id)continue;const back=u.tun.to==='a'?T.b:T.a;u.tun=null;
+    harm(u,6,null,{kind:'crush'});if(G.units.includes(u))tunPlace(u,back);}
+  if(FXH.tunGone)FXH.tunGone(T);L(`${natName(T.nat)} 땅굴 붕괴${why?' ('+why+')':''}`);}
+function tunPlace(u,p){u.x=p[0]+(Math.random()-.5)*.08;u.z=p[1]+(Math.random()-.5)*.08;u._tr=[[u.x,u.z]];
+  for(const m of (u._men||[]))if(!m.gone&&!m.task){m.x=u.x+(Math.random()-.5)*.12;m.z=u.z+(Math.random()-.5)*.12;}
+  if(typeof rtCell==='function')rtCell(u);bump();}
+/* 땅굴로 가는 길이 땅 위로 가는 길보다 크게 길지 않으면(1.2배 안) 입구까지의 길을 주고 u.tunPlan을 적어 둔다 */
+const ppLen=(u,P)=>{let s=0,px=u.x,pz=u.z;for(const p of P){s+=Math.hypot(p[0]-px,p[1]-pz);px=p[0];pz=p[1];}return [s,px,pz];};
+{const _pp=pathPts;pathPts=function(u,x,z){
+  if(u.tunPlan){const T=tunById(u.tunPlan.id);const e=T&&T[u.tunPlan.from];if(e&&Math.hypot(e[0]-x,e[1]-z)<.05)return _pp(u,x,z);u.tunPlan=null;}
+  const P=_pp(u,x,z);if(!G||!G.tun||!G.tun.length||!G.units.includes(u)||UT[u.type].cls!=='inf'||u.tun)return P;
+  const [l0,ex,ez]=ppLen(u,P);const L0=l0+Math.hypot(ex-x,ez-z)*3;let best=null,bc=L0*1.2;   // 숨어서 가니 조금 더 걸려도 땅굴
+  for(const T of G.tun){if(T.nat!==u.nat||!tunDone(T)||T.id===u.tunSkip)continue;
+    for(const [f,o] of [['a','b'],['b','a']]){const A=T[f],B=T[o];const dA=Math.hypot(A[0]-u.x,A[1]-u.z);if(dA>L0*.6)continue;
+      const c=dA*1.25+T.len/UG.tunSpd+Math.hypot(B[0]-x,B[1]-z)*1.25;if(c<bc){bc=c;best={id:T.id,from:f,dest:[x,z]};}}}
+  if(!best)return P;const A=tunById(best.id)[best.from];u.tunPlan=best;return _pp(u,A[0],A[1]);};}
+function tunEnter(u){const pl=u.tunPlan;const T=tunById(pl.id);u.tunPlan=null;if(!T||!tunDone(T))return false;
+  u.tun={id:T.id,to:pl.from==='a'?'b':'a',t:(G.time||0)+T.len/(UG.tunSpd*UT[u.type].mv*SPD_K),dest:pl.dest};u.path=[];u.tgt=null;u.tgtTile=null;bump();return true;}
+function tunTravel(u){const T=tunById(u.tun.id);if(!T||T.dead){u.tun=null;return;}if((G.time||0)<u.tun.t)return;
+  const dest=u.tun.dest;const p=T[u.tun.to];u.tun=null;tunPlace(u,p);u.tunSkip=T.id;u.path=dest?pathPts(u,dest[0],dest[1]):[];u.tunSkip=null;u.dest=dest;}
+function tunWatch(dt){const t=G.time||0;
+  for(const T of G.tun||[]){if(T.dead)continue;tunDigTick(T,dt);
+    const ends=T.prog>=1?[T.a,T.b]:[T.a];
+    for(const e of G.units){if(e.nat===T.nat||e.tun||e.bsm||UT[e.type].fly)continue;
+      for(const p of ends){const d=Math.hypot(e.x-p[0],e.z-p[1]);if(d>UG.tunFind)continue;
+        if(!T.kn[e.nat]){T.kn[e.nat]=1;if(e.nat===G.viewer)L('적 땅굴 입구 발견');}
+        if(e.type==='eng'&&d<.7){T.cut[e.nat]=(T.cut[e.nat]||0)+dt;if(T.cut[e.nat]>=UG.tunCut){tunCollapse(T,'적 공병이 막음');break;}}}
+      if(T.dead)break;}}
+  G.tun=(G.tun||[]).filter(T=>!T.dead||t-(T.deadT??(T.deadT=t))<30);}
+onBlast((x,z,R,n)=>{if(!G.tun||R<.8)return;for(const T of G.tun){if(T.dead)continue;for(const p of [T.a,T.b])if(Math.hypot(p[0]-x,p[1]-z)<=R*.6&&Math.random()<.5){tunCollapse(T,'폭격');break;}}});
+/* ---------- 규칙 연결 ---------- */
+{const _rm=rtMove;rtMove=function(u,dt){
+  if(u.tun)return;
+  if(u.bsmGo){if(u.path&&u.path.length&&u.bsmGo.down){u._bp=u.path;u.path=[];}return;}
+  if(u.bsm){if(u.path&&u.path.length){if((u.trapT||0)>(G.time||0)){u.path=[];return;}u._bp=u.path;u.path=[];u.bsmGo={down:0,t:(G.time||0)+UG.bsmT};}return;}
+  if(u.tunPlan){const T=tunById(u.tunPlan.id);const e=T&&T[u.tunPlan.from];if(!e||T.dead)u.tunPlan=null;
+    else if(Math.hypot(u.x-e[0],u.z-e[1])<.3){if(tunEnter(u))return;}
+    else if(!u.path||!u.path.length)u.tunPlan=null;}
+  return _rm(u,dt);};}
+const ugHid=u=>!!(u&&(u.tun||u.bsm));
+{const _c=canHit;canHit=function(a,d,fromR,fromC,moved){if(a.tun||d.tun)return false;
+  if(a.bsm&&(UT[d.type].fly||!sameTile(a,d)))return false;if(d.bsm&&(UT[a.type].cls!=='inf'||!sameTile(a,d)))return false;return _c(a,d,fromR,fromC,moved);};}
+{const _c=canHitTile;canHitTile=function(a,r,c,fr,fc,mv){if(a.tun||a.bsm)return false;return _c(a,r,c,fr,fc,mv);};}
+{const _s=seen;seen=function(e,n,vs){if(e&&(e.tun||e.bsm)&&e.nat!==n){if(e.tun)return false;
+    for(const o of G.units)if(o.nat===n&&!o.tun&&!o.bsm&&UT[o.type].cls!=='air'&&sameTile(o,e))return true;return false;}return _s(e,n,vs);};}
+{const _h=harm;harm=function(u,amt,by,o){if(u&&u.tun&&!(o&&o.kind==='crush'))return 0;
+  if(u&&u.bsm&&o&&(o.kind==='blast'||o.kind==='frag'||o.kind==='crush'))amt=Math.round(amt*UG.bsmBlast*100)/100;return _h(u,amt,by,o);};}
+{const _d=damageBldg;damageBldg=function(r,c,amt){const x=G.map[r][c];const was=x.t==='bldg';_d(r,c,amt);
+  if(was&&x.t!=='bldg')for(const u of G.units)if(u.bsm&&Math.floor(u.z)===r&&Math.floor(u.x)===c){u.trapT=(G.time||0)+UG.trap;if(u.nat===G.viewer)L(`${UT[u.type].n} 무너진 건물 지하실에 갇힘`);}};}
+{const _n=newGame;newGame=function(cfg){const g=_n(cfg);G.mh=G.mh||{};G.tun=G.tun||[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.bsm!=null)continue;x.bsm=dHash(key(r,c),33)<UG.bsmP[Math.min(3,x.f||1)]?1:0;}return g;};}
+/* ---------- AI ---------- */
+function ugNearEnemy(u,R){let b=null,bd=R;for(const e of G.units){if(e.nat===u.nat||UT[e.type].fly||e.tun)continue;if(G.fog&&!seen(e,u.nat))continue;const d=Math.hypot(e.x-u.x,e.z-u.z);if(d<bd){bd=d;b=e;}}return b;}
+function ugAI(n){const t=G.time||0;const N2=G.nats[n];
+  for(const u of G.units){if(u.nat!==n||UT[u.type].cls!=='inf')continue;
+    if(u.job==='ug'&&(u._ugT||0)<t&&!u.bsm&&!u.mh&&!(u.tunDig&&tunById(u.tunDig)&&tunById(u.tunDig).prog<1))u.job=null;
+    if(u.bsm&&u.job==='ug'){const quiet=!ubHotNear(u.x,u.z,1.5,14);const intr=G.units.some(e=>e.nat!==n&&UT[e.type].cls==='inf'&&sameTile(e,u));if(quiet||intr){bsmOrder(u,false);u.job=null;}continue;}
+    if(u.job||u.tun||u.bsmGo||u.mh)continue;const X=cell(u.r,u.c);
+    // 포격 아래: 지하실로
+    if(bsmHas(X)&&(u.supp||0)>=1&&ubHotNear(u.x,u.z,1.2,4)&&!G.units.some(e=>e.nat!==n&&UT[e.type].cls==='inf'&&Math.hypot(e.x-u.x,e.z-u.z)<1.5)){if(!bsmOrder(u,true)){u.job='ug';u._ugT=t+40;}continue;}
+    // 적과 가까운 건물 안: 적 쪽 옆 건물로 쥐구멍
+    if(mhTypes(u.type)&&X.t==='bldg'&&!(u.path&&u.path.length)&&Math.random()<.3){const e=ugNearEnemy(u,5);if(e){
+      let best=null,bd=Math.hypot(e.x-u.x,e.z-u.z)-.4;for(const [p,q] of SIDES){const a=u.r+p,b=u.c+q;if(!inb(a,b))continue;const Y=G.map[a][b];
+        if(Y.t!=='bldg'||!wallBetween(X,Y)||mhAt(u.r,u.c,a,b))continue;const d=Math.hypot(e.x-(b+.5),e.z-(a+.5));if(d<bd){bd=d;best=[a,b];}}
+      if(best&&!mhOrder(u,best[0],best[1])){u.job='ug';u._ugT=t+30;continue;}}}
+    // 공병: 드러난 적 땅굴 입구를 막으러 / 남의 거점 밑으로 땅굴
+    if(u.type==='eng'){
+      const T=(G.tun||[]).find(T=>!T.dead&&T.nat!==n&&T.kn[n]&&[T.a,T.b].some(p=>Math.hypot(p[0]-u.x,p[1]-u.z)<4));
+      if(T){const p=[T.a,T.b].sort((p,q)=>Math.hypot(p[0]-u.x,p[1]-u.z)-Math.hypot(q[0]-u.x,q[1]-u.z))[0];u.path=pathPts(u,p[0],p[1]);u.dest=[p[0],p[1]];u.job='ug';u._ugT=t+20;continue;}
+      if((X.t==='bldg'||X.t==='rubble')&&N2.cp>=1&&(G.tun||[]).filter(T=>!T.dead&&T.nat===n).length<UG.aiTunMax&&Math.random()<.25){
+        let best=null,bd=UG.tunMax;for(const o of G.objs){const Y=G.map[o.r][o.c];if(Y.owner===n)continue;const d=Math.hypot(o.c+.5-u.x,o.r+.5-u.z);if(d>2&&d<bd){bd=d;best=o;}}
+        if(best&&!tunOrder(u,best.c+.5,best.r+.5)){u.job='ug';u._ugT=t+90;}}}}}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;try{const t=G.time||0;
+  for(const u of G.units.slice()){if(UT[u.type].cls!=='inf')continue;if(u.mh)mhTick(u,dt);if(u.bsm||u.bsmGo)bsmTick(u,dt);if(u.tun)tunTravel(u);}
+  tunWatch(dt);
+  if(t>=(G._ugAI||0)){G._ugAI=t+2;for(const n of G.order||[])if(G.nats[n].alive&&isAI(n))ugAI(n);}}
+  catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+
 /* ---- 06-ai.js ---- */
 /* ===================== AI (실시간) ===================== */
 const AI_ORDER=['spg','mortar','sniper','mg','at','rifle','eng','hmv','ifv','tank','drone'];
@@ -5148,6 +5509,108 @@ function v3UnitTag(u){if(UT[u.type].cls==='inf'&&u.ws){return `<i class="pp">${u
   if(u.vd){if(u.vd.mob)h+='<em title="기동 불능">궤</em>';if(u.vd.gun)h+='<em title="무장 파손">포</em>';const cd=u.vd.crew.filter(c=>c!=='ok').length;if(cd)h+=`<em title="승무원 부상">승${cd}</em>`;}
   return h;}
 function v3MorTag(u){if(UT[u.type].cls!=='inf')return '';if(u.brk)return '<em class="br" title="공황: 후퇴 중, 명령 불가">공황</em>';if((u.supp||0)>=PINNED)return '<em title="제압: 꼼짝 못 함">제압</em>';if((u.mor??80)<50)return '<em class="sh" title="사기 저하: 사격 느림">흔들림</em>';return '';}
+
+/* ---- 07u-urban.js ---- */
+/* ===================== 3D·조작: 쥐구멍·지하·땅굴·폭약·저격 표시·민간인·자폭 차량 =====================
+   05n-*.js 규칙을 보여 주고 명령 버튼을 단다. 기존 화면 함수(fortBar, fortTip, tap, renderActbar, uInfo,
+   v3VehicleM, v3FortFrame)는 감싸서 덧붙이기만 한다. */
+const UGV={civCol:['#c9c2b3','#5b6b7d','#8a5a44','#d8d3c8','#4d5a3f','#9b8f7a','#2f3338','#b07a52'],lab:new Map()};
+/* 글자 딱지(스프라이트). 같은 글자·색은 한 번만 그린다 */
+function ugLabel(txt,col,bg){const k=txt+'|'+col+'|'+(bg||'');let tex=UGV.lab.get(k);const T=V3.T;
+  if(!tex){const cv=document.createElement('canvas');cv.width=128;cv.height=40;const g=cv.getContext('2d');g.font='bold 22px sans-serif';g.textAlign='center';g.textBaseline='middle';
+    const w=Math.min(124,g.measureText(txt).width+18);g.fillStyle=bg||'rgba(16,18,20,.72)';g.beginPath();if(g.roundRect)g.roundRect(64-w/2,4,w,32,8);else g.rect(64-w/2,4,w,32);g.fill();
+    g.fillStyle=col||'#eee';g.fillText(txt,64,21);tex=new T.CanvasTexture(cv);UGV.lab.set(k,tex);}
+  const s=new T.Sprite(new T.SpriteMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}));s.scale.set(.42,.13,1);s.renderOrder=20;s.userData.keepMat=0;return s;}
+function ugMats(){if(V3.ugm)return V3.ugm;const T=V3.T;return V3.ugm={
+  hole:new T.MeshBasicMaterial({color:'#15130f'}),pit:new T.MeshBasicMaterial({color:'#1b1712'}),dirt:new T.MeshStandardMaterial({color:'#6e5e47',roughness:1,flatShading:true}),
+  line:new T.LineDashedMaterial({color:'#e8dcc0',dashSize:.08,gapSize:.06,transparent:true,opacity:.45,depthWrite:false}),
+  bomb:new T.MeshBasicMaterial({color:'#ff4b2b'}),ring:new T.MeshBasicMaterial({color:'#ff5a3c',transparent:true,opacity:.6,side:T.DoubleSide,depthWrite:false}),
+  steel:new T.MeshStandardMaterial({color:'#8a8478',roughness:.7,metalness:.4,flatShading:true})};}
+function ugGeos(){if(V3.ugg)return V3.ugg;const T=V3.T;return V3.ugg={hole:new T.BoxGeometry(.11,.11,.11),pit:new T.CylinderGeometry(.065,.065,.012,10),
+  mound:new T.TorusGeometry(.085,.025,4,10).rotateX(Math.PI/2),bomb:new T.BoxGeometry(.05,.03,.04),ring:new T.RingGeometry(.22,.27,24).rotateX(-Math.PI/2),
+  civ:new T.BoxGeometry(.032,.13,.026).translate(0,.065,0)};}
+function ugReset(){const T=V3.T;if(V3.ugGrp)V3.scene.remove(V3.ugGrp);V3.ugGrp=new T.Group();V3.scene.add(V3.ugGrp);V3.ugObj=new Map();V3.ugOf=G;
+  const CAP=420;const im=new T.InstancedMesh(ugGeos().civ,new T.MeshStandardMaterial({color:'#ffffff',roughness:1}),CAP);im.count=0;im.castShadow=true;im.frustumCulled=false;
+  im.instanceColor=new T.InstancedBufferAttribute(new Float32Array(CAP*3),3);V3.ugCiv=im;V3.ugGrp.add(im);}
+/* 그릴 것 하나를 id로 붙잡아 두고, 이번 프레임에 안 쓰였으면 지운다 */
+function ugGet(id,mk){let o=V3.ugObj.get(id);if(!o){o=mk();V3.ugObj.set(id,o);V3.ugGrp.add(o);}o.userData.live=V3.ugTick;return o;}
+function ugFrame(){if(!G||!V3.T||!V3.scene)return;if(V3.ugOf!==G||!V3.ugGrp)ugReset();const T=V3.T,M=ugMats(),Gm=ugGeos();V3.ugTick=(V3.ugTick||0)+1;
+  const vn=G.viewer,fog=G.fog&&!G.spec,now=performance.now(),t=G.time||0;const mine=n=>n===vn||!fog;
+  // 쥐구멍
+  for(const [k,h] of Object.entries(G.mh||{}))ugGet('mh'+k,()=>{const m=new T.Mesh(Gm.hole,M.hole);m.position.set(h.x,.055,h.z);return m;});
+  // 땅굴 입구와 (우리 편이면) 지나는 길
+  for(const T2 of G.tun||[]){if(T2.dead)continue;const show=mine(T2.nat)||T2.kn[vn];if(!show)continue;
+    for(const [e,p] of [['a',T2.a],['b',T2.b]]){if(e==='b'&&T2.prog<1)continue;ugGet(`tu${T2.id}${e}`,()=>{const g=new T.Group();const pit=new T.Mesh(Gm.pit,M.pit);pit.position.y=.007;const md=new T.Mesh(Gm.mound,M.dirt);md.position.y=.015;g.add(pit,md);g.position.set(p[0],0,p[1]);return g;});}
+    if(mine(T2.nat)){const L=ugGet(`tl${T2.id}`,()=>{const geo=new T.BufferGeometry().setFromPoints([new T.Vector3(T2.a[0],.025,T2.a[1]),new T.Vector3(T2.b[0],.025,T2.b[1])]);const l=new T.Line(geo,M.line);l.computeLineDistances();return l;});
+      const k=Math.max(.02,T2.prog);L.scale.set(1,1,1);L.geometry.setDrawRange(0,2);if(k<1){const x=T2.a[0]+(T2.b[0]-T2.a[0])*k,z=T2.a[1]+(T2.b[1]-T2.a[1])*k;const P=L.geometry.attributes.position;P.setXYZ(1,x,.025,z);P.needsUpdate=true;L.computeLineDistances();}
+      else if(!L.userData.full){const P=L.geometry.attributes.position;P.setXYZ(1,T2.b[0],.025,T2.b[1]);P.needsUpdate=true;L.computeLineDistances();L.userData.full=1;}
+      if(T2.prog<1){const s=ugGet(`tp${T2.id}`,()=>ugLabel('땅굴 파는 중','#e8dcc0'));s.position.set(T2.a[0],.3,T2.a[1]);s.material.opacity=.85;}}}
+  // 지하·땅굴 안 부대: 3D에서 숨기고, 우리 편이면 딱지
+  for(const u of G.units){if(!u.tun&&!u.bsm&&!u.bsmGo)continue;const o=V3.uo.get(u.id);
+    if(o&&(u.tun||u.bsm))o.visible=false;if(!mine(u.nat))continue;
+    let x=u.x,z=u.z,txt=u.bsmGo?(u.bsmGo.down?'지하로…':'올라오는 중'):'지하실';
+    if(u.tun){const T2=tunById(u.tun.id);if(T2){const to=T2[u.tun.to],fr=u.tun.to==='a'?T2.b:T2.a;const dur=T2.len/(UG.tunSpd*UT[u.type].mv*SPD_K);const k=Math.max(0,Math.min(1,1-(u.tun.t-t)/dur));x=fr[0]+(to[0]-fr[0])*k;z=fr[1]+(to[1]-fr[1])*k;}txt='땅굴 이동';}
+    const s=ugGet('ul'+u.id+txt,()=>ugLabel(txt,'#d9e6f2'));s.position.set(x,.22,z);}
+  // 폭약(우리 편 것만, 기폭 중이면 빨리 깜빡)
+  for(const d of G.demo||[]){if(d.gone||!mine(d.nat))continue;const x=d.c+.5,z=d.r+.5;const b=ugGet('db'+d.id,()=>{const m=new T.Mesh(Gm.bomb,M.bomb);m.position.set(x,.03,z);return m;});
+    b.visible=Math.floor(now/(d.fuse!=null?90:600))%2===0;const s=ugGet('dl'+d.id,()=>ugLabel('폭약','#ffb39e'));s.position.set(x,bldgH(G.map[d.r][d.c])*FLOOR_H+.12,z+.16);}
+  // 저격 추정 위치(우리 편이 맞았을 때)
+  for(const m of G.snpMk||[]){if(m.t<=t||(fog&&m.n!==vn))continue;const id='sm'+m.id+'_'+Math.round(m.x*100);
+    const r=ugGet(id,()=>{const g=new T.Group();const ring=new T.Mesh(Gm.ring,M.ring.clone());ring.position.y=.03;g.add(ring);const s=ugLabel('저격 추정','#ffd0c4');s.position.y=.3;g.add(s);g.position.set(m.x,0,m.z);return g;});
+    const k=1+.15*Math.sin(now/180);r.children[0].scale.set(k,1,k);r.children[0].material.opacity=Math.min(.6,(m.t-t)/SNP.mark);}
+  // 민간인: 건물 표시(숫자) + 피란 무리
+  if(G.civOn){for(let rr=0;rr<N;rr++)for(let cc=0;cc<N;cc++){const x=G.map[rr][cc];if(!x.civ||x.t!=='bldg')continue;
+      const s=ugGet(`cv${rr}_${cc}_${x.civ}`,()=>{const s=ugLabel(`민간인 ${x.civ}`,'#e6eef7','rgba(52,78,104,.78)');s.scale.set(.34,.105,1);return s;});s.position.set(cc+.5,bldgH(x)*FLOOR_H+.1,rr+.38);}
+    const im=V3.ugCiv;const mat=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(1,1,1),ps=new T.Vector3(),col=new T.Color();let i=0;
+    for(const g of G.civF||[]){if(g.n<=0)continue;if(fog&&typeof seenPt==='function'&&!seenPt(vn,g.x,g.z))continue;const k=Math.min(8,g.n);const p=g.path[0]||[g.x,g.z];const fa=Math.atan2(p[0]-g.x,p[1]-g.z);
+      for(let j=0;j<k&&i<im.count+420;j++){if(i>=420)break;const a=j*2.4+g.id,rd=.035+.03*(j%3);const bob=Math.abs(Math.sin(now/140+j*1.7))*.008;
+        ps.set(g.x+Math.cos(a)*rd,bob,g.z+Math.sin(a)*rd);q.setFromAxisAngle(new T.Vector3(0,1,0),fa);sc.set(1,j%4===3?.62:1,1);mat.compose(ps,q,sc);im.setMatrixAt(i,mat);
+        col.set(UGV.civCol[(g.id*7+j*3)%UGV.civCol.length]);im.setColorAt(i,col);i++;}}
+    im.count=i;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}
+  for(const [id,o] of V3.ugObj)if(o.userData.live!==V3.ugTick){V3.ugGrp.remove(o);V3.ugObj.delete(id);}}
+if(typeof v3FortFrame==='function'){const _f=v3FortFrame;v3FortFrame=function(){_f();try{ugFrame();}catch(e){if(!UGV.err){UGV.err=1;console.warn('ugFrame',e);}}};}
+/* ---------- 효과 ---------- */
+FXH.mhole=function(h){if(typeof V3==='undefined'||!V3.on)return;try{dsDust(h.x,h.z,.35,1400,6,'#a39a88');v3Debris(h.x,.06,h.z,7,.45);v3Burst(h.x,.06,h.z,.25,'#ffb070',1,.4);}catch(e){}};
+FXH.tunGone=function(T2){if(typeof V3==='undefined'||!V3.on)return;try{for(const p of [T2.a,T2.b]){dsDust(p[0],p[1],.5,2400,8,'#8a7a62');dsScar('crater',p[0],p[1],.12);}}catch(e){}};
+FXH.demo=function(x,z,f){if(typeof V3==='undefined'||!V3.on)return;try{const y=(f||1)*FLOOR_H*.5;v3Burst(x,y,z,1.4,'#ff7a2a',6,4);dsColumn(x,z,1.6);dsDust(x,z,2.4,30000,50);dsSpray(x,y,z,220,1);v3Debris(x,y,z,30,1.6);V3.shake=Math.max(V3.shake||0,.12);}catch(e){}};
+FXH.vbBoom=function(x,z,R){if(typeof V3==='undefined'||!V3.on)return;try{v3Burst(x,.2,z,R*1.1,'#ff6a1a',8,6);dsColumn(x,z,R*1.4);dsDust(x,z,R*2,30000,55);dsSpray(x,.3,z,280,R*1.1);v3Debris(x,.2,z,34,1.8);
+  dsScar('crater',x,z,.32);dsFires(x,z,6,40000,.9);V3.shake=Math.max(V3.shake||0,.16);}catch(e){}};
+/* 자폭 차량: 민간 픽업에 철판을 덧댄 모습 */
+if(typeof v3VehicleM==='function'){const _v=v3VehicleM;v3VehicleM=function(ty,g,n){if(ty!=='vbied')return _v(ty,g,n);const c=_v('hmv',g,n|1);const T=V3.T,M=ugMats(),m=MU;
+  for(const [w,h,d,x,y,z] of [[.06*m,1.1*m,2.6*m,1.05*m,1.1*m,0],[.06*m,1.1*m,2.6*m,-1.05*m,1.1*m,0],[2.1*m,.9*m,.06*m,0,1.2*m,2.3*m],[1.9*m,.5*m,1.6*m,0,1.6*m,-.9*m]]){const b=new T.Mesh(new T.BoxGeometry(w,h,d),M.steel);b.position.set(x,y,z);b.castShadow=true;c.add(b);}
+  c.traverse(o=>{if(o.isMesh&&o.userData.turret)o.visible=false;});return c;};}
+/* ---------- 버튼과 탭 ---------- */
+const ugSel=()=>{const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;return s?[s,...(UI.group||[])].filter(x=>x&&G.units.includes(x)&&x.nat===G.viewer):[];};
+function ugBar(s){if(!s||s.nat!==G.viewer)return '';const t=UT[s.type];let h='';const ph=UI.phase;const b=(a,txt,on,dis,tip)=>`<button class="btn sm${on?' primary':''}" data-act="${a}" id="ab-${a.replace(':','-')}" ${dis?'disabled':''} title="${tip||''}">${txt}</button>`;
+  if(s.type==='vbied')return b('ug:det','지금 폭파',false,false,'그 자리에서 터뜨린다');
+  if(t.cls!=='inf')return '';
+  if(mhTypes(s.type))h+=b('ug:mh','벽 뚫기',ph==='ug:mh',false,'붙어 있는 건물 벽에 쥐구멍을 낸다');
+  if(s.bsm||s.bsmGo||bsmHas(cell(s.r,s.c)))h+=b('ug:bsm',s.bsm?'지상으로':'지하실로',!!s.bsm,!!s.bsmGo,'포격·폭격에 거의 안 다치고 안 보이지만 같은 칸의 적과만 싸운다');
+  if(s.type==='eng')h+=b('ug:tun',`땅굴 ${UG.tunCost}`,ph==='ug:tun',G.nats[s.nat].cp<UG.tunCost,`건물·잔해 안에서 ${UG.tunMax}칸까지 땅굴을 판다`);
+  if(s.type==='eng'||s.type==='rifle')h+=b('ug:demo',`폭약 ${DEMO.cost}`,ph==='ug:demo',G.nats[s.nat].cp<DEMO.cost,'건물에 폭약을 숨겨 둔다. 적이 들어오면 보고 있다가 터뜨린다');
+  return h;}
+if(typeof fortBar==='function'){const _fb=fortBar;fortBar=function(s){return _fb(s)+ugBar(s);};}
+if(typeof fortTip==='function'){const _ft=fortTip;fortTip=function(){const p=UI.phase;if(p==='ug:mh')return '뚫을 건물(옆 건물 벽)을 탭하세요';if(p==='ug:tun')return '땅굴이 나올 곳을 탭하세요';if(p==='ug:demo')return '폭약을 심을 건물을 탭하세요';return _ft();};}
+{const _tap=tap;tap=function(k){const p=UI.phase;if(!G||!p||!p.startsWith('ug:')||!UI.sel)return _tap(k);
+  const r=kr(k),c=kc(k),pt=(typeof V3!=='undefined'&&V3.pickPt)||[c+.5,r+.5];const grp=ugSel();let msg=null,ok=0;
+  for(const u of grp){let m;if(p==='ug:mh'){if(!mhTypes(u.type))continue;m=mhOrder(u,r,c);}else if(p==='ug:tun'){if(u.type!=='eng')continue;m=tunOrder(u,pt[0],pt[1]);}
+    else if(p==='ug:demo'){if(u.type!=='eng'&&u.type!=='rifle')continue;m=demoOrder(u,r,c);}else continue;if(m)msg=msg||m;else{ok++;if(p!=='ug:tun')break;}}
+  if(!ok&&msg)toast(msg);else if(ok){sfx('click',.6);if(typeof sndRadio==='function')sndRadio('ack');if(typeof v3Ping==='function')v3Ping(pt[0],pt[1],p==='ug:demo'?'#ff8a5a':'#e8dcc0');}
+  UI.phase='select';render();};}
+if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="ug:"]');if(!b||b.disabled||!G||G.over||isAI(G.viewer))return;const a=b.dataset.act;const grp=ugSel();
+  if(a==='ug:fire'){const P=UI.pane;const d=P&&(G.demo||[]).find(d=>!d.gone&&d.nat===G.viewer&&d.r===P.r&&d.c===P.c);if(d&&demoFire(d))toast('기폭');render();return;}
+  if(!grp.length)return;
+  if(a==='ug:det'){let n=0;for(const u of grp)if(vbDet(u))n++;if(n)toast('자폭 차량 기폭');render();return;}
+  if(a==='ug:bsm'){const down=!grp[0].bsm;let msg=null;for(const u of grp){if(UT[u.type].cls!=='inf')continue;const m=bsmOrder(u,down);if(m)msg=msg||m;}if(msg)toast(msg);render();return;}
+  UI.phase=UI.phase===a?'select':a;render();});
+/* 칸 정보에 민간인·지하실·폭약 */
+if(typeof renderActbar==='function'){const _ra=renderActbar;renderActbar=function(){_ra();try{const el=$('#actbar');if(!el||!G||!UI.pane||UI.sel)return;const {r,c}=UI.pane;const x=cell(r,c);const ex=[];
+  if(x.civ)ex.push(`민간인 ${x.civ}명`);if(x.bsm&&(x.t==='bldg'||x.t==='rubble'))ex.push('지하실 있음');
+  const d=(G.demo||[]).find(d=>!d.gone&&d.nat===G.viewer&&d.r===r&&d.c===c);if(d)ex.push(d.fuse!=null?'폭약 기폭 중':'아군 폭약 설치됨');
+  const sp=el.querySelector('span');if(sp&&ex.length)sp.textContent+=' · '+ex.join(' · ');
+  const ab=el.querySelector('.ab');if(ab&&d&&d.fuse==null&&!isAI(G.viewer))ab.insertAdjacentHTML('afterbegin','<button class="btn sm primary" data-act="ug:fire" id="ab-ug-fire">폭약 터뜨리기</button>');}catch(e){}};}
+if(typeof uInfo==='function'){const _ui=uInfo;uInfo=function(u){let s=_ui(u);if(u.tun)s+=' · 땅굴 이동 중';else if(u.bsm)s+=(u.trapT||0)>(G.time||0)?' · 지하실(잔해에 갇힘)':' · 지하실';else if(u.bsmGo)s+=u.bsmGo.down?' · 지하로 내려가는 중':' · 올라오는 중';
+  if(u.mh)s+=' · 벽 뚫는 중';if(u.demo)s+=' · 폭약 설치 중';if(u.tunDig&&tunById(u.tunDig)&&tunById(u.tunDig).prog<1)s+=` · 땅굴 ${Math.round(tunById(u.tunDig).prog*100)}%`;return s;};}
 
 /* ---- 07x-air.js ---- */
 /* ===================== 공중전 연출 =====================
