@@ -840,7 +840,8 @@ test('대전차 화기에 맞은 차량은 연막탄을 쏘고 정면을 둔 채
   const T = loadGame(); const G = setup(T);
   const tk = T.mkUnit(1, 'tank', 5, 5); tk.x = 5.5; tk.z = 5.5; tk.face = 0; tk.hp = 99;
   const a = T.mkUnit(0, 'at', 5, 8); a.x = 8.5; a.z = 5.5;
-  const harm = F(T, 'harm'); harm(tk, 1, a, { kind: 'blast' });
+  // 부품 피해(기동 불능·승무원 사상)는 무작위라 이 검사에서는 관통이 안 된 경우로 고정한다
+  const harm = F(T, 'harm'); const rnd = Math.random; Math.random = () => .99; try { harm(tk, 1, a, { kind: 'blast' }); } finally { Math.random = rnd; }
   assert.ok(G.units.includes(tk));
   assert.ok(G.map[5][5].smoke > 0 || G.map[5][6].smoke > 0, '연막');
   assert.equal(tk.vsm, 1, '연막탄 한 번 사용');
