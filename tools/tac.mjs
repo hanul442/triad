@@ -27,7 +27,7 @@ if (isMainThread) {
   parentPort.on('message', async seed => { if (seed == null) { process.exit(0); } parentPort.postMessage(await one(seed)); });
   async function one(seed) {
     const T = loadGame();const G = () => T.G;
-    const S = { seed, shots: 0, dsum: 0, close: 0, moving: 0, open: 0, blind: 0, f2f: 0, supf: 0, kills: {}, lost: {}, errs: 0, len: 0, retreat: 0, flank: 0, smoke: 0, sees: 0, idle: 0, idleN: 0, bunch: 0, bunchN: 0 };
+    const S = { seed, shots: 0, dsum: 0, close: 0, moving: 0, open: 0, blind: 0, f2f: 0, supf: 0, kills: {}, lost: {}, errs: 0, len: 0, retreat: 0, flank: 0, smoke: 0, sees: 0, idle: 0, idleN: 0, bunch: 0, bunchN: 0, role: {} };
     const wrap = (name, fn) => { const o = T.__get(name); T.__set(name, fn(o)); };
     const inf = u => T.UT[u.type].cls === 'inf' && !T.UT[u.type].ind;
     const spots = T.__get('spots'), coverOf = T.__get('coverOf');
@@ -36,7 +36,8 @@ if (isMainThread) {
         if (a.path && a.path.length) S.moving++;
         let ca = 0, cd = 0; try { ca = coverOf(a, d).cov; cd = coverOf(d, a).cov; } catch (e) {}
         if (ca <= 0) S.open++; if (ca <= 0 && cd <= 0 && dd < 3) S.f2f++;
-        try { if (!spots(a, d)) S.blind++; } catch (e) {} }
+        try { if (!spots(a, d)) S.blind++; } catch (e) {}
+        const ro = (a.tk && a.pl ? a.tk.role : 'old') + (a.path && a.path.length ? '*' : ''); const R = (S.role[ro] ||= [0, 0, 0]); R[0]++; R[1] += dd; if (dd < 2) R[2]++; }
       return o(a, d); });
     wrap('kill', o => function (u, by) { (S.lost[u.type] = (S.lost[u.type] || 0) + 1); if (by) S.kills[by.type] = (S.kills[by.type] || 0) + 1; return o(u, by); });
     const check = g => {
@@ -63,5 +64,7 @@ function summary(R, SIZE, NATS) {
   const agg = k => { const o = {}; for (const r of R) for (const [t, v] of Object.entries(r[k] || {})) o[t] = (o[t] || 0) + v; return Object.fromEntries(Object.entries(o).sort((a, b) => b[1] - a[1]).map(([t, v]) => [t, +(v / R.length).toFixed(1)])); };
   console.log('판당 격파(쏜 쪽):', JSON.stringify(agg('kills')));
   console.log('판당 손실:', JSON.stringify(agg('lost')));
+  const ro = {}; for (const r of R) for (const [k, v] of Object.entries(r.role || {})) { const o = (ro[k] ||= [0, 0, 0]); o[0] += v[0]; o[1] += v[1]; o[2] += v[2]; }
+  console.log('역할별 사격(*=이동 중): ' + Object.entries(ro).sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => `${k} ${(100 * v[0] / shots).toFixed(0)}% 거리${(v[1] / v[0]).toFixed(1)} 근접${(100 * v[2] / v[0]).toFixed(0)}%`).join(' · '));
   const e = R.find(r => r.err1 || r.crash); if (e) console.log('첫 오류:', e.seed, e.err1 || e.crash);
 }
