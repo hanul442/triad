@@ -27,7 +27,7 @@ if (isMainThread) {
   parentPort.on('message', async seed => { if (seed == null) { process.exit(0); } parentPort.postMessage(await one(seed)); });
   async function one(seed) {
     const T = loadGame();const G = () => T.G;
-    const S = { seed, shots: 0, dsum: 0, close: 0, moving: 0, open: 0, blind: 0, f2f: 0, supf: 0, kills: {}, lost: {}, errs: 0, len: 0, retreat: 0, flank: 0, smoke: 0, sees: 0, idle: 0, idleN: 0, bunch: 0, bunchN: 0, role: {}, buys: {}, ff: 0, noby: 0, life: 0, lifeN: 0, flips: 0, vshots: 0, vflip: 0, vord: 0 };
+    const S = { seed, shots: 0, dsum: 0, close: 0, moving: 0, open: 0, blind: 0, f2f: 0, supf: 0, kills: {}, lost: {}, errs: 0, len: 0, retreat: 0, flank: 0, smoke: 0, sees: 0, idle: 0, idleN: 0, bunch: 0, bunchN: 0, role: {}, buys: {}, ff: 0, noby: 0, life: 0, lifeN: 0, flips: 0, vshots: 0, vflip: 0, vord: 0, idle90: {} };
     const wrap = (name, fn) => { const o = T.__get(name); T.__set(name, fn(o)); };
     const inf = u => T.UT[u.type].cls === 'inf' && !T.UT[u.type].ind;
     const spots = T.__get('spots'), coverOf = T.__get('coverOf');
@@ -47,6 +47,8 @@ if (isMainThread) {
     const check = g => {
       if (!objT) { objT = []; for (let r = 0; r < g.map.length; r++) for (let c = 0; c < g.map.length; c++) if (g.map[r][c].obj != null) objT.push([r, c]); }
       for (const [r, c] of objT) { const k = r * 999 + c, o = g.map[r][c].owner; if (own[k] !== undefined && own[k] !== o) S.flips++; own[k] = o; }
+      for (const u of g.units) { const act = (u.path && u.path.length) || g.time - (u.firedT ?? -99) < 3 || u._srv || u._fixing || u.tow != null || (u.load && u.load.length !== u.__ld);
+        u.__ld = u.load ? u.load.length : 0; if (act || u.__ia == null) { u.__ia = g.time; u.__ic = 0; } else if (g.time - u.__ia > 90 && !u.__ic) { u.__ic = 1; S.idle90[u.type] = (S.idle90[u.type] || 0) + 1; } }
       for (const u of g.units) { if (u.__t0 == null) u.__t0 = g.time; const t = T.UT[u.type]; if (t.cls !== 'veh' || t.fly || t.logi || !(u.path && u.path.length)) continue;
         const d = u.path[u.path.length - 1], p = u.__vd; if (p && (Math.abs(p[0] - d[0]) + Math.abs(p[1] - d[1]) > .5)) { S.vord++;
           const a1 = Math.atan2(p[1] - u.z, p[0] - u.x), a2 = Math.atan2(d[1] - u.z, d[0] - u.x); let da = Math.abs(a1 - a2); if (da > Math.PI) da = 2 * Math.PI - da;
@@ -60,7 +62,7 @@ if (isMainThread) {
     function NATS_() { return workerData.NATS; }
     try { await playAI(T, { slots, size: workerData.SIZE, seed, check }); } catch (e) { S.crash = String(e && e.stack || e).slice(0, 400); }
     const g = G(); S.len = g.time; S.errs = (g.errs || []).length; S.err1 = (g.errs || [])[0]?.slice(0, 300); S.win = g.over?.win; S.over = !!g.over;
-    const tac = g.tac || {}; for (const k of ['retreat', 'flank', 'smoke', 'supf', 'bound', 'assault', 'hold', 'vkeep', 'truckFlee']) S[k] = (tac[k] || S[k] || 0);
+    const tac = g.tac || {}; for (const k of ['retreat', 'flank', 'smoke', 'supf', 'bound', 'assault', 'hold', 'vkeep', 'truckFlee', 'stage', 'mortarMove', 'logiStuck']) S[k] = (tac[k] || S[k] || 0);
     return S;
   }
 }
@@ -75,7 +77,8 @@ function summary(R, SIZE, NATS) {
   console.log('판당 격파(쏜 쪽):', JSON.stringify(agg('kills')));
   console.log('판당 손실:', JSON.stringify(agg('lost')));
   console.log(`판당: 거점 주인 바뀜 ${(sum('flips') / R.length).toFixed(1)} · 차량 사격 ${(sum('vshots') / R.length).toFixed(0)} · 차량 새 목적지 ${(sum('vord') / R.length).toFixed(0)} (6초 안에 반대로 ${(sum('vflip') / R.length).toFixed(1)}) · 평균 수명 ${(sum('life') / Math.max(1, sum('lifeN'))).toFixed(0)}초 · 아군 피해 사망 ${(100 * sum('ff') / Math.max(1, sum('lifeN'))).toFixed(1)}% · 원인 모름 ${(100 * sum('noby') / Math.max(1, sum('lifeN'))).toFixed(0)}%`);
-  console.log(`판당: 차량 명령 고정 ${(sum('vkeep') / R.length).toFixed(1)} · 트럭 회피 ${(sum('truckFlee') / R.length).toFixed(1)}`);
+  console.log(`판당: 차량 명령 고정 ${(sum('vkeep') / R.length).toFixed(1)} · 트럭 회피 ${(sum('truckFlee') / R.length).toFixed(1)} · 대기 자리로 ${(sum('stage') / R.length).toFixed(1)} · 박격포 자리 옮김 ${(sum('mortarMove') / R.length).toFixed(1)} · 막힌 보급차 ${(sum('logiStuck') / R.length).toFixed(1)}`);
+  console.log('90초 넘게 노는 부대(판당):', JSON.stringify(agg('idle90')));
   console.log('판당 증원:', JSON.stringify(agg('buys')));
   const ro = {}; for (const r of R) for (const [k, v] of Object.entries(r.role || {})) { const o = (ro[k] ||= [0, 0, 0]); o[0] += v[0]; o[1] += v[1]; o[2] += v[2]; }
   console.log('역할별 사격(*=이동 중): ' + Object.entries(ro).sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => `${k} ${(100 * v[0] / shots).toFixed(0)}% 거리${(v[1] / v[0]).toFixed(1)} 근접${(100 * v[2] / v[0]).toFixed(0)}%`).join(' · '));

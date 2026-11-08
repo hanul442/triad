@@ -46,3 +46,13 @@ test('차량은 막 정한 목적지를 몇 초 안에 반대로 바꾸지 않�
   G.time += 7; go(4.5);
   assert.ok(v.path[v.path.length - 1][0] < 6, '6초가 지나면 따른다');
 });
+
+test('보급 트럭·구급차가 8초 넘게 제자리에 막히면 길을 버리고 그 목표를 잠시 피한다', () => {
+  const T = loadGame(); const G = setup(T);
+  const s = put(T, 0, 'sup', 10.5, 10.5); s.path = [[15.5, 10.5]]; s.lj = { k: 'serve', id: 77 };
+  const a = put(T, 0, 'amb', 4.5, 4.5); a.path = [[8.5, 4.5]]; a.mj = { k: 'pick', id: 88 };
+  const polStuck = F(T, 'polStuck');
+  G.time = 100; polStuck(); G.time = 109; polStuck();
+  assert.equal(s.path.length, 0, '트럭 길 버림'); assert.ok(s.nog[77] > 109, '트럭 그 부대 피함');
+  assert.equal(a.path.length, 0, '구급차 길 버림'); assert.ok(G.ambNog[0][88] > 109, '구급차 그 환자 피함');
+});
