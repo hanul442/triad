@@ -141,7 +141,7 @@ function casTick(u,dt){const M=menOf(u);const t=G.time||0;const S=casStats(u.nat
       if((w.a||t-(w.dt||0)>25)&&(u.supp||0)<1.2){const F=free().filter(m=>m.i!==0&&roleOf(u,m.i)!=='위생병');const able=casAble(u).length;
         if(F.length&&able>=3){F.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z));evStart(u,F[0],{u:u.id,i:c.i,x:c.x,z:c.z});busy.add(c.i);ch=true;}}}
     // 쓰러진 채 남겨진 아군 부상자(분대가 끝난 자리)를 데려간다
-    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken)continue;if(Math.hypot(o.x-u.x,o.z-u.z)>2&&!M.some(m=>menAct(m)&&Math.hypot(m.x-o.x,m.z-o.z)<.8))continue;   // 분대 근처이거나 병사 하나라도 곁에 있으면
+    if(G.cas&&G.cas.length&&casAble(u).length>=3&&(u.supp||0)<1.2)for(const o of G.cas){if(o.nat!==u.nat||o.taken)continue;if(Math.hypot(o.x-u.x,o.z-u.z)>(typeof hotAt==='function'&&!hotAt(u.nat,o.x,o.z,2.5)?3.5:2)&&!M.some(m=>menAct(m)&&Math.hypot(m.x-o.x,m.z-o.z)<.8))continue;   // 분대 근처이거나 병사 하나라도 곁에 있으면
       const F=free().filter(m=>m.i!==0);if(!F.length)break;F.sort((a,b)=>Math.hypot(a.x-o.x,a.z-o.z)-Math.hypot(b.x-o.x,b.z-o.z));o.taken=1;evStart(u,F[0],{orph:o.id,x:o.x,z:o.z});ch=true;break;}}
   if(ch)casSync(u,null);}
 /* ---------- 후송조: 전우 한 명이 부상자를 업고 환자집결지로, 넘기고 돌아온다 ---------- */
