@@ -82,6 +82,18 @@ function navWallOk(i,j,ni,nj){const R=NAV_R,tr=(i/R)|0,tc=(j/R)|0,nr=(ni/R)|0,nc
   const d=edgePass(tr,tc,nr,nc);if(d==null)return false;if(d===true)return true;
   if(i!==ni&&j!==nj)return false;// 문은 곧게 지난다
   const cx=tr!==nr?(j+.5)/R:Math.max(tc,nc),cz=tr!==nr?Math.max(tr,nr):(i+.5)/R;return Math.hypot(cx-d[0],cz-d[1])<=DOOR_W;}
+/* navPath 작업 배열: W마다 하나. gen을 올려 지난 호출 값을 무효로 만든다 */
+const NAVS={};
+function navScratch(W){let S=NAVS[W];if(!S||S.gen>=2e9){S=NAVS[W]={D:new Float32Array(W*W),P:new Int32Array(W*W),st:new Uint32Array(W*W),hk:new Int32Array(W*W*8+8),hf:new Float64Array(W*W*8+8),gen:0,em:null,eg:null};}
+  S.gen++;return S;}
+/* navWallOk를 칸 쌍마다 기억한다: 큰 칸(r,c)에서 8방향(d) 옆 칸으로. 문 위치가 있으면 작은 칸마다 거리 검사만 다시 한다 */
+function navWallMemo(S,gen){const M=N*N*8;if(!S.em||S.em.length!==M){S.em=new Array(M);S.eg=new Uint32Array(M);}const em=S.em,eg=S.eg,R=NAV_R;
+  return (i,j,ni,nj)=>{const tr=(i/R)|0,tc=(j/R)|0,nr=(ni/R)|0,nc=(nj/R)|0;if(tr===nr&&tc===nc)return true;
+    const di=nr-tr+1,dj=nc-tc+1,q=(tr*N+tc)*8+(di*3+dj>4?di*3+dj-1:di*3+dj);
+    let d;if(eg[q]===gen)d=em[q];else{d=tr!==nr&&tc!==nc?(diagPass(tr,tc,nr,nc)?true:null):edgePass(tr,tc,nr,nc);em[q]=d;eg[q]=gen;}
+    if(d==null)return false;if(d===true)return true;
+    if(i!==ni&&j!==nj)return false;// 문은 곧게 지난다
+    const cx=tr!==nr?(j+.5)/R:Math.max(tc,nc),cz=tr!==nr?Math.max(tr,nr):(i+.5)/R;return Math.hypot(cx-d[0],cz-d[1])<=DOOR_W;};}
 /* A* 경로: 작은 칸 단위. 목표에 못 가면 가장 가까운 곳까지. 반환: 작은 칸 중심점 목록(꺾이는 곳만) */
 function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(cls),W=g.W,C=g.cost;
   const cl=v=>Math.max(0,Math.min(W-1,v));let s=cl(Math.floor(u.z*NAV_R))*W+cl(Math.floor(u.x*NAV_R));const gi=cl(Math.floor(z*NAV_R)),gj=cl(Math.floor(x*NAV_R)),goal=gi*W+gj;
@@ -89,20 +101,25 @@ function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(
   if(!C[s]){// 장애물 안에 끼어 있으면 가장 가까운 빈 칸으로 먼저 나온다
     const si=Math.floor(s/W),sj=s%W;let bk=-1,bd=1e9;for(let a=-4;a<=4;a++)for(let b=-4;b<=4;b++){const i=si+a,j=sj+b;if(i<0||j<0||i>=W||j>=W||!C[i*W+j])continue;const d=a*a+b*b;if(d<bd){bd=d;bk=i*W+j;}}
     if(bk<0)return [];s=bk;pre.push([(bk%W+.5)/NAV_R,(Math.floor(bk/W)+.5)/NAV_R]);}
-  const D=new Float32Array(W*W).fill(Infinity),P=new Int32Array(W*W).fill(-1),done=new Uint8Array(W*W);
+  // 작업 배열은 지도 크기마다 하나씩 두고 다시 쓴다(부를 때마다 새로 만들면 느리다). gen 도장이 이번 호출 값이면 유효, 아니면 D=∞·P=-1·done=0
+  const S=navScratch(W);const gen=S.gen,D=S.D,P=S.P,st=S.st,g2=gen*2,g3=gen*2+1;   // st: gen*2 = 열림(D·P 유효), gen*2+1 = 닫힘
   // 휴리스틱을 조금 부풀려(×1.15) 훑는 칸 수를 줄인다. 경로는 거의 최단 그대로
   const H=k=>{const i=(k/W)|0,di=i>gi?i-gi:gi-i,j=k-i*W,dj=j>gj?j-gj:gj-j;return (di>dj?di+.414*dj:dj+.414*di)*1.15;};
-  const hk=[],hf=[];const push=(k,f)=>{hk.push(k);hf.push(f);let i=hk.length-1;while(i>0){const p=(i-1)>>1;if(hf[p]<=hf[i])break;[hk[p],hk[i]]=[hk[i],hk[p]];[hf[p],hf[i]]=[hf[i],hf[p]];i=p;}};
-  const pop=()=>{const k=hk[0];const lk=hk.pop(),lf=hf.pop();if(hk.length){hk[0]=lk;hf[0]=lf;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<hk.length&&hf[l]<hf[m])m=l;if(r<hk.length&&hf[r]<hf[m])m=r;if(m===i)break;[hk[m],hk[i]]=[hk[i],hk[m]];[hf[m],hf[i]]=[hf[i],hf[m]];i=m;}}return k;};
+  const hk=S.hk,hf=S.hf;let hn=0;
+  const push=(k,f)=>{let i=hn++;while(i>0){const p=(i-1)>>1;if(hf[p]<=f)break;hk[i]=hk[p];hf[i]=hf[p];i=p;}hk[i]=k;hf[i]=f;};
+  const pop=()=>{const k=hk[0];hn--;if(hn>0){const lk=hk[hn],lf=hf[hn];let i=0;for(;;){const l=2*i+1,r=l+1;let m=i,mf=lf;if(l<hn&&hf[l]<mf){m=l;mf=hf[l];}if(r<hn&&hf[r]<mf)m=r;if(m===i)break;hk[i]=hk[m];hf[i]=hf[m];i=m;}hk[i]=lk;hf[i]=lf;}return k;};
   const walls=(cls==='inf'||cls==='eng')&&typeof edgePass==='function';
-  D[s]=0;push(s,H(s));let best=s,bh=H(s),n=0;
-  while(hk.length&&n++<120000){const k=pop();if(done[k])continue;done[k]=1;if(k===goal){best=k;break;}const h=H(k);if(h<bh){bh=h;best=k;}
-    const i=Math.floor(k/W),j=k%W;
-    for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){if(!a&&!b)continue;const ni=i+a,nj=j+b;if(ni<0||nj<0||ni>=W||nj>=W)continue;const nk=ni*W+nj;const c=C[nk];if(!c||done[nk])continue;
+  // 칸 경계를 지날 수 있는지(navWallOk)는 이번 길찾기 동안 지도가 그대로라 칸 쌍마다 한 번만 계산한다
+  const wok=walls?navWallMemo(S,gen):null;
+  D[s]=0;P[s]=-1;st[s]=gen*2;push(s,H(s));let best=s,bh=H(s),n=0;
+  while(hn&&n++<120000){const k=pop();if(st[k]===g3)continue;st[k]=g3;if(k===goal){best=k;break;}const h=H(k);if(h<bh){bh=h;best=k;}
+    const i=(k/W)|0,j=k-i*W,dk=D[k];
+    for(let a=-1;a<=1;a++){const ni=i+a;if(ni<0||ni>=W)continue;for(let b=-1;b<=1;b++){if(!a&&!b)continue;const nj=j+b;if(nj<0||nj>=W)continue;const nk=ni*W+nj;const c=C[nk];if(!c||st[nk]===g3)continue;
       if(a&&b&&(!C[i*W+nj]||!C[ni*W+j]))continue;
-      if(walls&&!navWallOk(i,j,ni,nj))continue;
-      const nd=D[k]+c*(a&&b?1.414:1);if(nd<D[nk]){D[nk]=nd;P[nk]=k;push(nk,nd+H(nk));}}}
-  const cells=[];let k=best;while(k!==s&&k>=0){cells.push(k);k=P[k];}cells.reverse();
+      if(walls&&!wok(i,j,ni,nj))continue;
+      const nd=dk+c*(a&&b?1.414:1);if(nd<(st[nk]>=g2?D[nk]:Infinity)){D[nk]=nd;P[nk]=k;st[nk]=g2;push(nk,nd+H(nk));}}}}
+  const Pk=k=>st[k]>=gen*2?P[k]:-1;
+  const cells=[];let k=best;while(k!==s&&k>=0){cells.push(k);k=Pk(k);}cells.reverse();
   // 방향이 바뀌는 곳만 남긴다
   const out=pre.slice();let pd=null;const pt=c=>[(c%W+.5)/NAV_R,(Math.floor(c/W)+.5)/NAV_R];
   const tileOf=c=>[((c/W|0)/NAV_R)|0,((c%W)/NAV_R)|0];

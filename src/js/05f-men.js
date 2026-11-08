@@ -49,8 +49,14 @@ function menTrailNear(u,m){const T=u._tr||[];const a=tileAt(m.x,m.z);let best=nu
   for(const p of T){const b=tileAt(p[0],p[1]);if(!b)continue;const same=a&&((a.t==='bldg')===(b.t==='bldg'))&&(a.t!=='bldg'||a.blk===b.blk);const d=Math.hypot(p[0]-m.x,p[1]-m.z)+(same?0:5);if(d<bd){bd=d;best=p;}}
   return best;}
 /* 점 p에서 옆(nx,nz) 방향으로 몇 칸까지 비어 있는가(벽·건물 전까지, 최대 lim) */
-function menFree(u,x,z,nx,nz,lim){let d=0;const a=tileAt(x,z);for(let s=.05;s<=lim+1e-6;s+=.05){if(!menClear(u,x,z,x+nx*s,z+nz*s))break;
-    const t=tileAt(x+nx*s,z+nz*s);if(t&&t.t==='bldg'&&t!==a&&!(typeof sameBlk==='function'&&sameBlk(t,a)))break;   // 옆으로 비켜서다 문으로 남의 건물에 들어가지 않는다
+function menFree(u,x,z,nx,nz,lim){let d=0;const a=tileAt(x,z);
+  // menClear(u,x,z,…)를 그대로 풀어 쓴 것(결과 같음). 이동 격자는 이 안에서 바뀌지 않으니 한 번만 찾는다(성능)
+  const ty=u.type,cls=typeof navCls==='function'?navCls(u):null,fly=UT[ty].fly,r0=Math.floor(z),c0=Math.floor(x);let g=null;
+  for(let s=.05;s<=lim+1e-6;s+=.05){const x2=x+nx*s,z2=z+nz*s;const r=Math.floor(z2),c=Math.floor(x2);
+    const t=inb(r,c)?G.map[r][c]:null;if(!t||!(mcost(ty,t)<Infinity))break;
+    if(cls){if(!g)g=navGrid(cls);const j=Math.floor(x2*NAV_R),i=Math.floor(z2*NAV_R);if(i<0||j<0||i>=g.W||j>=g.W||!(g.cost[i*g.W+j]>0))break;}
+    if(!fly&&(r!==r0||c!==c0)&&typeof wallCross==='function'&&wallCross(u,x,z,x2,z2))break;
+    if(t.t==='bldg'&&t!==a&&!(typeof sameBlk==='function'&&sameBlk(t,a)))break;   // 옆으로 비켜서다 문으로 남의 건물에 들어가지 않는다
     d=s;}return d;}
 /* 이 분대가 지금 위협을 받는가: 제압, 최근 사격, 최근 피격 */
 function menThreat(u){const t=G.time||0;return u.supp>0||t-(u.firedT??-99)<MEN.threatT||t-(u._hitT??-99)<MEN.threatT;}
