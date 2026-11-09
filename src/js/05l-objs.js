@@ -17,7 +17,7 @@
 const OBJK={
   hosp:{n:'의료',ic:'✚',col:'#f2f0ea',fn:'후송된 중상자를 받아 치료해 분대로 돌려보냄(환자집결지보다 많이·빨리), 둘레 2칸 경상자 치료'},
   bcast:{n:'방송',ic:'📡',col:'#c7cdd3',fn:'우리 보병 사기 회복 1.5배, 차지하는 순간 다른 세력 보병 사기 −10'},
-  comm:{n:'통신',ic:'📶',col:'#9aa2a8',fn:'무전 40% 빨라짐, 둘레 4칸 재밍 무시, 탑 둘레 5칸 감시',ov:5},
+  comm:{n:'통신',ic:'📶',col:'#9aa2a8',fn:'둘레 4칸 우리 드론은 재밍에 안 끊김, 탑 둘레 5칸 감시',ov:5},
   power:{n:'전력',ic:'⚡',col:'#a7a097',fn:'지휘점수 +2 /30초',cp:2},
   rail:{n:'철도',ic:'🚉',col:'#b07a5a',fn:'둘레 2칸에서 증원, 증원 비용 1 환급',dep:2},
   supply:{n:'물자',ic:'📦',col:'#b8a68c',fn:'둘레 2칸 아군 탄약 보충·차량 정비·보급 트럭 재적재'},
@@ -132,10 +132,9 @@ function objOvSees(e,n){if(!G||!G.fog||e.nat===n)return false;const L=objOvList(
        for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const px=(i+.5)/R,pz=(j+.5)/R;if(Math.hypot(px-v.x,pz-v.z)>v.r)continue;const r=Math.floor(pz),c=Math.floor(px);if(v.b&&G.map[r][c].t!=='bldg')continue;
          s.fine[j*M+i]=1;s.add(key(r,c));}}}catch(e){}return s;};}
 
-/* ---------- 무전: 통신탑 ---------- */
-if(typeof radioSend==='function'){const _rs=radioSend;radioSend=function(n,us,k,a){const n0=(G.rq||[]).length;const now=G.time||0;const out=_rs(n,us,k,a);
-   if(objHas(n,'comm')&&G.rq)for(let i=n0;i<G.rq.length;i++){const e=G.rq[i];if(e.nat===n&&e.t0===now)e.at=now+(e.at-now)*.6;}return out;};}
-if(typeof radioCut==='function'){const _rc=radioCut;radioCut=function(u){if(objOn())for(const o of objsOf(u.nat,'comm'))if(Math.hypot(u.x-(o.c+.5),u.z-(o.r+.5))<=4)return false;return _rc(u);};}
+/* ---------- 통신탑 ---------- */
+// 통신탑 둘레 4칸: 우리 드론 조종 신호는 적 재밍에 끊기지 않는다
+if(typeof jammedBy==='function'){const _jb=jammedBy;jammedBy=function(u){if(objOn())for(const o of objsOf(u.nat,'comm'))if(Math.hypot(u.x-(o.c+.5),u.z-(o.r+.5))<=4)return null;return _jb(u);};}
 
 /* ---------- 지휘점수·승점 ---------- */
 {const _in=income;income=function(n){let cp=_in(n);if(!objOn())return cp;for(const k in OBJK)if(OBJK[k].cp)cp+=OBJK[k].cp*objsOf(n,k).length;return cp;};
