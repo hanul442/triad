@@ -62,8 +62,8 @@ function msStrike(n,r,c,kind){const j={id:MS_ID++,kind,n,r,c,x:c+.5,z:r+.5,t:(G.
 function strikeTick(){if(!G.strikes||!G.strikes.length)return;const keep=[];
   for(const j of G.strikes){if(j.t>G.time){keep.push(j);continue;}
     if(j.kind==='cruise'){// 근처(6칸) 적 대공이 요격을 시도한다
-      let down=null;for(const e of G.units){if(e.nat===j.n||(e.type!=='aa'&&e.type!=='zu'))continue;if(Math.hypot(e.x-j.x,e.z-j.z)>6||e.supp>.5)continue;
-        e.firedT=G.time;if(FXH.aaShot)FXH.aaShot(e,j);if(Math.random()<(e.type==='zu'?.3:.22)){down=e;break;}}
+      let down=null;for(const e of G.units){if(e.nat===j.n||!AA_T[e.type])continue;if(Math.hypot(e.x-j.x,e.z-j.z)>6||e.supp>.5)continue;
+        e.firedT=G.time;if(FXH.aaShot)FXH.aaShot(e,j);if(Math.random()<(e.type==='zu'?.3:e.type==='spaa'?.38:.22)){down=e;break;}}
       if(down){L(`${natName(down.nat)} ${UT[down.type].n} 순항미사일 요격!`);G.nats[down.nat].kills++;down.kills=(down.kills||0)+1;
         const a=Math.random()*6.283,d=1+Math.random()*1.5;j.down=[Math.min(N-.5,Math.max(.5,j.x+Math.cos(a)*d)),Math.min(N-.5,Math.max(.5,j.z+Math.sin(a)*d))];
         if(FXH.msDown)FXH.msDown(j);msBlast(j.down[0],j.down[1],.7,3,j.n,4,0);continue;}
