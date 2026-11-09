@@ -32,13 +32,13 @@ function polVeh(u,s,t){const e=polEnd(u);const c=u._cmE;
     u._cmT=t;u._cmE=[e[0],e[1]];u._arT=null;}
 /* ---------- 보급 트럭 ---------- */
 if(typeof supTick==='function'){
-  const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!aiRun(u.nat)||!G.units.includes(u))return;const t=G.time||0;
+  const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!selfRun(u)||!G.units.includes(u))return;const t=G.time||0;
     const hot=hotAt(u.nat,u.x,u.z,POL.truckHot)||t-(u._hitT??-99)<6;
     if(hot&&!atDepot(u)&&!(u.lj&&u.lj.k==='home'&&u.path&&u.path.length)){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');return;}
     // 할 일 없이 서 있으면: 짐이 넉넉하면 전선 뒤 안전한 곳(아군 중심에서 보급소 쪽 3칸)으로 나가 기다리고, 모자라면 보급소로
     if(idle(u)&&!u._srv&&!(u.lj&&u.lj.k==='serve')){if(u._idleT==null)u._idleT=t;else if(t-u._idleT>POL.truckIdle){u._idleT=null;
       if((u.cargo??CARGO)<40){if(!atDepot(u))supHome(u);}else{const P=polStage(u,3);if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)>2.5){u.lj={k:'stage'};u.path=pathPts(u,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}}}}else u._idleT=null;};
-  const _ss=supSend;supSend=function(u,e){if(aiRun(u.nat)&&hotAt(u.nat,e.x,e.z,POL.truckHot)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}return _ss(u,e);};}
+  const _ss=supSend;supSend=function(u,e){if(selfRun(u)&&hotAt(u.nat,e.x,e.z,POL.truckHot)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}return _ss(u,e);};}
 if(typeof aiLogi==='function'){const _al=aiLogi;aiLogi=function(n){_al(n);
   for(const u of G.units){if(u.nat!==n||!amMax(u)||u.rearm||amOf(u)>=1||inZone(n,u.r,u.c)||u.brk||UT[u.type].fly)continue;
     if(!hotAt(n,u.x,u.z,3.5))continue;u.rearm=1;u.tgt=null;u.tgtTile=null;if(u.pl&&typeof msnLeave==='function'&&!u.msn)msnLeave(u);const d=depotOf(n);u.path=pathPts(u,d.x,d.z);}};}
@@ -97,11 +97,11 @@ function polFront(n){let x=0,z=0,k=0;for(const u of G.units){if(u.nat!==n)contin
 function polStage(u,back){const n=u.nat;const d=depotOf(n);const f=polFront(n);if(!f)return null;const dx=d.x-f[0],dz=d.z-f[1],L=Math.hypot(dx,dz)||1;
   for(const k of [back,back+1.5,back+3]){const x=f[0]+dx/L*Math.min(k,L),z=f[1]+dz/L*Math.min(k,L);if(!hotAt(n,x,z,4.5)){const tl=tileAt(x,z);if(tl&&mcost(u.type,tl)<Infinity)return [x,z];}}return null;}
 // 구난차: 고칠 차가 없으면 전선 뒤 4칸에서 기다린다(보급소에 서 있으면 멀리서 고장 난 차까지 너무 오래 걸린다)
-if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!aiRun(u.nat)||!G.units.includes(u))return;
+if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!selfRun(u)||!G.units.includes(u))return;
   if(u.tow!=null||u.lj||!idle(u)||u._fixing){u._idleT=null;return;}if(u._idleT==null){u._idleT=t;return;}if(t-u._idleT<POL.truckIdle)return;u._idleT=null;
   const P=polStage(u,4);if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)>2.5){u.path=pathPts(u,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}};}
 // 구급차: 25초 넘게 할 일이 없으면 전선 4.5칸 뒤로 나가 기다린다(기다리는 구급차는 가까운 응급 후송 지점이 된다)
-if(typeof ambTick==='function'){const _ab=ambTick;ambTick=function(a,dt,t){_ab(a,dt,t);if(!aiRun(a.nat)||!G.units.includes(a))return;
+if(typeof ambTick==='function'){const _ab=ambTick;ambTick=function(a,dt,t){_ab(a,dt,t);if(!selfRun(a)||!G.units.includes(a))return;
   if(a.mj||(a.load&&a.load.length)||(a.path&&a.path.length)||a.towBy!=null||hotAt(a.nat,a.x,a.z,4)){a._idleT=null;return;}
   if(a._idleT==null){a._idleT=t;return;}if(t-a._idleT<POL.truckIdle)return;a._idleT=null;
   const P=polStage(a,4.5);if(P&&Math.hypot(P[0]-a.x,P[1]-a.z)>2.5){a.path=pathPts(a,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}};}

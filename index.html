@@ -581,6 +581,12 @@ const mapCol=n=>n==null?'#8b9294':MAPCOL[n];
 const isAI=n=>G.nats[n].ctrl==='ai';
 /* AI 두뇌가 이 세력을 움직이는가: AI 세력, 또는 플레이어가 부관(06f-auto)에게 맡긴 세력 */
 const aiRun=n=>G.nats[n].ctrl==='ai'||!!G.nats[n].auto;
+/* 지원 부대는 누가 지휘하든 배치하면 제 일을 알아서 한다(06f-auto).
+   보급 트럭·구난차·구급차: 탄약 보급·견인·수리·부상자 후송 / 박격포·자주포·다연장: 사거리 끝 안전한 자리로 옮겨 쏨 /
+   저격수: 높은 곳·적과 5칸 거리 / 정찰드론: 적과 거점 쪽을 살핌 / 드론팀·FPV: 자리 잡고 자폭드론 운용 / 대공·대공포·전자전: 아군 곁을 따라감.
+   플레이어가 직접 명령하면 그 일을 마칠 때까지(그 뒤 45초, 사수 명령이면 풀 때까지)는 손대지 않는다(u.man). */
+const SELF_RUN={sup:1,rec:1,amb:1,mortar:1,spg:1,mlrs:1,sniper:1,drone:1,dteam:1,fpv:1,aa:1,zu:1,ew:1};
+const selfRun=u=>aiRun(u.nat)||(!!SELF_RUN[u.type]&&!(u.man!=null&&typeof autoManual==='function'&&autoManual(u)));
 const hostile=(a,b)=>a!==b;
 const hpMax=u=>UT[u.type].hpMax||10;
 const hourOf=()=>Math.floor(typeof dayH==='function'?dayH():(7+(G.turn-1))%24);
@@ -3523,7 +3529,7 @@ function supTick(u,dt){if(u.cargo==null)u.cargo=CARGO;u._srv=null;
   if(u._srv)return;                                   // 지금 누군가에게 나눠 주는 중
   if(u.cargo<15){if(!atDepot(u))supHome(u);return;}
   if((u._auT||0)>(G.time||0))return;u._auT=(G.time||0)+2;
-  const ai=aiRun(u.nat),R=ai?99:5;let best=null,bs=0;
+  const ai=selfRun(u),R=ai?99:5;let best=null,bs=0;
   for(const o of G.units){if(o.nat!==u.nat||o===u||!amMax(o)||UT[o.type].fly)continue;const f=amFrac(o);if(f>.6||inZone(o.nat,o.r,o.c))continue;const d=Math.hypot(o.x-u.x,o.z-u.z);if(d>R)continue;
     if(u.nog&&(u.nog[o.id]||0)>(G.time||0))continue;if(G.units.some(s=>s!==u&&s.type==='sup'&&s.nat===u.nat&&s.lj&&s.lj.id===o.id))continue;
     const s=(1-f)*LOAD[o.type]/(1+d*.25)*(f<.05?2:1);if(s>bs){bs=s;best=o;}}
@@ -3548,7 +3554,7 @@ function recTick(u,dt,t){u._fixing=null;
     u._hk=0;u._fixing=v.id;if(!fixVeh(v,dt,.6)||!vNeed(v)){u.lj=null;u._fixing=null;}return;}
   if(u.hold||!idle(u))return;
   if((u._auT||0)>t)return;u._auT=t+2;
-  const v=recPick(u,aiRun(u.nat)?99:7);if(v)recSend(u,v);}
+  const v=recPick(u,selfRun(u)?99:7);if(v)recSend(u,v);}
 function recPick(u,R){let best=null,bs=0;
   for(const v of G.units){if(v.nat!==u.nat||v===u||v.towBy!=null)continue;const need=vNeed(v);if(!need)continue;if(atDepot(v))continue;
     if(v.vd&&!v.vd.mob&&v.path&&v.path.length)continue;   // 움직이는 차는 쫓아가지 않는다
@@ -4525,7 +4531,7 @@ function ambTick(a,dt,t){a.load=a.load||[];const moving=a.path&&a.path.length;co
   if(a.hold||moving)return;
   if(a.load.length){const f=ccpOf(a.nat,a.x,a.z,false);if(Math.hypot(f.x-a.x,f.z-a.z)<1.2){ambUnload(a);return;}}
   if((a._auT||0)>t)return;a._auT=t+2;
-  const o=ambWant(a.nat,a.x,a.z,aiRun(a.nat)?99:7);if(!o)return;const sp=ambSpot(a,o);if(!sp)return;
+  const o=ambWant(a.nat,a.x,a.z,selfRun(a)?99:7);if(!o)return;const sp=ambSpot(a,o);if(!sp)return;
   a.mj={k:'move',id:o.id};a.path=pathPts(a,sp[0],sp[1]);}
 /* 구급차가 부서지면 실린 환자도 죽는다 */
 {const _k=kill;kill=function(u,by){if(u&&u.type==='amb'&&u.load&&u.load.length){const S=medStats(u.nat);
@@ -4556,7 +4562,7 @@ function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat
     return;}
   _at(a,dt,t);
   if(a.mj||a.hold||(a.path&&a.path.length)||a.load.length>=AMB_CAP||(a._oT||0)>t)return;a._oT=t+2;
-  const o=orphFree(a.nat,a.x,a.z,aiRun(a.nat)?40:10);if(!o||o.noAmb)return;o.taken=1;a.mj={k:'orph',id:o.id};a.path=pathPts(a,o.x,o.z);};}
+  const o=orphFree(a.nat,a.x,a.z,selfRun(a)?40:10);if(!o||o.noAmb)return;o.taken=1;a.mj={k:'orph',id:o.id};a.path=pathPts(a,o.x,o.z);};}
 // 적 보병이 곁을 지나고 아군이 멀면 남겨진 부상자는 포로로 잡혀 간다
 function orphPow(){if(!G.cas||!G.cas.length)return;G.cas=G.cas.filter(o=>{if(o.taken)return true;
   const foe=G.units.find(e=>hostile(e.nat,o.nat)&&UT[e.type].cls==='inf'&&Math.hypot(e.x-o.x,e.z-o.z)<1.2);if(!foe)return true;
@@ -5511,13 +5517,13 @@ function polVeh(u,s,t){const e=polEnd(u);const c=u._cmE;
     u._cmT=t;u._cmE=[e[0],e[1]];u._arT=null;}
 /* ---------- 보급 트럭 ---------- */
 if(typeof supTick==='function'){
-  const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!aiRun(u.nat)||!G.units.includes(u))return;const t=G.time||0;
+  const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!selfRun(u)||!G.units.includes(u))return;const t=G.time||0;
     const hot=hotAt(u.nat,u.x,u.z,POL.truckHot)||t-(u._hitT??-99)<6;
     if(hot&&!atDepot(u)&&!(u.lj&&u.lj.k==='home'&&u.path&&u.path.length)){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');return;}
     // 할 일 없이 서 있으면: 짐이 넉넉하면 전선 뒤 안전한 곳(아군 중심에서 보급소 쪽 3칸)으로 나가 기다리고, 모자라면 보급소로
     if(idle(u)&&!u._srv&&!(u.lj&&u.lj.k==='serve')){if(u._idleT==null)u._idleT=t;else if(t-u._idleT>POL.truckIdle){u._idleT=null;
       if((u.cargo??CARGO)<40){if(!atDepot(u))supHome(u);}else{const P=polStage(u,3);if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)>2.5){u.lj={k:'stage'};u.path=pathPts(u,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}}}}else u._idleT=null;};
-  const _ss=supSend;supSend=function(u,e){if(aiRun(u.nat)&&hotAt(u.nat,e.x,e.z,POL.truckHot)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}return _ss(u,e);};}
+  const _ss=supSend;supSend=function(u,e){if(selfRun(u)&&hotAt(u.nat,e.x,e.z,POL.truckHot)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}return _ss(u,e);};}
 if(typeof aiLogi==='function'){const _al=aiLogi;aiLogi=function(n){_al(n);
   for(const u of G.units){if(u.nat!==n||!amMax(u)||u.rearm||amOf(u)>=1||inZone(n,u.r,u.c)||u.brk||UT[u.type].fly)continue;
     if(!hotAt(n,u.x,u.z,3.5))continue;u.rearm=1;u.tgt=null;u.tgtTile=null;if(u.pl&&typeof msnLeave==='function'&&!u.msn)msnLeave(u);const d=depotOf(n);u.path=pathPts(u,d.x,d.z);}};}
@@ -5576,11 +5582,11 @@ function polFront(n){let x=0,z=0,k=0;for(const u of G.units){if(u.nat!==n)contin
 function polStage(u,back){const n=u.nat;const d=depotOf(n);const f=polFront(n);if(!f)return null;const dx=d.x-f[0],dz=d.z-f[1],L=Math.hypot(dx,dz)||1;
   for(const k of [back,back+1.5,back+3]){const x=f[0]+dx/L*Math.min(k,L),z=f[1]+dz/L*Math.min(k,L);if(!hotAt(n,x,z,4.5)){const tl=tileAt(x,z);if(tl&&mcost(u.type,tl)<Infinity)return [x,z];}}return null;}
 // 구난차: 고칠 차가 없으면 전선 뒤 4칸에서 기다린다(보급소에 서 있으면 멀리서 고장 난 차까지 너무 오래 걸린다)
-if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!aiRun(u.nat)||!G.units.includes(u))return;
+if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!selfRun(u)||!G.units.includes(u))return;
   if(u.tow!=null||u.lj||!idle(u)||u._fixing){u._idleT=null;return;}if(u._idleT==null){u._idleT=t;return;}if(t-u._idleT<POL.truckIdle)return;u._idleT=null;
   const P=polStage(u,4);if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)>2.5){u.path=pathPts(u,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}};}
 // 구급차: 25초 넘게 할 일이 없으면 전선 4.5칸 뒤로 나가 기다린다(기다리는 구급차는 가까운 응급 후송 지점이 된다)
-if(typeof ambTick==='function'){const _ab=ambTick;ambTick=function(a,dt,t){_ab(a,dt,t);if(!aiRun(a.nat)||!G.units.includes(a))return;
+if(typeof ambTick==='function'){const _ab=ambTick;ambTick=function(a,dt,t){_ab(a,dt,t);if(!selfRun(a)||!G.units.includes(a))return;
   if(a.mj||(a.load&&a.load.length)||(a.path&&a.path.length)||a.towBy!=null||hotAt(a.nat,a.x,a.z,4)){a._idleT=null;return;}
   if(a._idleT==null){a._idleT=t;return;}if(t-a._idleT<POL.truckIdle)return;a._idleT=null;
   const P=polStage(a,4.5);if(P&&Math.hypot(P[0]-a.x,P[1]-a.z)>2.5){a.path=pathPts(a,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}};}
@@ -5634,7 +5640,7 @@ function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||
   if(t-u.man<AUTO.hold)return true;u.man=null;return false;}
 /* ---------- 엔진에 끼우기 ---------- */
 // 플레이어 명령을 받은 부대는 직접 지휘로
-{const _rs=radioSend;radioSend=function(n,us,k,a){if(k!=='mis'&&k!=='ai'&&autoOn(n))for(const u of us||[])if(u&&u.nat===n)u.man=G.time||0;return _rs.apply(this,arguments);};}
+{const _rs=radioSend;radioSend=function(n,us,k,a){if(k!=='mis'&&k!=='ai'){const on=autoOn(n);for(const u of us||[])if(u&&u.nat===n&&(on||SELF_RUN[u.type]))u.man=G.time||0;}return _rs.apply(this,arguments);};}
 // 부관 세력: 직접 지휘 부대를 숨기고 생각한다. 자동 증원이 꺼져 있으면 사지 않는다
 {const _ai=aiThink;aiThink=function(n){if(!autoOn(n))return _ai(n);const hid=[];
   for(const u of G.units)if(u.nat===n&&!u.job&&autoManual(u)){u.job=AUTO_HIDE;hid.push(u);}
@@ -5659,6 +5665,19 @@ function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||
   if(on==null&&cfg&&cfg.slots&&!cfg.force&&typeof document!=='undefined'){const el=document.getElementById('opt-cmd');on=el?el.value==='auto':false;}
   for(const n of G.order){const N2=G.nats[n];N2.autoBuy=true;N2.intent=null;N2.auto=false;if(on&&N2.ctrl==='human')autoSet(n,true);}
   return r;};}
+/* ---------- 직접 지휘 세력의 지원 부대: AI 두뇌를 지원 부대에만 돌린다 ----------
+   G._supOnly=n 인 동안: 전투 부대·직접 명령 받은 부대는 숨기고, 증원 구매·화력 지원·진지 공사(지휘점수가 드는 일)는 하지 않는다. */
+{const _ai=aiThink;aiThink=function(n){if(G._supOnly!==n)return _ai(n);const hid=[];
+  for(const u of G.units)if(u.nat===n&&!u.job&&(!selfRun(u)||u.msn||u.pl)){u.job=AUTO_HIDE;hid.push(u);}
+  try{return _ai(n);}finally{for(const u of hid)if(u.job===AUTO_HIDE)u.job=null;}};}
+{const _s=support;support=function(n){if(G._supOnly===n)return false;return _s.apply(this,arguments);};}
+{const _b=buy;buy=function(n){if(G._supOnly===n)return null;return _b.apply(this,arguments);};}
+if(typeof aiFort==='function'){const _f=aiFort;aiFort=function(n){if(G._supOnly===n)return;return _f.apply(this,arguments);};}
+if(typeof polMortar==='function'){const _pm=polMortar;polMortar=function(u){if(u.man!=null&&autoManual(u))return;return _pm.apply(this,arguments);};}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over)return;
+  for(const n of G.order){const N2=G.nats[n];if(aiRun(n)||!N2.alive)continue;N2.sT=(N2.sT??1)-dt;if(N2.sT>0)continue;N2.sT=2+Math.random()*.8;
+    if(!G.units.some(u=>u.nat===n&&SELF_RUN[u.type]))continue;const p=G._supOnly;G._supOnly=n;
+    try{aiThink(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}finally{G._supOnly=p;}}};}
 
 /* ---- 06g-logi.js ---- */
 /* ===================== LOGI: 보급 트럭을 덜 잃게 =====================
@@ -5669,7 +5688,7 @@ function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||
    - 트럭은 받을 부대 바로 곁이 아니라 그 부대에서 보급소 쪽으로 1.1칸 뒤에 선다(나눠 주는 거리 1.6칸 안).
    - 가는 길이나 서 있는 자리가 위험하면 보급소로 물러나고, 그 부대는 30초 동안 건너뛴다(기존 규칙과 같음). */
 const LOGI={r:3.2,air:4.5,mem:8,back:1.1};
-const lgAI=n=>typeof aiRun==='function'?aiRun(n):isAI(n);   // 부관(06f-auto)이 있으면 부관 세력도
+
 function logiDanger(n,x,z){const t=G.time||0;
   if(hotAt(n,x,z,LOGI.r))return true;
   if(typeof memOf==='function'){const M=memOf(n);for(const id in M){const p=M[id];if(t-p.t>LOGI.mem)continue;if(Math.hypot(p.x-x,p.z-z)<LOGI.r)return true;}}
@@ -5678,13 +5697,13 @@ function logiDanger(n,x,z){const t=G.time||0;
 /* 받을 부대 뒤 (보급소 쪽) 만남 지점 */
 function logiMeet(u,e){const d=depotOf(u.nat);const dx=d.x-e.x,dz=d.z-e.z,L=Math.hypot(dx,dz)||1;const k=Math.min(LOGI.back,L);
   const x=e.x+dx/L*k,z=e.z+dz/L*k;return walkable(u,x,z)?[x,z]:[e.x,e.z];}
-if(typeof supSend==='function'){const _ss=supSend;supSend=function(u,e){if(!lgAI(u.nat))return _ss(u,e);
+if(typeof supSend==='function'){const _ss=supSend;supSend=function(u,e){if(!selfRun(u))return _ss(u,e);
   if(logiDanger(u.nat,e.x,e.z)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}
   const r=_ss(u,e);if(u.lj&&u.lj.k==='serve'){const m=logiMeet(u,e);const P=pathPts(u,m[0],m[1]);if(P.length)u.path=P;}return r;};}
 if(typeof supTick==='function'){const _st=supTick;supTick=function(u,dt){
   // 기존 판단은 받을 부대 바로 곁까지 다시 길을 찾는다: 만남 지점까지만 가게 고친다
   const pre=u.lj&&u.lj.k==='serve'?u.lj.id:null;const pp=u.path;
-  _st(u,dt);if(!G.units.includes(u)||!lgAI(u.nat))return;const t=G.time||0;
+  _st(u,dt);if(!G.units.includes(u)||!selfRun(u))return;const t=G.time||0;
   if(pre!=null&&u.lj&&u.lj.k==='serve'&&u.lj.id===pre&&u.path!==pp&&u.path&&u.path.length){const e=uById(pre);if(e){const m=logiMeet(u,e);const P=pathPts(u,m[0],m[1]);if(P.length)u.path=P;}}
   if(atDepot(u)||(u.lj&&u.lj.k==='home'&&u.path&&u.path.length))return;
   if((u._lgT||0)>t)return;u._lgT=t+.5;
@@ -9565,7 +9584,7 @@ const ADJ_K={atk:'공격',def:'방어'};
 const adjL=(l,sh)=>`<span class="adj-l">${l}</span><span class="adj-s">${sh}</span>`;
 function adjDesc(I){if(!I)return '부관 재량 (가까운 거점부터)';if(I.obj)return `${ADJ_K[I.k]} · ${I.obj}`;
   let o=null,bd=7;for(const q of G.objs){const d=Math.hypot(q.c+.5-I.x,q.r+.5-I.z);if(d<bd){bd=d;o=q;}}return `${ADJ_K[I.k]} · ${o?o.name+' 근처':'지정 지점'}`;}
-const adjCan=()=>G&&!G.over&&!G.boot&&!isAI(G.viewer)&&!(typeof specOn==='function'&&specOn())&&!(G.scn==='tut');
+const adjCan=()=>G&&!G.over&&!G.boot&&!isAI(G.viewer)&&!(typeof specOn==='function'&&specOn());
 function adjAim(x,z){const n=G.viewer;const k=UI.phase==='aim:def'?'def':'atk';const I=autoIntent(n,k,x,z);UI.phase=null;
   if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#ffd27a');if(typeof sndRadio==='function')sndRadio('ack');toast(`주공 목표: ${adjDesc(I)}`);L(`부관: 주공 ${adjDesc(I)}`);}render();}
 /* 설정 화면: 지휘 방식 */
@@ -9579,7 +9598,8 @@ if(typeof document!=='undefined'){if(document.readyState==='loading')document.ad
   if(UI.phase==='aim:atk'||UI.phase==='aim:def'){const k=UI.phase==='aim:def'?'방어 지점':'공격 목표';
     el.innerHTML=`<b style="color:#ffd27a">${k} 지정</b><span>지도나 왼쪽 위 작은 지도를 탭하세요 · 거점 가까이 누르면 그 거점</span><div class="ab"><button class="btn sm" data-act="adj:cancel" id="ab-adj-cancel">취소</button></div>`;return;}
   const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;
-  if(s){if(!N2.auto)return;const grp=[s,...(UI.group||[])].filter(u=>u&&G.units.includes(u));const ab=el.querySelector('.ab');
+  if(s){const grp=[s,...(UI.group||[])].filter(u=>u&&G.units.includes(u));const ab=el.querySelector('.ab');
+    if(!N2.auto){if(ab&&grp.some(u=>SELF_RUN[u.type]&&u.man!=null))ab.insertAdjacentHTML('afterbegin','<button class="btn sm primary" data-act="adj:free" id="ab-adj-free" title="보급·후송·견인·포 자리 잡기를 다시 알아서 합니다">자동 임무로</button>');return;}
     if(ab&&grp.some(u=>u.man!=null))ab.insertAdjacentHTML('afterbegin','<button class="btn sm primary" data-act="adj:free" id="ab-adj-free" title="이 부대를 다시 부관이 지휘합니다">부관에게 돌려주기</button>');
     const sp=el.querySelector(':scope>span');if(sp&&!grp.some(u=>u.man!=null))sp.insertAdjacentText('beforeend',' · 직접 명령하면 이 부대만 직접 지휘');return;}
   if(UI.pane||UI.phase==='buy'||UI.phase==='sup')return;
@@ -9602,7 +9622,7 @@ if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e
   if(a==='buy'){N2.autoBuy=N2.autoBuy===false;toast(`자동 증원 ${N2.autoBuy?'켬':'끔'}`);render();return;}
   if(a==='on'){autoSet(n,true);toast('부관이 지휘합니다. 공격 목표를 정해 주세요');render();return;}
   if(a==='off'){autoSet(n,false);toast('직접 지휘로 바꿨습니다');render();return;}
-  if(a==='free'){const grp=[UI.sel,...(UI.group||[])].filter(u=>u&&G.units.includes(u));for(const u of grp){u.man=null;u.hold=false;}toast(`${grp.length}개 부대를 부관에게 돌려줌`);clearSel();render();return;}});
+  if(a==='free'){const grp=[UI.sel,...(UI.group||[])].filter(u=>u&&G.units.includes(u)&&(N2.auto||SELF_RUN[u.type]));for(const u of grp){u.man=null;u.hold=false;}toast(N2.auto?`${grp.length}개 부대를 부관에게 돌려줌`:`${grp.length}개 지원 부대 자동 임무`);clearSel();render();return;}});
 /* 지도 탭: 목표 지정 중이면 목표로 */
 {const _tap=tap;tap=function(k){if(G&&!G.over&&(UI.phase==='aim:atk'||UI.phase==='aim:def')){const pt=(typeof V3!=='undefined'&&V3.pickPt)||[kc(k)+.5,kr(k)+.5];adjAim(pt[0],pt[1]);return;}return _tap(k);};}
 if(typeof mmPick==='function'){const _mp=mmPick;mmPick=function(x,z,first){if(G&&(UI.phase==='aim:atk'||UI.phase==='aim:def')){if(first)adjAim(x,z);return false;}return _mp.apply(this,arguments);};}
@@ -9616,6 +9636,8 @@ if(typeof occLabels==='function'){const _ol=occLabels;occLabels=function(want,vs
 if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){const h=_ut(u);return G&&u.nat===G.viewer&&u.man!=null&&autoOn(u.nat)?h+'<u class="man">직접</u>':h;};}
 /* 판을 시작하면 한 번 안내 */
 {const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(G&&!G._adjHint&&adjCan()&&G.nats[G.viewer].auto&&$('#setup').hidden){G._adjHint=1;toast('부관이 부대를 지휘합니다 · 아래 [공격 목표]로 주공 방향을 정하세요');}}catch(e){}return r;};}
+/* 지원 부대 정보: 자동 임무 중인지 */
+{const _ui=uInfo;uInfo=function(u){let s=_ui(u);if(G&&u.nat===G.viewer&&!isAI(u.nat)&&SELF_RUN[u.type])s+=selfRun(u)?' · 자동 임무':' · 직접 명령 중';return s;};}
 
 /* ---- 08v-spec.js ---- */
 /* ===================== 관전 모드: 모든 세력을 AI가 지휘한다 =====================
@@ -9950,7 +9972,7 @@ function closeMore(){const m=$('#mapctl');if(m&&m.classList.contains('open')){m.
 /* ---- 10-scenario.js ---- */
 /* ===================== SCENARIOS ===================== */
 const SCN={
-  tut:{n:'기초 훈련',d:'이동·건물 엄폐·사격·점령·증원을 차례로 익힙니다.'},
+  tut:{n:'기초 훈련',d:'이동·건물 엄폐·사격·점령·증원, 부관에게 맡기기를 차례로 익힙니다.'},
   assault:{n:'도심 돌파',d:'적이 모든 거점을 쥐고 있습니다. 8분 안에 거점 5곳을 동시에 확보하세요.'},
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
@@ -9972,13 +9994,15 @@ function scnSetup(k,sp){sp=sp??260;
   bump();return G;}
 function scnObjective(){if(!G||!G.scn)return null;const n=0;if(G.camp&&typeof campObjective==='function')return campObjective();
   if(G.scn==='tut'){const S=[
-      ['1/6 이동','소총분대를 탭해 고르고 땅을 탭하면 그리로 움직입니다. 건물에 들어가면 엄폐 40%를 받습니다.'],
-      ['2/6 시야','건물은 시야를 가립니다. 높은 건물에 들어가면 더 멀리 봅니다. 화면을 드래그해 둘러보세요. Space로 언제든 멈출 수 있습니다.'],
-      ['3/6 사격','부대는 사거리 안의 적을 알아서 쏩니다. 부대를 고른 뒤 적을 탭하면 그 적을 쫓아가 공격합니다.'],
-      ['4/6 점령','깃발과 빛기둥이 있는 거점에 소총분대를 들여보내 점령하세요. 거점마다 30초마다 승점과 지휘점수가 들어옵니다.'],
-      ['5/6 증원','하단 바의 "증원·지원"에서 부대를 골라 집결지(초록 칸)에 배치해 보세요.'],
-      ['6/6 마무리','남은 적을 몰아내고 거점을 모두 확보하세요. 교범 탭에 규칙이 정리돼 있습니다.']];
-    const i=Math.min(G.tut||0,5);return {t:S[i][0],m:S[i][1]};}
+      ['1/8 이동','소총분대를 탭해 고르고 땅을 탭하면 그리로 움직입니다. 건물에 들어가면 엄폐 40%를 받습니다.'],
+      ['2/8 시야','건물은 시야를 가립니다. 높은 건물에 들어가면 더 멀리 봅니다. 화면을 드래그하거나 왼쪽 위 작은 지도를 눌러 둘러보세요. Space로 언제든 멈출 수 있습니다.'],
+      ['3/8 사격','부대는 사거리 안의 적을 알아서 쏩니다. 부대를 고른 뒤 적을 탭하면 그 적을 쫓아가 공격합니다.'],
+      ['4/8 점령','깃발과 빛기둥이 있는 거점에 소총분대를 들여보내 점령하세요. 거점마다 30초마다 승점과 지휘점수가 들어옵니다.'],
+      ['5/8 증원','하단 바의 "증원·지원"에서 부대를 골라 집결지(초록 칸)에 배치해 보세요. 보급 트럭·구급차·구난차는 배치만 하면 탄약 보급·부상자 후송·견인을 알아서 합니다.'],
+      ['6/8 부관','부대마다 명령하기 번거로우면 부관(AI)에게 맡기세요. 아무 부대도 고르지 않은 상태에서 하단의 [부관에게 맡기기]를 누르세요.'],
+      ['7/8 주공 목표','[공격 목표]를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요. 이동·엄폐·화력 지원·증원은 부관이 합니다. 지킬 곳은 [방어 지점]으로 정합니다.'],
+      ['8/8 직접 명령','부관이 지휘하는 중에도 부대를 골라 명령하면 그 부대만 직접 움직입니다(\'직접\' 표시). 일을 마치고 45초 뒤, 또는 [부관에게 돌려주기]로 다시 부관이 맡습니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
+    const i=Math.min(G.tut||0,7);return {t:S[i][0],m:S[i][1]};}
   if(G.scn==='assault')return {t:'도심 돌파',m:`거점 ${objCount(n)}/5 동시 확보 · 남은 시간 ${fmtT(16*ROUND_S-G.time)}`};
   if(G.scn==='hold')return {t:'최후 방어',m:`거점 ${objCount(n)}곳 유지 중 (3곳 이상) · 남은 시간 ${fmtT(14*ROUND_S-G.time)}`};
   return null;}
@@ -9988,6 +10012,8 @@ function scnAfterAct(){if(!G||G.scn!=='tut')return;const n=0;G.tut=G.tut||0;
   else if(G.tut===2&&G.nats[n].dmg>0)G.tut=3;
   else if(G.tut===3&&objCount(n)>0)G.tut=4;
   else if(G.tut===4&&G.nats[n].bought)G.tut=5;
+  else if(G.tut===5&&G.nats[n].auto)G.tut=6;
+  else if(G.tut===6&&G.nats[n].auto&&G.nats[n].intent)G.tut=7;
   if(typeof document!=='undefined')renderObj();}
 function scnCheck(){if(!G||!G.scn||G.over)return;const n=0;
   if(G.scn==='tut'){scnAfterAct();if(!G.units.some(u=>u.nat===1)&&objCount(n)===G.objs.length)G.over={win:0,why:'훈련 완료'};}

@@ -29,8 +29,10 @@ test('보급 트럭: 둘레 아군에게 탄약을 나눠 주고, 비면 보급�
   assert.ok(a.am > 50, `채워짐 ${a.am}`); assert.ok(s.cargo < 100);
   s.cargo = 2; run(T, 3);
   const d = F(T, 'depotOf')(0); assert.ok(s.path.length || Math.hypot(s.x - d.x, s.z - d.z) < 2, '보급소로 향함');
-  run(T, 80);
-  assert.ok(Math.hypot(s.x - d.x, s.z - d.z) < 2, '보급소 도착'); assert.ok(s.cargo > 90, `다시 실음 ${s.cargo}`);
+  // 사람 세력 트럭도 자동 임무라 다시 실으면 앞으로 나간다: 들렀다가 다시 실었는지만 본다
+  let near = 9, full = 0;
+  for (let i = 0; i < 800; i++) { T.rtTick(0.1); near = Math.min(near, Math.hypot(s.x - d.x, s.z - d.z)); full = Math.max(full, s.cargo); }
+  assert.ok(near < 2, '보급소 도착'); assert.ok(full > 90, `다시 실음 ${full}`);
 });
 
 test('구난차: 안전하면 현장에서 고치고, 적이 가까우면 보급소까지 끌고 가서 고친다', () => {

@@ -27,7 +27,7 @@ function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||
   if(t-u.man<AUTO.hold)return true;u.man=null;return false;}
 /* ---------- 엔진에 끼우기 ---------- */
 // 플레이어 명령을 받은 부대는 직접 지휘로
-{const _rs=radioSend;radioSend=function(n,us,k,a){if(k!=='mis'&&k!=='ai'&&autoOn(n))for(const u of us||[])if(u&&u.nat===n)u.man=G.time||0;return _rs.apply(this,arguments);};}
+{const _rs=radioSend;radioSend=function(n,us,k,a){if(k!=='mis'&&k!=='ai'){const on=autoOn(n);for(const u of us||[])if(u&&u.nat===n&&(on||SELF_RUN[u.type]))u.man=G.time||0;}return _rs.apply(this,arguments);};}
 // 부관 세력: 직접 지휘 부대를 숨기고 생각한다. 자동 증원이 꺼져 있으면 사지 않는다
 {const _ai=aiThink;aiThink=function(n){if(!autoOn(n))return _ai(n);const hid=[];
   for(const u of G.units)if(u.nat===n&&!u.job&&autoManual(u)){u.job=AUTO_HIDE;hid.push(u);}
@@ -52,3 +52,16 @@ function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||
   if(on==null&&cfg&&cfg.slots&&!cfg.force&&typeof document!=='undefined'){const el=document.getElementById('opt-cmd');on=el?el.value==='auto':false;}
   for(const n of G.order){const N2=G.nats[n];N2.autoBuy=true;N2.intent=null;N2.auto=false;if(on&&N2.ctrl==='human')autoSet(n,true);}
   return r;};}
+/* ---------- 직접 지휘 세력의 지원 부대: AI 두뇌를 지원 부대에만 돌린다 ----------
+   G._supOnly=n 인 동안: 전투 부대·직접 명령 받은 부대는 숨기고, 증원 구매·화력 지원·진지 공사(지휘점수가 드는 일)는 하지 않는다. */
+{const _ai=aiThink;aiThink=function(n){if(G._supOnly!==n)return _ai(n);const hid=[];
+  for(const u of G.units)if(u.nat===n&&!u.job&&(!selfRun(u)||u.msn||u.pl)){u.job=AUTO_HIDE;hid.push(u);}
+  try{return _ai(n);}finally{for(const u of hid)if(u.job===AUTO_HIDE)u.job=null;}};}
+{const _s=support;support=function(n){if(G._supOnly===n)return false;return _s.apply(this,arguments);};}
+{const _b=buy;buy=function(n){if(G._supOnly===n)return null;return _b.apply(this,arguments);};}
+if(typeof aiFort==='function'){const _f=aiFort;aiFort=function(n){if(G._supOnly===n)return;return _f.apply(this,arguments);};}
+if(typeof polMortar==='function'){const _pm=polMortar;polMortar=function(u){if(u.man!=null&&autoManual(u))return;return _pm.apply(this,arguments);};}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over)return;
+  for(const n of G.order){const N2=G.nats[n];if(aiRun(n)||!N2.alive)continue;N2.sT=(N2.sT??1)-dt;if(N2.sT>0)continue;N2.sT=2+Math.random()*.8;
+    if(!G.units.some(u=>u.nat===n&&SELF_RUN[u.type]))continue;const p=G._supOnly;G._supOnly=n;
+    try{aiThink(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}finally{G._supOnly=p;}}};}
