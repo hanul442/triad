@@ -496,7 +496,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
     <div class="slot"><span></span><label for="opt-hour">시작 시각</label><select id="opt-hour"><option value="day">아침 07시</option><option value="dusk">해질녘 17시</option><option value="night">한밤 22시</option><option value="dawn">새벽 03시</option></select></div>
     <div class="slot"><span></span><label for="opt-tflow">시간 흐름</label><select id="opt-tflow"><option value="fixed">고정 (시간이 멈춤)</option><option value="real">실시간 (한 판 12분)</option><option value="slow">느리게 (한 판 3시간)</option><option value="normal" selected>보통 (한 판 6시간)</option><option value="fast">빠르게 (한 판 하루)</option></select></div>
-    <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비</option><option value="fog">짙은 안개</option><option value="storm">폭우</option></select></div>
+    <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비 (겨울엔 눈)</option><option value="fog">짙은 안개 (사막엔 먼지 연무)</option><option value="storm">폭우 (겨울엔 눈보라, 사막엔 모래폭풍)</option></select></div>
     <div class="slot"><span></span><label for="opt-win">승리 방식</label><select id="opt-win"><option value="vp" selected>승점 (거점을 쥐어 승점 먼저 채우기)</option><option value="lts">최후 생존 (마지막까지 남은 세력이 승리)</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
     <div class="slot"><span></span><label for="opt-geneva">제네바 협약</label><select id="opt-geneva"><option value="mil" selected>민병대는 무시 (나머지는 구급차·구호소를 쏘지 않음)</option><option value="all">모두 지킴</option><option value="off">끄기 (보호 없음)</option></select></div>
@@ -2117,7 +2117,7 @@ function wxRound(){if(G.wxLock)return;const s=hourSec()||120;if(Math.random()>Ma
   const cur=G.wx||'clear';if(Math.random()<WX_STAY[cur])return;
   const nx=WX_NEXT[cur];let r=Math.random(),k=cur;for(const w in nx){r-=nx[w];if(r<0){k=w;break;}}
   if(k===cur)return;G.wx=k;const msg={clear:'날씨가 갰습니다',rain:'비가 내리기 시작합니다 · 시야와 드론 운용 감소',fog:'짙은 안개가 깔립니다 · 드론이 땅을 거의 못 봅니다',storm:'폭우와 강풍 · 드론·헬기 비행 불가'}[k];
-  L(`날씨: ${msg}`);if(k==='storm')stormGround();bump();}
+  const kk=typeof wxKind==='function'?wxKind():k;L(`날씨: ${typeof WXK==='object'&&WXK[kk]&&WXK[kk].m||msg}`);if(k==='storm')stormGround();bump();}
 /* 폭우가 오면 공격헬기는 철수한다 */
 function stormGround(){for(const u of G.units.slice())if(UT[u.type].heli&&typeof airRemove==='function'){L(`${natName(u.nat)} 공격헬기 기상 악화로 철수`);airRemove(u);}}
 const airGrounded=type=>!!(G&&WX[G.wx]&&WX[G.wx].noAir&&UT[type]&&(UT[type].fly||UT[type].dteam));
@@ -2283,7 +2283,7 @@ function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.fac
   const dmg=Math.round(rawDmg(a,d,false)*hits/k*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;if(ta.sup)d.supp=Math.max(d.supp||0,hits?1.2:.8);   // 기관총·박격포는 빗나가도 고개를 숙이게 한다
   if(ta.ex&&typeof fortBlast==='function')fortBlast(d.x,d.z,.25,(hits?3:1.5)*ta.ex*COOL[a.type]);// 폭발물은 근처 방어물도 부순다
   if(!hits)return 0;if(ta.ex)d.supp=Math.max(d.supp||0,1);
-  if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.max(1,Math.round(dmg*ta.ex*.8)));
+  if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.max(1,Math.round(dmg*ta.ex*(a.type==='tank'?.4:.8))));   // 전차 고폭탄은 방 하나를 부수지 건물을 무너뜨리진 않는다
   G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;harm(d,dmg,a,{kind:ta.ex?'blast':'bullet',hits});if(d.hp<=0&&G.units.includes(d))kill(d,a);return dmg;}   // FPV는 한 발에 떨어진다(피해가 0이어도)
 function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(r-a.r,c-a.c)*180/Math.PI;FXH.fire(a,r,c);
   const amt=Math.max(1,Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*DPS_K*COOL[a.type]*1.2*(.85+Math.random()*.3)));damageBldg(r,c,amt);
@@ -3211,17 +3211,18 @@ function hurtMen(u,amt,by,o){const M=menOf(u);const kind=o.kind||'bullet';
 function vdOf(u){return u.vd||(u.vd={mob:0,gun:0,crew:Array.from({length:VCREW[u.type]||3},()=>'ok'),fire:0});}
 function hurtVeh(u,amt,by,o){const V=vdOf(u);const ta=by?UT[by.type]:null;const kind=o.kind||'bullet';
   u.hp=Math.round((u.hp-amt)*10)/10;u._hitT=G.time||0;
-  const heavy=kind==='blast'||kind==='crush'||(ta&&ta.atk.veh>=5);const S=casStats(u.nat);const nm=`${natName(u.nat)} ${UT[u.type].n}`;
+  const pv=o.pv;   // 관통 판정(05na-pen): 뚫은 탄만 안쪽 부품·승무원을 다치게 한다
+  const heavy=pv?!!pv.pen&&(pv.P>=60||kind==='blast'||kind==='crush'):kind==='blast'||kind==='crush'||(ta&&ta.atk.veh>=5);const S=casStats(u.nat);const nm=`${natName(u.nat)} ${UT[u.type].n}`;
   const rolls=Math.min(3,Math.max(1,o.hits||1));const crewHit=()=>{const i=V.crew.findIndex(c=>c==='ok');if(i<0)return;V.crew[i]=Math.random()<.4?'kia':'hw';if(V.crew[i]==='kia')S.kia++;else S.wia++;};
   for(let k=0;k<rolls;k++){
-    if(heavy){let pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(o.arm||1))*Math.min(1,amt/2.5);if(Math.random()>pen)continue;   // 파편 몇 점(피해 1~2)은 부품까지 잘 안 뚫는다
+    if(heavy){let pen=pv?Math.min(.95,.55+.15*Math.log2(Math.max(1,pv.r))):UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(pv?1:o.arm||1))*Math.min(1,amt/2.5);if(Math.random()>pen)continue;   // 파편 몇 점(피해 1~2)은 부품까지 잘 안 뚫는다
       const r=Math.random();
       if(r<.28){if(!V.mob){V.mob=1;L(`${nm} 기동 불능`);}}
       else if(r<.5){if(!V.gun){V.gun=1;L(`${nm} 무장 파손`);}}
       else if(r<.78){crewHit();if(Math.random()<.4)crewHit();}
       else{V.fire=1;}
       FXH.vhit(u,r);}
-    else if(u.type==='hmv'&&Math.random()<.18)crewHit();}       // 험비는 장갑이 얇아 소총탄에도 승무원이 다친다
+    else if(pv?pv.pen:u.type==='hmv'){if(Math.random()<.18)crewHit();if(pv&&Math.random()<.04&&!V.mob){V.mob=1;L(`${nm} 기동 불능`);}}}   // 얇은 차는 소총탄·12.7mm가 안까지 들어온다       // 험비는 장갑이 얇아 소총탄에도 승무원이 다친다
   if(!G.units.includes(u))return;
   const crewDown=V.crew.filter(c=>c!=='ok').length;
   if(u.hp<=0){S.veh++;casCook(u,.5);kill(u,by);return;}
@@ -3377,16 +3378,18 @@ function blastHurt(u,dmg,by,o){if(!(dmg>0)||!G.units.includes(u))return;u.supp=M
 /* 터짐: (x,z,h) 지점. 건물(r,c)에 꽂혔으면 r,c가 있다 */
 function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.src):null;const ta=UT[s.type]||UT.mortar;const base=DPS_K*(COOL[s.type]||4.6)*1.25*s.pw;
   if(r!=null){damageBldg(r,c,Math.max(1,Math.round((2+ta.ex*2)*s.pw*(.8+Math.random()*.4))));if(typeof ignite==='function')ignite(r,c,.18*s.pw);}
-  const bf=r!=null?Math.floor(h):null;
-  for(const u of G.units.slice()){if(UT[u.type].fly)continue;const d=Math.hypot(u.x-x,u.z-z);if(d>SHELL_R*1.6)continue;
-    const X=cell(u.r,u.c);const inB=X.t==='bldg'&&eye(u)<bldgH(X);let f=Math.max(0,1-d/SHELL_R);
+  const bf=r!=null?Math.floor(h):null;const SR=(typeof SHELL_RK==='object'&&SHELL_RK[s.type])||SHELL_R;   // 구경별 반경(05na-pen)
+  for(const u of G.units.slice()){if(UT[u.type].fly)continue;const d=Math.hypot(u.x-x,u.z-z);if(d>SR*1.6)continue;
+    const X=cell(u.r,u.c);const inB=X.t==='bldg'&&eye(u)<bldgH(X);let f=Math.max(0,1-d/SR);
     if(r!=null&&u.r===r&&u.c===c&&UT[u.type].cls==='inf'){const df=Math.abs(curFl(u)-bf);f=df<.6?1:df<1.6?.45:.12;}   // 꽂힌 건물: 그 층이 크게 다친다
     else if(inB)f*=.12;                                  // 다른 건물 안: 벽이 막아 준다
     else if(r!=null)f*=.6;
     if(r==null&&UT[u.type].cls==='inf'&&typeof trenchAt==='function'&&trenchAt(u.x,u.z))f*=d<.25?.8:.45;   // 참호: 바로 옆에 떨어지지 않으면 파편을 막는다                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
-    if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
-    const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
-    dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by,{kind:'blast',x,z,rad:SHELL_R*.6});else u.supp=Math.max(u.supp||0,1);}
+    if(d>SR&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
+    const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor&&typeof PEN_SH!=='object')dm*=.5;   // 장갑은 관통 판정(05na-pen)이 따진다
+    dm=Math.round(dm*10)/10;
+    if(dm>0&&UT[u.type].cls==='inf'&&typeof SHELL_PK==='object'){const fd=Math.max(.05,1-d/SR);blastHurt(u,Math.max(.1,dm),by,{kind:'blast',x,z,rad:SR,pk:Math.min(.97,(SHELL_PK[s.type]||.8)*Math.min(1.2,f/fd)*Math.min(1.3,s.pw)),sh:s.type});}   // 보병: 병사마다 거리로(05k blastMen, 05p 반경)
+    else if(dm>0)blastHurt(u,dm,by,{kind:'blast',x,z,rad:SR*.6,sh:s.type});else u.supp=Math.max(u.supp||0,1);}
   if(typeof fortBlast==='function')fortBlast(x,z,r!=null?.5:.9,Math.round(14*s.pw));   // 바리케이드·참호도 부서진다(04d-fort)
   if(typeof FXH.boom==='function')FXH.boom(x,z,h,r!=null,s);
   bump();}
@@ -3752,8 +3755,8 @@ function elevOK(a,d,ax,az,ae){if(a.type!=='tank'||UT[d.type].fly)return true;con
   if(td.cls==='veh'&&atWpn(a)&&ta.cls==='inf'&&escorted(d))p*=.8;               // 호위 보병이 대전차조를 견제한다
   h.p=Math.max(0,Math.min(1,p));return h;};}
 /* 차량 피해: 맞은 방향에 따라 관통이 달라지고, 호위 없는 차량은 대전차조에 더 크게 당한다 */
-{const _harm=harm;harm=function(u,amt,by,o){o=o||{};if(u&&by&&amt>0&&UT[u.type].cls==='veh'&&G.units.includes(u)&&atWpn(by)&&by!==u){
-    const s=armorArc(u,by);o.arm=REAL.arc[s];o.arc=s;amt*=REAL.arc[s];if(UT[by.type].cls==='inf'&&!escorted(u)){amt*=1.25;o.lone=1;}
+{const _harm=harm;harm=function(u,amt,by,o){o=o||{};if(u&&by&&amt>0&&UT[u.type].cls==='veh'&&G.units.includes(u)&&atWpn(by)&&!o.w&&by!==u){
+    const s=o.pv?o.pv.arc:armorArc(u,by);o.arc=s;if(!o.pv){o.arm=REAL.arc[s];amt*=REAL.arc[s];}   // 관통 판정(05na-pen)이 있으면 그쪽 장갑을 쓴다if(UT[by.type].cls==='inf'&&!escorted(u)){amt*=1.25;o.lone=1;}
     u._arcT=G.time||0;u._arc=s;if(s!=='front'&&(!u._arcL||(G.time||0)-u._arcL>6)){u._arcL=G.time||0;L(`${natName(u.nat)} ${UT[u.type].n} ${REAL.arcN[s]} 피격${o.lone?' (호위 보병 없음)':''}`);}}
   const r=_harm(u,amt,by,o);if(u&&G.units.includes(u)&&UT[u.type].cls==='veh'&&by&&atWpn(by))vehSmoke(u,by);return r;};}
 /* 차량 연막탄: 대전차 화기에 맞으면 연막을 터뜨리고 정면을 적에게 둔 채 뒤로 빠진다 */
@@ -5313,6 +5316,177 @@ function ugAI(n){const t=G.time||0;const N2=G.nats[n];
   if(t>=(G._ugAI||0)){G._ugAI=t+2;for(const n of G.order||[])if(G.nats[n].alive&&aiRun(n))ugAI(n);}}
   catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 
+/* ---- 05na-pen.js ---- */
+/* ===================== 관통·장갑·부무장: 무기마다 실제 위력 =====================
+   피해는 "얼마나 세게"가 아니라 "뚫리느냐"로 정한다.
+   - 차량은 방향별 장갑 두께(균질압연강판 환산 mm), 무기는 관통력(mm)을 가진다. 맞을 때마다 맞은 자리에 따라 조금씩 다르다(약점·경사).
+     뚫으면 안까지 피해(넘치게 뚫을수록 크게, 부품·승무원), 못 뚫으면 차체 피해는 없다.
+     소총·기관총은 전차·장갑차를 못 뚫는다. 대신 잠망경·조준경을 깨고, 해치 밖으로 몸을 내민 차장을 맞히고, 승무원이 해치를 닫게 만든다.
+     RPG 정면은 전차를 못 뚫지만(궤도를 끊을 수는 있다) 측면·후면·위는 뚫는다. 대전차미사일은 위에서 내리꽂아 뚫는다.
+   - 전차 주포 고폭탄은 보병에게 치명적이다: 터진 곳 반경 약 10m 안 병사가 크게 다친다. 사격통제장치로 거의 다 맞는다.
+   - 장갑차 기관포(30mm 고폭)는 한 발 한 발이 작은 폭발. 12.7mm·기관포는 벽돌 벽을 뚫는다.
+   - 차량 부무장: 전차 동축 기관총·차장 원격 기관총·장전수 기관총, 장갑차(BTR) 동축 기관총, 자주포·트럭 지붕 기관총.
+     주포와 따로 자기 장전 시간으로 보병·얇은 차량을 쏜다. 해치를 열고 쏘는 기관총은 해치를 닫으면 못 쏜다.
+   - 포탄 폭발 반경은 구경에 따라: 박격포 약 17m, 다연장 22m, 155mm 26m.
+   근거(공개 자료): FM 3-20.12 전차 사격, FM 3-22.68 기관총, FM 3-09 화력, ATP 3-21.8 소대 교범의 무기 효과, 공개된 장갑·관통 추정치. 1칸 ≈ 12m. */
+const ARM={            // [정면, 측면, 후면, 상부·바닥]
+  tank:[600,90,50,40], ifv:[25,14,10,8], spg:[30,18,15,12], hmv:[10,9,8,5], rec:[12,10,8,6],
+  mlrs:[6,5,5,4], zu:[2,2,2,2], sup:[5,4,4,3], amb:[4,3,3,3], vbied:[6,3,3,3],
+};
+const ARC_I={front:0,side:1,rear:2,top:3};
+const PEN={            // 무기 관통력(mm)
+  rifle:7, dteam:7, ew:7, mg:9, sniper:14, coax:9, lmg:9, hmg:25, hmv:25, zu:35, ifv:60, gunship:70,
+  at:450, eng:700, atgm:900, fpv:300, tank:750, aa:0, vbied:300,
+};
+const PEN_SH={mortar:[18,120],spg:[30,250],mlrs:[25,150]};   // 포탄: [파편, 직격]
+const SHELL_RK={mortar:1.4,spg:2.2,mlrs:1.8};               // 포탄 폭발 반경(칸)
+const PV_CAP={tank:1.6,spg:2,ifv:3};
+const BAE={tank:1.8,atgm:1.5,eng:1.4,fpv:1.2};                 // 뚫은 뒤 안쪽 피해(대구경 날개안정분리탄·유도탄은 크다)                       // 넘치게 뚫어도 커지는 한계(큰 차는 안이 나뉘어 있다)
+const armOf=u=>ARM[u.type]||[8,6,6,5];
+/* 이 무기가 이 방향을 뚫을 수 있나(평균) */
+const penOf=(by,o)=>{if(o&&o.w&&PEN[o.w]!=null)return PEN[o.w];if(!by)return null;const p=Object.getPrototypeOf(by);
+  return PEN[by.type]??(p&&PEN[p.type])??10;};
+/* 맞은 방향 */
+function pvArc(u,by,o){if(o&&o.sh)return 'top';if(!by)return o&&o.kind==='crush'?'top':'side';
+  if(by.type==='atgm'||by.type==='eng'&&Math.hypot(by.x-u.x,by.z-u.z)<1.4)return 'top';   // 유도미사일은 위로 내리꽂고, 공병은 엔진 갑판에 폭약을 붙인다
+  return armorArc(u,by);}
+/* 관통 판정: {pen, r(관통/장갑), P, A, arc} */
+function pvRoll(u,by,o,amt){const arc=pvArc(u,by,o);const A=armOf(u)[ARC_I[arc]];let P;
+  if(o.sh){const S=PEN_SH[o.sh]||PEN_SH.mortar;const d=o.x!=null?Math.hypot(u.x-o.x,u.z-o.z):1;P=d<.18?S[1]:S[0];}
+  else if(o.pen!=null)P=o.pen;
+  else if(!by){if(o.kind==='crush')P=A*1.2;else{const d=o.x!=null?Math.hypot(u.x-o.x,u.z-o.z):0;P=amt*25*Math.max(.3,1-d/Math.max(.3,(o.rad||.4)*2));}}
+  else P=penOf(by,o);
+  const Pe=P*(.8+Math.random()*.4),Ae=A*(.8+Math.random()*.4);
+  return {pen:Pe>Ae,r:Pe/Math.max(1,Ae),P,A,arc};}
+/* 승무원 한 명이 다친다 */
+function pvCrew(u,why){const V=vdOf(u);const i=V.crew.findIndex(c=>c==='ok');if(i<0)return;const S=casStats(u.nat);V.crew[i]=Math.random()<.4?'kia':'hw';
+  if(V.crew[i]==='kia')S.kia++;else S.wia++;if(why&&(u.nat===G.viewer||!isAI(u.nat)))L(`${natName(u.nat)} ${UT[u.type].n} ${why}`);}
+/* 못 뚫은 탄: 잠망경·조준경, 밖에 나와 있던 차장, 궤도 */
+function pvGlance(u,by,o,R){const V=vdOf(u);const now=G.time||0;const nm=`${natName(u.nat)} ${UT[u.type].n}`;const bullet=R.P<100&&!o.sh&&o.kind!=='blast';
+  if(bullet){const n=Math.min(4,o.hits||1);const snp=by&&by.type==='sniper';const heavy=R.P>=20;
+    for(let i=0;i<n;i++){
+      if(Math.random()<(snp?.12:heavy?.05:.02)&&(V.opt||0)<3){V.opt=(V.opt||0)+1;if(V.opt===1||V.opt===3)L(`${nm} 잠망경·조준경 파손${V.opt>=3?' (거의 안 보임)':''}`);}
+      if(!(u.btn>now)&&Math.random()<(snp?.3:.05)){pvCrew(u,'차장 피격(해치 밖)');u.btn=now+20;}}
+    u.btn=Math.max(u.btn||0,now+10);u.supp=Math.max(u.supp||0,.4);return;}
+  // 큰 탄(RPG 정면·포탄 파편): 궤도·바퀴, 바깥 장비, 승무원 충격
+  if(R.arc!=='top'&&R.P>=150&&Math.random()<.12&&!V.mob){V.mob=1;L(`${nm} 궤도 끊어짐`);}
+  else if(Math.random()<(R.P>=150?.15:.05)&&(V.opt||0)<3)V.opt=(V.opt||0)+1;
+  u.btn=Math.max(u.btn||0,now+12);u.supp=Math.max(u.supp||0,.8);}
+/* 1) 차량 피해: 관통 판정 */
+{const _harm=harm;harm=function(u,amt,by,o){o=o||{};
+  if(u&&amt>0&&G.units.includes(u)&&UT[u.type].cls==='veh'&&!o.pv&&!(by&&by===u)){
+    const R=pvRoll(u,by,o,amt);o.pv=R;u._arcT=G.time||0;u._arc=R.arc;
+    if(!R.pen){pvGlance(u,by,o,R);u._hitT=G.time||0;
+      if(R.r>.75&&R.P>=100){amt*=(R.r-.75)*.8;o.kind='frag';}       // 거의 뚫을 뻔: 안쪽 파편(스폴)만 조금
+      else{if(typeof tacN==='function')tacN('nopen');return _harm(u,0,by,o);}}
+    else amt*=Math.min(PV_CAP[u.type]||3,1+.5*Math.log2(Math.max(1,R.r)))*(by&&!o.w&&!o.sh?BAE[by.type]||1:1);
+    amt=Math.round(amt*10)/10;}
+  return _harm(u,amt,by,o);};}
+/* 2) 못 뚫는 표적은 덜 노린다(소총이 전차를 쏘느라 보병을 놓치지 않게). 조준경이 깨진 차량은 덜 맞힌다 */
+{const _rd=rawDmg;rawDmg=function(a,d,counter){let v=_rd(a,d,counter);if(!v)return v;
+  if(UT[d.type].cls==='veh'&&!UT[a.type].ind){const P=penOf(a);if(P!=null&&P<armOf(d)[2]*.9)v*=.05;}
+  return v;};}
+{const _hp=hitP;hitP=function(a,d){const h=_hp(a,d);const ta=UT[a.type],td=UT[d.type];if(td.fly||ta.ind)return h;let p=h.p;
+  // 전차 주포: 사격통제장치로 거의 다 맞는다. 고폭탄은 엄폐물에 맞아도 터지니 엄폐는 폭발에서 따진다(05k blastMen)
+  if(a.type==='tank'&&td.cls==='inf'&&!a._sec){const rm=ta.rng[1]||1;const moving=a.path&&a.path.length;p=Math.max(p,(moving?.8:.92)*(1-.15*Math.pow(udist(a,d)/rm,2)));}
+  // 12.7mm·기관포는 벽돌·콘크리트 벽을 뚫는다
+  else if(h.kind==='bldg'&&(PEN[a._sec?a._w:a.type]||0)>=25&&ta.cls==='veh'){p=p/(1-Math.min(.85,h.cov))*(1-h.cov*.55);}
+  if(a.vd&&a.vd.opt)p*=1-.18*a.vd.opt;
+  h.p=Math.max(0,Math.min(1,p));return h;};}
+/* 3) 보병이 맞는 폭발: 전차 고폭탄(반경 약 10m), 장갑차 기관포·헬기 로켓(한 발마다 작은 폭발) */
+const HE={tank:{rad:.85,pk:.85},gunship:{rad:.6,pk:.45},ifv:{rad:.28,pk:.45}};   // 120mm 고폭 약 10m, 헬기 70mm 로켓 약 10m·30mm 약 4m을 섞어 약 7m, 30mm 기관포 약 3m
+{const _harm=harm;harm=function(u,amt,by,o){o=o||{};
+  if(u&&by&&amt>0&&!o.w&&!by._sec&&HE[by.type]&&G.units.includes(u)&&UT[u.type].cls==='inf'&&o.x==null&&!u.nocas&&typeof blastMen==='function'){
+    const H=HE[by.type];const inB=cell(u.r,u.c).t==='bldg';/* 건물 안: 방마다 벽이 있어 한 방만 크게 다친다 */const M=menOf(u).filter(m=>!m.dead&&!m.gone);if(M.length){
+      const n=by.type==='tank'?1:Math.max(1,Math.min(by.type==='gunship'?2:4,o.hits||1));   // 헬기: 한 번에 로켓 한두 발 + 기관포
+      for(let i=0;i<n&&G.units.includes(u);i++){const m=M[Math.floor(Math.random()*M.length)];const a=Math.random()*6.283,r=Math.random()*.15;
+        _harm(u,amt/n,by,{kind:'blast',x:m.x+Math.cos(a)*r,z:m.z+Math.sin(a)*r,rad:inB?H.rad*.5:H.rad,pk:H.pk});}
+      return amt;}}
+  return _harm(u,amt,by,o);};}
+/* 4) 차량 부무장 */
+// w: 무기(관통·모양), atk: 대보병 화력, k: 한 번에 쏘는 발수, cd: 다시 쏘기(초), rng: 사거리(칸), tur: 포탑과 같은 쪽만, open: 해치 열고 쏨
+// 트럭 링 마운트는 자위용: 가까이(3칸) 온 적에게만 쏜다(먼 적에게 쏘아 자리를 드러내지 않는다)
+const SEC={
+  tank:[{id:'coax',n:'동축 기관총',w:'coax',fx:'mg',atk:6,k:6,cd:1.1,rng:6,tur:1},
+        {id:'cmd',n:'차장 원격 기관총',w:'hmg',fx:'hmv',atk:6.5,k:4,cd:1.4,rng:6},
+        {id:'ldr',n:'장전수 기관총',w:'lmg',fx:'mg',atk:4.5,k:5,cd:1.3,rng:5,open:1,west:1}],
+  ifv:[{id:'coax',n:'동축 기관총',w:'coax',fx:'mg',atk:6,k:6,cd:1.1,rng:6,tur:1,east:1}],
+  spg:[{id:'roof',n:'지붕 기관총',w:'hmg',fx:'hmv',atk:6,k:4,cd:1.5,rng:6,open:1}],
+  sup:[{id:'ring',n:'링 마운트 기관총',w:'hmg',fx:'hmv',atk:5,k:3,cd:1.6,rng:3,open:1,self:1}],
+  rec:[{id:'ring',n:'링 마운트 기관총',w:'hmg',fx:'hmv',atk:5,k:3,cd:1.6,rng:3,open:1,self:1}],
+};
+const secList=u=>{const L=SEC[u.type];if(!L)return null;const east=u.nat%2===1;return L.filter(s=>!(s.west&&east)&&!(s.east&&!east));};
+/* 이 총으로 노릴 만한가: 보병, 또는 이 총이 옆을 뚫는 차량 */
+const secTgtOK=(s,e)=>{const td=UT[e.type];if(td.fly)return false;if(td.cls==='inf')return true;return td.cls==='veh'&&PEN[s.w]>=armOf(e)[1]*.9;};
+function secShoot(u,s){const now=G.time||0;u._sc=u._sc||{};if((u._sc[s.id]||0)>now)return false;
+  const V=u.vd;if(V){if(s.tur&&V.gun)return false;if(V.crew&&V.crew.filter(c=>c==='ok').length<2)return false;}
+  if(s.open&&u.btn>now)return false;                        // 해치를 닫았다
+  if(u.brk||u.climb)return false;
+  const P=Object.create(u);P.type='hmv';P._sec=1;P._w=s.w;
+  const R=s.rng*Math.max(1,(UT.mg.rng[1]||6)/6)+.5;let best=null,bs=0;   // 사거리는 기관총팀 사거리에 맞춰 늘어난다(사거리 조정 06y)
+  for(const e of G.units){if(!hostile(e.nat,u.nat)||!secTgtOK(s,e))continue;const dx=e.x-u.x,dz=e.z-u.z;const d2=dx*dx+dz*dz;if(d2>R*R||d2<.25)continue;
+    if(s.tur){const ang=Math.atan2(dz,dx)*180/Math.PI;if(Math.abs(hDeg(ang,u.tf??u.face??0))>25)continue;}
+    if(G.fog&&!seen(e,u.nat))continue;if(G.fog&&typeof selfSees==='function'&&!selfSees(u,e))continue;
+    const [ax,az]=posOf(u),[ex,ez]=posOf(e);if(!losPt(ax,az,eye(u),ex,ez,eye(e)))continue;
+    const sc=(UT[e.type].cost||3)/(1+Math.sqrt(d2)*.3)*(firedRecently(e)?1.6:1)*(u._tg===e.id||u.tgt===e.id?1.3:1);if(sc>bs){bs=sc;best=e;}}
+  if(!best){u._sc[s.id]=now+.6;return false;}
+  const d=best;const h=hitP(P,d);let hits=0;for(let i=0;i<s.k;i++)if(Math.random()<h.p)hits++;
+  u._sc[s.id]=now+s.cd*(.85+Math.random()*.3);u.firedT=now;u.shot=G.turn;
+  const shot={t:now,hits,k:s.k,cover:h.kind,cov:h.cov,tgt:d.id,mnt:s.id,w:s.fx};P.lastShot=shot;FXH.fire(P,d.r,d.c,d,shot);
+  if(typeof memFlash==='function')memFlash(u);
+  if(UT[d.type].cls==='inf')d.supp=Math.min(3,Math.max(d.supp||0,hits?1.2:.8));
+  if(typeof tacN==='function')tacN('sec_'+s.id);
+  if(!hits)return true;
+  const dmg=Math.round(s.atk*hits/s.k*DPS_K*s.cd*(.8+Math.random()*.4)*10)/10;
+  G.nats[u.nat].dmg=(G.nats[u.nat].dmg||0)+dmg;harm(d,dmg,u,{kind:'bullet',hits,w:s.w});if(d.hp<=0&&G.units.includes(d))kill(d,u);
+  return true;}
+{const _f=rtFight;rtFight=function(u){const r=_f(u);const L=G.units.includes(u)&&secList(u);
+  if(L&&L.length)for(const s of L){try{secShoot(u,s);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}if(!G.units.includes(u))break;}
+  return r;};}
+/* 병종 설명 */
+UT.tank.desc=UT.tank.desc.replace('최강 화력과 두꺼운 장갑(대전차 무기 외 피해 −35%)','120mm 고폭탄(반경 약 10m)과 정면 600mm급 장갑: 소총·기관총·RPG 정면으로는 못 뚫음. 동축·차장·장전수 기관총으로 보병을 따로 쏨');
+UT.ifv.desc+='. 30mm 기관포는 벽을 뚫고, 동구권형은 동축 기관총도 쏨. 소총탄은 막지만 12.7mm 측면·RPG에는 뚫림';
+UT.hmv.desc+='. 12.7mm는 벽돌 벽과 얇은 장갑을 뚫음';
+UT.spg.desc+='. 지붕 12.7mm 기관총으로 가까운 보병을 쏨(해치를 열어야 함)';
+for(const t of ['sup','rec'])if(UT[t])UT[t].desc=UT[t].desc.replace('무장 없음','운전실 위 링 마운트 기관총만 있음');
+UT.at.desc+='. RPG는 전차 정면(600mm)을 못 뚫음: 측면·후면·위를 노려야 함';
+/* 5) 광역 무기: 실제 탄약의 살상·제압 반경(1칸 ≈ 12m)
+   R: 이 안에서 병사마다 거리로 다칠 확률(가운데 pk, 가장자리 0), Rs: 이 안은 모두 고개를 숙인다(제압),
+   vd: 차량이 가운데서 받는 피해, pen: 가운데 관통력(mm, 멀수록 줄어 파편만 남는다).
+   Mk82 500파운드 폭탄 살상 약 30m·파편 위험 수백 m, 155mm 고폭탄 살상 약 25~50m, 81mm 박격포 약 20~25m,
+   122mm 그라드 로켓 약 30m, 순항미사일(450kg 탄두) 약 40m, 탄도미사일(480kg) 약 45m, 70mm 헬기 로켓 약 10m. */
+const SHELL_PK={mortar:.8,spg:.92,mlrs:.85};
+const AOE={
+  bomb:{R:2.5,pk:.95,Rs:5,vd:9,pen:300},        // Mk82 한 발(스틱의 가운데·앞·뒤 모두 같은 폭탄)
+  cruise:{R:3.2,pk:.97,Rs:6,vd:12,pen:400},
+  tbm:{R:3.8,pk:.97,Rs:7,vd:16,pen:500},
+  cruiseDown:{R:1.6,pk:.8,Rs:3,vd:4,pen:120},    // 요격돼 떨어진 잔해·탄두
+};
+function aoe(x,z,K,by){const now=G.time||0;let hit=0;
+  for(const u of G.units.slice()){if(UT[u.type].fly||!G.units.includes(u))continue;const d=Math.hypot(u.x-x,u.z-z);if(d>K.Rs)continue;
+    u.supp=Math.min(3,Math.max(u.supp||0,.6+1.6*(1-d/K.Rs)));u._thr=[x,z,now];
+    if(d>K.R*1.25)continue;hit++;
+    if(UT[u.type].cls==='inf')harm(u,1,by||null,{kind:'blast',x,z,rad:K.R,pk:K.pk});
+    else{const k=Math.max(0,1-d/K.R*.85);const dm=Math.round(K.vd*k*(.85+Math.random()*.3)*10)/10;if(dm>0)harm(u,dm,by||null,{kind:'blast',x,z,rad:K.R,pen:K.pen*Math.max(.12,1-d/K.R)});}}
+  if(typeof tacN==='function')tacN('aoe_hit',hit);return hit;}
+// 전투기 폭탄: 예전엔 그 칸의 한 부대만 맞았다. 이제 폭탄마다 반경 안 모두
+if(typeof bombHit==='function'){bombHit=function(b){const {r,c}=b;const main=b.main!==false;if(FXH.bomb)FXH.bomb(r,c,b);const S=STICK.side;
+  const cx=b.x??c+.5,cz=b.z??r+.5;aoe(cx,cz,AOE.bomb,null);
+  if(inb(r,c)){const x=G.map[r][c];if(x.t==='bldg'){damageBldg(r,c,main?24:S.bldg);if(typeof ignite==='function')ignite(r,c,main?.7:.35);}}
+  const W=STICK.wave,R=Math.ceil(W.rad);for(let a=r-R;a<=r+R;a++)for(let bb=c-R;bb<=c+R;bb++){if((a===r&&bb===c)||!inb(a,bb))continue;const x=G.map[a][bb];if(x.t!=='bldg')continue;
+    const d=Math.hypot(a-r,bb-c);if(d<=W.rad)damageBldg(a,bb,Math.max(1,Math.round(W.bldg*(main?1:.6)*(1.2-d/W.rad))));}
+  if(typeof fortBlast==='function')fortBlast(cx,cz,1.2,60);
+  bump();};}
+// 미사일 타격: 반경을 실제 탄두 크기로, 피해는 병사마다
+if(typeof msBlast==='function'){msBlast=function(x,z,R,base,n,bc,br){if(FXH.msBoom)FXH.msBoom(x,z,R);sfx('boom',1.1,x,z);
+  const K=R>=2?AOE.tbm:R>=1.2?AOE.cruise:AOE.cruiseDown;const r0=Math.floor(z),c0=Math.floor(x);const RB=Math.max(R,K.R*.7);
+  for(let r=r0-Math.ceil(RB);r<=r0+Math.ceil(RB);r++)for(let c=c0-Math.ceil(RB);c<=c0+Math.ceil(RB);c++){if(!inb(r,c))continue;const d=Math.hypot(c+.5-x,r+.5-z);if(d>RB)continue;
+    if(G.map[r][c].t==='bldg'){damageBldg(r,c,Math.round(r===r0&&c===c0?bc:br*(1-d/RB*.6)));if(typeof ignite==='function'&&G.map[r][c].t==='bldg')ignite(r,c,.3);}}
+  aoe(x,z,K,null);if(typeof fortBlast==='function')fortBlast(x,z,K.R,40);bump();};}
+if(SUP.tbm)SUP.tbm.desc=SUP.tbm.desc.replace('반경 2칸 초토화','반경 약 4칸(45m) 살상, 7칸 제압');
+if(SUP.cruise)SUP.cruise.desc=SUP.cruise.desc.replace('큰 폭발','반경 약 3칸(40m) 살상');
+if(SUP.air)SUP.air.desc=SUP.air.desc.replace('한 칸에 폭탄','500파운드 폭탄 3발을 줄지어(한 발 살상 반경 약 30m)');
+
 /* ---- 05o-form.js ---- */
 /* ===================== FORM: 부대끼리 대형을 지어 함께 움직이기 =====================
    "보병이랑 애들이 좀 더 현실적으로 무리를 지어서 가면 좋겠다 헬기나 다른것들도", "차량에 은엄폐해서 가는 느낌".
@@ -6341,7 +6515,7 @@ function msnThink(n){tacThink(n);for(const p of tacPl())if(p.nat===n&&p.human)ms
    - 공격헬기는 지휘점수 12로 비싸지고 화력이 조금 줄었다.
    - 손실 원인: 출혈·차량 포기처럼 쏜 쪽 없이 끝난 손실은 마지막으로 피해를 준 부대 몫으로 센다(90초 안).
      화력 지원(포격·폭격)으로 죽은 경우 u._cause에 그 종류를 남긴다. */
-const POL={vcommit:6,vsettle:8,vturn:1.05,truckHot:3.2,truckFlee:30,truckIdle:25,lastBy:90,ffR:{arty:3,air:1.5,tbm:2.2,cruise:1.6}};
+const POL={vcommit:6,vsettle:8,vturn:1.05,truckHot:3.2,truckFlee:30,truckIdle:25,lastBy:90,ffR:{arty:3.2,air:3.2,tbm:4,cruise:3.4}};
 /* ---------- 차량 명령 고정 ---------- */
 const polEnd=u=>u.path&&u.path.length?u.path[u.path.length-1]:null;
 {const _ai=aiThink;aiThink=function(n){const t=G.time||0;const snap=new Map();
@@ -6394,7 +6568,7 @@ if(UT.gunship){UT.gunship.atk={...UT.gunship.atk,inf:6,veh:6};}
   try{polFloors();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 /* ---------- 곡사·폭발물 근접 아군 확인 ---------- */
 // 곡사는 표적 둘레(박격포 1.2칸, 자주포 1.8칸, 다연장 2.4칸)에 아군 지상 부대가 있으면, 직접 쏘는 폭발물은 표적 0.7칸 안에 아군이 있으면 쏘지 않는다
-const POL_DC={mortar:1.2,spg:1.8,mlrs:2.4};
+const POL_DC={mortar:1.6,spg:2.4,mlrs:2.4};   // 05na-pen 구경별 반경
 {const _ch=canHit;canHit=function(a,d,fromR,fromC,moved){const r=_ch(a,d,fromR,fromC,moved);if(!r||!d)return r;const ta=UT[a.type];
   const R=ta.ind?(POL_DC[a.type]||1.5):ta.ex?.7:0;if(!R)return r;const [dx,dz]=posOf(d);
   for(const o of G.units){if(o.nat!==a.nat||o===a||UT[o.type].fly)continue;const [ox,oz]=posOf(o);if(Math.abs(ox-dx)<R&&Math.abs(oz-dz)<R&&Math.hypot(ox-dx,oz-dz)<R)return false;}
@@ -6402,7 +6576,7 @@ const POL_DC={mortar:1.2,spg:1.8,mlrs:2.4};
 /* ---------- 박격포 손보기: 관측은 그대로 두고 빨리·정확하게 ---------- */
 // 분대 무전 사격 요청 8초 → 5초, 드론·저격수 2초 → 1.5초. 같은 표적을 이어 쏘면 탄착을 고쳐 흩어짐이 줄어든다(1발 1, 2발 .75, 3발째부터 .6)
 if(typeof OBS==='object'){OBS.call=5;OBS.fast=1.5;}
-POL_DC.mortar=.9;
+POL_DC.mortar=1.3;
 if(UT.mortar)UT.mortar.atk={...UT.mortar.atk,inf:6};   // 보병 피해 5 → 6
 if(typeof shellShoot==='function'&&typeof shellLaunch==='function'){
   const _sl=shellLaunch;shellLaunch=function(o){if(G._spK&&o)o.spread=(o.spread||1)*G._spK;if(G._pwK&&o)o.pw=(o.pw??1)*G._pwK;return _sl(o);};
@@ -6589,7 +6763,7 @@ if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u
    - 호송 걸음: 호위가 2칸 넘게 뒤처지면 지원 차량이 앞으로 가는 걸음을 늦춘다(물러날 때는 늦추지 않는다).
    - 일이 끝나거나 지원 차량이 물러나 적이 없으면, 또는 90초가 지나면 호위를 풀어 원래 AI로 돌려준다.
    - 안전한 길: 지원 차량의 길이 아는 적 2.8칸 안을 지나면 옆으로 3~5.5칸 돌아가는 길을 찾아 더 안전하면 그 길로. */
-const ESC={on:1,route:1,front:7,mem:8,pick:6,lead:1,upd:.4,max:90,lag:2,risk:2.8,memR:20,repath:1.2};
+const ESC={on:1,route:1,engage:4,front:7,mem:8,pick:6,lead:1,upd:.4,max:90,lag:2,risk:2.8,memR:20,repath:1.2};
 const ESC_HIDE={esc:1};
 const ESC_SUP={sup:1,rec:1,amb:1};
 const ESC_PREF={hmv:3,ifv:2,rifle:1,mg:1};
@@ -6627,13 +6801,16 @@ function escSlot(u,s,K){let tx=null,tz=null,bd=10;for(const p of K){const d=Math
   else{const f=escFwd(s);if(f){const dx=f[0]-s.x,dz=f[1]-s.z,m=Math.hypot(dx,dz)||1;const k=Math.min(.8,m);x=s.x+dx/m*k;z=s.z+dz/m*k;}else{x=s.x;z=s.z;}}
   x=Math.min(N-.05,Math.max(.05,x));z=Math.min(N-.05,Math.max(.05,z));
   if(!walkable(u,x,z))return [s.x,s.z];return [x,z];}
-function escFight(u){for(const e of G.units){if(e.nat===u.nat||e.hp<=0)continue;if(G.fog&&!seen(e,u.nat))continue;
+/* 멈춰 싸울 적: 호위나 지원 차량에서 4칸 안이고 쏠 수 있는 적. 사거리가 길어(험비 18칸) 먼 적까지 보면 늘 멈춰 서 버린다.
+   먼 적은 움직이면서 쏜다(엔진) */
+function escFight(u,s){for(const e of G.units){if(e.nat===u.nat||e.hp<=0)continue;if(G.fog&&!seen(e,u.nat))continue;
+  if(Math.hypot(e.x-u.x,e.z-u.z)>ESC.engage&&!(s&&Math.hypot(e.x-s.x,e.z-s.z)<ESC.engage))continue;
   if(canHit(u,e))return true;}return false;}
 /* 호위 하나: 따르기·싸우기 */
 function escFollow(u,t,K){const s=uById(u.esc.s);
   if(!s||s.nat!==u.nat||s.escBy!==u.id){escRelease(u);return;}
   const fwd=escFwd(s);
-  if(escFight(u)){u.esc.ft=t+4;if(u.path&&u.path.length)u.path=[];return;}   // 멈춰 싸운다(조준·사격은 엔진이)
+  if(escFight(u,s)){u.esc.ft=t+4;if(u.path&&u.path.length)u.path=[];return;}   // 멈춰 싸운다(조준·사격은 엔진이)
   if((u.esc.ft||0)>t)return;
   if(!fwd&&!escNear(K,s.x,s.z,ESC.front)){escRelease(u);return;}   // 일이 끝났거나 물러나 안전하다
   if(t-u.esc.t0>ESC.max||u.hp<hpMax(u)*.4||u.post||u.cqb||u.hold||u.man!=null&&u.man>u.esc.t0||u.fesc!=null&&t-(u.fescT||-99)<5){escRelease(u);return;}
@@ -6689,6 +6866,14 @@ function escLen(P,x0,z0){let l=0,px=x0,pz=z0;for(const q of P){l+=Math.hypot(q[0
     if(best!==P&&typeof tacN==='function')tacN('cvyRoute');}
   Object.defineProperty(u,'_cvy',{value:{t,x,z,sx:u.x,sz:u.z,P:best.slice()},writable:true,configurable:true,enumerable:false});
   return best;};}
+/* ---------- 트럭이 받을 부대 바로 앞에서 막히면 병사가 걸어와 받는다 ----------
+   부대가 몰려 있으면 트럭이 나눠 주는 거리(1.6칸) 바로 밖에서 더 다가가지 못하고 서 버린다(06e polStuck이 일을 내려놓음).
+   트럭이 2초 넘게 서 있고 받을 부대가 2.6칸 안에서 멈춰 있으면 그 부대가 트럭 곁(0.9칸)으로 걸어온다. */
+if(typeof supTick==='function'){const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!G.units.includes(u)||!(u.lj&&u.lj.k==='serve'))return;const t=G.time||0;
+  if(u.path&&u.path.length){u._swT=null;return;}if(u._swT==null){u._swT=t;return;}if(t-u._swT<2)return;
+  const e=uById(u.lj.id);if(!e||e.path&&e.path.length||e.post||e.cqb||e.climb||e.hold)return;const d=Math.hypot(e.x-u.x,e.z-u.z);
+  if(d<SERVE_R*.95||d>2.6)return;const k=.9/d;const x=u.x+(e.x-u.x)*k,z=u.z+(e.z-u.z)*k;
+  if(!walkable(e,x,z))return;const P=pathPts(e,x,z);if(P.length){e.path=P;e.dest=[x,z];u._swT=t;if(typeof tacN==='function')tacN('supWalk');}};}
 
 /* ---- 06h-org.js ---- */
 /* ===================== ORG: 중대·소대 자동 편성 =====================
@@ -6915,6 +7100,116 @@ if(typeof STAND==='object'){STAND.min=4;STAND.near=5;}
   if(G.units.includes(d)&&UT[d.type].cls==='inf'&&!ta.ind&&!ta.ex&&(ta.cls==='inf'||ta.cls==='veh')&&ta.atk&&ta.atk.inf>=4)d.supp=Math.min(3,Math.max(d.supp||0,RANGE.nearSup));
   return r;};}
 
+/* ---- 06y2-sight.js ---- */
+/* ===================== SIGHT2: 실제처럼 보이고, 들리고, 알아본다 =====================
+   1칸 ≈ 12m. 시야선(04b)·밤과 날씨(04e)·광학 장비(05k-optics)·실제 거리(06y-range) 위에 얹는다. AI와 플레이어 모두 같은 규칙.
+   - 기상 시정: 날씨마다 눈에 보이는 거리의 상한이 있다(짙은 안개 약 60m, 모래폭풍 약 40m, 눈보라 약 60m, 폭우 약 150m).
+     기후에 따라 같은 날씨도 모습이 다르다: 겨울엔 비 → 눈, 폭우 → 눈보라 / 사막엔 안개 → 먼지 연무, 폭우 → 모래폭풍, 한낮 → 아지랑이.
+     열상 장비(전차·장갑차·대전차미사일·저격수·드론 등 정규군 장비)는 안개·먼지를 조금 더 꿰뚫어 본다. 드론은 안개·모래에 땅을 거의 못 본다.
+   - 밤: 맨눈은 달빛에 따라 40~100m, 야간투시경 110~150m, 열상은 낮과 같다. 흐리면 달빛이 없다.
+   - 역광: 해가 낮게 뜬 아침·저녁, 해를 마주 보는 쪽은 60%까지만 보인다.
+   - 표적의 노출: 멈춰서 자리 잡은 보병은 더 가까이 와야 보인다. 쏘면 섬광·후폭풍·먼지로 더 멀리서 보이고(전차포·자주포는 훨씬),
+     마른 땅을 달리는 차량은 먼지 꼬리로 멀리서 보인다.
+   - 소리: 총포 소리와 차량 엔진·궤도 소리는 벽 너머로도 들린다. 들은 쪽은 대강의 자리(멀수록 부정확)를 기억한다(05k-combat의 세력 기억).
+     비·폭우·모래폭풍은 소리를 묻는다. 플레이어에게는 미니맵의 '기억된 적' 표시로 보인다.
+   - 발견과 식별: 보이기는 해도 시야 거리의 절반보다 멀면 무슨 부대인지 모른다(미확인 보병/차량). */
+const SEE={
+  wx:{clear:[99,99],haze:[18,18],rain:[30,40],storm:[12,16],fog:[5,9],snow:[16,22],blizzard:[5,8],dust:[10,14],sand:[3,5]},   // [맨눈·야간투시경, 열상] 시정 상한(칸)
+  wxFly:{rain:12,storm:6,fog:2,snow:8,blizzard:3,dust:5,sand:2},          // 드론·헬기가 땅을 보는 상한
+  night:{eye:[3.5,8],nvg:[9,12.5],old:[6,8.5]},                           // 한밤 시야 상한 [달 없음, 보름달]: 맨눈 · 야간투시경 · 구형 야간 장비
+  therm:{tank:1,ifv:1,atgm:1,sniper:1,hmv:1,aa:1,drone:1,gunship:1,fpv:1},   // 열상 장비(정규군). 민병대는 드론만
+  still:.8,stillT:3,
+  glare:{k:.6,half:.55},
+  sig:{mg:1.15,at:1.45,atgm:1.5,tank:1.6,ifv:1.25,spg:1.8,mlrs:2,mortar:1.2,zu:1.3,hmv:1.1,aa:1.3},
+  dust:1.3,
+  hear:{rifle:30,mg:34,at:30,eng:20,sniper:22,atgm:30,tank:70,ifv:45,hmv:30,zu:45,spg:90,mlrs:90,mortar:34,aa:30,dteam:12},
+  engine:{tank:26,ifv:22,spg:24,mlrs:18,hmv:14,zu:14,sup:14,rec:16,amb:12,vbied:12},
+  hearWx:{clear:1,haze:1,rain:.75,storm:.5,fog:1,snow:.9,blizzard:.5,dust:.9,sand:.45},
+  idK:.5,
+};
+const WXK={snow:{n:'눈',m:'눈이 내립니다 · 시정 약 200m'},blizzard:{n:'눈보라',m:'눈보라 · 시정 약 60m, 드론·헬기 비행 불가'},
+  dust:{n:'먼지 연무',m:'먼지 연무가 깔립니다 · 시정 약 120m, 드론 시야 제한'},sand:{n:'모래폭풍',m:'모래폭풍 · 시정 약 40m, 드론·헬기 비행 불가'},haze:{n:'아지랑이',m:''}};
+/* 날씨가 땅 위에서 보이는 모습: 기후를 따른다. 규칙(드론·헬기·명중)은 바탕 날씨(G.wx)를 그대로 쓴다 */
+function wxKind(){const w=(G&&G.wx)||'clear';const cl=typeof climeOf==='function'&&G&&!G.camp?climeOf():'temp';
+  if(cl==='winter')return w==='rain'?'snow':w==='storm'?'blizzard':w;
+  if(cl==='desert'){if(w==='fog')return 'dust';if(w==='storm')return 'sand';if(w==='clear'&&typeof dayH==='function'){const h=dayH();if(h>=11&&h<=16.5)return 'haze';}}
+  return w;}
+function wxName(k){k=k||wxKind();return WXK[k]?WXK[k].n:(WX[k]||WX.clear).n;}
+/* 비 하나로 시야를 깎던 예전 값은 상한(SEE.wx)으로 옮긴다. 명중·드론 효과는 그대로 */
+if(typeof WX_FX==='object'){WX_FX.rain.vis=0;WX_FX.storm.vis=0;WX_FX.fog.vis=0;}
+
+/* 달빛 0~1: 판마다 달의 모양이 다르다(시드로 정함). 구름 낀 날은 달빛이 거의 없다 */
+function moonK(){const s=(G&&G.seed)||7;const p=(s*0.6180339887)%1;let m=(1-Math.cos(2*Math.PI*p))/2;const k=wxKind();if(k!=='clear'&&k!=='haze')m*=.2;return m;}
+const seeMil=u=>typeof militia==='function'&&militia(u.nat);
+function hasTherm(u){if(!SEE.therm[u.type])return false;const t=UT[u.type];return t.fly||!seeMil(u);}
+/* 이 부대의 눈이 닿는 상한(칸): 날씨와 밤 */
+function seeCap(u){const t=UT[u.type];const k=wxKind();const th=hasTherm(u);let cap=t.fly?(SEE.wxFly[k]??99):(SEE.wx[k]||SEE.wx.clear)[th?1:0];
+  const nk=G._day?0:(typeof nightK==='function'?nightK():0);
+  if(nk>0&&!th){const kind=t.cls==='inf'?(seeMil(u)?'eye':'nvg'):(seeMil(u)?'old':'nvg');const N2=SEE.night[kind];const m=moonK();const cn=N2[0]+(N2[1]-N2[0])*m;
+    const c=cn+(99-cn)*Math.pow(1-nk,2);if(c<cap)cap=c;}
+  return cap;}
+/* 열상 장비는 밤에도 낮처럼 본다: 밤 시야 감소(04e)와 광학 감소(05k)를 열상 장비에는 걸지 않는다. 민병대 차량은 구형이라 덜 본다 */
+if(typeof NIGHT_PEN==='object')NIGHT_PEN.veh=[0,1];
+if(typeof optGlass==='function'){const _og=optGlass;optGlass=function(u){const g=OPT.gl[u.type];if(g&&hasTherm(u)&&!UT[u.type].fly)return optStill(u)?g:0;return _og(u);};}
+{const _vr=visRange;visRange=function(u){const v=_vr(u);const cap=seeCap(u);return v>cap?Math.max(1,cap):v;};}
+
+/* ---------- 역광 ---------- */
+/* 해의 방향(지도 좌표, 화면의 해와 같다: 아침엔 +x, 저녁엔 −x 쪽, 늘 조금 +z). 해가 낮고 하늘이 맑을 때만 */
+function sunLow(){if(typeof dayH!=='function'||typeof nightK!=='function')return null;const k=wxKind();if(k!=='clear'&&k!=='haze')return null;if(nightK()>.35)return null;
+  const h=dayH();const sa=Math.max(-.95,Math.min(.95,(h-12)/6.5));if(Math.abs(sa)<.55)return null;const x=-12*sa-4,z=8,L=Math.hypot(x,z);return [x/L,z/L];}
+function glared(u,e){if(UT[u.type].fly)return false;const s=sunLow();if(!s)return false;const [ux,uz]=posOf(u),[ex,ez]=posOf(e);const dx=ex-ux,dz=ez-uz,L=Math.hypot(dx,dz)||1;
+  return (dx*s[0]+dz*s[1])/L>Math.cos(SEE.glare.half);}
+
+/* ---------- 표적의 노출 ---------- */
+const seeStill=e=>typeof optStill==='function'?optStill(e)&&(G.time||0)-(e._movT??-99)>=SEE.stillT:false;
+function seeFlash(e){return e.firedT!=null&&(G.time||0)-e.firedT<2;}
+function dryGround(e){const k=wxKind();if(k!=='clear'&&k!=='haze'&&k!=='dust')return false;if(typeof climeOf==='function'&&climeOf()==='winter')return false;const x=cell(e.r,e.c);return x.t!=='road'&&x.t!=='bldg';}
+/* 보이는 거리를 줄이는 것(역광, 멈춘 보병): 1보다 작은 배수 */
+function seeShrink(u,e){const t=UT[e.type];let k=1;
+  if(t.cls==='inf'&&!t.fly&&!firedRecently(e)&&seeStill(e))k*=SEE.still;
+  if(glared(u,e))k*=SEE.glare.k;return k;}
+/* 더 멀리서 보이게 하는 것(쏜 직후의 섬광·후폭풍, 달리는 차량의 먼지): 1보다 큰 배수 */
+function seeGrow(e){const t=UT[e.type];let k=1;if(seeFlash(e))k=Math.max(k,SEE.sig[e.type]||1);
+  if(t.cls==='veh'&&!t.fly&&e.path&&e.path.length&&!seeStill(e)&&dryGround(e))k=Math.max(k,SEE.dust);return k;}
+{const _sp=spots;spots=function(u,e){const r=_sp(u,e);const t=UT[e.type];if(t.fly)return r;
+  if(r){const k=seeShrink(u,e);if(k>=1)return true;const d=udist(u,e);if(d<.9)return true;
+    let v=visRange(u);if(typeof nightK==='function'&&nightK()>=.3&&(seeFlash(e)||(typeof litU==='function'&&litU(e))))v=Math.max(v,visDay(u));   // 조명탄 아래·섬광은 낮 시야로 본 것
+    v+=t.cls==='veh'?1:0;if(concealed(e))v*=SPOT_HIDE;return d<=Math.max(1.2,v*k);}
+  const g=seeGrow(e);if(g<=1)return false;if(typeof stairHid==='function'&&stairHid(e,u))return false;
+  const d=udist(u,e);let v=(visRange(u)+(t.cls==='veh'?1:0))*g;const cap=seeCap(u)*1.3;if(v>cap&&cap<visRange(u)*g)v=Math.max(visRange(u),cap);   // 안개 속 섬광은 조금만 더 멀리
+  if(glared(u,e))v*=SEE.glare.k;if(d>v)return false;return losU(u,e);};}
+
+/* ---------- 소리 ---------- */
+/* 세력 n 중 (x,z)에서 R칸 안에 있는 지상 부대가 있으면 대강의 자리를 기억한다. 멀수록 크게 빗나간다 */
+function hearPut(n,e,x,z,R,how){const M=memOf(n),o=M[e.id],t=G.time||0;if(o&&t-o.t<2.5)return false;let bd=R+1;
+  for(const u of G.units){if(u.nat!==n||UT[u.type].fly)continue;const d=Math.hypot(u.x-x,u.z-z);if(d<bd)bd=d;}
+  if(bd>R)return false;const er=.4+bd*.1,a=Math.random()*6.283,q=Math.random();memPut(n,e,x+Math.cos(a)*er*q,z+Math.sin(a)*er*q,how||'hear');return true;}
+function hearShot(a){const R0=SEE.hear[a.type];if(!R0||UT[a.type].fly)return;const t=G.time||0;if((a._hrT||0)>t)return;a._hrT=t+1.5;
+  const R=R0*(SEE.hearWx[wxKind()]??1);for(const n of G.order){if(n===a.nat||!G.nats[n]||!G.nats[n].alive)continue;if(seen(a,n))continue;hearPut(n,a,a.x,a.z,R);}}
+if(typeof memFlash==='function'){const _mf=memFlash;memFlash=function(a){_mf(a);try{hearShot(a);}catch(err){}};}
+/* 움직이는 차량 소리: 2초마다 */
+function hearTick(dt){G._hrT=(G._hrT||0)-dt;if(G._hrT>0)return;G._hrT=2;const W=SEE.hearWx[wxKind()]??1;
+  for(const e of G.units){const R0=SEE.engine[e.type];if(!R0||UT[e.type].fly||!(e.path&&e.path.length))continue;
+    for(const n of G.order){if(n===e.nat||!G.nats[n]||!G.nats[n].alive)continue;if(seen(e,n))continue;hearPut(n,e,e.x,e.z,R0*W,'hear');}}}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over||!G.fog||typeof memOf!=='function')return;try{hearTick(dt);}catch(err){(G.errs=G.errs||[]).push(String(err&&err.stack||err));}};}
+
+/* ---------- 발견과 식별 ---------- */
+/* 세력 n이 e가 무슨 부대인지 아는가: 보이는 부대 중 하나라도 시야 거리 × SEE.idK 안에 있으면 안다(쌍안경·조준경 보너스 포함) */
+function identified(e,n){if(!G.fog||e.nat===n)return true;const tq=Math.floor((G.time||0)*2);let C=G._idc;if(!C||C.tq!==tq||C.ver!==G.ver)C=G._idc={tq,ver:G.ver,m:new Map()};
+  const ck=n+':'+e.id;if(C.m.has(ck))return C.m.get(ck);let ok=false;
+  for(const u of G.units){if(u.nat!==n)continue;const d=udist(u,e);const v=visRange(u)*SEE.idK+(UT[e.type].cls==='veh'?1:0);if(d<=Math.max(1.5,v)&&spots(u,e)){ok=true;break;}}
+  C.m.set(ck,ok);return ok;}
+function unknownName(e){const t=UT[e.type];return t.fly?'미확인 비행체':t.cls==='veh'?'미확인 차량':'미확인 보병';}
+/* 마우스를 올렸을 때 글: 알아보지 못한 적은 종류와 체력을 숨긴다 */
+if(typeof renderTip==='function'){const _rt=renderTip;renderTip=function(){_rt();try{const el=typeof $==='function'&&$('#tip');if(!el||el.hidden||!G||!G.fog||UI.hk==null)return;
+  const u=unitAt(kr(UI.hk),kc(UI.hk));if(!u||u.nat===G.viewer||!seen(u,G.viewer)||identified(u,G.viewer))return;
+  el.innerHTML=el.innerHTML.replace(`${UT[u.type].n}</span> ${u.hp}/${hpMax(u)}`,`${unknownName(u)}</span> · 멀어서 식별 불가`);}catch(err){}};}
+
+/* ---------- 화면 글: 날씨 이름과 시정 ---------- */
+function seeTag(){const n=G.viewer;if(n==null)return '';const probe={type:'rifle',nat:n};const c=seeCap(probe);const s=[];if(c<14)s.push(`시정 약 ${Math.round(c*12/10)*10}m`);
+  if(sunLow())s.push(dayH()<12?'동쪽 역광':'서쪽 역광');return s.join(' · ');}
+if(typeof envTag==='function'){const _et=envTag;envTag=function(){let s=_et();const k=wxKind();if(WXK[k]&&WXK[k].n)s=s.replace((WX[G.wx]||WX.clear).n,WXK[k].n);const x=seeTag();return x?s+' · '+x:s;};}
+
 /* ---- 06z-radio-ai.js ---- */
 /* ===================== AI 명령도 무전으로 =====================
    (06z: 전술 AI·임무 지휘(06c-tactics, 06d-mission)가 감싼 aiThink까지 바깥에서 감싸야 해서 06 묶음 맨 끝에 둔다)
@@ -7090,7 +7385,7 @@ function v3Ground(cx,cy){const T=V3.T,p=new T.Vector3();return v3Ray(cx,cy).ray.
 /* 손가락(커서) 아래 지점을 고정한 채 확대·축소 */
 function v3ZoomAt(f,cx,cy,now){const s=V3.cs,o=s.gd;const p=cx!=null?v3Ground(cx,cy):null;v3Zoom(f);if(now)s.d=s.gd;if(!p)return;const k=1-s.gd/o;
   s.gx=Math.min(N,Math.max(0,s.gx+(p.x-s.gx)*k));s.gz=Math.min(N,Math.max(0,s.gz+(p.z-s.gz)*k));if(now){s.x=s.gx;s.z=s.gz;}}
-/* 마우스(PC): 왼쪽 클릭 선택·이동, 왼쪽 끌기 범위 선택(Shift: 더하기), 오른쪽 클릭 명령, 오른쪽 끌기·Ctrl/Alt+끌기 회전·기울기, 가운데 끌기 이동, 휠 확대.
+/* 마우스(PC): 왼쪽 클릭 선택·이동, 왼쪽 끌기 화면 이동, Shift+끌기·길게 눌러 끌기·[범위 선택] 범위 선택, 오른쪽 클릭 명령, 오른쪽 끌기·Ctrl/Alt+끌기 회전·기울기, 휠 확대.
    터치 조작: 한 손가락 드래그 이동(관성), 두 손가락 확대·회전·기울기, 짧게 탭 명령, 길게 눌러 끌기 범위 선택, 두 손가락 탭 선택 해제 */
 const LP_MS=420;
 function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,last2=null,lp=null,lpT=0,vel=[0,0],lastMv=0,inertia=0;const pos=e=>[e.clientX,e.clientY];
@@ -7101,13 +7396,13 @@ function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,las
   const drawBox=(a,b)=>{if(!box)return;const x=Math.min(a[0],b[0]),y=Math.min(a[1],b[1]);box.style.left=x+'px';box.style.top=y+'px';box.style.width=Math.abs(a[0]-b[0])+'px';box.style.height=Math.abs(a[1]-b[1])+'px';box.hidden=false;};
   cv.addEventListener('contextmenu',e=>e.preventDefault());
   cv.addEventListener('pointerdown',e=>{stopInertia();if(typeof closeMore==='function')closeMore();try{cv.setPointerCapture(e.pointerId);}catch(_){}const ms=e.pointerType==='mouse';P.set(e.pointerId,{p:pos(e),b:e.button,mod:ms?e.ctrlKey||e.altKey:e.shiftKey||e.ctrlKey||e.altKey,sh:e.shiftKey});
-    if(P.size===1){start={p:pos(e),t:performance.now(),touch:!ms,mb:ms&&e.button===0&&!P.get(e.pointerId).mod};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
-      if(e.button===0&&!P.get(e.pointerId).mod&&!ms){const bm=typeof UI!=='undefined'&&UI.boxMode;const go=()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p,bm};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}};if(bm)go();else lpT=setTimeout(go,LP_MS);}}
+    if(P.size===1){start={p:pos(e),t:performance.now(),touch:!ms,mb:ms&&e.button===0&&!P.get(e.pointerId).mod&&(e.shiftKey||!!(typeof UI!=='undefined'&&UI.boxMode))};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
+      if(e.button===0&&!P.get(e.pointerId).mod&&!start.mb){const bm=typeof UI!=='undefined'&&UI.boxMode;const go=()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p,bm};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}};if(bm)go();else lpT=setTimeout(go,LP_MS);}}
     else{multi=true;last2=null;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}}});
   cv.addEventListener('pointermove',e=>{const q=P.get(e.pointerId);if(!q){if(e.pointerType==='mouse')v3Hover(e);return;}
     const np=pos(e),dx=np[0]-q.p[0],dy=np[1]-q.p[1];q.p=np;moved+=Math.abs(dx)+Math.abs(dy);
     if(P.size===1){if(lp){lp.b=np;drawBox(lp.a,lp.b);return;}
-      if(start&&start.mb&&q.b===0){if(moved>4){lp={a:start.p,b:np,add:q.sh};drawBox(lp.a,lp.b);}return;}
+      if(start&&start.mb&&q.b===0){if(moved>4){lp={a:start.p,b:np,add:q.sh,bm:typeof UI!=='undefined'&&UI.boxMode};drawBox(lp.a,lp.b);}return;}
       if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}
       else if(moved>(start&&start.touch?10:4)){v3Pan(dx,dy);const now=performance.now(),dt=Math.max(1,now-lastMv);lastMv=now;const k=Math.min(1,dt/40);vel=[vel[0]*(1-k)+dx/dt*k,vel[1]*(1-k)+dy/dt*k];}}
     else if(P.size===2){const [a,b]=[...P.values()];const mx=(a.p[0]+b.p[0])/2,my=(a.p[1]+b.p[1])/2,dd=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]),an=Math.atan2(b.p[1]-a.p[1],b.p[0]-a.p[0]);
@@ -9388,7 +9683,7 @@ const ENVP={
 const ENV3={wr:0,wf:0,ws:0,bolt:0,boltT:8,flares:new Map(),pool:[],mist:[],init:false};
 
 /* v3Light 대신: 목표값만 정하고 실제 반영은 v3EnvFrame이 부드럽게 한다 */
-function v3EnvLight(){const wx=G.wx||'clear';V3.rain=wx==='rain'?1:wx==='storm'?1.6:0;}
+function v3EnvLight(){const wx=G.wx||'clear';const k=typeof wxKind==='function'?wxKind():wx;V3.rain=k==='snow'?.09:k==='blizzard'?.22:k==='sand'||k==='dust'?0:wx==='rain'?1:wx==='storm'?1.6:0;}
 
 function v3EnvInit(){const T=V3.T;ENV3.init=true;ENV3.g=new T.Group();V3.scene.add(ENV3.g);
   // 조명탄 빛: 개수가 바뀌면 셰이더를 다시 만들어야 하므로 처음부터 3개를 꺼 둔 채 둔다
@@ -9403,9 +9698,9 @@ function v3EnvInit(){const T=V3.T;ENV3.init=true;ENV3.g=new T.Group();V3.scene.a
 
 const _ec=[];function envCol(i,h){if(!_ec[i])_ec[i]=new V3.T.Color();return _ec[i].set(h);}
 function v3EnvFrame(now,dt){if(!G||!V3.on)return;if(!ENV3.init)v3EnvInit();const T=V3.T,s=V3.cs;
-  const nk=nightK(),dk=duskK()*(1-nk*.6);const wx=G.wx||'clear';
+  const nk=nightK(),dk=duskK()*(1-nk*.6);const wx=G.wx||'clear';const wk=typeof wxKind==='function'?wxKind():wx;const snowy=wk==='snow'||wk==='blizzard',sandy=wk==='sand'||wk==='dust';
   // 날씨는 몇 초에 걸쳐 바뀐다
-  const ek=ENV3.seed!==G.seed?1:1-Math.exp(-dt/3.5);ENV3.seed=G.seed;ENV3.wr+=((wx==='rain'?1:wx==='storm'?1:0)-ENV3.wr)*ek;ENV3.wf+=((wx==='fog'?1:0)-ENV3.wf)*ek;ENV3.ws+=((wx==='storm'?1:0)-ENV3.ws)*ek;
+  const ek=ENV3.seed!==G.seed?1:1-Math.exp(-dt/3.5);ENV3.seed=G.seed;ENV3.wr+=((snowy||sandy?0:wx==='rain'?1:wx==='storm'?1:0)-ENV3.wr)*ek;ENV3.wf+=((wk==='fog'||wk==='blizzard'||wk==='sand'?1:wk==='dust'?.7:wk==='snow'?.35:0)-ENV3.wf)*ek;ENV3.ws+=((wx==='storm'&&!snowy&&!sandy?1:0)-ENV3.ws)*ek;
   const wr=ENV3.wr,wf=ENV3.wf,ws=ENV3.ws;
   const D=ENVP.day,K=ENVP.dusk,Nn=ENVP.night;
   const mix=(k,i)=>envCol(i,D[k]).lerp(envCol(i+1,K[k]),dk).lerp(envCol(i+2,Nn[k]),nk);
@@ -9416,16 +9711,17 @@ function v3EnvFrame(now,dt){if(!G||!V3.on)return;if(!ENV3.init)v3EnvInit();const
   V3.sun.color.copy(mix('sun',0));V3.sun.intensity=num('si')*(1-.45*Math.max(wr,wf*.8));
   V3.hemi.color.copy(mix('sky',3));V3.hemi.groundColor.copy(mix('gr',6));V3.hemi.intensity=num('hi')*(1-.15*wr)+bolt*2.2;
   V3.M.wall.emissiveIntensity=nk*.75+dk*.2;
-  const fc=mix('fog',9);if(wr>0)fc.lerp(envCol(12,nk>.5?'#151a20':'#4a525a'),.5*wr);if(wf>0)fc.lerp(envCol(13,nk>.5?'#1c2026':'#a7a59d'),.55*wf);if(bolt)fc.lerp(envCol(14,'#9aa6b8'),bolt*.6);
+  const fc=mix('fog',9);if(wr>0)fc.lerp(envCol(12,nk>.5?'#151a20':'#4a525a'),.5*wr);if(wf>0)fc.lerp(envCol(13,nk>.5?'#1c2026':sandy?(wk==='sand'?'#b08a58':'#bfa784'):snowy?'#d3d8dd':'#a7a59d'),(sandy?.75:.55)*wf);if(bolt)fc.lerp(envCol(14,'#9aa6b8'),bolt*.6);
   V3.scene.fog.color.copy(fc);if(!V3.scene.background||!V3.scene.background.isColor)V3.scene.background=new T.Color();V3.scene.background.copy(fc);
   V3.fogK=(1-.55*wf)*(1-.3*ws)*(1-.25*nk);const fk=Math.max(wf,ws*.6);V3.scene.fog.near=s.d*.75*V3.fogK*(1-fk)+s.d*.25*fk;V3.scene.fog.far=(s.d*2.8*V3.fogK+10)*(1-fk)+s.d*1.45*fk;
   const h=dayH();V3.sunAng=nk>.85?.4:Math.max(-.95,Math.min(.95,(h-12)/6.5));
   // 젖은 땅: 더 어둡고 덜 거칠다(빛을 번들거리게 받는다)
   V3.M.terr.roughness=ENV3.terrR-.38*wr;V3.M.roof.roughness=ENV3.roofR-.3*wr;const wet=1-.28*wr;V3.M.terr.color.setRGB(wet,wet,wet);
-  if(V3.rainObj){V3.rainObj.material.opacity=.38*wr*(nk>.5?.6:1);V3.rainObj.material.color.set(nk>.5?'#6f8090':'#9fb0bf');}
+  if(V3.rainObj){if(snowy){V3.rainObj.material.opacity=(wk==='blizzard'?.8:.6)*(nk>.5?.5:1);V3.rainObj.material.color.set(nk>.5?'#8a929a':'#f4f6f8');V3.rainObj.scale.set(1,.25,1);}   // 눈송이: 짧고 하얗게, 천천히
+    else{V3.rainObj.material.opacity=.38*wr*(nk>.5?.6:1);V3.rainObj.material.color.set(nk>.5?'#6f8090':'#9fb0bf');V3.rainObj.scale.set(1,1,1);}}
   // 안개 덩어리
   const fo=.45*wf+.1*wr*(1-nk);for(const m of ENV3.mist){const u=m.userData;m.visible=fo>.01;if(!m.visible)continue;const R=s.d*.9;const a=u.a+now/1000*.01;
-    const x=s.x+Math.cos(a)*R*u.r+Math.sin(now/9000+u.ph)*1.5,z=s.z+Math.sin(a)*R*u.r;m.position.set(x,u.y,z);m.scale.setScalar(u.sz*(1+s.d*.03));m.material.opacity=fo*(.6+.4*Math.sin(now/3000+u.ph));m.material.color.set(nk>.5?'#2a3038':'#c3c1ba');}
+    const x=s.x+Math.cos(a)*R*u.r+Math.sin(now/9000+u.ph)*1.5,z=s.z+Math.sin(a)*R*u.r;m.position.set(x,u.y,z);m.scale.setScalar(u.sz*(1+s.d*.03));m.material.opacity=fo*(.6+.4*Math.sin(now/3000+u.ph));m.material.color.set(nk>.5?'#2a3038':sandy?'#c29a66':snowy?'#e2e6ea':'#c3c1ba');}
   // 야간투시경: 별빛을 증폭하듯 그늘 없이 고르게 밝힌다(색은 CSS 필터가 녹색 단색으로 바꾼다)
   const q=UI.nvg?Math.min(1,nk*1.4):0;if(q>0){V3.hemi.color.lerp(envCol(15,'#d8dde0'),q);V3.hemi.groundColor.lerp(envCol(16,'#5a5c58'),q);V3.hemi.intensity+=(1.5-V3.hemi.intensity)*q;
     V3.sun.color.lerp(envCol(17,'#c8d0d8'),q);V3.sun.intensity+=(.9-V3.sun.intensity)*q;V3.M.wall.emissiveIntensity*=1-.5*q;fc.lerp(envCol(18,'#3a3f40'),q);V3.scene.fog.color.copy(fc);V3.scene.background.copy(fc);}
@@ -10085,7 +10381,7 @@ v3FxFire=function(a,r,c,d,shot){if(typeof v3AirFire==='function'&&v3AirFire(a,r,
   if(a.type==='eng'){const Ld=gfxLand(x1,y1,z1,x2,y2,z2,d,true,tile);const T=V3.T;const g=new T.Mesh(V3.gfxNadeG||(V3.gfxNadeG=new T.SphereGeometry(.012,6,4)),V3.M.dark);g.userData.keepGeo=1;g.userData.keepMat=1;V3.G.fx.add(g);
     V3.fx.push({o:g,t0:performance.now(),dur:600,upd:(o,k)=>{o.position.set(x1+(Ld.x-x1)*k,y1+(Ld.y-y1)*k+Math.sin(k*Math.PI)*.25,z1+(Ld.z-z1)*k);}});
     setTimeout(()=>{if(!V3.on)return;if(Ld.ny<.5){pfxBlast(Ld.x,Ld.y,Ld.z,.6,{ground:false,fire:.4,dust:GFXM.wall.c[0]});v3Debris(Ld.x,Ld.y,Ld.z,8,.7);}else gfxShellHit(Ld.x,Ld.y,Ld.z,.5,Ld.m);dsScar('scorch',Ld.x,Ld.z,.08);V3.shake=Math.max(V3.shake,.05);if(typeof sndBoom==='function')sndBoom(Ld.x,Ld.z,.5);},1600);return;}
-  const W=GFXW[a.type]||GFXW.rifle;
+  const W=GFXW[shot&&shot.w]||GFXW[a.type]||GFXW.rifle;   // 차량 부무장(05na-pen)은 shot.w로 총 모양을 고른다
   // 차량 기관총·기관포는 총열 끝에서
   if(ta.cls==='veh'){const br=gfxBarrel(a);if(br){x1=br.x;y1=br.y;z1=br.z;}}
   else{x1+=dx*.03;z1+=dz*.03;y1+=.01;}
@@ -10200,6 +10496,29 @@ v3Rockets=function(a,d,shot){if(!PFX.on)pfxInit();const [hx,hy,hz]=v3P(a);let [x
     gfxHit(L.x,L.y,L.z,L.m,L.nx,L.ny,L.nz,2.2,dl+dd/70,gfxLod(L.x,L.z),1);}};
 /* 연기 꼬리(대공 미사일·추락·플레어·전투기): 스프라이트 대신 입자 하나로 — 그리기 호출이 줄고 바람을 탄다 */
 {const _tr=v3Trail;v3Trail=function(x,y,z,col,sz,dur){if(!PFX.on)return _tr.apply(this,arguments);sz=sz||.08;pfx({x,y,z,vx:gfxR(-.03,.03),vy:gfxR(.02,.08),vz:gfxR(-.03,.03),drag:.6,life:(dur||1600)/1000*1.3,s0:sz*.8,s1:sz*3.6,col:col||'#cfc8bb',a:.5,fi:.04,wind:1});};}
+
+/* ---- 07q3-mount.js ---- */
+/* ===================== 총구 자리: 주포·동축·차장·장전수·지붕 기관총 =====================
+   차량 모형(07zv)은 재질별로 합쳐져 포신 원통을 찾을 수 없다. 모형을 만든 좌표 그대로 총구 끝을 적어 두고,
+   포탑(돌아가는 무리) 또는 차체 기준으로 실제 화면 위치를 구한다. 05na-pen 부무장은 shot.mnt로 어느 총인지 알려 준다.
+   좌표: 모형 단위(m), 앞이 +x. [x, y, z, 'tur'|'hull'] */
+const MNT={
+  tank:{w:{main:[7.45,.42,0],coax:[2.95,.42,.38],cmd:[1.15,1.27,.75],ldr:[1.1,1.17,-.85]},e:{main:[6.5,.3,0],coax:[1.95,.3,.32],cmd:[1.15,1.1,-.6]}},
+  ifv:{w:{main:[1.75,.57,0]},e:{main:[4.0,.38,0],coax:[1.3,.38,-.22]}},
+  spg:{w:{main:[9.95,.65,0],roof:[1.05,1.77,.75]}},
+  hmv:{w:{main:[1.8,.47,0]}},
+  sup:{w:{ring:[3.55,3.06,.5,'hull']},e:{ring:[2.15,3.0,.5,'hull']}},
+  rec:{w:{ring:[3.95,3.06,.6,'hull']}},
+};
+let MNT_CUR=null;
+function mntAt(a,id){const T=MNT[a.type];if(!T)return null;const k=(a.nat%2===1&&T.e)?T.e:T.w;const p=k[id]||(id!=='main'?null:null);if(!p)return null;
+  const o=V3.uo.get(a.id);if(!o)return null;let tur=o.userData._gtur;
+  if(tur===undefined){tur=null;o.traverse(q=>{if(!tur&&q.userData&&q.userData.turret)tur=q;});o.userData._gtur=tur;}
+  let base=null;if(p[3]==='hull'){o.traverse(q=>{if(!base&&q.isMesh&&q.userData&&q.userData.body&&q.parent)base=q.parent;});}else base=tur;if(!base)return null;
+  const V=V3.T.Vector3;base.updateWorldMatrix(true,false);const P=base.localToWorld(new V(p[0]*MU,p[1]*MU,p[2]*MU)),Q=base.localToWorld(new V((p[0]-1)*MU,p[1]*MU,p[2]*MU));
+  const dx=P.x-Q.x,dy=P.y-Q.y,dz=P.z-Q.z,L=Math.hypot(dx,dy,dz)||1;return {x:P.x,y:P.y,z:P.z,dx:dx/L,dy:dy/L,dz:dz/L,B:null};}
+{const _b=gfxBarrel;gfxBarrel=function(a){if(MNT_CUR){const m=mntAt(a,MNT_CUR);if(m)return m;}const r=_b(a);if(r)return r;return mntAt(a,'main');};}
+{const _f=v3FxFire;v3FxFire=function(a,r,c,d,shot){const p=MNT_CUR;MNT_CUR=shot&&shot.mnt||null;try{return _f.apply(this,arguments);}finally{MNT_CUR=p;}};}
 
 /* ---- 07r-press.js ---- */
 /* ===================== 종군기자 카메라 =====================
@@ -12743,6 +13062,7 @@ function vxSup(K,n){const {B,C,Cx}=K;const east=n%2===1;
   B(4.4,.25,2.5,-1.15,1.25,0);for(const s of [-1,1]){B(4.4,.6,.06,-1.15,1.65,s*1.22);for(let i=0;i<6;i++)B(.04,.55,.04,-3.2+i*.82,1.65,s*1.26,'dark');}
   K.H(1.22,4.2,-3.2,2.25,0,'canvas',null,.7);B(4.2,.9,2.44,-1.1,1.8,0,'canvas');for(let i=0;i<5;i++)K.H(1.24,.06,-3.2+i*1.03,2.25,0,'dark',null,.71);   // 천막 덮개·갈빗대
   B(.04,1.4,2.3,-3.22,1.95,0,'dark');for(let i=0;i<3;i++)for(let j=0;j<2;j++)B(.5,.4,.6,-3.05,1.6+j*.42,-.7+i*.7,'plate');   // 뒤 열린 칸의 탄약 상자
+  {const mx=east?.8:2.2,my=east?2.78:2.84;K.C(.42,.45,.12,mx+.15,my,.5,'dark',null,null,10);K.mg(mx,my+.2,.5,1.1,null,true);}   // 운전실 위 링 마운트 기관총(05na-pen)
   K.ant(1.4,2.75,-1.0,1.4);K.mark(n,[-1.2,3.22,0],'y',.9);K.mark(n,[-1.2,1.7,1.29],'z+',.5);K.mark(n,[-1.2,1.7,-1.29],'z-',.5);}
 /* 구난차(8륜 HEMTT 꼴): 운전실, 장비 상자, 돌아가는 기중기 붐과 고리, 뒤 견인 받침과 땅 버팀, 호박색 경광등 */
 function vxRec(K,n){const {B,C,Cx,G}=K;
@@ -12752,6 +13072,7 @@ function vxRec(K,n){const {B,C,Cx,G}=K;
   B(4.6,.15,2.5,-.9,1.25,0);K.can(.8,1.55,0);K.roll(.6,1.5,.6,.9);
   B(1.2,.25,.3,-4.6,.85,0,'steel');B(.3,.4,1.0,-4.2,.85,0,'steel');for(const s of [-1,1])B(.5,.9,.3,-3.9,.5,s*1.05,'steel');  // 견인 받침·버팀
   K.mark(n,[.3,1.65,1.26],'z+',.55);K.mark(n,[.3,1.65,-1.26],'z-',.55);
+  K.C(.42,.45,.12,2.75,2.84,.6,'dark',null,null,10);K.mg(2.6,3.04,.6,1.1,null,true);   // 운전실 위 링 마운트 기관총(05na-pen)
   const cr=G(-1.6,2.1,0);cr.userData.turret=1;                                                                         // 기중기는 포탑처럼 돈다
   C(.6,.7,.45,0,.2,0,'body',cr,null,10);B(1.0,.6,.9,.2,.65,0,'body',cr);
   const boom=B(5.2,.42,.42,-2.0,1.0,0,'steel',cr,[0,0,-.32]);B(4.0,.3,.3,-2.3,1.1,0,'body',cr,[0,0,-.32]);           // 두 단 붐
@@ -13008,7 +13329,7 @@ function vpChart(){const W2=320,H2=120;const mx=Math.max(G.vpWin,...G.hist.flat(
   return `<h3>승점 추이</h3><svg viewBox="-4 -4 ${W2+8} ${H2+8}" style="width:100%;max-width:360px" role="img" aria-label="라운드별 승점"><line x1="0" x2="${W2}" y1="${H2-G.vpWin/mx*H2}" y2="${H2-G.vpWin/mx*H2}" stroke="#555" stroke-dasharray="4 3"/>${lines}</svg>`;}
 const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로 흐릅니다. 30초마다 거점 하나당 승점 +1, 지휘점수 +2가 들어옵니다(기본 지휘 +3)</li><li>승점을 먼저 채우거나, 제한 시간이 끝났을 때 승점이 많은 쪽이 이깁니다. 적을 전멸시켜도 승리</li><li>거점은 소총분대·공병이 들어가면 점령됩니다</li></ul>
 <h3>지휘</h3><ul class="rules"><li>전황 보고: 거점이 공격받거나, 한 구역에서 부대를 잇달아 잃거나, 탄약·구급차·대전차·대공이 모자라면 부대들이 작은 지도 아래에 보고를 올립니다. 보고를 누르면 그 자리로 가고, 버튼 하나로 그 근처에 증원을 내리거나 포격·연막을 부릅니다</li><li>호송: 보급 트럭·구난차·구급차가 적 근처로 일하러 가면 근처에서 놀던 험비·장갑차(또는 소대에 안 든 분대) 하나가 호위로 앞서 갑니다. 적을 만나면 호위가 멈춰 싸우고 지원 차량은 물러나며, 지원 차량은 아는 적을 비켜 돌아가는 길을 씁니다. 부관 지휘를 켰을 때만 플레이어 부대를 호위로 씁니다</li><li>아군을 탭해 고른 뒤 땅을 탭하면 그곳으로 이동, 적을 탭하면 쫓아가 공격합니다</li><li>부대는 사거리 안에 보이는 적을 알아서 쏩니다. 움직이면서 쏘면 연사가 느려지고, 박격포는 멈춰야 쏩니다</li><li>고수: 적을 쫓지 않고 자리를 지킵니다 · 정지: 명령 취소 · 건물 사격: 폭발물 부대로 건물을 부숩니다</li><li>Space 또는 일시정지 버튼으로 멈추고 생각할 수 있습니다. 배속은 0.5×·1×·2×</li></ul>
-<h3>이동과 시야</h3><ul class="rules"><li>건물은 시야를 가립니다. 높은 건물 안에 있으면 더 멀리, 낮은 건물 너머까지 봅니다</li><li>보병은 건물 출입문(어두운 문)으로만 드나들고, 안에서는 계단으로 한 층씩 오릅니다. 멈추면 옥상까지 올라가고(옥상은 멀리 보지만 엄폐 25%), 나갈 때는 먼저 1층으로 내려옵니다</li><li>차량은 건물에 못 들어가고 잔해·공원에서 느립니다. 보병은 건물·잔해를 지날 때 느려집니다</li><li>밤에는 시야 −2, 비 −1, 안개·폭우 −2</li></ul>
+<h3>이동과 시야</h3><ul class="rules"><li>건물은 시야를 가립니다. 높은 건물 안에 있으면 더 멀리, 낮은 건물 너머까지 봅니다</li><li>보병은 건물 출입문(어두운 문)으로만 드나들고, 안에서는 계단으로 한 층씩 오릅니다. 멈추면 옥상까지 올라가고(옥상은 멀리 보지만 엄폐 25%), 나갈 때는 먼저 1층으로 내려옵니다</li><li>차량은 건물에 못 들어가고 잔해·공원에서 느립니다. 보병은 건물·잔해를 지날 때 느려집니다</li><li>날씨마다 보이는 거리에 한계가 있습니다: 짙은 안개·눈보라 약 60m, 모래폭풍 약 40m, 먼지 연무 약 120m, 폭우 약 150m, 눈 약 200m. 열상 장비(정규군 차량·대전차미사일·저격수)는 조금 더 멀리 봅니다</li><li>밤에 맨눈은 달빛에 따라 40~100m, 야간투시경은 110~150m, 열상은 낮과 같이 봅니다. 조명탄·불타는 건물 둘레는 낮처럼 보입니다</li><li>아침·저녁 해를 마주 보면 덜 보입니다(역광). 멈춰 있는 보병은 더 가까이 가야 보이고, 쏘면(특히 전차포·자주포·대전차 후폭풍) 멀리서도 보입니다. 마른 땅을 달리는 차량은 먼지로 드러납니다</li><li>총소리·엔진 소리는 벽 너머로도 들려 대강의 자리가 미니맵에 남습니다. 멀리 보이는 적은 무슨 부대인지 모를 수 있습니다(미확인)</li></ul>
 <h3>전투</h3><ul class="rules"><li>엄폐: 건물 40%, 잔해 25%, 공원 15%만큼 피해가 줄어듭니다. 폭발물(전차·대전차·공병·박격포)은 건물 엄폐를 절반만 받습니다</li><li>제압: 총알이 날아올 때마다 쌓이고(기관총은 더 많이) 조용하면 풀립니다. 조금 제압되면 느려지고 공격 −30%, 많이 쌓이면 엎드려 꼼짝 못 합니다</li></ul>
 <h3>사상자와 사기</h3><ul class="rules">
 <li>분대에는 체력 막대 대신 병사 칸이 있습니다: 초록 정상, 노랑 경상(계속 싸움), 빨강 중상(쓰러져 피를 흘림), 회색 후송 중, 검정 전사</li>
@@ -13022,7 +13343,7 @@ const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로
 <h3>방어물</h3><ul class="rules"><li>보병을 고르고 [축성]을 누르면 모래주머니(엄폐 40%)·철조망(보병 차단)·참호(안에 들어가면 사방 엄폐 50%)를, 기관총팀은 기관총 진지를, 공병은 콘크리트 방벽·대전차 장애물(차량 차단)까지 지휘점수로 쌓습니다</li><li>도로 위에 놓으면 길을 가로질러 놓입니다. 차량은 주차된 차·방벽·장애물을 넘지 못하고 돌아가며, 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다</li></ul>
 <h3>미사일</h3><ul class="rules"><li>대전차미사일팀은 멈춰서 쏩니다. 미사일이 표적을 따라가다 위에서 내리꽂혀 장갑을 거의 무시하지만, 표적이 연막에 들어가거나 시야 밖으로 숨으면 유도가 끊겨 엉뚱한 곳에 떨어집니다</li><li>다연장 로켓은 아군이 보는 곳에 로켓 12발을 넓게 흩뿌리고, 다시 장전하는 데 25초 걸립니다</li><li>순항미사일(화력 지원)은 몇 초 뒤 낮게 날아와 건물을 무너뜨리고, 근처 적 대공이 요격할 수 있습니다. 탄도미사일은 8초 뒤 떨어지며 요격할 수 없고 반경 2칸을 초토화합니다. 떨어질 곳은 적에게도 붉은 원으로 보이니 그 사이에 피할 수 있습니다</li></ul>
 <h3>공중전</h3><ul class="rules"><li>드론과 헬기는 쏜다고 다 맞지 않습니다. 소총·기관총은 대부분 빗나가고, 대공팀(휴대용 대공미사일)과 대공포 차량이 잘 맞힙니다. 보병은 아주 가까이 온 드론에 산탄총을 씁니다</li><li>전자전팀은 반경 3.5칸 안 적 드론의 신호를 끊어 떨어뜨립니다(헬기·전투기에는 효과 없음)</li><li>드론팀은 멈춰서 3초 자리를 잡으면 보이는 적(10칸 안)에게 FPV를 띄웁니다. 한 번에 2대까지, 드론 4대를 들고 25초마다 1대씩 보급받습니다. 조종수가 쓰러지거나 10칸 밖으로 나가면 드론이 떨어집니다. 험비·장갑차를 고르고 [드론팀 하차]로 내려놓을 수도 있습니다</li><li>FPV 자폭드론은 적에게 날아가 부딪혀 터집니다. 위에서 덮쳐 장갑을 무시하지만 한 발만 맞아도 떨어집니다</li><li>공격헬기는 지정한 곳 위를 45초 동안 선회하며 쏩니다. 탭해서 선회 지점을 옮길 수 있고, 대공미사일은 플레어로 두 번까지 피하기도 합니다</li><li>근접 항공 지원은 전투기가 몇 초 뒤 와서 폭탄을 떨어뜨리고, 목표 근처 적 대공이 먼저 격추할 수 있습니다. 폭우에는 헬기·전투기가 뜨지 못합니다</li><li>격추된 헬기는 떨어진 곳 주변에 피해를 줍니다</li></ul>
-<h3>화면</h3><ul class="rules"><li>PC: 왼쪽 클릭 고르기 · 왼쪽 끌기 범위 선택(Shift 누르고 끌면 더하기) · 오른쪽 클릭 명령(이동·공격, 중대를 골랐으면 목표) · 아군 더블클릭 그 소대 전체 · 오른쪽 끌기 또는 Ctrl+끌기 회전·기울기 · 가운데 끌기·화면 가장자리·WASD 화면 이동 · 휠 확대</li><li>휴대폰: 한 손가락 끌기 화면 이동(튕기면 미끄러짐) · 두 손가락 확대·회전·기울기</li><li>휴대폰: 아래 부대 목록을 탭하면 그 부대를 고르고 카메라가 따라갑니다 · 오른쪽 아래 [범위 선택](점선 네모)을 누르고 끌거나, 길게 누른 채 끌면 범위 안 아군을 한꺼번에 선택 · 길게 누르면 그 지점 정보 · 두 손가락으로 톡 치면 선택 해제 · ⋯ 버튼에 나머지 지도 버튼</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지, Ctrl+숫자 부대 번호 붙이기 · 숫자 그 부대 고르기(두 번 누르면 카메라 이동), Ctrl+A 전체, H 집결지, Esc 취소</li></ul>`;
+<h3>화면</h3><ul class="rules"><li>PC: 왼쪽 클릭 고르기 · 왼쪽 끌기 화면 이동(튕기면 미끄러짐) · Shift+끌기 또는 길게 누른 채 끌기 범위 선택 · 오른쪽 클릭 명령(이동·공격, 중대를 골랐으면 목표) · 아군 더블클릭 그 소대 전체 · 오른쪽 끌기 또는 Ctrl+끌기 회전·기울기 · 화면 가장자리·WASD로도 이동 · 휠 확대</li><li>휴대폰: 한 손가락 끌기 화면 이동(튕기면 미끄러짐) · 두 손가락 확대·회전·기울기</li><li>휴대폰: 아래 부대 목록을 탭하면 그 부대를 고르고 카메라가 따라갑니다 · 오른쪽 아래 [범위 선택](점선 네모)을 누르고 끌거나, 길게 누른 채 끌면 범위 안 아군을 한꺼번에 선택 · 길게 누르면 그 지점 정보 · 두 손가락으로 톡 치면 선택 해제 · ⋯ 버튼에 나머지 지도 버튼</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지, Ctrl+숫자 부대 번호 붙이기 · 숫자 그 부대 고르기(두 번 누르면 카메라 이동), Ctrl+A 전체, H 집결지, Esc 취소</li></ul>`;
 function showSetup(){const cl=$('#camp-list');if(cl&&typeof campList==='function')cl.innerHTML=campList();for(const id of ['brief','debrief']){const o=$('#'+id);if(o)o.hidden=true;}const sl=$('#scn-list');if(sl&&typeof scnButtons==='function')sl.innerHTML=scnButtons();
   const box=$('#slots');box.innerHTML=NATS.map((N2,i)=>`<div class="slot"><i class="sw" style="background:${N2.col}"></i><label for="slot-${i}">${N2.full} <small>${N2.edge}</small></label><select id="slot-${i}"><option value="human">사람</option><option value="ai">AI</option>${i>1?'<option value="none">없음</option>':''}</select></div>`).join('');
   NATS.forEach((_,i)=>{$('#slot-'+i).value=UI.setupSlots[i]||'none';});$('#b-resume').hidden=!loadSave();$('#setup').hidden=false;}
@@ -13983,7 +14304,7 @@ if(typeof renderRoster==='function'){const _rr=renderRoster;renderRoster=functio
 /* ---- 09d-pc.js ---- */
 /* ===================== PC: 마우스·키보드 지휘 =====================
    "PC 조작도 개선". 실시간 전략 게임에서 익숙한 방식으로:
-   - 왼쪽 클릭 고르기·이동, 왼쪽 끌기 범위 선택(Shift: 더하기), 오른쪽 클릭 명령 (07-view3d v3Controls)
+   - 왼쪽 클릭 고르기·이동, 왼쪽 끌기 화면 이동, Shift+끌기 범위 선택(더하기), 오른쪽 클릭 명령 (07-view3d v3Controls)
    - 오른쪽 클릭: 고른 부대가 있으면 그곳으로 이동(적이면 공격, 아군 위면 그 자리로 이동), 중대·전체를 골랐으면 그곳이 목표.
      배치·화력 지원 고르는 중에는 취소, 돌입·축성 같은 자리 고르기 중에는 그 단계만 취소.
    - 아군 더블클릭: 그 소대 전체 (편성이 있을 때)

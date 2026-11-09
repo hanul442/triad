@@ -89,7 +89,7 @@ function wxRound(){if(G.wxLock)return;const s=hourSec()||120;if(Math.random()>Ma
   const cur=G.wx||'clear';if(Math.random()<WX_STAY[cur])return;
   const nx=WX_NEXT[cur];let r=Math.random(),k=cur;for(const w in nx){r-=nx[w];if(r<0){k=w;break;}}
   if(k===cur)return;G.wx=k;const msg={clear:'날씨가 갰습니다',rain:'비가 내리기 시작합니다 · 시야와 드론 운용 감소',fog:'짙은 안개가 깔립니다 · 드론이 땅을 거의 못 봅니다',storm:'폭우와 강풍 · 드론·헬기 비행 불가'}[k];
-  L(`날씨: ${msg}`);if(k==='storm')stormGround();bump();}
+  const kk=typeof wxKind==='function'?wxKind():k;L(`날씨: ${typeof WXK==='object'&&WXK[kk]&&WXK[kk].m||msg}`);if(k==='storm')stormGround();bump();}
 /* 폭우가 오면 공격헬기는 철수한다 */
 function stormGround(){for(const u of G.units.slice())if(UT[u.type].heli&&typeof airRemove==='function'){L(`${natName(u.nat)} 공격헬기 기상 악화로 철수`);airRemove(u);}}
 const airGrounded=type=>!!(G&&WX[G.wx]&&WX[G.wx].noAir&&UT[type]&&(UT[type].fly||UT[type].dteam));

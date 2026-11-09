@@ -55,7 +55,7 @@ test('지하실: 포격 피해가 크게 줄고 적에게 보이지 않으며 �
 test('땅굴: 공병이 파면 아군 보병이 숨어서 지나가고, 안에서는 맞지 않는다', () => {
   const T = loadGame(); const G = setup(T);
   for (let c = 3; c <= 12; c++) bldg(G, 7, c, 3, 1);           // 가운데를 가로막는 긴 건물
-  bldg(G, 4, 7, 2); G.nats[0].cp = 10;
+  bldg(G, 4, 7, 2); G.nats[0].cp = 10; G.nats[1].cp = 0;   // 상대가 증원(박격포 등)을 사서 땅굴을 무너뜨리지 않게
   const e = unit(T, 0, 'eng', 7.5, 4.5);
   assert.equal(g(T, 'tunOrder')(e, 7.5, 10.5), null);
   run(T, 45);
@@ -109,7 +109,7 @@ test('자폭 차량: 민병대만 배치하고, 적 가까이 가면 터진다',
   const T = loadGame(); const G = setup(T);
   assert.equal(T.deploySpots(0, 'vbied').length, 0, '정규군은 못 쓴다');
   const v = unit(T, 1, 'vbied', 3.5, 5.5);
-  const tgt = unit(T, 0, 'tank', 8.5, 5.5); tgt.cd = 1e9;   // 전차가 먼저 쏴서 바퀴를 멈춰 세우면(차량 부위 피해) 닿지 못한다
+  const tgt = unit(T, 0, 'tank', 8.5, 5.5); tgt.cd = 1e9; tgt._sc = { coax: 1e9, cmd: 1e9, ldr: 1e9 };   // 전차가 먼저 쏴서(주포·기관총) 바퀴를 멈춰 세우면(차량 부위 피해) 닿지 못한다
   T.orderAttack(v, tgt); run(T, 10);
   assert.ok(!G.units.includes(v), '터져서 사라진다');
   assert.ok(tgt.dmgIn > 3, '근처 부대가 크게 다친다');
