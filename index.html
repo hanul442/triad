@@ -2139,11 +2139,11 @@ function aiFlare(n){const N2=G.nats[n];if(nightK()<.6||!canSupport(n,'flare',0,0
   const mine=G.units.filter(u=>u.nat===n&&!UT[u.type].fly);
   const E=G.units.filter(e=>e.nat!==n&&!UT[e.type].fly);
   let best=null,bs=0;
-  for(const u of mine){const s=(u.supp>.2?2:0)+(G.objs.some(o=>Math.hypot(o.c+.5-u.x,o.r+.5-u.z)<3&&G.map[o.r][o.c].owner!==n)?1:0)+(E.some(e=>Math.hypot(e.x-u.x,e.z-u.z)<6&&!seen(e,n))?1:0);if(!s)continue;
+  for(const u of mine){const s=(u.supp>.2?2:0)+(G.objs.some(o=>Math.hypot(o.c+.5-u.x,o.r+.5-u.z)<3&&G.map[o.r][o.c].owner!==n)?1:0)+(E.some(e=>Math.hypot(e.x-u.x,e.z-u.z)<15&&!seen(e,n))?1:0);if(!s)continue;
     if(litU(u))continue;
-    // 가장 가까운 적(보이든 안 보이든 대략 그쪽)으로 2.5칸 앞
+    // 가장 가까운 적(보이든 안 보이든 대략 그쪽) 2.5칸 앞
     let tx=N/2,tz=N/2,bd=99;for(const e of E){const d=Math.hypot(e.x-u.x,e.z-u.z);if(d<bd){bd=d;tx=e.x;tz=e.z;}}
-    if(bd>8)continue;const sc=s+Math.random();if(sc>bs){bs=sc;const k=Math.min(2.5,bd*.6)/(bd||1);best=[u.x+(tx-u.x)*k,u.z+(tz-u.z)*k];}}
+    if(bd>16)continue;const sc=s+Math.random();if(sc>bs){bs=sc;const k=Math.max(bd*.6,bd-2.5)/(bd||1);/* 적 바로 앞을 비춘다 */best=[u.x+(tx-u.x)*k,u.z+(tz-u.z)*k];}}
   if(!best)return false;const r=Math.min(N-1,Math.max(0,Math.floor(best[1]))),c=Math.min(N-1,Math.max(0,Math.floor(best[0])));
   return support(n,'flare',r,c);}
 
@@ -5588,7 +5588,7 @@ function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
   if(t.cap&&x.obj!=null&&x.owner!==n)s+=70;
   if(x.obj!=null&&x.owner===n&&t.cls==='inf')s+=vis.some(e=>dist(e.r,e.c,r,c)<=5)?14:3;
   const gd=dist(r,c,goal[0],goal[1]);
-  if(t.ind||u.type==='sniper'){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-(u.type==='spg'?7:5))*2.2+(vis.length?0:gd*(t.ind?.6:2));}
+  if(t.ind||u.type==='sniper'){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-(u.type==='spg'?20:u.type==='mortar'?12:u.type==='mlrs'?26:5))*2.2+(vis.length?0:gd*(t.ind?.6:2));}
   else if(t.fly){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-4)*2+gd*.6;}
   else s-=gd*2.6;
   if(x.el&&(t.cls==='inf'||t.ind))s+=Math.min(3,x.el)*(u.type==='sniper'||u.type==='mg'?1.4:.8);   // 높은 곳 선호
@@ -5700,7 +5700,7 @@ function aiArmsPos(u,r,c,goal,vis,n){const t=UT[u.type];if(t.fly)return 0;let s=
     if(gd<front-2)s-=(front-2-gd)*3;}
   else if(t.ind){
     // 보병 선두 뒤 3~6칸
-    const back=gd-front,want=u.type==='spg'?5:3;s-=Math.abs(back-want)*1.6;}
+    const back=gd-front,want=u.type==='spg'?14:t.ind?8:3;s-=Math.abs(back-want)*1.6;}
   return s;}
 
 /* 보병이 차량을 따라 붙는다: 진격하는 장갑차 곁 빈 보병을 끌어 온다 */
@@ -5729,7 +5729,7 @@ function aiArmsAdvance(n,u,E,goal){const t=UT[u.type];if(t.fly||t.dteam)return f
   if(t.cap&&gd<1.2)return false;
   // 곡사는 보병 선두 뒤에, 차량은 보병 선두보다 앞서지 않게
   const inf=G.units.filter(o=>o.nat===n&&o!==u&&UT[o.type].cls==='inf'&&!UT[o.type].ind);
-  let stop=t.cap?0:1.5;if(inf.length&&(t.ind||t.cls==='veh')){const front=Math.min(...inf.map(o=>Math.hypot(gx-o.x,gz-o.z)));stop=Math.max(stop,front+(t.ind?(u.type==='spg'?5:3):-1));}
+  let stop=t.cap?0:1.5;if(inf.length&&(t.ind||t.cls==='veh')){const front=Math.min(...inf.map(o=>Math.hypot(gx-o.x,gz-o.z)));stop=Math.max(stop,front+(t.ind?(u.type==='spg'?14:8):-1));}
   if(gd<=stop+1.5)return false;
   const P=pathPts(u,gx+(Math.random()-.5)*1.4,gz+(Math.random()-.5)*1.4);if(!P.length)return false;
   // 경로를 따라 최대 7칸, 목표에서 stop만큼 떨어진 곳까지만
@@ -5964,11 +5964,6 @@ function standFoe(n,x,z){const M=typeof memOf==='function'?memOf(n):{};const t=G
   if(!foe)return;if(r==='cap'&&u.dest&&Math.hypot(u.dest[0]-u.x,u.dest[1]-u.z)<1)return;   // 거점 바로 앞이면 마저 들어간다
   const objs=coverObjs(u);const s=tacSpot(u,u.x,u.z,[0,.25,.5],(x,z)=>tacCov(x,z,foe.x,foe.z,objs)*4-Math.hypot(x-u.x,z-u.z)*1.5+Math.min(0,Math.hypot(x-foe.x,z-foe.z)-Math.hypot(u.x-foe.x,u.z-foe.z))*2);   // 적 쪽으로 다가가는 자리는 피한다
   u.path=s&&Math.hypot(s[0]-u.x,s[1]-u.z)>.08?pathPts(u,s[0],s[1]):[];u.dest=null;u.tk.role='react';u.tk.at=t;tacN('react');};}
-/* 보병 시야·사거리: 거리 1칸 ≈ 12m. 맨눈 60m·소총 60m로는 도시 큰길에서도 늘 코앞 교전이 된다.
-   트인 길·광장에서는 더 멀리서 보고 쏘게 한다(건물이 시야를 가리는 골목은 그대로 가깝다). 먼 거리 명중률은 05j-real의 거리 감쇠가 낮춘다. */
-const STAND_R={vis:{rifle:7,mg:7,at:7,eng:5},rng:{rifle:6,mg:7,at:5}};
-for(const k in STAND_R.vis)if(UT[k]){UT[k].vis=STAND_R.vis[k];if(typeof OPT==='object')OPT.vis[k]=STAND_R.vis[k];}
-for(const k in STAND_R.rng)if(UT[k])UT[k].rng=[UT[k].rng[0],STAND_R.rng[k]];
 
 /* ---- 06d-cqb-ai.js ---- */
 /* ===================== AI: 적이 든 건물에 돌입한다 (05k-cqb) =====================
@@ -6174,7 +6169,7 @@ const polObjs=()=>{if(G._pobj&&G._pobj.ver===G.map)return G._pobj.l;const l=[];f
 function polMortar(u){const n=u.nat,t=G.time||0;if(u.path&&u.path.length||t-(u.firedT??-99)<20||t-(u._pmT??-99)<15)return;u._pmT=t;
   let tg=null,bd=1e9;if(typeof memOf==='function')for(const m of Object.values(memOf(n))){if(t-m.t>40)continue;const d=Math.hypot(m.x-u.x,m.z-u.z);if(d<bd){bd=d;tg=[m.x,m.z];}}
   if(!tg)for(const [r,c] of polObjs()){if(G.map[r][c].owner===n)continue;const d=Math.hypot(c+.5-u.x,r+.5-u.z);if(d<bd){bd=d;tg=[c+.5,r+.5];}}
-  if(!tg)return;const dp=depotOf(n);const dx=dp.x-tg[0],dz=dp.z-tg[1],L=Math.hypot(dx,dz)||1;const want=UT[u.type].rng[1]-1.5;
+  if(!tg)return;const dp=depotOf(n);const dx=dp.x-tg[0],dz=dp.z-tg[1],L=Math.hypot(dx,dz)||1;const want=Math.min(UT[u.type].rng[1]-1.5,12);   // 사거리가 지도만큼 길어도 적에게서 약 150m 뒤
   const x=tg[0]+dx/L*Math.min(want,L),z=tg[1]+dz/L*Math.min(want,L);if(Math.hypot(x-u.x,z-u.z)<1.5||hotAt(n,x,z,2.5))return;
   const tl=tileAt(x,z);if(!tl||tl.t==='bldg'||mcost(u.type,tl)===Infinity)return;const P=pathPts(u,x,z);if(P.length){u.path=P;u.dest=[x,z];if(typeof tacN==='function')tacN('mortarMove');}}
 {const _ai=aiThink;aiThink=function(n){_ai(n);if(G.over)return;for(const u of G.units)if(u.nat===n&&u.type==='mortar')try{polMortar(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
@@ -6456,6 +6451,49 @@ function formConvoy(n,u,goal){const gx=goal[1]+.5,gz=goal[0]+.5;const my=Math.hy
 // 오래된 차량 붙임은 푼다(소대가 사라졌거나 판단이 끊김)
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;const t=G.time||0;if((G._fvT||0)>t)return;G._fvT=t+1;
   for(const v of G.units)if(v.fesc!=null&&t-(v.fescT||-99)>=5){v.fesc=null;}};}
+
+/* ---- 06y-range.js ---- */
+/* ===================== RANGE: 실제 교전 거리 (1칸 ≈ 12m) =====================
+   예전 값은 맨눈 시야 60m, 소총 60m라서 큰길에서도 늘 코앞에서 싸웠다. 실제 시가전 보병 교전은 길을 따라 50~150m,
+   소총 유효 사거리는 300m 남짓이다. 그래서 직사 화기의 시야·사거리를 약 두 배로 늘리고, 실제로 어디까지 보이는지는
+   시야선(건물·지형·연기)에 맡긴다. 골목·건물 사이에서는 여전히 가깝고, 큰길·광장·강변에서는 멀리서 싸운다.
+   먼 거리 사격은 대부분 빗나간다: 거리 자체에 따른 명중 감소(RANGE.d50칸에서 절반)를 더하고,
+   빗나가도 탄이 가까이 지나가면 몸을 숙이게(제압) 해서 먼 거리 사격은 주로 적을 묶어 두는 역할을 한다.
+   곡사(박격포·자주포·다연장)는 관측자 체계가 따로 있어 이 파일에서 바꾸지 않는다. */
+const RANGE={
+  vis:{rifle:14,mg:14,at:14,eng:10,sniper:14,ifv:12,tank:12,hmv:12,zu:10,aa:12,atgm:12,ew:8,dteam:10,sup:8,rec:8,amb:8,drone:14,gunship:10},
+  // 사거리 [최소, 최대](칸). 직사 화기는 실제 유효 사거리지만 실제로는 눈에 보이는 데까지(시야선)만 쏜다.
+  //   소총 5.56mm 유효 ~300m지만 분대 표적 교전은 ~200m · 기관총 ~250m(지도 시야 한계) · RPG ~150m · 저격 ~300m(시야 한계)
+  //   재블린급 대전차미사일 최소 65m · 전차포·기관포는 시야 끝까지 · 휴대 대공 미사일 ~300m
+  // 곡사 화기는 관측자(분대 무전·드론·저격수)가 본 곳을 지도 끝까지 쏜다. 너무 가까우면 못 쏜다(최소 사거리).
+  //   60~81mm 박격포 최소 ~70m · 견인·자주포 고각 사격 최소 ~150m · 다연장 로켓 최소 ~250m
+  rng:{rifle:[1,16],mg:[1,20],at:[1,12],sniper:[2,25],ifv:[1,20],tank:[1,22],hmv:[1,18],zu:[1,20],aa:[1,25],atgm:[5,25],gunship:[0,8],
+       mortar:[6,45],spg:[12,90],mlrs:[20,90]},
+  gl:{sniper:6,atgm:6,mg:2,aa:2,hmv:2,ifv:3,tank:3},   // 멈췄을 때 광학 장비로 더 보는 거리(칸)
+  d50:{rifle:9,mg:11,at:7,eng:4,sniper:40,ifv:14,tank:28,hmv:10,zu:12,aa:14,atgm:60,ew:4,dteam:4},   // 이 거리에서 명중률이 절반(조준·탄 퍼짐)
+  envK:2,          // 밤·날씨·높은 곳 시야 보정도 같은 비율로 키운다
+  nearSup:.55,     // 소총·차량 기관총 연사가 보병 근처를 지나가면 이만큼 제압
+};
+for(const k in RANGE.vis)if(UT[k]){UT[k].vis=RANGE.vis[k];if(typeof OPT==='object'&&OPT.vis)OPT.vis[k]=RANGE.vis[k];}
+for(const k in RANGE.rng)if(UT[k])UT[k].rng=RANGE.rng[k].slice();
+if(typeof OPT==='object')Object.assign(OPT.gl,RANGE.gl);
+if(typeof CMB==='object')CMB.flashR=18;           // 총구 섬광은 더 멀리서 보인다
+// 전술 AI의 거리(칸)도 같이 늘린다
+if(typeof TAC==='object'){TAC.near=16;TAC.travel=14;TAC.leg=5;TAC.flankR=[5,8];}
+if(typeof STAND==='object'){STAND.min=4;STAND.near=5;}
+/* 시야 보정(층·언덕·밤·날씨)을 같은 비율로 */
+{const _v=visRange;const VC=new Map();let vcT=-1;
+ visRange=function(u){// 같은 4분의 1초·같은 칸이면 다시 계산하지 않는다(시야 거리가 늘어 seen()이 자주 부른다)
+  const tq=Math.floor((G.time||0)*4);if(tq!==vcT||VC.g!==G){VC.clear();vcT=tq;VC.g=G;}
+  const k=G._day?'d'+u.id:u.id,c=VC.get(k);   // 낮 시야(visDay: 조명탄 아래 판정)는 따로 기억if(c&&c.r===u.r&&c.c===u.c&&c.p===!!(u.path&&u.path.length)&&c.ver===G.ver)return c.v;
+  const r=_v(u);const b=UT[u.type].vis;const v=r<=1?r:Math.max(1,b+(r-b)*RANGE.envK);VC.set(k,{r:u.r,c:u.c,p:!!(u.path&&u.path.length),ver:G.ver,v});return v;};}
+/* 거리 자체에 따른 명중 감소 */
+{const _h=hitP;hitP=function(a,d){const h=_h(a,d);const ta=UT[a.type];if(ta.ind||UT[d.type].fly||!h.p)return h;const D=RANGE.d50[a.type];if(!D)return h;
+  const dd=udist(a,d);h.p*=1/(1+Math.pow(dd/D,2));return h;};}
+/* 빗나간 연사도 고개를 숙이게 한다(보병 표적) */
+{const _s=rtShoot;rtShoot=function(a,d){const r=_s(a,d);const ta=UT[a.type];
+  if(G.units.includes(d)&&UT[d.type].cls==='inf'&&!ta.ind&&!ta.ex&&(ta.cls==='inf'||ta.cls==='veh')&&ta.atk&&ta.atk.inf>=4)d.supp=Math.min(3,Math.max(d.supp||0,RANGE.nearSup));
+  return r;};}
 
 /* ---- 06z-radio-ai.js ---- */
 /* ===================== AI 명령도 무전으로 =====================
