@@ -64,3 +64,24 @@ test('AI: 탄약이 떨어지면 보급 트럭을 사서 보내고, 고장 난 �
   assert.ok(a.am >= 30 && b.am > 40, `재보급 ${a.am.toFixed(0)} ${b.am.toFixed(0)}`);
   assert.equal((G.errs || []).length, 0, String(G.errs));
 });
+
+test('AI 보급 트럭은 기억하는 적 곁으로는 가지 않고, 받을 부대 뒤에 선다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[0].ctrl = 'ai'; G.time = 10;
+  const d = T.__eval('depotOf')(0);
+  const e = T.mkUnit(0, 'rifle', 12, 12); e.am = 0;
+  const tr = T.mkUnit(0, 'sup', Math.floor(d.z), Math.floor(d.x));
+  const foe = T.mkUnit(1, 'rifle', 30, 30);
+  const send = F(T, 'supSend');
+  // 적을 기억하는 자리(지금은 안 보임) 곁의 부대: 가지 않는다
+  F(T, 'memOf')(0)[foe.id] = { x: e.x + 1, z: e.z, t: G.time, how: 'see', h: .5 };
+  send(tr, e);
+  assert.ok(!(tr.lj && tr.lj.k === 'serve'), '위험한 부대는 건너뜀');
+  // 기억을 지우면 간다: 끝점은 부대보다 보급소에 가깝고, 나눠 줄 거리 안
+  G.mem = {}; tr.nog = {};
+  send(tr, e);
+  assert.equal(tr.lj && tr.lj.k, 'serve');
+  const end = tr.path[tr.path.length - 1];
+  assert.ok(Math.hypot(end[0] - d.x, end[1] - d.z) < Math.hypot(e.x - d.x, e.z - d.z), '부대 뒤(보급소 쪽)에 선다');
+  assert.ok(Math.hypot(end[0] - e.x, end[1] - e.z) < 1.6, '나눠 줄 수 있는 거리');
+  assert.equal((G.errs || []).length, 0, String(G.errs));
+});
