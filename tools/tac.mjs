@@ -33,6 +33,7 @@ if (isMainThread) {
     const spots = T.__get('spots'), coverOf = T.__get('coverOf');
     wrap('rtShoot', o => function (a, d) {
       if (inf(a) && inf(d)) { S.shots++; const dd = Math.hypot(a.x - d.x, a.z - d.z); S.dsum += dd; if (dd < 2) S.close++;
+        { const ib = u => T.G.map[u.r][u.c].t === 'bldg'; const io = ib(a) || ib(d) ? 'in' : 'out'; const H = (S.hist ||= {}); const b = io + (dd < 1 ? '<1' : dd < 2 ? '1-2' : dd < 3 ? '2-3' : dd < 5 ? '3-5' : '5+'); H[b] = (H[b] || 0) + 1; }
         if (a.path && a.path.length) S.moving++;
         let ca = 0, cd = 0; try { ca = coverOf(a, d).cov; cd = coverOf(d, a).cov; } catch (e) {}
         if (ca <= 0) S.open++; if (ca <= 0 && cd <= 0 && dd < 3) S.f2f++;
@@ -74,6 +75,8 @@ function summary(R, SIZE, NATS) {
   console.log(`가만히 노는 보병 ${(100 * sum('idle') / Math.max(1, sum('idleN'))).toFixed(0)}% · 뭉침 ${(100 * sum('bunch') / Math.max(1, sum('bunchN'))).toFixed(0)}%`);
   console.log(`전술(판당): 제압사격 ${(sum('supf') / R.length).toFixed(1)} 측면 ${(sum('flank') / R.length).toFixed(1)} 연막 ${(sum('smoke') / R.length).toFixed(1)} 후퇴 ${(sum('retreat') / R.length).toFixed(1)} 엄호이동 ${(sum('bound') / R.length).toFixed(1)} 돌격 ${(sum('assault') / R.length).toFixed(1)}`);
   const agg = k => { const o = {}; for (const r of R) for (const [t, v] of Object.entries(r[k] || {})) o[t] = (o[t] || 0) + v; return Object.fromEntries(Object.entries(o).sort((a, b) => b[1] - a[1]).map(([t, v]) => [t, +(v / R.length).toFixed(1)])); };
+  { const H = {}; for (const r of R) for (const [k, v] of Object.entries(r.hist || {})) H[k] = (H[k] || 0) + v; const tot = Object.values(H).reduce((a, b) => a + b, 0) || 1;
+    console.log('보병 사격 거리(칸, 1칸≈12m; in=한쪽이 건물 안):', ['out<1', 'out1-2', 'out2-3', 'out3-5', 'out5+', 'in<1', 'in1-2', 'in2-3', 'in3-5', 'in5+'].map(k => `${k} ${(100 * (H[k] || 0) / tot).toFixed(0)}%`).join(' · ')); }
   console.log('판당 격파(쏜 쪽):', JSON.stringify(agg('kills')));
   console.log('판당 손실:', JSON.stringify(agg('lost')));
   console.log(`판당: 거점 주인 바뀜 ${(sum('flips') / R.length).toFixed(1)} · 차량 사격 ${(sum('vshots') / R.length).toFixed(0)} · 차량 새 목적지 ${(sum('vord') / R.length).toFixed(0)} (6초 안에 반대로 ${(sum('vflip') / R.length).toFixed(1)}) · 평균 수명 ${(sum('life') / Math.max(1, sum('lifeN'))).toFixed(0)}초 · 아군 피해 사망 ${(100 * sum('ff') / Math.max(1, sum('lifeN'))).toFixed(1)}% · 원인 모름 ${(100 * sum('noby') / Math.max(1, sum('lifeN'))).toFixed(0)}%`);
