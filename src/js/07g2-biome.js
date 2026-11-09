@@ -118,15 +118,22 @@ function bmBuildWorld(g){const T=V3.T,pm=v3PropMats(),M3=bmMats(),G3=bmGeos(),cl
     else if(p.k==='bale')bale.push({x:p.x,y:0,z:p.z,ry:p.ry,col:cl==='winter'?'#dcdcd4':'#c2a35c'});
     else if(p.k==='cont')for(let i=0;i<p.n;i++)cont.push({x:p.x,y:i*.275,z:p.z,ry:p.ry,col:i%2?p.c2:p.col});
     else if(p.k==='logs'){for(const [lz,ly] of [[-.05,.025],[0,.025],[.05,.025],[-.025,.068],[.025,.068],[0,.11]])logs.push(bmAt(p,0,ly,lz));}
-    else if(p.k==='crane'){const col=p.col;
-      for(const [a,b] of [[-.22,-.22],[-.22,.22],[.22,-.22],[.22,.22]])paint.push(bmAt(p,a,.48,b,{sx:.035,sy:.96,sz:.035,col}));
-      for(const b of [-.22,.22])paint.push(bmAt(p,0,.96,b,{sx:.5,sy:.07,sz:.05,col}));
-      paint.push(bmAt(p,-.05,1.06,0,{sx:.3,sy:.16,sz:.3,col:'#d8d4c8'}));paint.push(bmAt(p,.42,1.15,0,{sx:1.55,sy:.06,sz:.08,col}));paint.push(bmAt(p,-.42,1.12,0,{sx:.16,sy:.12,sz:.14,col:'#4a4c4c'}));
-      paint.push(bmAt(p,.95,.85,0,{sx:.01,sy:.55,sz:.01,col:'#2a2a2a'}));}   // 갈고리 줄
-    else if(p.k==='ship'){const col=p.burnt?'#1d1b19':p.col,L=p.len;hull.push({x:p.x,y:0,z:p.z,ry:p.ry,sx:L,sy:1,sz:.72,col});
-      paint.push(bmAt(p,-L/2+.25,.31,0,{sx:.22,sy:.22,sz:.5,col:p.burnt?'#2a2724':'#e0ddd4'}));paint.push(bmAt(p,-L/2+.25,.45,0,{sx:.16,sy:.06,sz:.56,col:'#3a3c3e'}));
-      paint.push(bmAt(p,-L/2+.12,.46,0,{sx:.08,sy:.16,sz:.08,col:p.burnt?'#111':'#9a3a2a'}));
-      if(p.cargo)for(let s=-L/2+.48,i=0;s<L/2-.3;s+=.3,i++)for(const lz of [-.13,.13])paint.push(bmAt(p,s,.27,lz,{sx:.27,sy:.12,sz:.24,col:CONT_COLS[Math.floor(v3Hash(Math.floor(p.x*13+p.z*7),i*2+(lz>0?1:0))*CONT_COLS.length)]}));}}
+    else if(p.k==='crane'){const col=p.col;   // 안벽 갠트리 크레인(STS): 레일 위 네 다리, 바다 쪽으로 길게 뻗은 붐, 꼭대기 A자 틀
+      for(const a of [-.2,.42])for(const b of [-.3,.3])paint.push(bmAt(p,a,.85,b,{sx:.05,sy:1.7,sz:.05,col}));
+      for(const a of [-.2,.42])paint.push(bmAt(p,a,1.72,0,{sx:.06,sy:.08,sz:.66,col}));
+      for(const b of [-.3,.3])paint.push(bmAt(p,.11,.55,b,{sx:.66,sy:.05,sz:.04,col}));
+      paint.push(bmAt(p,.55,1.86,0,{sx:3.0,sy:.09,sz:.14,col}));                        // 붐(뒤로 .95, 바다 쪽으로 2칸)
+      paint.push(bmAt(p,.1,1.98,0,{sx:.34,sy:.16,sz:.3,col:'#d8d4c8'}));                // 기계실
+      paint.push(bmAt(p,.1,2.3,0,{sx:.06,sy:.6,sz:.3,col}));paint.push(bmAt(p,-.75,1.95,0,{sx:.2,sy:.14,sz:.18,col:'#4a4c4c'}));
+      paint.push(bmAt(p,1.45,1.78,0,{sx:.16,sy:.08,sz:.18,col:'#3a3c3e'}));paint.push(bmAt(p,1.45,1.15,0,{sx:.012,sy:1.2,sz:.012,col:'#2a2a2a'}));
+      paint.push(bmAt(p,1.45,.58,0,{sx:.26,sy:.04,sz:.08,col:'#3a3c3e'}));}   // 스프레더
+    else if(p.k==='ship'){const col=p.burnt?'#1d1b19':p.col,L=p.len,big=L>=3.4,W=big?.86:.7;hull.push({x:p.x,y:0,z:p.z,ry:p.ry,sx:L,sy:1,sz:W,col});
+      const bx=-L/2+(big?.45:.25),bh=big?.5:.22;   // 선교(뒤쪽 하얀 탑)
+      paint.push(bmAt(p,bx,.2+bh/2,0,{sx:.24,sy:bh,sz:W*.8,col:p.burnt?'#2a2724':'#e0ddd4'}));paint.push(bmAt(p,bx,.21+bh,0,{sx:.18,sy:.05,sz:W*.95,col:'#3a3c3e'}));
+      paint.push(bmAt(p,bx-.2,.3+bh*.5,0,{sx:.09,sy:.2,sz:.09,col:p.burnt?'#111':'#9a3a2a'}));
+      if(p.cargo){const hs=Math.floor(v3Hash(Math.floor(p.x*13+p.z*7),99)*3);const lanes=big?[-.27,-.09,.09,.27]:[-.13,.13];
+        for(let s=bx+.3,i=0;s<L/2-.35;s+=.31,i++)for(let li=0;li<lanes.length;li++){const n=1+((i+li+hs)%3===0?0:1)+(big&&(i+hs)%4<2?1:0);
+          for(let h=0;h<n;h++)paint.push(bmAt(p,s,.26+h*.12,lanes[li],{sx:.29,sy:.11,sz:big?.17:.24,col:CONT_COLS[Math.floor(v3Hash(Math.floor(p.x*13+p.z*7),i*8+li*2+h)*CONT_COLS.length)]}));}}}}
   v3Inst(g,G3.hedge,M3.hedge,hedge);v3Inst(g,v3LeafTreeG(),pm.leaf,htree);v3Inst(g,G3.bale,M3.hay,bale);v3Inst(g,G3.cont,M3.paint,cont);
   v3Inst(g,G3.box,M3.paint,paint);v3Inst(g,G3.hull,M3.paint,hull);v3Inst(g,G3.log,M3.log,logs);}
 /* 겨울: 평지붕·난간 위에 눈 */

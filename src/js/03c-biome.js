@@ -170,10 +170,14 @@ function genPort(seed,objPer,opt){const rnd=mulberry((seed^0x90471)>>>0);const H
   const pier=(alongC)=>{for(let p=c0+5+Math.floor(rnd()*2);p<=H-2;p+=4+(rnd()<.3?1:0)){const L=3+Math.floor(rnd()*3);
       for(let s=0;s<L;s++){const [r,c]=alongC?[r0+s,p]:[p,c0+s];if(r>=H||c>=H||!can[r][c]||!can[r][c].sea)break;can[r][c]={t:'plaza',pier:1,dist:'ind'};}
       if(rnd()<.75){const id=++bth;for(let s=0;s<L;s++){const [r,c]=alongC?[r0+s,p+1]:[p+1,c0+s];if(r>=H||c>=H||!can[r][c]||!can[r][c].sea)break;can[r][c].berth=id;}}}};
-  pier(true);pier(false);
-  // 안벽에 크레인: 물과 맞닿은 안벽 마당에 띄엄띄엄. 정박 자리 없는 긴 안벽에도 배 하나
-  for(let r=0;r<H;r++)for(let c=0;c<H;c++){const x=can[r][c];if(!x||!x.quay)continue;const sea=BM_NB.find(([a,b])=>{const y=can[r+a]&&can[r+a][c+b];return y&&y.sea;});
-    if(sea&&rnd()<.22){x.crane=1;x.face=sea[0]<0?0:sea[1]>0?1:sea[0]>0?2:3;}}
+  // 북쪽 안벽 = 컨테이너 부두: 긴 직선 안벽에 큰 배가 나란히 붙고, 안벽 끝 레일 위에 갠트리 크레인이 줄지어 서고, 바로 뒤가 컨테이너 야적장
+  {const qa=r0-1,qb=r0-2;let c=c0+1;while(c+3<=H-1){const L=Math.min(5,H-1-c);if(L<3)break;const id=++bth;
+      for(let s=0;s<L;s++){const y=can[r0][c+s];if(y&&y.sea)y.berth=id;}
+      for(let s=1;s<L;s+=2){const y=can[qa][c+s];if(y&&y.quay){y.crane=1;y.face=2;}}
+      c+=L+1;}
+    for(let c=c0;c<H;c++){const y=can[qb]&&can[qb][c];if(y&&y.quay)can[qb][c]={t:'plaza',cy:1,cd:'h',dist:'ind'};}}
+  // 서쪽 안벽 = 잔교 부두(어선·여객선)
+  pier(false);
   // 블록: 부두 가까이는 컨테이너 야적장·창고, 바깥은 도시
   const dfn=comp=>{let d=0;for(const [r,c] of comp)d+=ch(r,c);d/=comp.length;const k=(d-Rb)/(H-Rb);return {d:Math.min(1,.3+k*.7),dist:k<.38?'ind':k<.7?'mid':'res'};};
   let bidN=0,cyN=0;FILL_BID=0;
@@ -215,7 +219,7 @@ function bmProps(P,Hh){const M=G.map,at=(r,c)=>inb(r,c)?M[r][c]:null;
     const ns=r1-r0>=c1-c0;const len=(ns?r1-r0:c1-c0)+1-.35;const q=Hh(id,720);
     // 뱃머리는 바다 가운데 쪽
     const bx=(c0+c1+1)/2,bz=(r0+r1+1)/2;const out=ns?(Math.abs(r0-N/2)>Math.abs(r1+1-N/2)?1:-1):(Math.abs(c0-N/2)>Math.abs(c1+1-N/2)?1:-1);
-    P.push({k:'ship',x:bx,z:bz,ry:ns?(out>0?-Math.PI/2:Math.PI/2):(out>0?0:Math.PI),len,cargo:q<.55,col:SHIP_COLS[Math.floor(Hh(id,721)*SHIP_COLS.length)],burnt:Hh(id,722)<.15});}}
+    P.push({k:'ship',x:bx,z:bz,ry:ns?(out>0?-Math.PI/2:Math.PI/2):(out>0?0:Math.PI),len,cargo:len>=3.4||q<.4,col:SHIP_COLS[Math.floor(Hh(id,721)*SHIP_COLS.length)],burnt:Hh(id,722)<.15});}}
 /* 엄폐·시야: 소품 → G.covers. lh = 이보다 낮게 지나는 시야선을 막는 높이(층) */
 {const _pc=propCovers;propCovers=function(){const C=_pc();if(!C||!G.props)return C;let mx=.7;
   for(const p of G.props){
