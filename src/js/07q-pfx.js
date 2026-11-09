@@ -7,34 +7,39 @@
    - 바람은 날씨와 지도에 따라 정해지고(DS.wind, 칸/초), 모든 연기가 같은 쪽으로 흘러간다.
    - 화면이 느려지면 입자 수를 줄인다(PFX.q). */
 const PFX={q:1,qMax:1,on:false,base:0,t:0,em:[],mapE:new Map(),fireE:new Map(),ema:16,slow:0,col:new Map()};
-const PFXK={SMOKE:0,FIRE:1,FLASH:2,SPARK:3};
+const PFXK={SMOKE:0,FIRE:1,FLASH:2,SPARK:3,TRACER:4,STREAK:5};   // TRACER: 길이(len)를 가진 빛줄기(끝까지 밝다), STREAK: 같은 모양이 빨리 사라진다(총구 화염)
 
 const PFX_VS=`
 uniform float uT;uniform vec2 uWind;uniform vec3 uSunV;
 attribute vec4 a0;attribute vec4 a1;attribute vec4 a2;attribute vec4 a3;attribute vec4 a4;attribute vec4 a5;attribute vec4 a6;
-varying vec2 vUv;varying vec4 vCol;varying vec3 vEm;varying float vK;varying float vKind;varying vec3 vSun;varying float vFog;
+varying vec2 vUv;varying vec2 vQ;varying vec4 vCol;varying vec3 vEm;varying float vK;varying float vKind;varying vec3 vSun;varying float vFog;
 void main(){
-  float age=uT-a0.w;float life=a1.w;float k=age/life;
+  vQ=position.xy*2.0;float age=uT-a0.w;float life=a1.w;float k=age/life;
   if(k<0.0||k>1.0){gl_Position=vec4(2.0,2.0,2.0,1.0);return;}
   float d=a2.z;float f=d>0.0?(1.0-exp(-d*age))/d:age;
   vec3 p=a0.xyz+a1.xyz*f+vec3(uWind.x,0.0,uWind.y)*a4.z*age;
   p.y+=0.5*a2.w*age*age;p.y=max(p.y,0.01);
   float e=1.0-pow(1.0-k,2.2);float s=mix(a2.x,a2.y,e);
   vec4 mv=modelViewMatrix*vec4(p,1.0);vec2 c=position.xy;float r=a4.x+a4.y*age;
-  if(a4.w>2.5){
+  if(a4.w>3.5){
+    vec3 vel=a1.xyz;float sp=length(vel);vec3 vd=sp>1e-5?vel/sp:vec3(1.0,0.0,0.0);
+    float len=max(a6.w,min(a6.z,sp*age));vec4 mt=modelViewMatrix*vec4(p-vd*len,1.0);
+    vec2 dv=mv.xy-mt.xy;float L=length(dv);vec2 dir=L>1e-5?dv/L:vec2(1.0,0.0);vec2 nr=vec2(-dir.y,dir.x);
+    mv=mix(mt,mv,c.x+0.5);mv.xy+=nr*c.y*s;r=0.0;
+  }else if(a4.w>2.5){
     vec3 vel=a1.xyz*exp(-d*age)+vec3(0.0,a2.w*age,0.0);vec2 dv=(modelViewMatrix*vec4(vel,0.0)).xy;float L=length(dv);
     vec2 dir=L>1e-4?dv/L:vec2(1.0,0.0);vec2 nr=vec2(-dir.y,dir.x);mv.xy+=dir*c.x*(s+L*0.035)+nr*c.y*s*0.5;r=0.0;
   }else{float cs=cos(r),sn=sin(r);mv.xy+=mat2(cs,sn,-sn,cs)*c*s;}
   gl_Position=projectionMatrix*mv;vFog=-mv.z;
   vUv=uv*0.5+vec2(mod(a6.y,2.0),floor(a6.y*0.5))*0.5;vK=k;vKind=a4.w;
-  float fi=max(a6.x,1e-3);float a=a3.w*smoothstep(0.0,fi,k)*(a4.w>0.5?pow(1.0-k,1.6):(1.0-smoothstep(0.4,1.0,k))*mix(1.0,0.6,e));
+  float fi=max(a6.x,1e-3);float a=a3.w*smoothstep(0.0,fi,k)*(a4.w>4.5?pow(1.0-k,1.6):a4.w>3.5?1.0-smoothstep(0.88,1.0,k):a4.w>0.5?pow(1.0-k,1.6):(1.0-smoothstep(0.4,1.0,k))*mix(1.0,0.6,e));
   vCol=vec4(a3.rgb,a);vEm=a5.rgb*max(0.0,1.0-k/max(a5.w,1e-3));
   float cs2=cos(-r),sn2=sin(-r);vSun=vec3(mat2(cs2,sn2,-sn2,cs2)*uSunV.xy,uSunV.z);
 }`;
 const PFX_FS=`
 uniform sampler2D uTex;uniform vec3 uSun;uniform vec3 uAmb;uniform float uAdd;
 uniform vec3 fogColor;uniform float fogNear;uniform float fogFar;
-varying vec2 vUv;varying vec4 vCol;varying vec3 vEm;varying float vK;varying float vKind;varying vec3 vSun;varying float vFog;
+varying vec2 vUv;varying vec2 vQ;varying vec4 vCol;varying vec3 vEm;varying float vK;varying float vKind;varying vec3 vSun;varying float vFog;
 void main(){
   vec4 tx=texture2D(uTex,vUv);float dens=tx.a;
   float ff=smoothstep(fogNear,fogFar,vFog);vec3 col;float a;
@@ -48,7 +53,9 @@ void main(){
     float k=vK;vec3 ramp;
     if(vKind<1.5){vec2 lc=fract(vUv*2.0)*2.0-1.0;float rad=clamp(1.0-dot(lc,lc),0.0,1.0);ramp=mix(vec3(4.5,3.9,2.8),vec3(3.2,1.6,0.55),smoothstep(0.0,0.4,k));ramp=mix(ramp,vec3(1.0,0.3,0.06),smoothstep(0.4,0.9,k));dens=smoothstep(0.0,0.9,rad*rad*(0.4+tx.r*1.2))*(1.0-smoothstep(0.2,0.75,k));}
     else if(vKind<2.5){ramp=vec3(3.0,2.7,2.2);dens=smoothstep(0.0,0.9,dens);}
-    else{ramp=vec3(2.6,1.5,0.6)*(1.2-k);dens=1.0;}
+    else if(vKind<3.5){ramp=vec3(2.6,1.5,0.6)*(1.2-k);dens=1.0;}
+    else{vec2 lc=vQ;float w=max(0.0,1.0-lc.y*lc.y);float core=pow(max(0.0,1.0-abs(lc.y)),5.0);
+      dens=w*w*smoothstep(-1.0,0.5,lc.x)*(1.0-smoothstep(0.8,1.0,lc.x));ramp=vec3(1.7)+vec3(2.4)*core/max(vCol.rgb,vec3(0.15));}
     col=vCol.rgb*ramp*(1.0-ff);a=vCol.a*dens;if(a<0.004)discard;
   }
   gl_FragColor=vec4(col,a);
@@ -105,7 +112,7 @@ function pfx(o){if(!PFX.on)pfxInit();if(!PFX.on)return;const B=o.k?PFX.a:PFX.s;c
   a=A[3].array;a[j]=c[0];a[j+1]=c[1];a[j+2]=c[2];a[j+3]=o.a??1;
   a=A[4].array;a[j]=o.rot??Math.random()*6.283;a[j+1]=o.rs??(Math.random()-.5)*.6;a[j+2]=o.wind??1;a[j+3]=o.k||0;
   a=A[5].array;if(e){const ei=o.emI??1;a[j]=e[0]*ei;a[j+1]=e[1]*ei;a[j+2]=e[2]*ei;a[j+3]=o.emK||.15;}else{a[j]=a[j+1]=a[j+2]=0;a[j+3]=1;}
-  a=A[6].array;a[j]=o.fi??.08;a[j+1]=o.v??(Math.random()*4|0);a[j+2]=0;a[j+3]=0;}
+  a=A[6].array;a[j]=o.fi??.08;a[j+1]=o.v??(Math.random()*4|0);a[j+2]=o.len||0;a[j+3]=o.lmin||0;}
 function pfxFlush(B){if(B.hi<0)return;for(const at of B.A){if(B.wrap||!at.addUpdateRange){if(at.clearUpdateRanges)at.clearUpdateRanges();}else{at.clearUpdateRanges();at.addUpdateRange(B.lo*4,(B.hi-B.lo+1)*4);}at.needsUpdate=true;}B.lo=1e9;B.hi=-1;B.wrap=false;}
 
 /* 흙·콘크리트 먼지 색 */
