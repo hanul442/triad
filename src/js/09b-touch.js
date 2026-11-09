@@ -6,10 +6,11 @@
    - 두 손가락 탭: 선택·명령 모드 취소
    - 명령을 내린 지점에 잠깐 표시가 뜬다 */
 function canCmd(){return G&&!G.over&&!G.boot&&!isAI(G.viewer)&&$('#setup').hidden;}
-function boxSelect(a,b){if(!canCmd()||typeof V3==='undefined'||!V3.cam)return;const n=G.viewer;const r=V3.cv.getBoundingClientRect();
+function boxSelect(a,b,add){if(!canCmd()||typeof V3==='undefined'||!V3.cam)return;const n=G.viewer;const r=V3.cv.getBoundingClientRect();
   const x0=Math.min(a[0],b[0]),x1=Math.max(a[0],b[0]),y0=Math.min(a[1],b[1]),y1=Math.max(a[1],b[1]);const v=new V3.T.Vector3();
   const us=G.units.filter(u=>{if(u.nat!==n)return false;const o=V3.uo.get(u.id);if(!o)return false;v.copy(o.position);if(typeof v3TY==='function')v.y+=v3TY(v.x,v.z);v.project(V3.cam);
     const sx=(v.x+1)/2*r.width+r.left,sy=(1-v.y)/2*r.height+r.top;return sx>=x0-10&&sx<=x1+10&&sy>=y0-10&&sy<=y1+10;});
+  if(add){for(const u of [UI.sel,...(UI.group||[])])if(u&&u.nat===n&&G.units.includes(u)&&!us.includes(u))us.push(u);}
   if(!us.length){toast('범위 안에 아군이 없습니다');return;}
   clearSel();select(us[0]);UI.group=us.slice(1);toast(`${us.length}개 부대 선택`);render();}
 function holdTap(k){if(!G)return;const r=kr(k),c=kc(k),x=cell(r,c),n=G.viewer;const pid=V3.pickId;const u0=pid!=null?G.units.find(z=>z.id===pid):null;

@@ -42,7 +42,8 @@ test('측면 이동 중 가까운 적을 직접 보면 멈춰 엄폐한다', () 
   assert.ok(!u.path.length || Math.hypot(u.path.at(-1)[0] - u.x, u.path.at(-1)[1] - u.z) < .6, '거의 제자리');
 });
 
-test('보병 시야와 사거리: 소총 6칸, 기관총 7칸, 시야 7칸', () => {
+test('실제 사거리(06y-range): 소총 16칸(약 200m), 시야 14칸, 박격포 최소 6칸·최대 45칸, 자주포 최소 12칸', () => {
   const T = loadGame();
-  assert.equal(T.UT.rifle.rng[1], 6); assert.equal(T.UT.mg.rng[1], 7); assert.equal(T.UT.rifle.vis, 7);
+  assert.deepEqual([...T.UT.rifle.rng], [1, 16]); assert.equal(T.UT.rifle.vis, 14);
+  assert.deepEqual([...T.UT.mortar.rng], [6, 45]); assert.deepEqual([...T.UT.spg.rng], [12, 90]);
 });

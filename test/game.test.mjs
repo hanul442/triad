@@ -301,10 +301,10 @@ test('칸 없는 시야: 같은 칸 쌍이라도 실제 위치에 따라 건물 
 
 test('숨은 보병은 가까이 와야 발견되고, 쏘면 드러난다', () => {
   const T = loadGame(); const G = setup(T); G.fog = true;
-  G.map[5][9] = { t: 'park', owner: null, obj: null, smoke: 0 };
-  const a = T.mkUnit(0, 'rifle', 5, 4), e = T.mkUnit(1, 'rifle', 5, 9);
-  a.x = 4.5; a.z = 5.5; e.x = 9.5; e.z = 5.5; T.bump();
-  assert.equal(T.seen(e, 0), false, '공원 속 5칸 거리는 안 보임');
+  G.map[5][15] = { t: 'park', owner: null, obj: null, smoke: 0 };
+  const a = T.mkUnit(0, 'rifle', 5, 4), e = T.mkUnit(1, 'rifle', 5, 15);
+  a.x = 4.5; a.z = 5.5; e.x = 15.5; e.z = 5.5; T.bump();
+  assert.equal(T.seen(e, 0), false, '공원 속 11칸 거리는 안 보임');
   e.firedT = 0; G.time = 1; T.bump();
   assert.equal(T.seen(e, 0), true, '쏜 직후엔 보임');
 });
@@ -730,7 +730,7 @@ test('미사일: 유도미사일은 날아가서 맞고, 연막에 들어가면 
 
 test('미사일: 다연장 로켓은 로켓 여러 발을 띄우고, 탄도미사일은 몇 초 뒤 떨어진다', () => {
   const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
-  const m = T.mkUnit(0, 'mlrs', 15, 2), tg = T.mkUnit(1, 'rifle', 15, 13); m.hold = tg.hold = true; m.cd = 0;
+  const m = T.mkUnit(0, 'mlrs', 15, 2), tg = T.mkUnit(1, 'rifle', 15, 26); m.hold = tg.hold = true; m.cd = 0;
   T.rtTick(0.1); assert.equal(G.shells.filter(s => s.type === 'mlrs').length, 12);
   const e = T.mkUnit(1, 'rifle', 20, 8), sp = T.mkUnit(0, 'drone', 20, 4); e.hold = sp.hold = true; G.nats[0].cp = 99; G.nats[0].supT = 0;
   assert.ok(T.support(0, 'tbm', 20, 8)); const hp0 = e.hp; T.rtRun(4); assert.equal(e.hp, hp0, '아직 안 떨어짐');

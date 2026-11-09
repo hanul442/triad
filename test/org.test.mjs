@@ -73,3 +73,52 @@ test('편성이 있는 부관 판도 오류 없이 끝까지 간다', () => {
   assert.ok(T.G.over);
   assert.equal((T.G.errs || []).length, 0, String((T.G.errs || [])[0]));
 });
+
+test('편성: 병종을 따른다 (전차소대, 장갑차는 보병과 기계화 소대, 차량 둘까지)', () => {
+  const T = loadGame(); start(T, false);
+  const G = T.G, n = 0; const d = T.__eval('depotOf')(n);
+  const add = t => T.mkUnit(n, t, Math.floor(d.z), Math.floor(d.x));
+  const tanks = [add('tank'), add('tank'), add('tank')];
+  const ifvs = [add('ifv'), add('ifv'), add('ifv')];
+  T.rtRun(1.5);
+  const kind = T.__eval('orgPqKind'), pq = T.__eval('orgPq'), units = T.__eval('orgPqUnits');
+  for (const u of tanks) {
+    const p = pq(n, u.pq);
+    assert.ok(units(n, p).every(x => x.type === 'tank'), '전차소대에는 전차만');
+  }
+  assert.equal(new Set(tanks.map(u => u.pq)).size, 1, '전차 셋은 한 소대');
+  for (const u of ifvs) {
+    const p = pq(n, u.pq); const us = units(n, p);
+    assert.equal(kind(n, p), 'mech');
+    assert.ok(us.filter(x => x.type === 'ifv' || x.type === 'hmv').length <= 2);
+    assert.ok(us.every(x => x.type !== 'tank'));
+  }
+  for (const p of G.org[n].pq) assert.ok(units(n, p).length <= 4);
+});
+
+test('편성: 판 처음에도 전차는 따로 전차소대', () => {
+  const T = loadGame(); seedRandom(T, 9);
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: 'm', seed: 9, fog: true, speed: 0, force: ['rifle', 'rifle', 'rifle', 'ifv', 'ifv', 'tank', 'tank', 'mg'] });
+  T.rtRun(2);
+  const G = T.G, n = 0; const units = T.__eval('orgPqUnits');
+  for (const p of G.org[n].pq) {
+    const us = units(n, p); const tk = us.filter(u => u.type === 'tank').length;
+    assert.ok(tk === 0 || tk === us.length, `${p.name}: ${us.map(u => u.type)}`);
+    assert.ok(us.filter(u => u.type === 'ifv').length <= 2);
+  }
+});
+
+test('편성: 손실로 작아진 소대는 가까운 같은 갈래 소대와 합친다', () => {
+  const T = loadGame(); start(T, false);
+  const G = T.G, n = 0; const O = G.org[n];
+  const units = T.__eval('orgPqUnits');
+  const c = O.co[0]; const P = O.pq.filter(p => p.co === c.id && units(n, p).every(u => u.type !== 'tank'));
+  assert.ok(P.length >= 2, '소대 둘 이상');
+  const a = P[0], b = P[1];
+  // 두 소대를 한 명씩만 남기고 가까이 둔다
+  for (const p of [a, b]) for (const u of units(n, p).slice(1)) G.units.splice(G.units.indexOf(u), 1);
+  const ua = units(n, a)[0], ub = units(n, b)[0]; ub.x = ua.x + 1; ub.z = ua.z;
+  G.orgMT = 0; T.rtRun(1.2);
+  assert.equal(ua.pq, ub.pq, '한 소대로');
+  assert.equal(O.pq.filter(p => units(n, p).length).length, O.pq.length, '빈 소대는 지움');
+});

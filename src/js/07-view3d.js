@@ -131,7 +131,8 @@ function v3Ground(cx,cy){const T=V3.T,p=new T.Vector3();return v3Ray(cx,cy).ray.
 /* 손가락(커서) 아래 지점을 고정한 채 확대·축소 */
 function v3ZoomAt(f,cx,cy,now){const s=V3.cs,o=s.gd;const p=cx!=null?v3Ground(cx,cy):null;v3Zoom(f);if(now)s.d=s.gd;if(!p)return;const k=1-s.gd/o;
   s.gx=Math.min(N,Math.max(0,s.gx+(p.x-s.gx)*k));s.gz=Math.min(N,Math.max(0,s.gz+(p.z-s.gz)*k));if(now){s.x=s.gx;s.z=s.gz;}}
-/* 터치 조작: 한 손가락 드래그 이동(관성), 두 손가락 확대·회전·기울기, 짧게 탭 명령, 길게 눌러 끌기 범위 선택, 두 손가락 탭 선택 해제 */
+/* 마우스(PC): 왼쪽 클릭 선택·이동, 왼쪽 끌기 범위 선택(Shift: 더하기), 오른쪽 클릭 명령, 오른쪽 끌기·Ctrl/Alt+끌기 회전·기울기, 가운데 끌기 이동, 휠 확대.
+   터치 조작: 한 손가락 드래그 이동(관성), 두 손가락 확대·회전·기울기, 짧게 탭 명령, 길게 눌러 끌기 범위 선택, 두 손가락 탭 선택 해제 */
 const LP_MS=420;
 function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,last2=null,lp=null,lpT=0,vel=[0,0],lastMv=0,inertia=0;const pos=e=>[e.clientX,e.clientY];
   const box=$('#selbox');
@@ -140,13 +141,14 @@ function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,las
     const st=now=>{const dt=Math.min(40,now-t0);t0=now;v3Pan(vx*dt,vy*dt);const d=Math.exp(-dt/260);vx*=d;vy*=d;inertia=Math.hypot(vx,vy)>.02?requestAnimationFrame(st):0;};inertia=requestAnimationFrame(st);};
   const drawBox=(a,b)=>{if(!box)return;const x=Math.min(a[0],b[0]),y=Math.min(a[1],b[1]);box.style.left=x+'px';box.style.top=y+'px';box.style.width=Math.abs(a[0]-b[0])+'px';box.style.height=Math.abs(a[1]-b[1])+'px';box.hidden=false;};
   cv.addEventListener('contextmenu',e=>e.preventDefault());
-  cv.addEventListener('pointerdown',e=>{stopInertia();if(typeof closeMore==='function')closeMore();try{cv.setPointerCapture(e.pointerId);}catch(_){}P.set(e.pointerId,{p:pos(e),b:e.button,mod:e.shiftKey||e.ctrlKey||e.altKey});
-    if(P.size===1){start={p:pos(e),t:performance.now(),touch:e.pointerType!=='mouse'};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
-      if(e.button===0&&!P.get(e.pointerId).mod)lpT=setTimeout(()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}},LP_MS);}
+  cv.addEventListener('pointerdown',e=>{stopInertia();if(typeof closeMore==='function')closeMore();try{cv.setPointerCapture(e.pointerId);}catch(_){}const ms=e.pointerType==='mouse';P.set(e.pointerId,{p:pos(e),b:e.button,mod:ms?e.ctrlKey||e.altKey:e.shiftKey||e.ctrlKey||e.altKey,sh:e.shiftKey});
+    if(P.size===1){start={p:pos(e),t:performance.now(),touch:!ms,mb:ms&&e.button===0&&!P.get(e.pointerId).mod};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
+      if(e.button===0&&!P.get(e.pointerId).mod&&!ms){const bm=typeof UI!=='undefined'&&UI.boxMode;const go=()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p,bm};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}};if(bm)go();else lpT=setTimeout(go,LP_MS);}}
     else{multi=true;last2=null;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}}});
   cv.addEventListener('pointermove',e=>{const q=P.get(e.pointerId);if(!q){if(e.pointerType==='mouse')v3Hover(e);return;}
     const np=pos(e),dx=np[0]-q.p[0],dy=np[1]-q.p[1];q.p=np;moved+=Math.abs(dx)+Math.abs(dy);
     if(P.size===1){if(lp){lp.b=np;drawBox(lp.a,lp.b);return;}
+      if(start&&start.mb&&q.b===0){if(moved>4){lp={a:start.p,b:np,add:q.sh};drawBox(lp.a,lp.b);}return;}
       if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}
       else if(moved>(start&&start.touch?10:4)){v3Pan(dx,dy);const now=performance.now(),dt=Math.max(1,now-lastMv);lastMv=now;const k=Math.min(1,dt/40);vel=[vel[0]*(1-k)+dx/dt*k,vel[1]*(1-k)+dy/dt*k];}}
     else if(P.size===2){const [a,b]=[...P.values()];const mx=(a.p[0]+b.p[0])/2,my=(a.p[1]+b.p[1])/2,dd=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]),an=Math.atan2(b.p[1]-a.p[1],b.p[0]-a.p[0]);
@@ -156,9 +158,10 @@ function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,las
       last2={mx,my,dd,an};}});
   const up=e=>{const had=P.has(e.pointerId);P.delete(e.pointerId);if(P.size<2)last2=null;clearTimeout(lpT);
     if(had&&P.size===0&&start){const dur=performance.now()-start.t;
-      if(lp){if(box)box.hidden=true;const a=lp.a,b=lp.b;lp=null;if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>16){if(typeof boxSelect==='function')boxSelect(a,b);}else{const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof holdTap==='function')holdTap(k);}}
+      if(lp){if(box)box.hidden=true;const a=lp.a,b=lp.b,bm=lp.bm,add=lp.add;lp=null;if(bm&&typeof boxModeOff==='function')boxModeOff();if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>16){if(typeof boxSelect==='function')boxSelect(a,b,add);}else{const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null){if(start.mb){if(typeof tap==='function')tap(k);}else if(typeof holdTap==='function')holdTap(k);}}}
       else if(multi){if(moved<24&&dur<450&&typeof twoTap==='function')twoTap();}
-      else if(moved<(start.touch?12:8)&&dur<LP_MS&&e.button!==2){const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof tap==='function')tap(k);}
+      else if(!start.touch&&e.button===2&&moved<8){const k=v3Pick(e.clientX,e.clientY,28);if(k!=null&&typeof v3Order==='function')v3Order(k);}
+      else if(moved<(start.touch?12:8)&&(dur<LP_MS||!start.touch)&&e.button===0){const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof tap==='function')tap(k);}
       else if(performance.now()-lastMv<80)fling();}
     if(P.size===0)start=null;};
   cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{P.delete(e.pointerId);multi=true;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}if(P.size===0)start=null;});
@@ -178,7 +181,7 @@ function v3Pick(cx,cy,rad){if(!G)return null;V3.pickId=null;V3.pickPt=null;const
     if(best){V3.pickId=best.userData.id;return best.userData.k;}}
   return k;}
 let v3HovRaf=0;
-function v3Hover(e){if(v3HovRaf)return;const x=e.clientX,y=e.clientY;v3HovRaf=requestAnimationFrame(()=>{v3HovRaf=0;const k=v3Pick(x,y);if(k!==UI.hk){UI.hk=k;v3SyncHl();if(typeof renderTip==='function')renderTip();}});}
+function v3Hover(e){if(v3HovRaf)return;const x=e.clientX,y=e.clientY;v3HovRaf=requestAnimationFrame(()=>{v3HovRaf=0;const k=v3Pick(x,y);if(k!==UI.hk){UI.hk=k;v3SyncHl();if(typeof renderTip==='function')renderTip();}if(typeof v3Cursor==='function')v3Cursor();});}
 function v3Clear(g){for(const o of [...g.children]){g.remove(o);o.traverse(x=>{if(x.geometry)x.geometry.dispose();});}}
 
 /* ---------- 지면 ---------- */

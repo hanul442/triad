@@ -110,7 +110,7 @@ const polObjs=()=>{if(G._pobj&&G._pobj.ver===G.map)return G._pobj.l;const l=[];f
 function polMortar(u){const n=u.nat,t=G.time||0;if(u.path&&u.path.length||t-(u.firedT??-99)<20||t-(u._pmT??-99)<15)return;u._pmT=t;
   let tg=null,bd=1e9;if(typeof memOf==='function')for(const m of Object.values(memOf(n))){if(t-m.t>40)continue;const d=Math.hypot(m.x-u.x,m.z-u.z);if(d<bd){bd=d;tg=[m.x,m.z];}}
   if(!tg)for(const [r,c] of polObjs()){if(G.map[r][c].owner===n)continue;const d=Math.hypot(c+.5-u.x,r+.5-u.z);if(d<bd){bd=d;tg=[c+.5,r+.5];}}
-  if(!tg)return;const dp=depotOf(n);const dx=dp.x-tg[0],dz=dp.z-tg[1],L=Math.hypot(dx,dz)||1;const want=UT[u.type].rng[1]-1.5;
+  if(!tg)return;const dp=depotOf(n);const dx=dp.x-tg[0],dz=dp.z-tg[1],L=Math.hypot(dx,dz)||1;const want=Math.min(UT[u.type].rng[1]-1.5,12);   // 사거리가 지도만큼 길어도 적에게서 약 150m 뒤
   const x=tg[0]+dx/L*Math.min(want,L),z=tg[1]+dz/L*Math.min(want,L);if(Math.hypot(x-u.x,z-u.z)<1.5||hotAt(n,x,z,2.5))return;
   const tl=tileAt(x,z);if(!tl||tl.t==='bldg'||mcost(u.type,tl)===Infinity)return;const P=pathPts(u,x,z);if(P.length){u.path=P;u.dest=[x,z];if(typeof tacN==='function')tacN('mortarMove');}}
 {const _ai=aiThink;aiThink=function(n){_ai(n);if(G.over)return;for(const u of G.units)if(u.nat===n&&u.type==='mortar')try{polMortar(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
