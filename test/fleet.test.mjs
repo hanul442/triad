@@ -69,7 +69,8 @@ test('공병전차: 앞을 막은 적 방벽을 밀고 지뢰를 밟지 않고 �
   G.forts.push({ id: 900, k: 'jersey', nat: 1, x: 9.5, z: 12.5, ry: Math.PI / 2, hp: 70, prog: 1 });
   G.forts.push({ id: 901, k: 'mine', nat: 1, x: 7.5, z: 12.5, ry: 0, hp: 20, prog: 1 });
   G.fortNV = (G.fortNV || 0) + 1; T.bump();
-  c.hold = false; c.path = T.pathPts(c, 12.5, 12.5); c.dest = [12.5, 12.5];
+  // 플레이어가 내린 이동 명령(직접 지휘 u.man): 부관 AI가 길을 바꾸지 않는다
+  c.hold = false; c.path = T.pathPts(c, 12.5, 12.5); c.dest = [12.5, 12.5]; c.man = G.time || 0;
   run(T, 14);
   assert.ok(!G.forts.some(f => f.id === 900), '방벽 치움');
   assert.ok(!G.forts.some(f => f.id === 901), '지뢰 걷음');
