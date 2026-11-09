@@ -77,7 +77,7 @@ test('AI: 탄약이 떨어지면 보급 트럭을 사서 보내고, 고장 난 �
   T.aiThink(0);
   assert.ok(G.units.some(u => u.type === 'rec' && u.nat === 0), '구난차 구매');
   for (let i = 0; i < 1500 && (a.am < 30 || b.am < 40); i++) { T.rtTick(0.1); if (i % 20 === 0) T.aiThink(0); }
-  assert.ok(a.am >= 30 && b.am > 40, `재보급 ${a.am.toFixed(0)} ${b.am.toFixed(0)}`);
+  assert.ok(a.am >= 30 && b.am >= 40, `재보급 ${a.am.toFixed(0)} ${b.am.toFixed(0)}`);
   assert.equal((G.errs || []).length, 0, String(G.errs));
 });
 

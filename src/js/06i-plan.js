@@ -23,10 +23,12 @@ const planOn=n=>!!(G&&G.nats&&G.nats[n]&&G.nats[n].alive!==false&&aiRun(n));
 const planUser=(n,pq)=>typeof autoOn==='function'&&autoOn(n)&&!!autoIOf(n,pq);
 /* 계획에 넣는 무리: 소대(사람 임무 소대·수비대 빼고), 소대 밖 지상 전투 차량 */
 const planVeh=u=>{const t=UT[u.type];return t.cls==='veh'&&!t.ind&&!t.fly&&!t.logi&&!SELF_RUN[u.type]&&u.type!=='amb'&&!u.post&&!u.job;};
+/* 탄약이 30% 아래로 떨어진 무리는 과제에 넣지 않는다(먼저 재보급) */
+const planDry=M=>{if(typeof amFrac!=='function')return false;const A=M.filter(u=>amMax(u));return A.length>0&&A.reduce((a,u)=>a+amFrac(u),0)/A.length<.3;};
 function planGroups(n){const out=[];
-  for(const p of tacPl()){if(p.nat!==n||p.human||p.mode==='defend'&&!p._pd)continue;const M=tacMembers(p);if(!M.length)continue;const c=tacCtr(p);
+  for(const p of tacPl()){if(p.nat!==n||p.human||p.mode==='defend'&&!p._pd)continue;const M=tacMembers(p);if(!M.length||planDry(M))continue;const c=tacCtr(p);
     out.push({id:'p'+p.id,p,x:c[0],z:c[1],s:M.reduce((a,u)=>a+planStr(u),0),pq:M[0].pq});}
-  for(const u of G.units){if(u.nat!==n||!planVeh(u)||u.pl)continue;out.push({id:'u'+u.id,u,x:u.x,z:u.z,s:planStr(u),pq:u.pq});}
+  for(const u of G.units){if(u.nat!==n||!planVeh(u)||u.pl||planDry([u]))continue;out.push({id:'u'+u.id,u,x:u.x,z:u.z,s:planStr(u),pq:u.pq});}
   return out;}
 /* 거점 둘레에서 이미 지키는 힘(수비대 소대·고정 부대·건물 안 보병) */
 function planHeld(n,x,z,R){let s=0;for(const u of G.units){if(u.nat!==n||UT[u.type].fly||UT[u.type].logi||u.pl&&!(G.plat||[]).some(p=>p.id===u.pl&&p.mode==='defend'&&!p._pd)||planVeh(u))continue;if(Math.hypot(u.x-x,u.z-z)<R)s+=planStr(u);}return s;}
