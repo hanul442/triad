@@ -58,7 +58,8 @@ test('땅굴: 공병이 파면 아군 보병이 숨어서 지나가고, 안에�
   bldg(G, 4, 7, 2); G.nats[0].cp = 10;
   const e = unit(T, 0, 'eng', 7.5, 4.5);
   assert.equal(g(T, 'tunOrder')(e, 7.5, 10.5), null);
-  run(T, 45);
+  // 파는 동안 상대 쪽이 지원 부대(박격포·저격수…)를 사 보내 공병을 묶어 두지 않게 한다
+  run(T, 45, () => { G.units = G.units.filter(u => u.nat !== 1); });
   assert.equal(G.tun[0].prog, 1, '다 판다');
   const s = unit(T, 0, 'rifle', 7.3, 4.6); s.nocas = 1;
   T.orderMoveTo(s, 7.5, 10.6);
