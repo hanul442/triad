@@ -21,21 +21,21 @@ const CAMP={
       '험비와 장갑차를 대사관 앞 승차 지점까지 몰고 가서 멈추면 사람들이 한 명씩 탑니다(험비 3명, 장갑차 5명). 한 번에 다 태울 수 없으니 여러 번 오가야 합니다. 태운 차를 서쪽 집결지로 데려오면 구출입니다.'],
     goals:['피란민 20명을 서쪽 집결지로 후송','대사관을 20초 넘게 빼앗기지 않기','피란민을 5명 이상 잃지 않기'],
     intel:'동쪽과 북쪽 골목에서 1~2분마다 적 증원이 들어옵니다. 시간이 갈수록 장갑차와 대전차팀이 섞입니다. 사람을 태운 차가 부서지면 탄 사람도 잃습니다.',
-    force:'험비 2 · 장갑차 1 · 소총분대 2 · 대전차팀 1 · 기관총팀 1, 대사관 경비 소총분대 2 · 기관총팀 1',
+    force:'험비 2 · 장갑차 1 · 소총분대 2 · 대전차팀 1 · 기관총팀 1, 대사관 경비 소총분대 3 · 기관총팀 · 대전차팀. 1분 30초·4분에 아군 증원(장갑차·험비·보병)이 서쪽에서 옵니다.',
     stars:['임무 성공','피란민 20명 모두 구출','4분 안에 끝내기']},
   bridge:{no:2,n:'강을 건너라',kind:'다리 확보',when:'D+3 05:50 · 서강 중류',seed:52331,limit:14*60,
     brief:['공화국군이 시내를 가르는 서강을 방어선으로 삼았습니다. 남은 다리는 가운데 서강교와 북쪽 철교뿐이고, 공화국군 공병이 서강교 한가운데에 폭약을 걸었습니다.',
       '폭약이 터지기 전에 소총분대나 공병을 폭약 옆에 세워 해체하세요(근처 3칸 안에 적이 없어야 합니다. 공병은 18초, 소총분대는 36초 걸립니다). 그리고 동쪽 끝 교두보를 빼앗아 반격을 2분 버티면 다리는 우리 것입니다.'],
     goals:['5분 안에 서강교 폭약 해체','서강교 동단 교두보 점령','점령 뒤 공화국군 반격을 2분 버티기'],
     intel:'동쪽 강변에 모래주머니·철조망·기관총 진지가 있고, 건물 안에 저격수와 박격포가 숨어 있습니다. 강은 건널 수 없습니다. 북쪽 철교로 돌아가는 길도 있습니다.',
-    force:'소총분대 3 · 공병 2 · 기관총팀 · 대전차팀 · 박격포 · 장갑차 · 전차',
+    force:'소총분대 3 · 공병 2 · 기관총팀 · 대전차팀 · 박격포 · 장갑차 · 전차. 2분 30초·5분 30초에 아군 증원이 옵니다.',
     stars:['임무 성공','폭약을 2분 넘게 남기고 해체','잃은 부대 4개 이하']},
   station:{no:3,n:'목소리를 되찾다',kind:'거점 탈환',when:'D+6 21:10 · 도심 방송국',seed:63919,limit:15*60,
     brief:['도심 방송국을 쥔 공화국군이 연방 정부가 항복했다는 거짓 방송을 내보내고 있습니다. 방송국 둘레는 모래주머니·철조망·기관총 진지·대전차 장애물로 굳게 막혀 있습니다.',
       '방송국을 점령한 뒤 60초를 지키면 방송이 우리 손에 들어옵니다. 둘레 3칸 안에 적이 있으면 시간이 멈추고, 방송국을 빼앗기면 처음부터 다시 셉니다. 북동쪽 송신 중계소를 먼저 빼앗으면 적 포병·항공 지원이 끊깁니다.'],
     goals:['중앙 방송국 점령','점령 뒤 60초 유지 (둘레 3칸 안에 적이 있으면 멈춤)','(선택) 송신 중계소 점령: 적 화력 지원 차단'],
     intel:'방송국 건물에 소총분대·기관총팀이 자리를 지키고, 지붕엔 저격수, 뒤쪽엔 박격포와 전차가 있습니다. 정면 도로는 철조망과 대전차 장애물로 막혀 있습니다. 공병으로 철조망을 끊거나 건물을 부숴 길을 내세요.',
-    force:'소총분대 4 · 공병 2 · 기관총팀 2 · 대전차팀 2 · 저격수 · 박격포 · 장갑차 2 · 전차',
+    force:'소총분대 4 · 공병 2 · 기관총팀 2 · 대전차팀 2 · 저격수 · 박격포 · 장갑차 2 · 전차. 3분·7분에 아군 증원이 옵니다.',
     stars:['임무 성공','송신 중계소 점령','8분 안에 끝내기']},
 };
 
@@ -65,6 +65,9 @@ function campEdge(side,i){const m=campMid();
 function campMsg(m){if(G.camp)(G.camp.log=G.camp.log||[]).unshift(m);L(m);}
 function campWave(w){let i=0;const out=[];for(const t of w.u){const [r,c]=campEdge(w.side,i++);const u=campPut(1,t,r,c,{bldg:false});if(u)out.push(u);}
   if(w.msg)campMsg(w.msg);return out;}
+/* 아군 증원: 서쪽 가장자리 가운데쯤에 내린다 */
+function campBlueWave(w){const m=campMid();const out=[];w.u.forEach((t,i)=>{const u=campPut(0,t,m+((i%2)?1:-1)*(1+Math.floor(i/2)*2),1,{bldg:false});if(u)out.push(u);});
+  if(w.msg)campMsg(w.msg);return out;}
 const campDist=(u,o)=>Math.hypot(u.x-(o.c+.5),u.z-(o.r+.5));
 
 /* ---------- 임무별 지도 손질·배치 ---------- */
@@ -78,20 +81,21 @@ CAMP.evac.setup=function(){const m=campMid();
 };
 CAMP.evac.units=function(){const m=campMid();const e=G.objs[0];
   for(const [t,dr] of [['hmv',-3],['hmv',-1],['ifv',1],['rifle',3],['rifle',-5],['at',5],['mg',-7]])campPut(0,t,m+dr,1,{bldg:false});
-  for(const t of ['rifle','mg','rifle'])campPut(0,t,e.r,e.c,{face:0,bldg:true});
-  for(const [t,r,c] of [['rifle',m-6,m+15],['rifle',m+6,m+15],['mg',m+1,m+18],['at',m-3,m+19],['rifle',m-9,m+9],['sniper',m+8,m+13],['rifle',m+3,m+17],['mg',m-7,m+6],['hmv',m,m+19]])campPut(1,t,r,c,{bldg:false,post:t==='sniper'||t==='mg'});
+  for(const t of ['rifle','mg','rifle','at','rifle'])campPut(0,t,e.r,e.c,{face:0,bldg:true,post:1});   // 대사관 경비는 자리를 지킨다
+  // 적 선봉: 동쪽 강변 쪽에서 막 들어온 참(대사관 바로 옆이나 구출 길 위에는 없다)
+  for(const [t,r,c] of [['rifle',m-6,m+17],['rifle',m+6,m+17],['mg',m+1,m+19],['at',m-3,m+20],['sniper',m+8,m+16],['rifle',m+3,m+19],['hmv',m,m+20]])campPut(1,t,r,c,{bldg:false,post:t==='sniper'||t==='mg'});
   G.nats[0].cp=6;G.nats[1].cp=0;};
 CAMP.evac.waves=[
-  {t:45,side:'e',u:['rifle','rifle','mg']},
-  {t:90,side:'n',u:['rifle','mg']},
-  {t:120,side:'n',u:['rifle','at','rifle'],msg:'북쪽 골목에서 적 보병이 들어옵니다'},
-  {t:190,side:'e',u:['ifv','rifle','rifle'],msg:'동쪽에서 적 장갑차가 다가옵니다'},
-  {t:260,side:'s',u:['rifle','mg','at']},
-  {t:330,side:'e',u:['tank','rifle','rifle','at'],msg:'적 전차가 외교가로 들어옵니다'},
-  {t:420,side:'n',u:['ifv','rifle','mg','rifle']},
-  {t:510,side:'e',u:['tank','rifle','at','rifle']},
+  {t:70,side:'e',u:['rifle','rifle','mg']},
+  {t:130,side:'n',u:['rifle','at'],msg:'북쪽 골목에서 적 보병이 들어옵니다'},
+  {t:200,side:'e',u:['ifv','rifle'],msg:'동쪽에서 적 장갑차가 다가옵니다'},
+  {t:280,side:'s',u:['rifle','mg']},
+  {t:350,side:'e',u:['tank','rifle','at'],msg:'적 전차가 외교가로 들어옵니다'},
+  {t:450,side:'n',u:['ifv','rifle','rifle']},
 ];
-CAMP.evac.income=n=>n===0?3:1;
+/* 아군 증원: 정해진 시각에 서쪽에서 온다(지휘점수를 모아 사지 않아도 임무를 해낼 수 있게) */
+CAMP.evac.bw=[{t:90,u:['ifv','rifle','mg'],msg:'아군 증원: 장갑차 소대가 서쪽에서 들어옵니다'},{t:240,u:['hmv','rifle','at'],msg:'아군 증원이 도착했습니다'}];
+CAMP.evac.income=n=>n===0?3:0;
 
 CAMP.bridge.setup=function(){const m=campMid();const W=[m-2,m-1,m,m+1];   // 강: 가운데 네 줄(약 48m)
   const B=[{r:m,w:2,main:1},{r:7,w:1}];
@@ -109,8 +113,9 @@ CAMP.bridge.units=function(){const m=campMid();const E=m+3;
   for(const [t,r,c,o] of [['rifle',m-2,E+1,{post:1}],['rifle',m+1,E+2,{post:1}],['mg',m-1,E+2,{post:1}],['mg',m+3,E+1,{post:1}],['sniper',m-5,E+3,{post:1,bldg:true}],['at',m,E+4,{}],['mortar',m+2,E+7,{post:1}],['ifv',m-1,E+6,{}],
     ['rifle',7,E+1,{post:1}],['mg',8,E+2,{post:1}],['rifle',m+8,E+3,{}]])campPut(1,t,r,c,{bldg:false,...o});
   for(const [k,dz,dx] of [['sandbag',-1.6,1.2],['sandbag',.4,1.2],['nest',-.6,1.5],['wire',-.5,-.6],['sandbag',-6.6,1.2]])campFort(1,k,m+2+dx+.5,m+dz,Math.PI/2);
-  G.nats[0].cp=8;G.nats[1].cp=4;};
-CAMP.bridge.income=n=>n===0?4:3;
+  G.nats[0].cp=8;G.nats[1].cp=0;};
+CAMP.bridge.bw=[{t:150,u:['rifle','rifle','eng'],msg:'아군 증원: 보병 소대가 서쪽에서 들어옵니다'},{t:330,u:['ifv','rifle','at','tank'],msg:'아군 기갑 증원이 도착했습니다'}];
+CAMP.bridge.income=n=>n===0?4:0;
 
 CAMP.station.setup=function(){const m=campMid();
   const s=campNear(m,m+4,(r,c,x)=>x.t==='bldg'&&x.f>=5&&c>=m+3,8)||campNear(m,m+4,(r,c,x)=>x.t==='bldg',10);
@@ -128,7 +133,7 @@ CAMP.station.units=function(){const m=campMid();const s=G.objs[0],y=G.objs[1];
   for(let i=0;i<9;i++){const a=Math.PI*(.62+i*.095);const R=2.6;const x=s.c+.5+Math.cos(a)*R,z=s.r+.5+Math.sin(a)*R;const k=i%4===1?'nest':i%2?'sandbag':'wire';
     const t=tileAt(x,z);campFort(1,t&&t.t==='road'&&i%3===0?'hedgehog':k,x,z,Math.atan2(-Math.cos(a),-Math.sin(a)));}
   for(const [dr,dc] of [[-3,-4],[3,-4]])campFort(1,'jersey',s.c+.5+dc,s.r+.5+dr,Math.PI/2);
-  G.nats[0].cp=10;G.nats[1].cp=6;};
+  G.nats[0].cp=10;G.nats[1].cp=0;};
 CAMP.station.waves=[
   {t:100,side:'e',u:['rifle','rifle','mg','at'],msg:'공화국군 증원이 방송국으로 향합니다'},
   {t:220,side:'n',u:['ifv','rifle','rifle']},
@@ -136,7 +141,8 @@ CAMP.station.waves=[
   {t:520,side:'s',u:['ifv','rifle','rifle','at']},
   {t:700,side:'e',u:['tank','rifle','mg','rifle']},
 ];
-CAMP.station.income=n=>n===0?4:3;
+CAMP.station.bw=[{t:180,u:['rifle','rifle','mg','eng'],msg:'아군 증원: 보병 소대가 서쪽에서 들어옵니다'},{t:420,u:['tank','ifv','rifle','rifle'],msg:'아군 기갑 증원이 도착했습니다'}];
+CAMP.station.income=n=>n===0?4:0;
 
 /* ---------- 시작 ---------- */
 function campStart(id){const M=CAMP[id];if(!M)return null;
@@ -153,6 +159,7 @@ function campStart(id){const M=CAMP[id];if(!M)return null;
 /* ---------- 매 틱 ---------- */
 function campTick(dt){const C=G.camp;if(!C||G.over)return;const M=CAMP[C.id];if(!M)return;
   C.st.w=C.st.w||{};for(const w of M.waves||[]){if(C.st.w[w.t]||G.time<w.t)continue;C.st.w[w.t]=1;campWave(w);}
+  C.st.bw=C.st.bw||{};for(const w of M.bw||[]){if(C.st.bw[w.t]||G.time<w.t)continue;C.st.bw[w.t]=1;campBlueWave(w);}
   if(M.land&&typeof landTick==='function')landTick(C,dt);
   CAMP_TICK[C.id](C,C.st,dt);
   if(!G.over&&G.time>=M.limit)G.over={win:1,why:'작전 시간 초과'};
