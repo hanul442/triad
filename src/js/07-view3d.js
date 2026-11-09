@@ -374,12 +374,15 @@ function v3Soldier(n,kind){if(typeof v3SoldierM==='function')return v3SoldierM(n
   const gun=mk(sg.gun,dk,.03,.095,.02);if(kind==='at')mk(sg.tube,um,0,.12,-.018);if(kind==='sniper'){gun.scale.x=1.5;}if(kind==='mg'){gun.scale.set(1.2,1.6,1.4);}
   g.userData={legL,legR,tor};return g;}
 const SQUAD={rifle:8,mg:5,at:4,sniper:2,eng:5,mortar:4};
+/* 분대 안 병사 한 명의 차림: 소총분대 분대장(무전기)·위생병·유탄수, 그 밖엔 편성(05k KIT)대로 */
+function v3SolKind(ty,i,n){if(ty==='rifle'){if(i===0)return 'lead';if(i===1&&n>=5)return 'medic';if(typeof KIT==='object'&&KIT.rifle&&KIT.rifle[i]==='gl')return 'gl';}
+  return i===0?ty:(typeof squadKit==='function'&&squadKit(ty,i))||'rifle';}
 function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v3BodyMat(u.nat,false);const M=V3.M;const ty=u.type;
   const B=(w,h,d,x,y,z,mat,par)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat||body);m.position.set(x,y,z);m.castShadow=true;(par||g).add(m);return m;};
   const Cy=(r1,r2,h,x,y,z,rz,mat,par)=>{const m=new T.Mesh(new T.CylinderGeometry(r1,r2,h,8),mat||body);m.position.set(x,y,z);if(rz)m.rotation.z=rz;m.castShadow=true;(par||g).add(m);return m;};
   const root=new T.Group();const sold=[];
   if(t.cls==='inf'){const n=SQUAD[ty]||4;
-    for(let i=0;i<n;i++){const m=v3Soldier(u.nat,i===0?ty:(typeof squadKit==='function'&&squadKit(ty,i))||'rifle');root.add(m);const a=i/n*Math.PI*2+v3Hash(u.id,i)*.8,rr=i?.1+v3Hash(u.id,10+i)*.16:0;
+    for(let i=0;i<n;i++){const m=v3Soldier(u.nat,v3SolKind(ty,i,n));root.add(m);const a=i/n*Math.PI*2+v3Hash(u.id,i)*.8,rr=i?.1+v3Hash(u.id,10+i)*.16:0;
       sold.push({m,slot:[Math.cos(a)*rr-(i?.05:0),Math.sin(a)*rr],wx:u.x+Math.cos(a)*rr,wz:u.z+Math.sin(a)*rr,ph:v3Hash(u.id,20+i)*6.28,spd:0});}
     if(ty==='mortar'){Cy(.016,.016,.11,.06,.05,0,-.6,M.steel);B(.05,.01,.05,.06,.005,0,M.dark);}}
   else if(t.cls==='veh'&&typeof v3VehicleM==='function')v3VehicleM(ty,g,u.nat);
@@ -397,9 +400,11 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
   return root;}
 function v3UnitY(u){if(UT[u.type].fly&&typeof v3AirY==='function'){const y=v3AirY(u);if(y!=null)return y;}if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);const iy=v3InY(u);if(iy!=null)return iy;return v3Top(u.r,u.c)+.005;}
 /* 쓰러진 병사: 그 자리에 오래 남는다 */
-function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;const c=v3Soldier(nat,'rifle');c.position.set(s.wx,o.position.y,s.wz);c.rotation.set(0,Math.random()*6.28,0);
-  c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;const wrap=new T.Group();wrap.position.copy(c.position);c.position.set(0,0,0);wrap.add(c);c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;
-  wrap.traverse(m=>{if(m.isMesh){m.material=V3.corpseM||(V3.corpseM=new T.MeshStandardMaterial({color:'#4a463e',roughness:1}));m.userData.keepMat=1;m.userData.keepGeo=1;}});wrap.userData.keepGeo=1;wrap.userData.keepMat=1;
+function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;let c;if(typeof v3SoldierDead==='function'){c=new T.Group();c.add(v3SoldierDead(s.m,nat));c.scale.copy(s.m.scale);}   // 07m2: 그 병사 차림 그대로 쓰러진 자세
+  else{c=v3Soldier(nat,'rifle');c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;}
+  c.position.set(s.wx,o.position.y,s.wz);c.rotation.y=Math.random()*6.28;
+  const wrap=new T.Group();wrap.position.copy(c.position);c.position.x=c.position.z=0;c.position.y=typeof v3SoldierDead==='function'?0:.015;wrap.add(c);
+  wrap.traverse(m=>{if(m.isMesh){if(!m.userData.keepMat)m.material=V3.corpseM||(V3.corpseM=new T.MeshStandardMaterial({color:'#4a463e',roughness:1}));m.userData.keepMat=1;m.userData.keepGeo=1;}});wrap.userData.keepGeo=1;wrap.userData.keepMat=1;
   V3.G.fx.add(wrap);
   // 발밑이 사라지면(건물 붕괴·지붕이 낮아짐) 떨어져 잔해·땅 위에 눕는다
   const cr=Math.floor(s.wz),cc=Math.floor(s.wx);let vy=0,last=performance.now();

@@ -28,3 +28,18 @@ if(typeof supTick==='function'){const _st=supTick;supTick=function(u,dt){
   let bad=logiDanger(u.nat,u.x,u.z);
   if(!bad&&u.lj&&u.lj.k==='serve'){const e=uById(u.lj.id);if(e&&logiDanger(u.nat,e.x,e.z))bad=true;}
   if(bad){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');}};}
+/* ---------- 구난차도 같은 위험 판단 (2026-11-09) ----------
+   AI 관전 31판: 구난차는 판마다 3.5대 나와 2.2대(63%)가 부서졌다. 6판을 들여다보니 대부분 길 위에 멈춰
+   전투 중인 고장 차량에 견인 고리를 걸다가(움직이지 않음, 적과 5칸) 대전차·전차·FPV에 맞았다.
+   교범대로 '자리가 정리된 뒤 회수'하게: 고장 차량 둘레가 위험하면 가지 않고 20초 뒤 다시 보고,
+   가는 길이나 고리를 거는 자리가 위험해지면 보급소로 물러난다. 이미 끌고 가는 중이면 그대로 간다. */
+if(typeof recSend==='function'){const _rs=recSend;recSend=function(u,v){if(!selfRun(u)||!v)return _rs(u,v);
+  if(logiDanger(u.nat,v.x,v.z)){(u.nog=u.nog||{})[v.id]=(G.time||0)+20;u._auT=(G.time||0)+2;return;}return _rs(u,v);};}
+if(typeof recPick==='function'){const _rp=recPick;recPick=function(u,R){if(!selfRun(u))return _rp(u,R);const t=G.time||0,ng=u.nog||{};
+  // 건너뛸 차량(위험해서 미뤄 둔 차)은 잠시 다른 구난차가 맡은 것처럼 감춘다
+  const skip=G.units.filter(v=>v.nat===u.nat&&ng[v.id]>t&&v.towBy==null);for(const v of skip)v.towBy=-1;
+  try{return _rp(u,R);}finally{for(const v of skip)v.towBy=null;}};}
+if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!G.units.includes(u)||!selfRun(u)||u.tow!=null)return;
+  if(!(u.lj&&u.lj.k==='fix'))return;if((u._lgT||0)>t)return;u._lgT=t+.5;
+  const v=uById(u.lj.id);if(!v)return;
+  if(logiDanger(u.nat,u.x,u.z)||logiDanger(u.nat,v.x,v.z)){(u.nog=u.nog||{})[v.id]=t+20;u._hk=0;u._fixing=null;supHome(u);if(typeof tacN==='function')tacN('recFlee');}};}

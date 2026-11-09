@@ -101,3 +101,13 @@ test('인천: 저녁 만조엔 다시 열리고, 월미도·응봉산·경인가
   own(G, 0, 0); own(G, 2, 0); own(G, 3, 0); own(G, 1, 0); T.rtRun(0.2);
   assert.ok(G.over && G.over.win === 0); assert.deepEqual(Array.from(G.camp.res.got, Boolean), [true, true, true]);
 });
+
+test('상륙: 관전(AI 지휘)이면 AI가 상륙 지점을 스스로 고르고, 출구를 점령하면 길막이가 치워진다', () => {
+  const T = loadGame(); const G = start(T, 'omaha'); quiet(G);
+  G.nats[0].ctrl = 'ai'; G.camp.sec = 1;
+  // 이지 비치 앞에 적을 잔뜩 둔다: AI는 다른 해변을 고른다
+  const [r, c] = G.camp.secs[1].tl[8]; for (let i = 0; i < 6; i++) { const u = T.mkUnit(1, 'mg', r - 3 + i, c + 3); u.hold = true; u.post = 1; }
+  T.rtRun(16); assert.notEqual(G.camp.sec, 1);
+  const o = G.objs[1]; const near = () => G.forts.filter(f => f.k === 'jersey' && Math.abs(f.z - o.r - .5) < .6 && Math.abs(f.x - o.c) < 2.2).length;
+  assert.ok(near() > 0); own(G, 1, 0); T.rtRun(11); assert.equal(near(), 0, '길막이 치움');
+});

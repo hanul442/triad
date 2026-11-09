@@ -432,6 +432,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <label class="sp-r"><span>전투</span><input type="range" min="0" max="100" step="1" data-snd="fx"></label>
     <label class="sp-r"><span>무전</span><input type="range" min="0" max="100" step="1" data-snd="radio"></label>
     <label class="sp-r"><span>환경음</span><input type="range" min="0" max="100" step="1" data-snd="amb"></label>
+    <label class="sp-r"><span>음악</span><input type="range" min="0" max="100" step="1" data-snd="mus"></label>
   </div>
   <div class="selbox" id="selbox" hidden></div>
   <div class="press" id="press" hidden>
@@ -498,7 +499,6 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비</option><option value="fog">짙은 안개</option><option value="storm">폭우</option></select></div>
     <div class="slot"><span></span><label for="opt-win">승리 방식</label><select id="opt-win"><option value="vp" selected>승점 (거점을 쥐어 승점 먼저 채우기)</option><option value="lts">최후 생존 (마지막까지 남은 세력이 승리)</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
-    <div class="slot"><span></span><label for="opt-radio">무전 지연</label><select id="opt-radio"><option value="1">켜기 (명령이 무전으로 1~3초 늦게 닿음)</option><option value="0">끄기</option></select></div>
     <div class="slot"><span></span><label for="opt-geneva">제네바 협약</label><select id="opt-geneva"><option value="mil" selected>민병대는 무시 (나머지는 구급차·구호소를 쏘지 않음)</option><option value="all">모두 지킴</option><option value="off">끄기 (보호 없음)</option></select></div>
     <input type="hidden" id="opt-speed" value="0">
     <div class="err" id="setup-err"></div>
@@ -617,17 +617,18 @@ const FXH={fire(){},kill(){},collapse(){},strike(){},smoke(){},land(){}};
    - 소리는 음속(343m/s, 1칸=12m)만큼 늦게 닿는다. 먼 폭발은 섬광이 먼저 보이고 소리가 뒤따른다.
    - 좌우로 나뉘어 들린다(카메라 회전을 따른다).
    - 가까운 건물 벽에서 메아리가 되돌아오고, 건물이 빽빽한 곳일수록 잔향이 길다. 건물 안에서 쏜 총은 둔탁하게 울린다.
-   무전(radio)·환경음(amb)·전투음(fx)은 따로 음량을 조절한다. */
+   무전(radio)·환경음(amb)·전투음(fx)·배경음악(mus)은 따로 음량을 조절한다.
+   늘 깔리는 전자 잡음은 없다: 무전 잡음은 실제 교신이 있을 때만 짧게 "치익"·"지직" 한다. */
 const SND_M=12,SND_C=343;
-const SFX={ctx:null,on:true,last:{},vol:{master:.8,fx:.9,radio:.7,amb:.5},n:0,loops:new Map(),track:[],radioEnd:0,radioP:0};
+const SFX={ctx:null,on:true,last:{},vol:{master:.8,fx:.9,radio:.7,amb:.5,mus:.5},n:0,loops:new Map(),track:[],radioEnd:0,radioP:0};
 try{if(typeof localStorage!=='undefined'){SFX.on=localStorage.getItem('triad-sound')!=='0';const v=JSON.parse(localStorage.getItem('triad-snd-vol')||'null');if(v)for(const k in SFX.vol)if(typeof v[k]==='number')SFX.vol[k]=Math.min(1,Math.max(0,v[k]));}}catch(e){}
 function sndSave(){try{localStorage.setItem('triad-sound',SFX.on?'1':'0');localStorage.setItem('triad-snd-vol',JSON.stringify(SFX.vol));}catch(e){}}
 function sndApplyVol(){const a=SFX.ctx;if(!a)return;const t=a.currentTime;SFX.master.gain.setTargetAtTime(SFX.on?SFX.vol.master:0,t,.03);
-  for(const k of ['fx','radio','amb'])SFX.bus[k].gain.setTargetAtTime(SFX.vol[k]*(k==='fx'?1:k==='radio'?1.1:.9),t,.03);}
+  for(const k of ['fx','radio','amb','mus'])SFX.bus[k].gain.setTargetAtTime(SFX.vol[k]*(k==='fx'?1:k==='radio'?1.1:.9),t,.03);}
 function audio(){if(typeof window==='undefined'||!SFX.on)return null;try{if(!SFX.ctx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;const a=new AC();SFX.ctx=a;
-    // 마스터 → 리미터 → 스피커. 버스: 전투(fx)·무전(radio)·환경(amb)·조작음(ui)
+    // 마스터 → 리미터 → 스피커. 버스: 전투(fx)·무전(radio)·환경(amb)·배경음악(mus)·조작음(ui)
     const comp=a.createDynamicsCompressor();comp.threshold.value=-16;comp.knee.value=10;comp.ratio.value=5;comp.attack.value=.002;comp.release.value=.25;comp.connect(a.destination);
-    SFX.master=a.createGain();SFX.master.connect(comp);SFX.bus={};for(const k of ['fx','radio','amb','ui']){const g=a.createGain();g.connect(SFX.master);SFX.bus[k]=g;}SFX.bus.ui.gain.value=.7;
+    SFX.master=a.createGain();SFX.master.connect(comp);SFX.bus={};for(const k of ['fx','radio','amb','mus','ui']){const g=a.createGain();g.connect(SFX.master);SFX.bus[k]=g;}SFX.bus.ui.gain.value=.7;
     SFX.noise=noiseBuf(a,2);SFX.crk=crackleBuf(a);
     // 도시 잔향: 합성한 임펄스 응답(초반 반사 몇 개 + 1.8초 꼬리)
     SFX.rev=a.createConvolver();SFX.rev.buffer=urbanIR(a);const rg=a.createGain();rg.gain.value=.55;SFX.rev.connect(rg);rg.connect(SFX.bus.fx);
@@ -703,7 +704,7 @@ const WPN={
 function sndRound(V,t,W){if(W.crack)sndNz(V,t,.018,'highpass',3200,.7,W.crack*.9,.001);const b=W.body;sndNz(V,t,b[2],'bandpass',b[0],b[1],b[3],.002,b[0]*.55);
   if(W.low)sndTn(V,t,W.low[2],W.low[0],W.low[1],W.low[3],'sine',.003);}
 // 부대 하나의 사격 한 번: 쏘는 병사 수만큼 엇갈려 쏜다
-function sndShot(a,tx,tz){const W=WPN[a.type];if(!W||W.ms||!audio())return;const x=a.x??a.c+.5,z=a.z??a.r+.5;if(a.type==='at'){sndLaunch(x,z,'rocket');}else{const V=sndVoice(x,z,{vol:W.vol,dur:2});if(V){
+function sndShot(a,tx,tz){const W=WPN[a.type];if(!W||W.ms||!audio())return;const x=a.x??a.c+.5,z=a.z??a.r+.5;sndHeat(.008+.07*sndPlace(x,z).gain);if(a.type==='at'){sndLaunch(x,z,'rocket');}else{const V=sndVoice(x,z,{vol:W.vol,dur:2});if(V){
   const men=UT[a.type]&&UT[a.type].cls==='inf'?Math.max(1,(a._sh||[]).length):1;let t=V.t;
   for(let m=0;m<men;m++){let tt=t+(m?Math.random()*.35:0);const n=W.rd[0]+Math.floor(Math.random()*(W.rd[1]-W.rd[0]+1));for(let i=0;i<n;i++){sndRound(V,tt,W);tt+=W.gap*(.85+Math.random()*.3);}}}}
   if(typeof G!=='undefined'&&G&&a.nat===G.viewer&&!isAI(a.nat)){const wm=SFX.ct||(SFX.ct=new WeakMap());const lt=wm.get(a);if(lt==null||(G.time||0)-lt>20)sndRadio('contact');wm.set(a,G.time||0);}}
@@ -712,7 +713,7 @@ function sndImpact(x,z){const V=sndVoice(x,z,{vol:.35,dur:.6,wet:.3});if(!V)retu
 
 /* ---------- 폭발 ---------- */
 // size: .5 작은 탄(RPG·기관포탄) / 1 포탄 / 1.6 항공폭탄·유폭. 앞의 "쾅" + 낮은 울림 + 떨어지는 파편 소리
-function sndBoom(x,z,size=1,o={}){const V=sndVoice(x,z,{vol:(o.vol??1)*(.7+size*.6),dur:3+size,wet:1.3,y:o.y});if(!V)return;const t=V.t;
+function sndBoom(x,z,size=1,o={}){sndHeat(size*(.03+.25*sndPlace(x,z).gain));const V=sndVoice(x,z,{vol:(o.vol??1)*(.7+size*.6),dur:3+size,wet:1.3,y:o.y});if(!V)return;const t=V.t;
   sndNz(V,t,.06,'highpass',1400,.6,.9,.001);sndNz(V,t,.5+size*.9,'lowpass',1100,.6,1,.004,140);sndTn(V,t,.5+size*.6,70,24,1,'sine',.006);
   if(size>.8)sndNz(V,t+.05,1.4+size*1.2,'lowpass',220,.5,.5,.08,60);
   const deb=Math.round(4+size*8);for(let i=0;i<deb;i++)sndNz(V,t+.25+Math.random()*(.6+size*.9),.03,'bandpass',1800+Math.random()*2600,1.5,.05+Math.random()*.07,.001);}
@@ -738,7 +739,7 @@ function sndLoopMake(kind){const a=SFX.ctx;const out=a.createGain();out.gain.val
   let base=1;
   if(kind==='rotor'){const g=nz('lowpass',360,.8,1.4);g.gain.value=.7;lfo(5.4,g.gain,.7);const w=nz('bandpass',1700,6,.12);lfo(5.4,w.gain,.08);osc('sawtooth',58,.12);base=1.3;}
   else if(kind==='drone'||kind==='fpv'){const f=kind==='fpv'?310:205;const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=kind==='fpv'?1500:1100;bp.Q.value=.8;bp.connect(out);
-    for(const k of [1,1.034,.973,1.061]){const o=osc('sawtooth',f*k,.12,bp);lfo(.3+Math.random()*.6,o.frequency,f*.03);}nz('bandpass',3000,.7,.08);base=kind==='fpv'?.55:.38;}
+    for(const k of [1,1.034,.973,1.061]){const o=osc('sawtooth',f*k,.07,bp);lfo(.3+Math.random()*.6,o.frequency,f*.03);}nz('bandpass',900,.6,.14);nz('bandpass',3000,.7,.05);base=kind==='fpv'?.45:.26;}
   else if(kind==='jet'){nz('lowpass',1300,.5,1);nz('bandpass',3800,1.2,.25);osc('sawtooth',95,.1);base=2.2;}
   else if(kind==='tracks'||kind==='wheels'){const f=kind==='tracks'?36:52;const o=osc('sawtooth',f,.5);lfo(.2,o.frequency,3);nz('lowpass',200,.6,.5);
     if(kind==='tracks'){const c=nz('bandpass',2400,3,.0);lfo(8.5,c.gain,.18);}base=kind==='tracks'?.7:.45;out.gain.value=0;}
@@ -764,14 +765,54 @@ function sndTrack(o,kind){if(!SFX.ctx||!o)return;SFX.track.push({o,kind,k:'t'+(S
 /* ---------- 환경음: 바람, 비, 멀리서 들리는 전투 ---------- */
 function sndAmb(t){const a=SFX.ctx;let A=SFX.amb;const live=SFX.on&&typeof G!=='undefined'&&G&&!G.over;
   if(!A){A=SFX.amb={};const mk=(type,f,q)=>{const s=a.createBufferSource();s.buffer=SFX.noise;s.loop=true;const fl=a.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const g=a.createGain();g.gain.value=0;s.connect(fl);fl.connect(g);g.connect(SFX.bus.amb);s.start();return {g,fl};};
-    A.wind=mk('lowpass',420,.9);A.rain=mk('highpass',2200,.5);A.hum=mk('bandpass',140,.8);A.next=0;}
+    A.wind=mk('lowpass',420,.9);A.rain=mk('highpass',2200,.5);A.next=0;}
   const wx=live?G.wx:'clear';const rain=wx==='storm'?1:wx==='rain'?.55:0;const night=live&&typeof isNight==='function'&&isNight();
   A.wind.g.gain.setTargetAtTime(live?.16+.08*Math.sin(t*.13)+(wx==='storm'?.15:0):0,t,.8);A.wind.fl.frequency.setTargetAtTime(330+160*Math.sin(t*.21),t,.8);
-  A.rain.g.gain.setTargetAtTime(live?rain*.22:0,t,1);A.hum.g.gain.setTargetAtTime(live?(night?.04:.08):0,t,1);
+  A.rain.g.gain.setTargetAtTime(live?rain*.22:0,t,1);sndMusic(t,live,night);
   // 멀리서 들리는 다른 구역의 교전: 귀에서 먼 곳에 가끔 짧은 연사나 둔한 폭음
   if(live&&!G.paused&&!G.boot&&t>A.next){A.next=t+4+Math.random()*9;const e=sndEar(),ang=Math.random()*6.28,d=22+Math.random()*18;const x=e.x+Math.cos(ang)*d,z=e.z+Math.sin(ang)*d;
     if(Math.random()<.65){const V=sndVoice(x,z,{vol:.9,dur:3,bus:'amb',dry:1});if(V){const W=Math.random()<.5?WPN.mg:WPN.rifle;let tt=V.t;for(let i=0;i<3+Math.random()*6;i++){sndRound(V,tt,W);tt+=W.gap*(1+Math.random());}}}
     else{const V=sndVoice(x,z,{vol:1.4,dur:3,bus:'amb',dry:1});if(V){sndNz(V,V.t,1.4,'lowpass',500,.5,1,.01,90);sndTn(V,V.t,1,55,24,.8);}}}}
+
+/* ---------- 무전 잡음 한 토막 ---------- */
+// 교신 중에만 드문드문 "지직": 딱딱 튀는 잡음 토막(crackleBuf)을 무전기 대역으로 짧게
+function sndCrackle(V,t,dur,peak){const a=V.a;const s=a.createBufferSource();s.buffer=SFX.crk;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=1500+Math.random()*1500;f.Q.value=.8;
+  const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+.004);g.gain.setValueAtTime(Math.max(.0002,peak),t+dur*.6);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  s.connect(f);f.connect(g);g.connect(V.mix);s.start(t,Math.random()*1.8);s.stop(t+dur+.05);}
+
+/* ---------- 배경음악: 전투가 거셀수록 빨라지고 짙어지는 긴장 음악 ---------- */
+// 악기는 모두 합성한 관현악 소리(전자음 없음): 낮은 현의 D 지속음, 심장 박동처럼 치는 팀파니,
+// 반음으로 부딪치는 낮은 현 스타카토, 높은 현의 반음 불협화음(D–E♭)이 천천히 부풀었다 사라진다.
+// 전투 열기(SFX.heat): 들리는 총성·폭발마다 오르고(가까울수록 많이) 25초에 걸쳐 식는다.
+//  조용함: 느린 심장 박동 + 지속음 / 교전: 팀파니가 잦아지고 스타카토가 들어온다 / 격전: 빨라지고(최대 110bpm) 지속음 위로 E♭이 비벼진다.
+function sndHeat(v){SFX.heat=Math.min(1.3,(SFX.heat||0)+v);}
+const MUS={root:73.42,stac:[0,0,1,0,0,0,3,1, 0,0,1,0,5,3,1,0]};
+function musVoices(a,M){const mkV=(f,g)=>{const vg=a.createGain();vg.gain.value=g;vg.connect(M.lp);for(const c of [-7,0,7]){const o=a.createOscillator();o.type='sawtooth';o.frequency.value=f*Math.pow(2,c/1200);const og=a.createGain();og.gain.value=.33;o.connect(og);og.connect(vg);o.start();}return vg;};
+  M.lp=a.createBiquadFilter();M.lp.type='lowpass';M.lp.frequency.value=380;M.lp.Q.value=.6;M.dg=a.createGain();M.dg.gain.value=0;M.lp.connect(M.dg);M.dg.connect(M.out);
+  // 활을 긋는 듯 천천히 흔들리는 음색
+  const lfo=a.createOscillator();lfo.frequency.value=.11;const ld=a.createGain();ld.gain.value=70;lfo.connect(ld);ld.connect(M.lp.frequency);lfo.start();
+  mkV(MUS.root,1);mkV(MUS.root*2,.4);M.eb=mkV(MUS.root*2*Math.pow(2,1/12),0);}
+function sndMusic(t,live,night){const a=SFX.ctx;let M=SFX.mus;
+  if(!M){M=SFX.mus={nx:0,step:0,bar:0,lt:t,h:0};M.out=a.createGain();M.out.gain.value=0;M.out.connect(SFX.bus.mus);musVoices(a,M);}
+  const dt=Math.max(0,Math.min(1,t-M.lt));M.lt=t;SFX.heat=(SFX.heat||0)*Math.exp(-dt/25);M.h+=(Math.min(1,SFX.heat)-M.h)*Math.min(1,dt/3);const h=M.h;
+  const on=live&&!G.paused&&!G.boot;
+  M.out.gain.setTargetAtTime(live&&!G.boot?(G.paused?.3:1):0,t,live?1.2:2);
+  M.dg.gain.setTargetAtTime(.09+.06*h,t,1.5);M.lp.frequency.setTargetAtTime((night?260:330)+520*h,t,1.5);M.eb.gain.setTargetAtTime(h>.45?(h-.45)*.9:0,t,2.5);
+  if(!on){M.nx=0;return;}
+  if(M.nx<t)M.nx=t+.05;const sd=60/(70+40*h)/4;
+  while(M.nx<t+.3){musStep(a,M,M.nx,M.step,h,sd,night);M.nx+=sd;M.step=(M.step+1)%16;if(!M.step)M.bar++;}}
+function musStep(a,M,t,s,h,sd,night){const V={a,mix:M.out};
+  // 팀파니: 조용할 땐 심장 박동(쿵-쿵), 열기가 오를수록 박자가 촘촘해진다
+  const P=h<.3?{0:1,3:.55}:h<.65?{0:1,3:.55,8:.85,11:.5}:{0:1,3:.6,6:.7,8:.95,10:.5,11:.6,14:.8};
+  const v=P[s];if(v){const g=v*(.32+.4*h);sndTn(V,t,.6,62,38,g,'sine',.006);sndTn(V,t,.35,124,80,g*.18,'triangle',.004);sndNz(V,t,.14,'lowpass',200,.7,g*.5,.003);}
+  // 낮은 현 스타카토(8분음): D D E♭ D … 반음으로 조여 온다
+  if(h>.28&&s%2===0){const n=MUS.stac[(s+(M.bar%2)*8)%16];const f=MUS.root*2*Math.pow(2,n/12);const acc=s===0||s===6?1.3:1;const g=(h-.28)*.22*acc;
+    const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=900+600*h;lp.Q.value=1.2;const eg=a.createGain();eg.gain.setValueAtTime(.0001,t);eg.gain.exponentialRampToValueAtTime(g,t+.012);eg.gain.exponentialRampToValueAtTime(.0001,t+sd*1.7);
+    lp.connect(eg);eg.connect(M.out);for(const k of [1,1.005]){const o=a.createOscillator();o.type='sawtooth';o.frequency.value=f*k;o.connect(lp);o.start(t);o.stop(t+sd*1.8+.05);}}
+  // 높은 현의 불협화음: 네 마디마다 D5와 E♭5가 떨면서 천천히 부풀었다 사라진다
+  if(s===0&&M.bar%4===0&&h>.08){const L=sd*16*3,g=.018+.03*h;for(const f of [587.3,622.3]){const o=a.createOscillator();o.type='triangle';o.frequency.value=f;
+      const vb=a.createOscillator();vb.frequency.value=5+Math.random();const vd=a.createGain();vd.gain.value=f*.006;vb.connect(vd);vd.connect(o.frequency);
+      const eg=a.createGain();eg.gain.setValueAtTime(.0001,t);eg.gain.exponentialRampToValueAtTime(g,t+L*.45);eg.gain.exponentialRampToValueAtTime(.0001,t+L);o.connect(eg);eg.connect(M.out);o.start(t);vb.start(t);o.stop(t+L+.05);vb.stop(t+L+.05);}}}
 
 /* ---------- 무전 ---------- */
 // 알아들을 수 없는 합성 음성: 성대 톱니파 → 모음 포먼트 두 개 → 무전기 대역(400–2800Hz) → 찌그러짐. 앞뒤로 스켈치 "치익"
@@ -789,7 +830,7 @@ function sndRadio(kind){const R=RVOX[kind];const a=audio();if(!R||!a)return fals
     for(const [f,q,g] of [[f1,6,1],[f2,9,.6]]){const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f;bp.Q.value=q;const gg=a.createGain();gg.gain.value=g*2.2;o.connect(bp);bp.connect(gg);gg.connect(sg);}
     sg.connect(out);o.start(t);o.stop(t+d+.02);if(Math.random()<.5)sndNz(V,t,.035,'bandpass',3800,1.5,.25,.002);
     t+=d+(i%3===2?.07+Math.random()*.08:.012);}
-  sndNz(V,t0,t-t0,'bandpass',1900,.6,.06,.04);sndNz(V,t+.02,.16,'bandpass',2400,.5,.55,.004);
+  for(let k=t0+.15+Math.random()*.3;k<t-.05;k+=.45+Math.random()*1.1)sndCrackle(V,k,.03+Math.random()*.08,.3);sndNz(V,t+.02,.16,'bandpass',2400,.5,.55,.004);sndCrackle(V,t+.03,.07,.3);
   SFX.radioEnd=t+.2;SFX.radioP=R.p;return true;}
 
 /* ---------- 조작음과 옛 호출 ---------- */
@@ -3618,17 +3659,13 @@ function msAllTick(dt){if(!G)return;msTick(dt);strikeTick();}
   return _s(n,E);};}
 
 /* ---- 05j-radio.js ---- */
-/* ===================== 무전·지휘 지연 =====================
-   플레이어 명령은 무전으로 내려간다.
-   - 지휘소(자기 출발 지역 가운데)에서 부대까지 멀수록 조금 늦게 닿는다(가까우면 1초 남짓, 멀어도 3초 안팎).
-   - 한 세력의 무전망은 한 번에 한 교신만 싣는다. 명령을 몰아 내리면 줄을 서서 차례로 나간다.
-     여러 부대를 함께 골라 내린 명령은 교신 한 번이다.
-   - 적 전자전팀 재밍 반경 안의 지상 부대는 교신이 끊긴다. 재송신을 몇 번 하다가 끝내 전령이 뛰어가 전한다.
-   - 드론은 조종기로 바로 움직이므로 거의 늦지 않는다(재밍은 05f-air가 따로 다룬다).
-   - 명령을 기다리는 동안 부대는 하던 일을 계속하고, 적이 보이면 알아서 쏜다.
-   AI 명령도 같은 대기열을 탄다(06z-radio-ai). */
+/* ===================== 무전 명령 =====================
+   명령은 무전으로 내려가지만 늦지 않는다: 내리는 순간 부대가 받는다(한서 요청, 2026-11-09).
+   재밍도 명령을 늦추지 않는다(재밍은 드론 조종 신호만 끊는다, 05f-air).
+   무전 소리와 영어 교신(07z-vox)은 그대로 나고, 부대는 받자마자 "수신" 답을 한다.
+   아래 교신 대기열(G.rq) 장치는 radioOn()이 늘 false라 쓰이지 않는다. 되살리려면 radioOn만 바꾸면 된다. */
 const RADIO={base:.6,per:.035,max:1.4,talk:.35,fly:.25,jamOk:.35,retry:1.8,tries:3,runner:2.5};
-const radioOn=()=>!!G&&G.radio!==false&&G.scn!=='tut';
+const radioOn=()=>false;
 /* 지휘소: 출발 지역 칸들의 가운데 */
 function hqOf(n){G.hq=G.hq||{};if(G.hq[n])return G.hq[n];const sp=zoneSpots(n);let x=N/2,z=N/2;
   if(sp.length){x=sp.reduce((a,p)=>a+p[1]+.5,0)/sp.length;z=sp.reduce((a,p)=>a+p[0]+.5,0)/sp.length;}return G.hq[n]={x,z};}
@@ -3670,9 +3707,7 @@ function radioTick(){if(!G.rq||!G.rq.length)return;const now=G.time||0;const kee
     bump();}
   G.rq=keep;}
 /* 원래 함수 감싸기: 새 판 설정, 매 틱 교신 */
-{const _n=newGame;newGame=function(cfg){const r=_n(cfg);let on=cfg&&cfg.radio;
-   if(on==null){try{const el=typeof document!=='undefined'&&document.getElementById('opt-radio');on=el?el.value!=='0':true;}catch(e){on=true;}}
-   G.radio=!!on;G.rq=[];G.rnet={};G.hq={};return r;};}
+{const _n=newGame;newGame=function(cfg){const r=_n(cfg);G.radio=false;G.rq=[];G.rnet={};G.hq={};return r;};}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(G&&!G.over)radioTick();};}
 /* AI 명령의 무전(재밍 포함)은 06z-radio-ai가 같은 대기열로 다룬다. */
 
@@ -4479,7 +4514,7 @@ function obsReady(a,e){const t=G.time||0;if(spots(a,e))return true;
 const OBJK={
   hosp:{n:'의료',ic:'✚',col:'#f2f0ea',fn:'후송된 중상자를 받아 치료해 분대로 돌려보냄(환자집결지보다 많이·빨리), 둘레 2칸 경상자 치료'},
   bcast:{n:'방송',ic:'📡',col:'#c7cdd3',fn:'우리 보병 사기 회복 1.5배, 차지하는 순간 다른 세력 보병 사기 −10'},
-  comm:{n:'통신',ic:'📶',col:'#9aa2a8',fn:'무전 40% 빨라짐, 둘레 4칸 재밍 무시, 탑 둘레 5칸 감시',ov:5},
+  comm:{n:'통신',ic:'📶',col:'#9aa2a8',fn:'둘레 4칸 우리 드론은 재밍에 안 끊김, 탑 둘레 5칸 감시',ov:5},
   power:{n:'전력',ic:'⚡',col:'#a7a097',fn:'지휘점수 +2 /30초',cp:2},
   rail:{n:'철도',ic:'🚉',col:'#b07a5a',fn:'둘레 2칸에서 증원, 증원 비용 1 환급',dep:2},
   supply:{n:'물자',ic:'📦',col:'#b8a68c',fn:'둘레 2칸 아군 탄약 보충·차량 정비·보급 트럭 재적재'},
@@ -4594,10 +4629,9 @@ function objOvSees(e,n){if(!G||!G.fog||e.nat===n)return false;const L=objOvList(
        for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const px=(i+.5)/R,pz=(j+.5)/R;if(Math.hypot(px-v.x,pz-v.z)>v.r)continue;const r=Math.floor(pz),c=Math.floor(px);if(v.b&&G.map[r][c].t!=='bldg')continue;
          s.fine[j*M+i]=1;s.add(key(r,c));}}}catch(e){}return s;};}
 
-/* ---------- 무전: 통신탑 ---------- */
-if(typeof radioSend==='function'){const _rs=radioSend;radioSend=function(n,us,k,a){const n0=(G.rq||[]).length;const now=G.time||0;const out=_rs(n,us,k,a);
-   if(objHas(n,'comm')&&G.rq)for(let i=n0;i<G.rq.length;i++){const e=G.rq[i];if(e.nat===n&&e.t0===now)e.at=now+(e.at-now)*.6;}return out;};}
-if(typeof radioCut==='function'){const _rc=radioCut;radioCut=function(u){if(objOn())for(const o of objsOf(u.nat,'comm'))if(Math.hypot(u.x-(o.c+.5),u.z-(o.r+.5))<=4)return false;return _rc(u);};}
+/* ---------- 통신탑 ---------- */
+// 통신탑 둘레 4칸: 우리 드론 조종 신호는 적 재밍에 끊기지 않는다
+if(typeof jammedBy==='function'){const _jb=jammedBy;jammedBy=function(u){if(objOn())for(const o of objsOf(u.nat,'comm'))if(Math.hypot(u.x-(o.c+.5),u.z-(o.r+.5))<=4)return null;return _jb(u);};}
 
 /* ---------- 지휘점수·승점 ---------- */
 {const _in=income;income=function(n){let cp=_in(n);if(!objOn())return cp;for(const k in OBJK)if(OBJK[k].cp)cp+=OBJK[k].cp*objsOf(n,k).length;return cp;};
@@ -5346,6 +5380,188 @@ function ugAI(n){const t=G.time||0;const N2=G.nats[n];
   if(t>=(G._ugAI||0)){G._ugAI=t+2;for(const n of G.order||[])if(G.nats[n].alive&&aiRun(n))ugAI(n);}}
   catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 
+/* ---- 05o-form.js ---- */
+/* ===================== FORM: 부대끼리 대형을 지어 함께 움직이기 =====================
+   "보병이랑 애들이 좀 더 현실적으로 무리를 지어서 가면 좋겠다 헬기나 다른것들도", "차량에 은엄폐해서 가는 느낌".
+   예전에는 같은 곳으로 가는 부대도 저마다 따로 길을 찾아 제 속도로 달려서, 빠른 차량은 혼자 앞서고 보병은 흩어져 늘어졌다.
+   여기서는 한 부대를 선두로 정하고 나머지가 선두를 기준으로 한 자리(대형 자리)를 따라간다.
+   - 종대(col): 시가지·도로. 선두가 지나간 발자국을 따라 약 12m 간격, 길이 넓으면 좌우로 엇갈려 선다(엇갈린 종대).
+   - 쐐기(wedge): 트인 들판·공원. 선두 뒤로 좌우 비스듬히 펼친다(약 10m 간격). 자리가 막혔으면 발자국 위로.
+   - 동행(esc): 보병이 전차·장갑차 바로 뒤 양쪽 모서리에 붙어 차체를 방패 삼아 걷는다. 적이 있는 쪽 반대편으로 붙는다.
+   - 차량 종대: 차량끼리는 약 17m 간격으로 앞 차 발자국을 따른다.
+   선두는 가장 느린 부대 걸음에 맞춰 가고, 뒤처진 부대가 있으면 속도를 줄이거나 기다린다.
+   따르는 부대가 다른 명령(접적 반응·직접 명령)을 받으면 대형에서 빠진다.
+   대형은 행군할 때만 쓴다. 적이 가까우면(06c) 번갈아 이동·화력 기반·측면 기동으로 바뀐다.
+   u.fol = {L:선두 id, k:'col'|'wedge'|'auto'|'esc', i:순번, d0:첫 간격, gap:간격, end:[x,z]|null(풀릴 때 갈 자리), by:'tac'|'ord'|'arm'}.
+   공격헬기는 두 대 편대(선두·윙맨)로 온다: 이동할 때는 윙맨이 선두 오른쪽 뒤에, 대기할 때는 다른 각도에서 서로 엄호하고,
+   선두가 사격 비행을 하는 동안 윙맨은 대기하며 지켜본 뒤 번갈아 들어간다. */
+const FORM={gapI:1.0,gapV:1.45,wedge:.8,stag:.22,esc:.3,upd:.3,repath:1.2,lagSlow:1.2,lagWait:2.4,stuck:10,trail:.12,trailN:180,ordMin:5,ordR:6,pace:.92};
+const formLead=new Map();   // 선두 id → 따르는 부대들(틱마다 다시 만든다)
+const formUnit=id=>G.units.find(o=>o.id===id)||null;
+const formSpd=u=>(UT[u.type]&&UT[u.type].mv)||3;
+const formGV=u=>{const t=UT[u.type];return !!t&&t.cls==='veh'&&!t.fly;};
+const formHull=u=>typeof vSpec==='function'?vSpec(u):{hl:.25,hw:.11};
+const formIdle=u=>!(u.path&&u.path.length);
+const formP=(f,v)=>Object.defineProperty(f,'_fP',{value:v,writable:true,configurable:true,enumerable:false});
+/* 선두 발자국(저장하지 않음): 가장 최근이 앞 */
+function formTrailRec(L){let T=L._ftr;if(!T){T=[[L.x,L.z]];Object.defineProperty(L,'_ftr',{value:T,writable:true,configurable:true,enumerable:false});return;}
+  const h=T[0];if(Math.hypot(L.x-h[0],L.z-h[1])>FORM.trail){T.unshift([L.x,L.z]);if(T.length>FORM.trailN)T.length=FORM.trailN;}}
+/* 발자국을 따라 선두에서 dist만큼 뒤의 점과 그 점의 진행 방향. 발자국이 짧으면 끝에서 따르는 부대 쪽으로 늘린다 */
+function formTrailAt(L,dist,f){const T=L._ftr||[[L.x,L.z]];let px=L.x,pz=L.z,acc=0;
+  for(let i=0;i<T.length;i++){const q=T[i];const s=Math.hypot(q[0]-px,q[1]-pz);
+    if(acc+s>=dist&&s>1e-6){const k=(dist-acc)/s;return {x:px+(q[0]-px)*k,z:pz+(q[1]-pz)*k,dx:(px-q[0])/s,dz:(pz-q[1])/s};}acc+=s;px=q[0];pz=q[1];}
+  // 발자국이 모자라면: 마지막 점에서 따르는 부대 쪽으로(처음 모일 때 줄을 서게)
+  const left=dist-acc;const hd=formHead(L);let dx=f?f.x-px:-hd[0],dz=f?f.z-pz:-hd[1];const m=Math.hypot(dx,dz);
+  if(m<1e-6){dx=-hd[0];dz=-hd[1];}else{dx/=m;dz/=m;}const k=Math.min(left,m||left);
+  return {x:px+dx*k,z:pz+dz*k,dx:hd[0],dz:hd[1]};}
+/* 선두가 가는 방향(단위 벡터): 발자국 → 차체 → 바라보는 쪽 */
+function formHead(L){const T=L._ftr;if(T&&T.length>2){const q=T[Math.min(T.length-1,4)];const dx=L.x-q[0],dz=L.z-q[1],m=Math.hypot(dx,dz);if(m>.2)return [dx/m,dz/m];}
+  if(L.path&&L.path.length){const p=L.path[0];const dx=p[0]-L.x,dz=p[1]-L.z,m=Math.hypot(dx,dz);if(m>.05)return [dx/m,dz/m];}
+  const a=((L.hd!=null&&formGV(L)?L.hd:L.face)||0)*Math.PI/180;return [Math.cos(a),Math.sin(a)];}
+/* 선두 둘레가 시가지(건물·도로)인가: 종대, 아니면 쐐기. 0.6초마다 */
+function formUrban(L){const t=G.time||0;if(L._fuT!=null&&t-L._fuT<.6)return L._fu;L._fuT=t;let u=false;const r0=Math.floor(L.z),c0=Math.floor(L.x);
+  const c=tileAt(L.x,L.z);if(c&&(c.t==='road'||c.t==='plaza'||c.t==='rubble'||c.t==='bldg'))u=true;
+  else for(let a=-1;a<=1&&!u;a++)for(let b=-1;b<=1;b++){if(!inb(r0+a,c0+b))continue;const x=G.map[r0+a][c0+b];if(x.t==='bldg'){u=true;break;}}
+  Object.defineProperty(L,'_fu',{value:u,writable:true,configurable:true,enumerable:false});return u;}
+/* 선두 쪽에서 본 위협 방향(아는 적 중 가장 가까운). 없으면 null */
+function formThreat(L){if(typeof memOf!=='function')return null;const M=memOf(L.nat);const t=G.time||0;let best=null,bd=14;
+  for(const id in M){const p=M[id];if(t-p.t>20)continue;const d=Math.hypot(p.x-L.x,p.z-L.z);if(d<bd){bd=d;best=[p.x-L.x,p.z-L.z];}}
+  return best;}
+/* 곧게 갈 수 있나(부대 기준) */
+function formClear(u,x1,z1,x2,z2){if(!walkable(u,x2,z2))return false;if(wallCross(u,x1,z1,x2,z2))return false;
+  if(formGV(u))return segClear(u,x1,z1,x2,z2);
+  if(typeof navSegOk==='function'&&!navSegOk(u,x1,z1,x2,z2))return false;return true;}
+/* 따르는 부대 f의 대형 자리 */
+function formSlot(f,L){const F=f.fol;let k=F.k;if(k==='auto')k=formUrban(L)?'col':'wedge';
+  const [hx,hz]=formHead(L);const px=-hz,pz=hx;   // 선두 기준 오른쪽
+  if(k==='esc'){// 차체 뒤 모서리: 차체 반길이 + 0.3칸 뒤, 좌우 0.14칸. 적이 보이면 반대쪽으로 0.12칸 더
+    const h=formHull(L);const side=F.i%2?-1:1;let lee=0;const th=formThreat(L);if(th){const cr=th[0]*px+th[1]*pz;lee=cr>0?-1:1;}
+    const back=h.hl+FORM.esc+(F.i===2?.35:0)+(F.i>2?(F.i-2)*FORM.gapI:0);const p=formTrailAt(L,back,f);   // 둘째 분대는 반 걸음 뒤(서로 밀지 않게)
+    const lat=F.i>2?0:side*.22+lee*.1;const x=p.x+(-p.dz)*lat,z=p.z+p.dx*lat;
+    if(formClear(f,p.x,p.z,x,z))return [x,z];return [p.x,p.z];}
+  if(k==='wedge'){const rank=Math.ceil(F.i/2),side=F.i%2?-1:1;const sp=F.gap*FORM.wedge;const back=F.d0+(rank-1)*sp;
+    const p=formTrailAt(L,back,f);const lat=side*rank*sp;const x=p.x+(-p.dz)*lat,z=p.z+p.dx*lat;
+    if(walkable(f,x,z)&&!wallCross(f,p.x,p.z,x,z)&&(!formGV(f)||segClear(f,p.x,p.z,x,z)))return [x,z];return [p.x,p.z];}
+  // 종대: 발자국 위, 넓은 길이면 좌우로 엇갈리게
+  const back=F.d0+(F.i-1)*F.gap;const p=formTrailAt(L,back,f);if(formGV(f))return [p.x,p.z];
+  const side=F.i%2?-1:1;const lat=side*FORM.stag;const x=p.x+(-p.dz)*lat,z=p.z+p.dx*lat;const x2=p.x+(-p.dz)*lat*1.6,z2=p.z+p.dx*lat*1.6;
+  if(walkable(f,x2,z2)&&!wallCross(f,p.x,p.z,x2,z2)&&tileAt(x,z)&&tileAt(x,z).t!=='bldg')return [x,z];return [p.x,p.z];}
+/* 대형에서 빼기. go: 풀릴 때 갈 자리가 있으면 그리로 */
+function formDrop(f,go){const F=f.fol;f.fol=null;formP(f,null);if(!F)return;if(go&&F.end&&G.units.includes(f)){f.path=pathPts(f,F.end[0],F.end[1]);f.dest=F.end;}}
+/* 선두 발자국을 거쳐 자리로 가는 길: 따르는 부대에서 곧게 닿는 가장 가까운 발자국부터 자리 곁 발자국까지 */
+function formVia(f,L,s){const T=L._ftr;if(!T||T.length<2)return null;let j=-1,jd=2.5,k=0,kd=1e9;
+  for(let i=0;i<T.length;i++){const q=T[i];const d=Math.hypot(q[0]-f.x,q[1]-f.z);if(d<jd){jd=d;j=i;}const e=Math.hypot(q[0]-s[0],q[1]-s[1]);if(e<kd){kd=e;k=i;}}
+  if(j<0||j<k)return null;// 발자국을 따라 앞으로 가며 곧게 닿는 가장 먼 점부터
+  let a=j;while(a>k&&formClear(f,f.x,f.z,T[a-1][0],T[a-1][1]))a--;if(a===j&&!formClear(f,f.x,f.z,T[j][0],T[j][1]))return null;
+  const out=[];for(let i=a;i>=k;i-=3)out.push([T[i][0],T[i][1]]);if(out.length&&out[out.length-1]!==T[k])out.push([T[k][0],T[k][1]]);
+  out.push([s[0],s[1]]);return out;}
+/* 따르는 부대 하나: 자리를 다시 잡고 그리로 간다 */
+function formFollow(f,t){const F=f.fol;const L=formUnit(F.L);
+  if(!L||L===f||L.nat!==f.nat||f.cqb||f.post){formDrop(f,true);return;}
+  if(f.climb)return;
+  if(f.path!==f._fP&&f.path&&f.path.length){formDrop(f,false);return;}   // 다른 명령을 받았다
+  // 명령 행군·차량 종대: 선두가 다 왔으면 저마다 제 자리로
+  if(F.by!=='tac'){let R=L,g=0;while(R.fol&&g++<10){const q=formUnit(R.fol.L);if(!q||q===f)break;R=q;}   // 줄 맨 앞 부대가 다 왔는가
+    const e=R.path&&R.path.length?R.path[R.path.length-1]:null;if(!e||Math.hypot(e[0]-R.x,e[1]-R.z)<1.6&&R.path.length<=2){formDrop(f,true);return;}}
+  if(f._fT!=null&&t-f._fT<FORM.upd&&f.path&&f.path.length)return;f._fT=t;
+  const s=formSlot(f,L);const d=Math.hypot(s[0]-f.x,s[1]-f.z);f._fLag=d;
+  if(d>FORM.lagWait){if(f._fLagT==null)f._fLagT=t;else if(t-f._fLagT>FORM.stuck){f._fLagT=null;formDrop(f,true);return;}}else f._fLagT=null;
+  if(d<.08){f.path=[];formP(f,f.path);return;}
+  if(formClear(f,f.x,f.z,s[0],s[1]))f.path=[[s[0],s[1]]];
+  else{const V=formVia(f,L,s);if(V)f.path=V;   // 선두 발자국을 따라(길찾기보다 훨씬 싸다)
+    else if(f._fRp==null||t-f._fRp>FORM.repath||!f.path||!f.path.length){f._fRp=t;
+      // 길찾기는 선두가 실제로 밟은 점(자리 곁 발자국, 없으면 선두 자리)으로: 못 가는 점을 찾느라 지도 전체를 뒤지지 않게
+      let tx=L.x,tz=L.z;const T=L._ftr;if(T&&T.length){let kd=1e9;for(const q of T){const e=Math.hypot(q[0]-s[0],q[1]-s[1]);if(e<kd){kd=e;tx=q[0];tz=q[1];}}}
+      const P=pathPts(f,tx,tz);f.path=P.length?P:[];}}
+  formP(f,f.path);f.dest=null;if(f.tk)f.tk.at=t;}
+/* 선두 걸음: 가장 느린 부대에 맞추고, 뒤처지면 늦추거나 기다린다 */
+function formPace(L){const fs=formLead.get(L.id);if(!fs||!fs.length)return 1;let r=1,lag=0;
+  for(const f of fs){r=Math.min(r,formSpd(f)/formSpd(L)*(f.supp>0?.65:1));if((f._fLag||0)>lag)lag=f._fLag||0;}
+  let k=Math.min(1,r*FORM.pace);if(lag>FORM.lagWait)k=0;else if(lag>FORM.lagSlow)k*=.4;return k;}
+{const _mv=rtMove;rtMove=function(u,dt){if(!formLead.size||!formLead.has(u.id)||!u.path||!u.path.length)return _mv(u,dt);const k=formPace(u);
+  if(k<=0){u._pg=null;return;}return _mv(u,dt*k);};}
+// 차체 뒤에 붙은 보병은 그 차량과 서로 밀어내지 않는다(05b rtSeparate는 sepFree면 건너뛴다)
+if(typeof sepFree==='function'){const _sf=sepFree;sepFree=function(u){if(u.fol&&u.fol.k==='esc'&&u.path&&u.path.length)return true;return _sf(u);};}
+/* 매 틱: 선두 목록, 발자국, 따르기 */
+function formTick(){formLead.clear();const t=G.time||0;
+  for(const f of G.units){if(!f.fol)continue;const a=formLead.get(f.fol.L);if(a)a.push(f);else formLead.set(f.fol.L,[f]);}
+  if(!formLead.size)return;
+  for(const id of formLead.keys()){const L=formUnit(id);if(L)formTrailRec(L);}
+  for(const f of G.units.slice())if(f.fol&&G.units.includes(f))formFollow(f,t);}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;try{formTick();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+
+/* ---------- 대형 짜기 ---------- */
+/* 선두 L 뒤에 부대들을 붙인다. 차량이 선두면 보병 둘은 차체 뒤(동행), 나머지는 그 뒤로 */
+function formBuild(L,us,by,ends){us=us.filter(u=>u!==L&&!UT[u.type].fly);const lv=formGV(L);
+  const inf=us.filter(u=>!formGV(u)),veh=us.filter(formGV);
+  const near=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
+  const mk=(f,Lu,k,i,d0,gap)=>{const F={L:Lu.id,k,i,d0,gap,end:ends?ends.get(f)||null:null,by};const o=f.fol;
+    if(o&&o.L===F.L&&o.k===F.k&&o.i===F.i&&o.by===by){o.end=F.end;return;}f.fol=F;formP(f,f.path);f._fT=null;};
+  // 차량 종대: 선두에 가까운 차부터 앞 차를 따른다
+  veh.sort((a,b)=>near(a,L)-near(b,L));let prev=lv?L:null,tail=L;
+  const escOf=new Map();if(lv)escOf.set(L,0);
+  for(const v of veh){mk(v,prev||L,'col',1,prev?FORM.gapV:FORM.gapI*1.4,FORM.gapV);prev=v;tail=v;escOf.set(v,0);}
+  // 보병: 차량마다 둘까지 차체 뒤에 붙고, 나머지는 맨 뒤 차량(없으면 선두) 뒤에서 종대·쐐기
+  inf.sort((a,b)=>near(a,L)-near(b,L));let rest=[];
+  for(const f of inf){let best=null,bd=1e9;for(const [v,c] of escOf){if(c>=2||!['tank','ifv','hmv','spg'].includes(v.type))continue;const d=near(f,v);if(d<bd){bd=d;best=v;}}
+    if(best){const c=escOf.get(best)+1;escOf.set(best,c);mk(f,best,'esc',c,0,FORM.gapI);}else rest.push(f);}
+  const back=formGV(tail)?formHull(tail).hl+FORM.esc+1.0:FORM.gapI;
+  rest.forEach((f,j)=>mk(f,tail,'auto',j+1,back,FORM.gapI));}
+/* 선두 고르기: 차량이 섞였으면 전차 > 장갑차 > 험비, 아니면 목표에 가장 가까운 부대(소총분대 우선) */
+/* 가는 첫 방향: 길을 따라 1.5칸 간 곳 쪽 */
+function formDir(u,gx,gz){let px=u.x,pz=u.z,left=1.5,tx=gx,tz=gz;for(const p of u.path||[]){const s=Math.hypot(p[0]-px,p[1]-pz);if(s>=left){const f=left/(s||1);tx=px+(p[0]-px)*f;tz=pz+(p[1]-pz)*f;break;}left-=s;px=p[0];pz=p[1];tx=px;tz=pz;}
+  const dx=tx-u.x,dz=tz-u.z,m=Math.hypot(dx,dz);return m>.05?[dx/m,dz/m]:null;}
+/* 선두 고르기: 차량이 섞였으면 차량 중에서(전차 > 장갑차 > 험비), 아니면 보병 중에서.
+   가는 첫 방향으로 가장 앞에 선 부대: 뒤에 선 부대를 선두로 세우면 선두가 동료를 헤치고 나가야 한다 */
+function formPickLead(us,gx,gz){const rk={tank:.6,ifv:.4,hmv:.2};const hasInf=us.some(u=>!formGV(u));const C=hasInf&&us.some(u=>rk[u.type])?us.filter(u=>rk[u.type]):us;
+  const cx=us.reduce((a,u)=>a+u.x,0)/us.length,cz=us.reduce((a,u)=>a+u.z,0)/us.length;
+  const D0=(()=>{const dx=gx-cx,dz=gz-cz,m=Math.hypot(dx,dz)||1;return [dx/m,dz/m];})();
+  let best=null,bs=-1e9;for(const u of C){const D=formDir(u,gx,gz)||D0;let ah=0;for(const v of us)if(v!==u)ah+=Math.max(0,(v.x-u.x)*D[0]+(v.z-u.z)*D[1]);   // 제 길 앞을 막고 선 동료
+    let s=-ah+(rk[u.type]||0);if(u.type==='rifle')s+=.2;if(s>bs){bs=s;best=u;}}return best;}
+/* 직접 명령: 여러 부대를 멀리 보내면 행군 대형으로 가서, 다 오면 원래 정한 자리로 흩어진다 */
+{const _g=orderGroupMove;orderGroupMove=function(us,x,z){_g(us,x,z);try{formOrder(us,x,z);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+function formOrder(us,x,z){us=us.filter(u=>G.units.includes(u)&&!UT[u.type].fly&&!u.climb);if(us.length<2)return;
+  const cx=us.reduce((a,u)=>a+u.x,0)/us.length,cz=us.reduce((a,u)=>a+u.z,0)/us.length;
+  us=us.filter(u=>Math.hypot(u.x-cx,u.z-cz)<FORM.ordR);if(us.length<2||Math.hypot(x-cx,z-cz)<FORM.ordMin)return;
+  const L=formPickLead(us,x,z);const ends=new Map();for(const u of us)if(u!==L&&u.dest)ends.set(u,u.dest.slice());
+  for(const u of us)if(u.fol&&u!==L)u.fol=null;if(L.fol)L.fol=null;
+  formBuild(L,us,'ord',ends);}
+
+/* ---------- 공격헬기 두 대 편대 ---------- */
+const FLT={back:.9,side:.8,spread:1.0,cdK:1.6,runGap:1.5};
+if(typeof callGunship==='function'){const _c=callGunship;callGunship=function(n,r,c){const u=_c(n,r,c);if(!u||!u.air)return u;
+  const [hx,hz]=[Math.cos((u.face||0)*Math.PI/180),Math.sin((u.face||0)*Math.PI/180)];
+  let x=u.x-hx*FLT.back-hz*FLT.side,z=u.z-hz*FLT.back+hx*FLT.side;x=Math.min(N-.05,Math.max(.05,x));z=Math.min(N-.05,Math.max(.05,z));
+  const w=mkUnit(n,'gunship',Math.min(N-1,Math.floor(z)),Math.min(N-1,Math.floor(x)));w.x=x;w.z=z;w.face=u.face;
+  w.air={cx:u.air.cx,cz:u.air.cz,until:u.air.until,ang:u.air.ang};w.flares=u.flares;w.wing=u.id;u.flt=1;w.flt=1;
+  L(`${natName(n)} 공격헬기 2대 편대`);return u;};}
+/* 윙맨 자리: 선두 오른쪽 뒤(제형) */
+function fltSlot(Lu){const A=Lu.air;let hx=A.vx||0,hz=A.vz||0;const m=Math.hypot(hx,hz);if(m>.15){hx/=m;hz/=m;}else{const a=(Lu.hd??Lu.face??0)*Math.PI/180;hx=Math.cos(a);hz=Math.sin(a);}
+  return [Lu.x-hx*FLT.back-hz*FLT.side,Lu.z-hz*FLT.back+hx*FLT.side];}
+/* 윙맨이 편대 자리로 날아가기(가속도 한계, 05f2와 같은 방식) */
+function fltFly(u,tx,tz,dt,lead){const A=u.air;if(A.vx==null){A.vx=0;A.vz=0;}if(u.hd==null)u.hd=u.face||0;const sp=UT.gunship.mv*SPD_K*1.15;
+  const dx=tx-u.x,dz=tz-u.z,d=Math.hypot(dx,dz);const lv=Math.hypot(lead.air.vx||0,lead.air.vz||0);
+  const vw=Math.min(sp,lv+Math.sqrt(2*GS.acc*d)*.9);const wx=d>.01?dx/d*vw:0,wz=d>.01?dz/d*vw:0;
+  let ax=wx-A.vx,az=wz-A.vz;const am=Math.hypot(ax,az),lim=GS.acc*dt*1.4;if(am>lim){ax*=lim/am;az*=lim/am;}A.vx+=ax;A.vz+=az;u.x+=A.vx*dt;u.z+=A.vz*dt;
+  u.hd=vTurn(u.hd,lead.hd??lead.face??u.hd,GS.yaw*dt);u.face=u.hd;}
+if(typeof gunshipTick==='function'){const _g=gunshipTick;gunshipTick=function(u,dt){const Lu=u.wing!=null?G.units.find(o=>o.id===u.wing&&o.air):null;
+  if(!Lu){if(u.wing!=null)u.wing=null;return _g(u,dt);}
+  const A=u.air,LA=Lu.air,now=G.time||0;
+  if(u.path&&u.path.length){const p=u.path[u.path.length-1];LA.cx=p[0];LA.cz=p[1];u.path=[];if(LA.mode==='hold'){LA.mode='in';LA.sa=null;}}   // 윙맨에게 준 명령은 편대장에게
+  if(u.tgt!=null&&Lu.tgt==null)Lu.tgt=u.tgt;
+  A.cx=LA.cx;A.cz=LA.cz;A.until=LA.until;
+  const transit=LA.leave||(LA.mode||'in')==='in'&&Math.hypot(LA.cx-Lu.x,LA.cz-Lu.z)>GS.rs+1.4;
+  if(transit){const [sx,sz]=fltSlot(Lu);fltFly(u,Math.min(N-.05,Math.max(.05,sx)),Math.min(N-.05,Math.max(.05,sz)),dt,Lu);A.mode='in';A.sa=null;
+    if(LA.leave&&(u.x<=.05||u.z<=.05||u.x>=N-.05||u.z>=N-.05||Math.hypot(Lu.x-u.x,Lu.z-u.z)>4)){A.leave=1;}
+    u.x=Math.min(N-.01,Math.max(.01,u.x));u.z=Math.min(N-.01,Math.max(.01,u.z));rtCell(u);return;}
+  // 대기 자리는 편대장과 다른 각도(서로 엄호)
+  if(A.mode==='in'&&A.sa==null&&LA.sa!=null)A.sa=gsAng(A,LA.sa+(u.id%2?1:-1)*FLT.spread);
+  // 편대장이 사격 비행 중이면 윙맨은 대기하며 엄호, 끝나면 들어간다
+  if(A.mode==='hold'&&(LA.mode==='run'||LA.mode==='brk'))A.mt=Math.max(A.mt||0,now+FLT.runGap);
+  return _g(u,dt);};}
+// 편대는 두 대가 나눠 쏜다(한 대씩 쏘는 간격을 늘려 합친 화력이 한 대일 때의 약 1.2배)
+{const _f=rtFight;rtFight=function(u){if(!u.flt)return _f(u);const c0=u.cd;_f(u);if(c0<=0&&u.cd>0)u.cd*=FLT.cdK;};}
+
 /* ---- 05z-drill.js ---- */
 /* ===================== DRILL: 분대 안 병사들의 전투 동작 =====================
    05f-men.js가 병사 자리·사격·재장전·엎드림을 정한다. 이 파일은 그 위에 "어떤 자세로, 어디를 보고" 있는지를 정한다.
@@ -5856,7 +6072,7 @@ aiThink=function(n){_cqbAi0(n);try{aiCqb(n);}catch(e){(G.errs=G.errs||[]).push(S
    - 보고: 임무 수령, 접적, 돌격, 목표 확보, 후퇴, 피해(전사·중상)가 무전 기록으로 올라온다.
    - 차량·곡사·저격 같은 다른 부대도 같은 임무에 넣을 수 있다: 차량은 보병 소대 곁을 따르고, 나머지는 소대 뒤를 따른다.
    - 임무 중인 부대에 직접 이동·공격·정지 명령을 주면 그 부대는 임무에서 빠진다.
-   명령은 무전(05j-radio)으로 가므로 지연·재밍도 그대로 받는다. */
+   명령은 무전(05j-radio)으로 가고 바로 닿는다. */
 const MSN={attack:{n:'공격'},defend:{n:'방어'},recon:{n:'정찰'},support:{n:'지원 사격'}};
 const MSN_AUT={full:'위임',semi:'반자동'};
 const MSN_ST={move:'이동',contact:'교전',assault:'돌격',retreat:'후퇴',regroup:'재편성'};
@@ -6051,7 +6267,7 @@ function polStuck(){const t=G.time||0;for(const u of G.units){const ty=UT[u.type
      명령을 다 하고 45초 동안 새 명령이 없으면(사수 명령이 아니면) 다시 부관에게 돌아간다.
    - 자동 증원 N2.autoBuy(기본 켬): 끄면 부관이 지휘점수로 부대를 사지 않는다(화력 지원은 계속 부른다).
    - 부관이 부르는 화력 지원은 AI처럼 구호소·민간인 둘레를 피한다(G._adj).
-   이 파일은 06z-radio-ai보다 먼저 읽혀야 한다: 부관의 명령도 무전을 타고 늦게 닿는다. */
+   이 파일은 06z-radio-ai보다 먼저 읽혀야 한다: 부관의 명령도 무전(06z-radio-ai)을 탄다. */
 const AUTO={hold:45,near:4};
 const AUTO_HIDE={auto:1};
 const autoOn=n=>!!(G&&G.nats&&G.nats[n]&&G.nats[n].auto&&!isAI(n));
@@ -6143,6 +6359,21 @@ if(typeof supTick==='function'){const _st=supTick;supTick=function(u,dt){
   let bad=logiDanger(u.nat,u.x,u.z);
   if(!bad&&u.lj&&u.lj.k==='serve'){const e=uById(u.lj.id);if(e&&logiDanger(u.nat,e.x,e.z))bad=true;}
   if(bad){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');}};}
+/* ---------- 구난차도 같은 위험 판단 (2026-11-09) ----------
+   AI 관전 31판: 구난차는 판마다 3.5대 나와 2.2대(63%)가 부서졌다. 6판을 들여다보니 대부분 길 위에 멈춰
+   전투 중인 고장 차량에 견인 고리를 걸다가(움직이지 않음, 적과 5칸) 대전차·전차·FPV에 맞았다.
+   교범대로 '자리가 정리된 뒤 회수'하게: 고장 차량 둘레가 위험하면 가지 않고 20초 뒤 다시 보고,
+   가는 길이나 고리를 거는 자리가 위험해지면 보급소로 물러난다. 이미 끌고 가는 중이면 그대로 간다. */
+if(typeof recSend==='function'){const _rs=recSend;recSend=function(u,v){if(!selfRun(u)||!v)return _rs(u,v);
+  if(logiDanger(u.nat,v.x,v.z)){(u.nog=u.nog||{})[v.id]=(G.time||0)+20;u._auT=(G.time||0)+2;return;}return _rs(u,v);};}
+if(typeof recPick==='function'){const _rp=recPick;recPick=function(u,R){if(!selfRun(u))return _rp(u,R);const t=G.time||0,ng=u.nog||{};
+  // 건너뛸 차량(위험해서 미뤄 둔 차)은 잠시 다른 구난차가 맡은 것처럼 감춘다
+  const skip=G.units.filter(v=>v.nat===u.nat&&ng[v.id]>t&&v.towBy==null);for(const v of skip)v.towBy=-1;
+  try{return _rp(u,R);}finally{for(const v of skip)v.towBy=null;}};}
+if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!G.units.includes(u)||!selfRun(u)||u.tow!=null)return;
+  if(!(u.lj&&u.lj.k==='fix'))return;if((u._lgT||0)>t)return;u._lgT=t+.5;
+  const v=uById(u.lj.id);if(!v)return;
+  if(logiDanger(u.nat,u.x,u.z)||logiDanger(u.nat,v.x,v.z)){(u.nog=u.nog||{})[v.id]=t+20;u._hk=0;u._fixing=null;supHome(u);if(typeof tacN==='function')tacN('recFlee');}};}
 
 /* ---- 06h-org.js ---- */
 /* ===================== ORG: 중대·소대 자동 편성 =====================
@@ -6228,6 +6459,70 @@ function orgRegroup(n,us,kind){us=us.filter(u=>u&&u.nat===n&&!orgHQ(u)&&G.units.
   const by=new Map();for(const u of us||[]){const k=u&&u.pq!=null?u.pq:'x';if(!by.has(k))by.set(k,[]);by.get(k).push(u);}
   if(by.size<2&&!by.has('x')){const P=_ma.apply(this,arguments);const p=orgPq(n,[...by.keys()][0]);if(p&&P)P.forEach((q,i)=>{q.pq=p.id;q.name=P.length>1?`${p.name}-${i+1}`:p.name;});return P;}
   let all=[];for(const [k,g] of by){const P=_ma(n,g,mode,x,z,aut)||[];const p=orgPq(n,k);if(p)P.forEach((q,i)=>{q.pq=p.id;q.name=P.length>1?`${p.name}-${i+1}`:p.name;});all=all.concat(P);}return all;};}
+
+/* ---- 06i-form.js ---- */
+/* ===================== FORM-AI: AI 소대·차량의 행군 대형 =====================
+   05o-form의 대형을 AI(부관 포함)가 쓴다.
+   - 소대 행군(06c tacMove에서 목표가 멀고 적이 안 보일 때): 예전에는 분대마다 따로 몇 칸씩 갔다.
+     이제 선두 분대를 정하고 나머지는 시가지에서는 엇갈린 종대, 트인 곳에서는 쐐기로 따라간다.
+     근처(4칸)에 놀고 있는 전차·장갑차·험비가 있으면 소대에 붙여 선두로 세우고, 보병 둘은 차체 뒤에 붙어 걷는다.
+     차량은 보병 걸음에 맞춰 간다. 목표가 가까워지거나 적이 보이면 대형을 풀고 예전처럼 번갈아 이동·교전한다.
+   - 따로 진격하는 AI 차량(06b aiArmsAdvance): 같은 쪽으로 가는 앞 차가 가까우면 그 뒤에 붙어 차량 종대로 간다. */
+const FORM_HIDE={form:1};
+const FORM_VEH={tank:1,ifv:1,hmv:1};
+function formRelease(p,M){for(const u of M)if(u.fol&&u.fol.by==='tac')u.fol=null;const v=p._fv!=null?formUnit(p._fv):null;
+  if(v&&v.fesc===p.id){v.fesc=null;v.fol=null;}p._fv=null;p._fl=null;}
+/* 소대에 붙일 차량: 4칸 안, 놀고 있거나 혼자 진격 중, 다른 소대에 안 붙은 것 */
+function formPickVeh(p,c){const n=p.nat,t=G.time||0;let best=null,bd=4;
+  for(const v of G.units){if(v.nat!==n||!FORM_VEH[v.type]||v.man||v.post||v.cqb||v.hold||v.msn||v.hp<hpMax(v)*.4)continue;
+    if(v.fesc!=null&&v.fesc!==p.id&&t-(v.fescT||-99)<5)continue;if(v.fol&&v.fol.by!=='tac')continue;
+    const d=Math.hypot(v.x-c[0],v.z-c[1]);if(d<bd){bd=d;best=v;}}
+  return best;}
+/* 길을 앞에서 len칸까지만 */
+function formCut(u,P,len){const out=[];let px=u.x,pz=u.z,left=len;
+  for(const p of P){const s=Math.hypot(p[0]-px,p[1]-pz);if(s>=left){const f=left/(s||1);out.push([px+(p[0]-px)*f,pz+(p[1]-pz)*f]);return out;}out.push(p);left-=s;px=p[0];pz=p[1];}
+  return out;}
+function formMarch(p,M,gx,gz,d){const t=G.time||0;const c=tacCtr(p);
+  let v=p._fv!=null?formUnit(p._fv):null;if(v&&(v.nat!==p.nat||v.man||v.hold||Math.hypot(v.x-c[0],v.z-c[1])>7))v=null;
+  if(!v&&aiRun(p.nat))v=formPickVeh(p,c);
+  if(v){v.fesc=p.id;v.fescT=t;p._fv=v.id;if(v.fol)v.fol=null;}else p._fv=null;
+  let L=v;if(!L){L=p._fl!=null?M.find(u=>u.id===p._fl):null;if(!L)L=formPickLead(M,gx,gz);}
+  p._fl=L.id;if(L.fol)L.fol=null;
+  // 선두: 길을 따라 몇 칸씩. 남은 길이 짧아지면 미리 더 간다(멈칫하지 않게)
+  const e=L.path&&L.path.length?L.path[L.path.length-1]:null;
+  if(!e||Math.hypot(e[0]-L.x,e[1]-L.z)<2.2){const P=formCut(L,pathPts(L,gx,gz),Math.min(6,d));
+    if(P.length){L.path=P;L.dest=null;L.tgt=null;L.tgtTile=null;if(L.tk)L.tk.at=t;}}
+  if(L.tk)L.tk.role='move';
+  formBuild(L,M,'tac',null);
+  for(const u of M)if(u!==L&&u.tk){u.tk.role='move';}}
+{const _tm=tacMove;tacMove=function(p,M,objs){if(!p.obj||!M.length)return _tm(p,M,objs);
+  const [or,oc]=p.obj;const gx=p.pt?p.pt[0]:oc+.5,gz=p.pt?p.pt[1]:or+.5;const c=tacCtr(p);const d=Math.hypot(gx-c[0],gz-c[1]);
+  const arrived=d<1.8||p.mode==='defend'&&d<3;
+  const near=d<TAC.travel||p.mode==='recon'||tacKnown(p.nat).some(k=>Math.hypot(k.x-c[0],k.z-c[1])<12);
+  if(arrived||near||M.length<2&&!(aiRun(p.nat)&&formPickVeh(p,c))){formRelease(p,M);return _tm(p,M,objs);}
+  formMarch(p,M,gx,gz,d);};}
+// 접적·후퇴 등으로 행군을 벗어난 소대는 대형을 푼다
+{const _tp=tacPlatoon;tacPlatoon=function(p,K,objs){_tp(p,K,objs);if(p.st!=='move'&&(p._fv!=null||p._fl!=null))formRelease(p,tacMembers(p));};}
+/* 혼자 진격하는 AI 차량: 앞 차를 따라 차량 종대 */
+if(typeof aiArmsAdvance==='function'){const _a=aiArmsAdvance;aiArmsAdvance=function(n,u,E,goal){const ok=_a(n,u,E,goal);
+  if(!ok||!formGV(u)||u.fol)return ok;try{formConvoy(n,u,goal);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}return ok;};}
+function formConvoy(n,u,goal){const gx=goal[1]+.5,gz=goal[0]+.5;const my=Math.hypot(gx-u.x,gz-u.z);const end=u.path[u.path.length-1];
+  let best=null,bd=5;
+  for(const v of G.units){if(v===u||v.nat!==n||!formGV(v)||!v.path||!v.path.length||v.fesc!=null&&v.fesc!==undefined)continue;
+    const ve=v.path[v.path.length-1];if(Math.hypot(ve[0]-end[0],ve[1]-end[1])>3.5)continue;if(Math.hypot(gx-v.x,gz-v.z)>my-.6)continue;
+    const d=Math.hypot(v.x-u.x,v.z-u.z);if(d<bd){bd=d;best=v;}}
+  if(!best)return;
+  // 줄 끝에 선다(이미 누가 따르고 있으면 그 뒤로). 돌고 도는 고리는 만들지 않는다
+  let tail=best,guard=0;for(;;){const nx=G.units.find(o=>o!==u&&o.fol&&o.fol.L===tail.id&&o.fol.k==='col'&&formGV(o));if(!nx||guard++>8)break;tail=nx;}
+  for(let x=tail,g=0;x&&g<10;g++){if(x===u)return;x=x.fol?formUnit(x.fol.L):null;}
+  u.fol={L:tail.id,k:'col',i:1,d0:FORM.gapV,gap:FORM.gapV,end:end.slice(),by:'arm'};formP(u,u.path);u._fT=null;}
+// 행군 대형의 차량·따르는 차량은 예전 AI가 건드리지 않는다
+{const _ai=aiThink;aiThink=function(n){const t=G.time||0;const hid=[];
+  for(const u of G.units)if(u.nat===n&&!u.job&&(u.fesc!=null&&t-(u.fescT||-99)<5||u.fol&&u.fol.by==='arm')){u.job=FORM_HIDE;hid.push(u);}
+  try{return _ai(n);}finally{for(const u of hid)if(u.job===FORM_HIDE)u.job=null;}};}
+// 오래된 차량 붙임은 푼다(소대가 사라졌거나 판단이 끊김)
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;const t=G.time||0;if((G._fvT||0)>t)return;G._fvT=t+1;
+  for(const v of G.units)if(v.fesc!=null&&t-(v.fescT||-99)>=5){v.fesc=null;}};}
 
 /* ---- 06z-radio-ai.js ---- */
 /* ===================== AI 명령도 무전으로 =====================
@@ -6647,12 +6942,15 @@ function v3Soldier(n,kind){if(typeof v3SoldierM==='function')return v3SoldierM(n
   const gun=mk(sg.gun,dk,.03,.095,.02);if(kind==='at')mk(sg.tube,um,0,.12,-.018);if(kind==='sniper'){gun.scale.x=1.5;}if(kind==='mg'){gun.scale.set(1.2,1.6,1.4);}
   g.userData={legL,legR,tor};return g;}
 const SQUAD={rifle:8,mg:5,at:4,sniper:2,eng:5,mortar:4};
+/* 분대 안 병사 한 명의 차림: 소총분대 분대장(무전기)·위생병·유탄수, 그 밖엔 편성(05k KIT)대로 */
+function v3SolKind(ty,i,n){if(ty==='rifle'){if(i===0)return 'lead';if(i===1&&n>=5)return 'medic';if(typeof KIT==='object'&&KIT.rifle&&KIT.rifle[i]==='gl')return 'gl';}
+  return i===0?ty:(typeof squadKit==='function'&&squadKit(ty,i))||'rifle';}
 function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v3BodyMat(u.nat,false);const M=V3.M;const ty=u.type;
   const B=(w,h,d,x,y,z,mat,par)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat||body);m.position.set(x,y,z);m.castShadow=true;(par||g).add(m);return m;};
   const Cy=(r1,r2,h,x,y,z,rz,mat,par)=>{const m=new T.Mesh(new T.CylinderGeometry(r1,r2,h,8),mat||body);m.position.set(x,y,z);if(rz)m.rotation.z=rz;m.castShadow=true;(par||g).add(m);return m;};
   const root=new T.Group();const sold=[];
   if(t.cls==='inf'){const n=SQUAD[ty]||4;
-    for(let i=0;i<n;i++){const m=v3Soldier(u.nat,i===0?ty:(typeof squadKit==='function'&&squadKit(ty,i))||'rifle');root.add(m);const a=i/n*Math.PI*2+v3Hash(u.id,i)*.8,rr=i?.1+v3Hash(u.id,10+i)*.16:0;
+    for(let i=0;i<n;i++){const m=v3Soldier(u.nat,v3SolKind(ty,i,n));root.add(m);const a=i/n*Math.PI*2+v3Hash(u.id,i)*.8,rr=i?.1+v3Hash(u.id,10+i)*.16:0;
       sold.push({m,slot:[Math.cos(a)*rr-(i?.05:0),Math.sin(a)*rr],wx:u.x+Math.cos(a)*rr,wz:u.z+Math.sin(a)*rr,ph:v3Hash(u.id,20+i)*6.28,spd:0});}
     if(ty==='mortar'){Cy(.016,.016,.11,.06,.05,0,-.6,M.steel);B(.05,.01,.05,.06,.005,0,M.dark);}}
   else if(t.cls==='veh'&&typeof v3VehicleM==='function')v3VehicleM(ty,g,u.nat);
@@ -6670,9 +6968,11 @@ function v3Model(u){const T=V3.T,t=UT[u.type];const g=new T.Group();const body=v
   return root;}
 function v3UnitY(u){if(UT[u.type].fly&&typeof v3AirY==='function'){const y=v3AirY(u);if(y!=null)return y;}if(UT[u.type].fly)return Math.max(2.4,v3Top(u.r,u.c)+1);const iy=v3InY(u);if(iy!=null)return iy;return v3Top(u.r,u.c)+.005;}
 /* 쓰러진 병사: 그 자리에 오래 남는다 */
-function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;const c=v3Soldier(nat,'rifle');c.position.set(s.wx,o.position.y,s.wz);c.rotation.set(0,Math.random()*6.28,0);
-  c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;const wrap=new T.Group();wrap.position.copy(c.position);c.position.set(0,0,0);wrap.add(c);c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;
-  wrap.traverse(m=>{if(m.isMesh){m.material=V3.corpseM||(V3.corpseM=new T.MeshStandardMaterial({color:'#4a463e',roughness:1}));m.userData.keepMat=1;m.userData.keepGeo=1;}});wrap.userData.keepGeo=1;wrap.userData.keepMat=1;
+function v3Corpse(s,o,nat){if(!s.m.visible)return;const T=V3.T;let c;if(typeof v3SoldierDead==='function'){c=new T.Group();c.add(v3SoldierDead(s.m,nat));c.scale.copy(s.m.scale);}   // 07m2: 그 병사 차림 그대로 쓰러진 자세
+  else{c=v3Soldier(nat,'rifle');c.userData.legL.rotation.z=.3;c.userData.legR.rotation.z=-.2;c.rotation.z=Math.PI/2*(Math.random()<.5?1:-1);c.position.y=.015;}
+  c.position.set(s.wx,o.position.y,s.wz);c.rotation.y=Math.random()*6.28;
+  const wrap=new T.Group();wrap.position.copy(c.position);c.position.x=c.position.z=0;c.position.y=typeof v3SoldierDead==='function'?0:.015;wrap.add(c);
+  wrap.traverse(m=>{if(m.isMesh){if(!m.userData.keepMat)m.material=V3.corpseM||(V3.corpseM=new T.MeshStandardMaterial({color:'#4a463e',roughness:1}));m.userData.keepMat=1;m.userData.keepGeo=1;}});wrap.userData.keepGeo=1;wrap.userData.keepMat=1;
   V3.G.fx.add(wrap);
   // 발밑이 사라지면(건물 붕괴·지붕이 낮아짐) 떨어져 잔해·땅 위에 눕는다
   const cr=Math.floor(s.wz),cc=Math.floor(s.wx);let vy=0,last=performance.now();
@@ -8335,70 +8635,12 @@ function v3Prism(pts,w){const T=V3.T;const s=new T.Shape();pts.forEach(([x,y],i)
   const g=new T.ExtrudeGeometry(s,{depth:w,bevelEnabled:false});g.translate(0,0,-w/2);return g;}
 
 /* ---------- 병사 ----------
-   영화 Civil War(2024)처럼: 정규군(짝수 세력)은 같은 군복과 헬멧, 민병대(홀수 세력)는 청바지·후드·야구모자 위에
-   플레이트캐리어를 걸친 제각각 차림. 병사마다 머리·조끼·배낭·총이 조금씩 다르고, 분대장은 무전기 안테나를 단다.
-   다리 둘(걸음 흔들림)을 빼면 몸 전체를 정점 색을 쓴 형상 하나로 합쳐서, 인원이 많아도 그리기 부담이 작다. */
+   병사 모형·자세는 07m2-soldier.js. 아래 v3PartsGeo는 부품 여러 개를 정점 색 형상 하나로 합치는 도구. */
 Object.assign(SQUAD,{rifle:9,mg:6,at:4,sniper:2,eng:6,mortar:5,aa:3,ew:3,dteam:3,atgm:3});
-const SOL={
-  reg:{top:['#6f6a55','#726b55','#6a6650'],pants:['#69634e','#6d6651'],plate:['#7a6a50','#6c6248','#5c5a46'],head:['helm','helm','helm','helm','helm','boonie']},
-  mil:{top:['#4a4a46','#2f3a2e','#5a5040','#3a3f4a','#6f6a55','#55493b','#2c2c2b','#6b6b66'],pants:['#3c4656','#7a6e55','#2a2a2a','#69634e','#4d4a42'],
-       plate:['#2a2a28','#7a6a50','#4a5040','#3a3a36'],head:['cap','cap','cap','helm','helm','helm','beanie','boonie','bare']},
-};
-const SKIN=['#c9a184','#b08466','#8a6248','#d5b195','#6e4b36'];
 function v3PartsGeo(parts){const T=V3.T;const P=[],Nn=[],C=[];const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),v=new T.Vector3(),sc=new T.Vector3(),col=new T.Color();
   for(const p of parts){const g=p.g.index?p.g.toNonIndexed():p.g.clone();e.set(p.rx||0,p.ry||0,p.rz||0);q.setFromEuler(e);v.set(p.x||0,p.y||0,p.z||0);sc.set(p.sx||1,p.sy||1,p.sz||1);m4.compose(v,q,sc);g.applyMatrix4(m4);
     col.set(p.c);const pa=g.attributes.position.array,na=g.attributes.normal.array;for(let i=0;i<pa.length;i++){P.push(pa[i]);Nn.push(na[i]);}for(let i=0;i<pa.length/3;i++)C.push(col.r,col.g,col.b);g.dispose();}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('normal',new T.Float32BufferAttribute(Nn,3));geo.setAttribute('color',new T.Float32BufferAttribute(C,3));return geo;}
-function v3SoldierM(n,kind){const T=V3.T;
-  const B=(w,h,d)=>new T.BoxGeometry(w,h,d),pick=(a)=>a[Math.floor(Math.random()*a.length)];
-  const st=n%2?SOL.mil:SOL.reg;const top=pick(st.top),pants=pick(st.pants),plate=pick(st.plate),skin=pick(SKIN);
-  let head=pick(st.head);if(kind==='sniper')head=Math.random()<.6?'boonie':head;
-  const radio=kind!=='rifle'&&kind!=='sniper'?Math.random()<.5:Math.random()<.14;
-  const pack=kind==='eng'||kind==='mortar'?'big':kind==='sniper'?'none':pick(['small','small','big','none']);
-  const gunT=kind==='mg'?'mg':kind==='sniper'?'dmr':n%2&&Math.random()<.2?'ak':'m4';
-  const vkey=[n%2,kind,top,pants,plate,skin,head,radio,pack,gunT].join('|');
-  V3.solG=V3.solG||new Map();let G1=V3.solG.get(vkey);
-  if(!G1){const tape=TAPE[n]||'#ccc',dk='#262624',hc=head==='helm'?(n%2?pick(['#6c6550','#3c3d36','#7a6e55']):'#6a6550'):head==='cap'?pick(['#2a2a2a','#7a6e55','#4a4a40','#5a2a24']):head==='beanie'?pick(['#2c2c2c','#4a4a3e']):'#6f6a55';
-    const L=[
-      {g:B(.04,.056,.034),y:.092,c:top},                                   // 몸통
-      {g:B(.05,.048,.044),y:.096,x:.001,c:plate},                          // 플레이트캐리어 (어깨가 넓어 보이게)
-      {g:B(.012,.016,.034),y:.086,x:.027,c:plate},                         // 앞 탄창 주머니
-      {g:B(.016,.012,.03),y:.071,x:0,c:pants},                             // 허리·벨트
-      {g:B(.012,.008,.009),y:.107,z:-.027,c:tape},{g:B(.012,.008,.009),y:.107,z:.027,c:tape},  // 팔의 색 테이프
-      // 팔: 어깨에서 앞으로 뻗어 총을 잡는다
-      {g:B(.034,.012,.012),x:.016,y:.102,z:-.024,ry:-.35,rz:-.35,c:top},
-      {g:B(.034,.012,.012),x:.02,y:.1,z:.024,ry:.45,rz:-.25,c:top},
-      {g:new T.SphereGeometry(.0135,7,5),x:.002,y:.133,c:skin},            // 머리
-    ];
-    if(head==='helm'){L.push({g:new T.SphereGeometry(.0175,8,5,0,Math.PI*2,0,Math.PI*.45),y:.135,c:hc});if(!(n%2)||Math.random()<.4)L.push({g:B(.007,.009,.011),x:.016,y:.14,c:dk});}
-    else if(head==='boonie'){L.push({g:new T.CylinderGeometry(.013,.015,.011,8),y:.143,c:hc},{g:new T.CylinderGeometry(.026,.026,.002,10),y:.138,c:hc});}
-    else if(head==='cap'){L.push({g:new T.SphereGeometry(.0145,8,4,0,Math.PI*2,0,Math.PI*.5),y:.136,c:hc},{g:B(.014,.002,.016),x:.016,y:.137,c:hc},{g:B(.004,.008,.03),y:.133,c:dk});}// 모자 + 귀마개 헤드셋
-    else if(head==='beanie')L.push({g:new T.SphereGeometry(.015,8,4,0,Math.PI*2,0,Math.PI*.55),y:.135,c:hc});
-    else L.push({g:B(.004,.01,.032),y:.134,c:dk});                       // 맨머리 + 헤드셋
-    if(pack==='small')L.push({g:B(.018,.03,.026),x:-.032,y:.1,c:plate});
-    if(pack==='big')L.push({g:B(.026,.046,.032),x:-.036,y:.1,c:n%2?pick(['#3a3a34','#4a5040','#5a5040']):'#5d5644'});
-    if(radio)L.push({g:B(.012,.02,.014),x:-.03,y:.118,z:.01,c:dk},{g:B(.0015,.08,.0015),x:-.032,y:.165,z:.012,rz:.12,c:dk});
-    // 총: 몸 앞에 비스듬히 든 자세
-    const gx=.034,gy=.098,gz=.008,ry=.25;
-    if(gunT==='mg')L.push({g:B(.09,.016,.012),x:gx+.006,y:gy,z:gz,ry,c:dk},{g:B(.016,.02,.016),x:gx-.004,y:gy-.014,z:gz,ry,c:'#4a4a40'});
-    else if(gunT==='dmr')L.push({g:B(.11,.009,.008),x:gx+.012,y:gy,z:gz,ry,c:dk},{g:B(.024,.008,.007),x:gx,y:gy+.008,z:gz,ry,c:dk});
-    else L.push({g:B(.07,.009,.008),x:gx,y:gy,z:gz,ry,c:gunT==='ak'?'#4a3a2a':dk},{g:B(.016,.007,.006),x:gx-.002,y:gy+.008,z:gz,ry,c:dk},{g:B(.008,.016,.006),x:gx+.004,y:gy-.011,z:gz,ry,rz:gunT==='ak'?.4:0,c:dk});
-    if(kind==='at')L.push({g:new T.CylinderGeometry(.009,.009,.1,6),x:-.03,y:.122,z:-.012,rz:Math.PI/2-.35,c:n%2?'#4a5040':'#6b6650'});
-    if(kind==='aa')L.push({g:new T.CylinderGeometry(.008,.01,.13,6),x:.005,y:.135,z:-.016,rz:Math.PI/2-.25,c:'#5d6450'},{g:B(.014,.018,.01),x:.03,y:.125,z:-.016,c:dk});// 어깨에 멘 대공미사일 발사관
-    if(kind==='atgm')L.push({g:new T.CylinderGeometry(.011,.011,.12,6),x:.004,y:.13,z:-.017,rz:Math.PI/2-.12,c:'#5b6150'},{g:B(.022,.02,.02),x:.022,y:.13,z:-.03,c:'#3a3c36'});// 어깨의 유도미사일 발사관과 조준 장치
-    if(kind==='dteam')L.push({g:B(.014,.008,.026),x:.014,y:.135,c:'#1c1c1a'},{g:B(.03,.024,.036),x:-.036,y:.1,c:'#4b4d42'},{g:B(.0015,.06,.0015),x:-.038,y:.14,rz:.1,c:dk});// FPV 고글·드론 가방·안테나
-    if(kind==='ew')L.push({g:B(.024,.036,.03),x:-.034,y:.104,c:'#3c3f38'},{g:B(.0015,.07,.0015),x:-.036,y:.15,z:-.01,rz:.25,c:dk},{g:B(.0015,.07,.0015),x:-.036,y:.15,z:.01,rz:-.25,c:dk},{g:B(.03,.012,.02),x:.036,y:.104,z:.01,c:'#55584e'});// 재머 배낭·안테나·휴대 장비
-    if(kind==='mortar'&&Math.random()<.5)L.push({g:new T.CylinderGeometry(.007,.007,.07,6),x:-.034,y:.13,rz:.3,c:'#3d4246'});
-    G1=v3PartsGeo(L);V3.solG.set(vkey,G1);}
-  const bodyM=V3.solM||(V3.solM=new T.MeshStandardMaterial({vertexColors:true,roughness:.88,flatShading:true}));
-  const lg=V3.solLeg||(V3.solLeg=B(.016,.064,.019).translate(0,-.032,0));
-  const pid='pl'+pants;if(!V3.matc.has(pid))V3.matc.set(pid,new T.MeshStandardMaterial({color:pants,roughness:.9,flatShading:true}));const pm=V3.matc.get(pid);
-  const g=new T.Group();const body=new T.Mesh(G1,bodyM);body.castShadow=true;g.add(body);
-  const legL=new T.Mesh(lg,pm),legR=new T.Mesh(lg,pm);legL.position.set(0,.066,-.011);legR.position.set(0,.066,.011);legL.castShadow=legR.castShadow=true;g.add(legL,legR);
-  const sz=.96+Math.random()*.1;g.scale.setScalar(sz);
-  body.userData.keepGeo=1;legL.userData.keepGeo=1;legR.userData.keepGeo=1;
-  g.userData={legL,legR,tor:body};return g;}
-
 /* ---------- 차량 ---------- */
 /* 실제 군 장비 색(스타일 가이드): 양쪽 모두 바랜 올리브·황토. 세력은 발밑 표식과 팔의 색 테이프로 구분 */
 const TAPE=['#7fb4d9','#d9765f','#e0b050','#b39ad9'];
@@ -8471,6 +8713,274 @@ function v3VehBuild(ty){const T=V3.T,mm=v3ModMats(),M=V3.M;const g=new T.Group()
     B(.35*m,.22*m,.5*m,8.0*m,.7*m,0,M.steel,tur);                                            // 포구 제퇴기
     B(.15*m,.6*m,.4*m,3.0*m,.9*m,0,M.dark);}                                                  // 이동 고정대
   return g;}
+
+/* ---- 07m2-soldier.js ---- */
+/* ===================== 병사 모습: 실제 비율·장비·자세 =====================
+   키 약 1.78m 사람을 미터 단위로 짓고 MU(1/12)로 줄인다. 관절(엉덩이·무릎·어깨·팔꿈치)은 점으로 정하고
+   팔다리는 두 점을 잇는 토막으로 그린다(팔꿈치·무릎은 두 마디 IK로 계산).
+   - 정규군(짝수 세력): 같은 위장복(0번 멀티캠 계열, 2번 디지털 녹색), 덮개 씌운 고컷 헬멧·야간투시경 거치대·귀마개,
+     플레이트캐리어(앞 탄창 주머니 셋, 행정 주머니, 허리띠), 장갑, 무릎 보호대, 보안경.
+   - 민병대(홀수 세력): 후드·재킷·청바지 위에 플레이트캐리어나 가슴 조끼, 야구모자·비니·맨머리·스카프, 일부만 위장 재킷.
+   - 피아 식별: 양 어깨와 헬멧 위의 세력 색 테이프(위에서 내려다보는 카메라에서 보인다).
+   - 총: M4(광학조준경)·AK(나무 개머리)·기관총(탄통·양각대)·저격총(긴 조준경·양각대)·유탄발사기 단 소총.
+     대전차·대공·유도미사일은 쏠 때 어깨에 올리고, 걸을 때는 등에 멘다. 드론 조종수는 조종기를 들고 고글을 쓴다.
+   - 자세(형상을 미리 지어 두고 바꿔 낀다, 팔다리 따로 움직이지 않아 묶어 그리기에 그대로 들어간다):
+     move 낮은 총 자세로 걷기, aim 서서 견착, kneel 무릎쏴, prone 엎드려쏴(팔꿈치를 땅에), reload 무릎 꿇고 탄창 교체,
+     signal 한 팔 들어 수신호, carry 부상자를 어깨에 메고 걷기, down 누운 부상자, dead 쓰러진 시신.
+     서 있는 자세(move·aim·signal·carry)만 다리 둘(legL/legR)을 따로 두어 걸음을 흔든다.
+   - 위장무늬: 세력별 작은 무늬 그림(캔버스)을 위장복 부분에만 입힌다(정점 속성 camo). 다른 부분은 정점 색 그대로.
+   - 묶어 그리기(07z-inst)와 맞추려고 세력·병종마다 모양 가짓수를 SOLV로 묶어 둔다. */
+const SOLV={reg:4,mil:4};   // 07z-inst는 짝·홀 세력마다 병종당 8가지까지 묶는다(세력 둘씩 × 4)
+const SOL_PAT=['mc','wd','dg','ds'];
+const SOL_SKIN=['#c9a184','#b08466','#8a6248','#d5b195','#6e4b36','#a77b5c'];
+const SOL_STAND={move:1,aim:1,signal:1,carry:1,point:1,leanL:1,leanR:1};
+const SOL_POSES=['move','aim','kneel','prone','reload','signal','carry','down','dead','point','leanL','leanR','crawl','crawl2'];
+/* 무기: sl 개머리 길이(견착점→손잡이), fh 앞손 위치(손잡이→총열 덮개) */
+const SOL_GUN={m4:{sl:.3,fh:.3},ak:{sl:.32,fh:.3},gl:{sl:.3,fh:.27},mg:{sl:.36,fh:.4},dmr:{sl:.36,fh:.42}};
+
+/* ---------- 위장무늬 그림 ---------- */
+const SOL_CAMO={
+  mc:{base:'#9b8b68',bl:[['#77704f',16,10,.55],['#5c6643',12,8,.45],['#6b5039',9,7,.35],['#b9a884',10,6,.3]],dk:'#3d3628'},
+  wd:{base:'#727851',bl:[['#4d5b37',18,12,.6],['#5d4834',14,10,.5],['#222320',9,4,.35],['#a69c76',7,5,.2]]},
+  dg:{base:'#646e4c',px:['#4a5638','#7d7d58','#353a2b','#59643f'],sz:4},
+  ds:{base:'#b6a47d',bl:[['#917c5a',16,10,.55],['#6f5f45',10,7,.4],['#d0c19c',9,6,.3]]},
+};
+function solCamoTex(k){V3.solTex=V3.solTex||{};if(V3.solTex[k]!==undefined)return V3.solTex[k];
+  let tex=null;try{if(typeof document==='undefined')throw 0;const S=128,cv=document.createElement('canvas');cv.width=cv.height=S;const x=cv.getContext('2d');
+    const P=SOL_CAMO[k],r=mulberry(k.charCodeAt(0)*31+k.charCodeAt(1));x.fillStyle=P.base;x.fillRect(0,0,S,S);
+    const blob=(cx,cy,rx,ry,a)=>{for(const ox of [-S,0,S])for(const oy of [-S,0,S]){x.beginPath();x.ellipse(cx+ox,cy+oy,rx,ry,a,0,Math.PI*2);x.fill();}};
+    if(P.px){const z=P.sz;for(let i=0;i<S/z;i++)for(let j=0;j<S/z;j++){const v=r();if(v<.55)continue;x.fillStyle=P.px[Math.floor(r()*P.px.length)];
+        const w=1+Math.floor(r()*3);x.fillRect(i*z,j*z,z*w,z);if(i*z+z*w>S)x.fillRect(i*z-S,j*z,z*w,z);}}
+    else for(const [c,R,R2,dens] of P.bl){x.fillStyle=c;const n=Math.round(dens*60);for(let i=0;i<n;i++){const cx=r()*S,cy=r()*S;
+        for(let j=0;j<3;j++)blob(cx+(r()-.5)*R,cy+(r()-.5)*R,R*(.4+r()*.6),R2*(.4+r()*.6),r()*3);}}
+    if(P.dk){x.strokeStyle=P.dk;x.lineWidth=1.5;for(let i=0;i<14;i++){x.beginPath();let px=r()*S,py=r()*S;x.moveTo(px,py);for(let j=0;j<4;j++){px+=(r()-.5)*14;py+=(r()-.5)*14;x.lineTo(px,py);}x.stroke();}}
+    const T=V3.T;tex=new T.CanvasTexture(cv);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=2;}catch(e){tex=null;}
+  V3.solTex[k]=tex;return tex;}
+/* 위장복 부분(camo=1)만 무늬를 곱한다 */
+function solShader(m){m.onBeforeCompile=function(s,ren){const P=V3.T.Material.prototype.onBeforeCompile;if(P)P.call(this,s,ren);     // 지형 높이 훅(07g) 등 공통 훅을 먼저
+  s.vertexShader='attribute float camo;\nvarying float vCamo;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvCamo=camo;');
+  s.fragmentShader='varying float vCamo;\n'+s.fragmentShader.replace('#include <map_fragment>','#ifdef USE_MAP\n diffuseColor.rgb*=mix(vec3(1.),texture2D(map,vMapUv).rgb,vCamo);\n#endif');};
+  m.customProgramCacheKey=()=>'solcamo'+(V3.T.Material.prototype.customProgramCacheKey.call(m)||'');return m;}
+/* 세력마다 재질 하나(무늬만 다르다). 시신은 먼지 낀 어두운 색 */
+function solMat(n,dead){const id='sol'+(dead?'d':'')+n;if(V3.matc.has(id))return V3.matc.get(id);const T=V3.T;
+  const m=solShader(new T.MeshStandardMaterial({vertexColors:true,roughness:.9,flatShading:true,map:solCamoTex(SOL_PAT[n%4]),color:dead?'#8f8a80':'#ffffff'}));
+  V3.matc.set(id,m);return m;}
+
+/* ---------- 짓는 도구 ---------- */
+const solV=(x,y,z)=>new V3.T.Vector3(x,y,z);
+/* 좌표틀: Y축을 정확히 두고 X를 그에 직교하게(몸통·머리) */
+function solFrameY(o,xd,yd){const T=V3.T;const y=yd.clone().normalize();const x=xd.clone().sub(y.clone().multiplyScalar(xd.dot(y)));if(x.lengthSq()<1e-8)x.set(1,0,0);x.normalize();
+  const z=new T.Vector3().crossVectors(x,y);return new T.Matrix4().makeBasis(x,y,z).setPosition(o);}
+/* 좌표틀: X축(총열)을 정확히 두고 Y(위)를 그에 직교하게(무기) */
+function solFrameX(o,xd,yd){const T=V3.T;const x=xd.clone().normalize();const y=yd.clone().sub(x.clone().multiplyScalar(yd.dot(x)));if(y.lengthSq()<1e-8)y.set(0,1,0);y.normalize();
+  const z=new T.Vector3().crossVectors(x,y);return new T.Matrix4().makeBasis(x,y,z).setPosition(o);}
+/* 두 마디 IK: 어깨 S → 손 H, 팔꿈치는 pole 쪽으로 굽는다 */
+function solIK(S,H,L1,L2,pole){const d=H.clone().sub(S);const L=d.length()||1e-4;const dir=d.clone().divideScalar(L);const Lc=Math.min(L,L1+L2-.002);
+  const a=(L1*L1-L2*L2+Lc*Lc)/(2*Lc),h=Math.sqrt(Math.max(0,L1*L1-a*a));const pp=pole.clone().sub(dir.clone().multiplyScalar(pole.dot(dir)));if(pp.lengthSq()<1e-8)pp.set(0,0,1);pp.normalize();
+  return S.clone().add(dir.multiplyScalar(a)).add(pp.multiplyScalar(h));}
+/* 부품 목록 P에 담는다. 부품: {g, M(미터 단위 행렬), c, cam} */
+function solKit(P){const T=V3.T;const tmp=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),sc=new T.Vector3(1,1,1),up=new T.Vector3(0,1,0);
+  const put=(F,g,c,cam,x,y,z,rx,ry,rz)=>{e.set(rx||0,ry||0,rz||0);q.setFromEuler(e);tmp.compose(solV(x||0,y||0,z||0),q,sc);P.push({g,M:F.clone().multiply(tmp),c,cam:cam?1:0});};
+  const K={
+    box:(F,w,h,d,x,y,z,c,cam,rx,ry,rz)=>put(F,new T.BoxGeometry(w,h,d),c,cam,x,y,z,rx,ry,rz),
+    sph:(F,r,x,y,z,c,cam,sx,sy,sz,th)=>{const g=new T.SphereGeometry(r,7,th?3:5,0,Math.PI*2,0,th||Math.PI);if(sx)g.scale(sx,sy,sz);put(F,g,c,cam,x,y,z);},
+    cyl:(F,r1,r2,h,x,y,z,c,cam,rx,ry,rz,n)=>put(F,new T.CylinderGeometry(r1,r2,h,Math.min(n||6,6),1,false),c,cam,x,y,z,rx,ry,rz),
+    /* 두 점(월드, 미터)을 잇는 토막 */
+    seg:(a,b,w,d,c,cam)=>{const v=b.clone().sub(a);const L=v.length();if(L<1e-4)return;q.setFromUnitVectors(up,v.clone().divideScalar(L));
+      tmp.compose(a.clone().add(b).multiplyScalar(.5),q,sc);P.push({g:new T.BoxGeometry(w,L+w*.35,d),M:tmp.clone(),c,cam:cam?1:0});},
+    /* 점에 놓는 상자, 축을 X 방향 d·위 u로 */
+    at:(p,d,u,w,h,dd,c,cam)=>{P.push({g:new T.BoxGeometry(w,h,dd),M:solFrameX(p,d,u),c,cam:cam?1:0});},
+  };return K;}
+/* 합치기: 미터 → MU, 위장 UV(위치 투영)와 camo 속성 */
+function solMerge(P){const T=V3.T;let nv=0;const gs=[];
+  for(const p of P){const g=p.g.index?p.g.toNonIndexed():p.g;if(g!==p.g)p.g.dispose();g.applyMatrix4(p.M);gs.push([g,p]);nv+=g.attributes.position.count;}
+  const pos=new Float32Array(nv*3),nor=new Float32Array(nv*3),col=new Float32Array(nv*3),uv=new Float32Array(nv*2),cam=new Float32Array(nv);const c=new T.Color();let o=0;
+  for(const [g,p] of gs){const pa=g.attributes.position.array,na=g.attributes.normal.array,n=pa.length/3;c.set(p.c);
+    for(let i=0;i<n;i++){const x=pa[i*3],y=pa[i*3+1],z=pa[i*3+2],j=o+i;pos[j*3]=x*MU;pos[j*3+1]=y*MU;pos[j*3+2]=z*MU;nor[j*3]=na[i*3];nor[j*3+1]=na[i*3+1];nor[j*3+2]=na[i*3+2];
+      col[j*3]=c.r;col[j*3+1]=c.g;col[j*3+2]=c.b;uv[j*2]=(x*.8+z)*1.7;uv[j*2+1]=(y+x*.45)*1.7;cam[j]=p.cam;}
+    o+=n;g.dispose();}
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(pos,3));geo.setAttribute('normal',new T.BufferAttribute(nor,3));
+  geo.setAttribute('color',new T.BufferAttribute(col,3));geo.setAttribute('uv',new T.BufferAttribute(uv,2));geo.setAttribute('camo',new T.BufferAttribute(cam,1));
+  geo.computeBoundingSphere();return geo;}
+
+/* ---------- 한 사람의 차림(모양 가짓수 하나) ---------- */
+function solSpec(n,kind,vi){const r=mulberry(((n+1)*7919+vi*104729+[...kind].reduce((a,ch)=>a*31+ch.charCodeAt(0),7))|0);const pick=a=>a[Math.floor(r()*a.length)];
+  const mil=n%2===1,W='#ffffff';const s={n,kind,mil,tape:TAPE[n]||'#ccc',skin:pick(SOL_SKIN)};
+  const fade=c=>{const k=.9+r()*.14;const C=new V3.T.Color(c);C.multiplyScalar(k);return '#'+C.getHexString();};
+  if(!mil){s.top=fade(W);s.topC=1;s.pants=s.top;s.pantsC=1;s.plate=n%4===0?pick(['#7d6c4f','#76674c','#6d6248']):pick(['#545a43','#5a5c48','#4d5340']);
+    s.glove=n%4===0?'#5c513d':'#3a3b33';s.head=kind==='sniper'?'boonie':r()<.9?'helm':'boonie';s.helm=s.top;s.helmC=1;s.nvg=r()<.7;s.eye=r()<.6;s.rig='plate';s.knee=1;s.ear=1;
+    s.gun=kind==='mg'?'mg':kind==='sniper'?'dmr':kind==='gl'?'gl':'m4';s.furn=r()<.35?'#7d6f52':'#262624';}
+  else{const camoTop=r()<.35;s.top=camoTop?fade(W):pick(['#4a4a46','#2f3a2e','#5a5040','#3a3f4a','#55493b','#2c2c2b','#6b6b66','#6f5a3a','#3c4a5c']);s.topC=camoTop?1:0;
+    s.pants=r()<.3?fade(W):pick(['#3c4656','#45526a','#7a6e55','#2a2a2a','#4d4a42','#5d5444']);s.pantsC=s.pants.startsWith('#f')||s.pants.startsWith('#e')?1:0;
+    s.plate=pick(['#2a2a28','#7a6a50','#4a5040','#3a3a36','#5d5644']);s.glove=r()<.5?'#262624':s.skin;
+    s.head=kind==='sniper'?'boonie':pick(['cap','cap','helm','helm','beanie','bare','scarf','boonie']);s.helm=pick(['#5c5f48','#6c6550','#3c3d36','#7a6e55']);s.helmC=0;
+    s.nvg=s.head==='helm'&&r()<.25;s.eye=r()<.35;s.rig=r()<.65?'plate':'chest';s.knee=r()<.3;s.ear=r()<.5;s.scarf=s.head==='scarf'||r()<.25?pick(['#8a7d62','#2d2d2b','#6d3c32','#c7bfae']):null;
+    s.cap=pick(['#2a2a2a','#7a6e55','#4a4a40','#5a2a24','#2e3a4a']);s.gun=kind==='mg'?'mg':kind==='sniper'?'dmr':kind==='gl'?'gl':r()<.55?'ak':'m4';s.furn=s.gun==='ak'?'#6b4a2c':'#262624';}
+  s.pack=kind==='eng'||kind==='mortar'||kind==='medic'?'big':kind==='sniper'||kind==='dteam'||kind==='ew'?'none':pick(['small','small','big','none']);
+  s.radio=kind==='lead'||kind==='ew'?1:kind==='rifle'||kind==='sniper'||kind==='gl'?r()<.1:r()<.4;
+  s.size=1;return s;}
+
+/* ---------- 무기(무기 좌표: 손잡이 위가 원점, X 총구 쪽) ---------- */
+function solGun(K,F,s,ty){const dk='#262624',st='#3b3c3a',fu=s.furn;
+  if(ty==='m4'||ty==='gl'){K.box(F,.27,.07,.042,.05,0,0,dk);K.box(F,.22,.056,.05,.29,0,0,fu);K.box(F,.15,0.018,0.018,.47,0,0,st);
+    K.box(F,.17,.05,.036,-.17,-.012,0,fu);K.box(F,.03,.11,.04,-.26,-.02,0,fu);K.box(F,.03,.08,.026,-.012,-.05,0,dk,0,0,0,.3);
+    K.box(F,.034,.12,.025,.085,-.08,0,dk,0,0,0,-.15);K.box(F,.08,.045,.034,.06,.062,0,'#1d1f1f');
+    if(ty==='gl')K.box(F,.18,.05,.05,.28,-.05,0,'#34352f');}
+  else if(ty==='ak'){K.box(F,.3,.07,.044,.06,0,0,'#2c2b28');K.box(F,.17,.056,.052,.29,-.003,0,fu);K.box(F,.2,0.018,0.018,.48,.005,0,st);
+    K.box(F,.22,.06,.036,-.18,-.035,0,fu,0,0,0,.12);K.box(F,.03,.08,.026,-.01,-.05,0,'#2c2b28',0,0,0,.3);
+    K.box(F,.036,.08,.025,.1,-.06,0,'#3a2e22',0,0,0,-.25);K.box(F,.036,.07,.025,.125,-.12,0,'#3a2e22',0,0,0,-.55);}
+  else if(ty==='mg'){K.box(F,.34,.095,.065,.07,.01,0,dk);K.box(F,.2,.06,.06,.32,0,0,'#2f302d');K.box(F,.32,0.026,0.026,.55,.01,0,st);
+    K.box(F,.2,.07,.045,-.18,-.01,0,dk);K.box(F,.03,.08,.026,-.012,-.055,0,dk,0,0,0,.3);K.box(F,.11,.11,.09,.07,-.1,-.03,'#4c5040');// 탄통
+    K.box(F,.08,.012,.012,.2,.07,0,dk);for(const z of [-.03,.03])K.box(F,.22,.012,.012,.55,-.025,z,st,0,0,0,-.08);}// 손잡이·접힌 양각대
+  else if(ty==='dmr'){const c=s.mil?'#2e2e2b':'#6f6650';K.box(F,.3,.065,.042,.06,0,0,c);K.box(F,.25,.055,.05,.33,0,0,c);K.box(F,.3,0.022,0.022,.6,0,0,st);
+    K.box(F,.26,.075,.04,-.18,-.015,0,c);K.box(F,.03,.08,.026,-.012,-.05,0,dk,0,0,0,.3);K.box(F,.03,.08,.024,.09,-.07,0,dk);
+    K.cyl(F,.022,.026,.32,.06,.075,0,'#1d1f1f',0,0,0,Math.PI/2,7);for(const z of [-.03,.03])K.box(F,.24,.012,.012,.42,-.035,z,st,0,0,0,-.1);}}
+/* 발사관(좌표: 관 가운데, X 앞) */
+function solTube(K,F,kind,s){const ol=s.mil?'#4a5040':'#5f6450';
+  if(kind==='at'){K.cyl(F,.044,.044,1.0,0,0,0,ol,0,0,0,Math.PI/2,7);K.cyl(F,.05,.05,.06,.48,0,0,'#2a2a28',0,0,0,Math.PI/2,7);K.cyl(F,.05,.05,.06,-.48,0,0,'#2a2a28',0,0,0,Math.PI/2,7);K.box(F,.06,.05,.03,.08,.06,-.02,'#2a2a28');K.box(F,.04,.09,.03,.1,-.07,0,'#2a2a28');}
+  else if(kind==='aa'){K.cyl(F,.038,.042,1.5,0,0,0,'#5d6450',0,0,0,Math.PI/2,7);K.box(F,.14,.09,.06,.1,-.08,0,'#3a3c36');K.box(F,.04,.18,.03,.22,.05,-.08,'#2a2a28');K.box(F,.08,.06,.07,-.1,-.06,.04,'#3a3c36');}
+  else if(kind==='atgm'){K.cyl(F,.065,.07,1.2,0,0,0,'#6a6b55',0,0,0,Math.PI/2,8);K.box(F,.22,.15,.2,.12,.03,-.15,'#3e4038');K.cyl(F,.035,.035,.08,.27,.06,-.15,'#151615',0,0,0,Math.PI/2,6);}}
+
+/* ---------- 자세: 아래(다리)·몸통 방향·윗몸(손과 무기) ---------- */
+const SOL_POSE={
+  move:{pel:[0,.95,0],tor:[.15,1,0],legs:'sep',up:'low'},
+  aim:{pel:[0,.95,0],tor:[.1,1,0],legs:'sep',up:'aim'},
+  signal:{pel:[0,.95,0],tor:[.05,1,0],legs:'sep',up:'sig'},
+  carry:{pel:[0,.93,0],tor:[.5,1,0],legs:'sep',up:'carry'},
+  kneel:{pel:[-.04,.57,0],tor:[.17,1,0],legs:'kneel',up:'aim'},
+  reload:{pel:[-.04,.57,0],tor:[.28,1,0],legs:'kneel',up:'rel'},
+  prone:{pel:[-.6,.14,0],tor:[1,.17,0],chest:[.17,-1,0],legs:'prone',up:'prone',head:[.65,1,0]},
+  point:{pel:[0,.95,0],tor:[.12,1,0],legs:'sep',up:'point'},
+  leanL:{pel:[0,.95,-.02],tor:[.1,1,-.36],legs:'sep',up:'aim'},
+  leanR:{pel:[0,.95,.02],tor:[.1,1,.36],legs:'sep',up:'aim'},
+  crawl:{pel:[-.6,.13,0],tor:[1,.12,0],chest:[.12,-1,0],legs:'crawlA',up:'crawl',head:[.7,1,0]},
+  crawl2:{pel:[-.58,.13,0],tor:[1,.12,0],chest:[.12,-1,0],legs:'crawlB',up:'crawl2',head:[.7,1,0]},
+  down:{pel:[-.45,.11,0],tor:[1,.03,0],chest:[-.03,1,0],legs:'down',up:'down',head:'body'},
+  dead:{pel:[-.45,.11,0],tor:[1,.02,.18],chest:[-.2,1,-.35],legs:'dead',up:'dead',head:'body'},
+};
+const SOL_LAUNCH={at:1,aa:1,atgm:1};
+function solBody(s,pose){const T=V3.T,P=[],K=solKit(P),Q=SOL_POSE[pose]||SOL_POSE.move,kind=s.kind;
+  const pel=solV(...Q.pel),tY=solV(...Q.tor).normalize(),tX=Q.chest?solV(...Q.chest):solV(1,0,0);
+  const TF=solFrameY(pel,tX,tY);const L=(x,y,z)=>solV(x,y,z).applyMatrix4(TF);                     // 몸통 좌표 → 월드
+  const TR=new V3.T.Matrix3().setFromMatrix4(TF);const Ld=(x,y,z)=>solV(x,y,z).applyMatrix3(TR);                 // 몸통 방향 → 월드(길이 유지)
+  const top=s.top,tc=s.topC,pc=s.pantsC,gear='#383830';
+  /* 엉덩이·몸통·조끼 */
+  K.box(TF,.2,.17,.34,0,.02,0,s.pants,pc);
+  if(s.rig!=='plate')K.box(TF,.2,.3,.33,0,.25,0,top,tc);K.box(TF,.21,.12,.39,-.005,.4,0,top,tc);
+  K.box(TF,.24,.06,.36,0,.12,0,gear);          // 허리띠·옆 주머니
+  if(s.rig==='plate'){K.box(TF,.29,.3,.35,.0,.31,0,s.plate);for(const z of [-.085,0,.085])K.box(TF,.05,.11,.07,.165,.24,z,s.plate);K.box(TF,.035,.08,.15,.16,.4,0,s.plate);}
+  else{K.box(TF,.25,.22,.33,.0,.3,0,s.plate);for(const z of [-.1,-.035,.035,.1])K.box(TF,.05,.12,.055,.14,.29,z,s.plate);}
+  for(const z of [-.2,.2])K.box(TF,.07,.03,.07,-.005,.475,z*1.02,s.tape);                                  // 어깨 피아 식별 테이프
+  if(s.scarf)K.box(TF,.16,.06,.2,.0,.53,0,s.scarf);
+  K.box(TF,.1,.09,.1,.0,.53,0,s.skin);
+  /* 등짐 */
+  const pk=s.pack;if(pk==='small')K.box(TF,.13,.28,.27,-.21,.3,0,s.mil?'#3a3a34':s.plate);
+  if(pk==='big'){const c=kind==='medic'?(s.mil?'#4a4a40':s.plate):s.mil?'#4a5040':s.plate;K.box(TF,.2,.44,.34,-.25,.29,0,c);K.box(TF,.16,.06,.3,-.24,.53,0,c);
+    if(kind==='medic'){K.box(TF,.012,.16,.16,-.355,.32,0,'#e9e6dc');K.box(TF,.014,.11,.035,-.358,.32,0,'#b02a22');K.box(TF,.014,.035,.11,-.358,.32,0,'#b02a22');
+      K.box(TF,.13,.012,.13,-.25,.565,0,'#e9e6dc');K.box(TF,.09,.014,.028,-.25,.567,0,'#b02a22');K.box(TF,.028,.014,.09,-.25,.567,0,'#b02a22');}
+    if(kind==='eng'){K.seg(L(-.36,.1,.12),L(-.36,.62,.1),.035,.02,'#4a4038');K.box(TF,.02,.14,.11,-.37,.66,.1,'#3d4040');K.box(TF,.1,.08,.1,-.25,.6,-.08,'#6a6450');}
+    if(kind==='mortar')K.cyl(TF,.04,.04,.75,-.3,.5,.08,'#3d4246',0,0,0,-.35);}
+  if(s.radio){K.box(TF,.07,.16,.08,-.2,.42,.13,'#2c2d29');K.seg(L(-.21,.49,.15),L(-.32,1.25,.22),.012,.012,'#1e1e1c');}
+  if(kind==='ew'){K.box(TF,.16,.32,.28,-.23,.32,0,'#3c3f38');for(const z of [-.1,.1])K.seg(L(-.25,.48,z),L(-.38,1.05,z*2.4),.014,.014,'#1e1e1c');K.box(TF,.04,.14,.2,.18,.33,0,'#55584e');}
+  if(kind==='dteam'){K.box(TF,.15,.3,.3,-.22,.32,0,'#4b4d42');const dc='#2a2b28';K.box(TF,.1,.03,.1,-.31,.5,0,dc);for(const a of [.785,2.356,3.927,5.498])K.box(TF,.14,.012,.016,-.31+Math.cos(a)*.06,.515,Math.sin(a)*.06,dc,0,0,-a,0);}
+  if(kind==='sniper'){const gh=['#5a5a3c','#4a4f34','#6b6244','#3e4330'];for(let i=0;i<9;i++)K.box(TF,.1,.06,.1,-.1+((i*37)%7)*.03,.36+((i*13)%5)*.04,-.18+((i*29)%9)*.045,gh[i%4],1,i*.7,i*1.3,i*.4);}
+  /* 어깨·머리 */
+  const shL=L(-.01,.455,-.2),shR=L(-.01,.455,.2);
+  const neck=L(0,.57,0);let hY,hX;
+  if(Q.head==='body'){hY=tY.clone();hX=Ld(1,0,0);}else if(Q.head){hY=solV(...Q.head).normalize();hX=solV(1,-.4,0);}else{hY=tY.clone().lerp(solV(0,1,0),.7).normalize();hX=solV(1,0,0);}
+  const up=Q.up;let hc=neck.clone().add(hY.clone().multiplyScalar(.1)).add(solV(1,0,0).multiplyScalar(.015));
+  if(up==='aim'&&Q.legs!=='prone')hc.add(Ld(0,-.02,.035));
+  const HF=solFrameY(hc,hX,hY);solHead(K,HF,s);
+  /* 손과 무기 */
+  const gunT=s.gun,G=SOL_GUN[gunT],ar=s.topC?s.top:top;
+  let hR=null,hLft=null,poleL=solV(0,-1,-.6),poleR=solV(-.2,-1,.8),gunF=null,tube=null,ctrl=null,sling=true;
+  const launch=SOL_LAUNCH[kind]&&(up==='aim'),drone=kind==='dteam'&&(up==='aim');
+  if(launch){const tc0=L(.1,.52,.17);tube=solFrameX(tc0,Ld(1,.04,0),Ld(0,1,0));hR=L(.14,.43,.15);hLft=L(.36,.45,.1);poleL=Ld(0,-1,-.4);}
+  else if(drone){ctrl=L(.27,.29,0);hR=L(.24,.27,.08);hLft=L(.24,.27,-.08);poleL=Ld(-.3,-1,-.6);poleR=Ld(-.3,-1,.6);}
+  else if(up==='low'){const g=L(.16,.17,.15),d=Ld(.85,-.42,-.25);gunF=solFrameX(g,d,Ld(0,1,0));hR=g;hLft=g.clone().add(d.clone().normalize().multiplyScalar(G.fh*.9));sling=false;}
+  else if(up==='aim'){const sp=L(.03,.43,.11),d=Ld(1,.02,-.05).normalize();const g=sp.clone().add(d.clone().multiplyScalar(G.sl));gunF=solFrameX(g,d,Ld(0,1,0));hR=g;hLft=g.clone().add(d.clone().multiplyScalar(G.fh));
+    poleR=Ld(-.2,-.6,1);poleL=Ld(0,-1,-.5);sling=false;}
+  else if(up==='prone'){const sp=L(.03,.43,.11),d=solV(1,.03,-.04).normalize();const g=sp.clone().add(d.clone().multiplyScalar(G.sl));gunF=solFrameX(g,d,solV(0,1,0));hR=g;hLft=g.clone().add(d.clone().multiplyScalar(G.fh));
+    poleR=solV(0,-1,.6);poleL=solV(0,-1,-.6);sling=false;
+    if(gunT==='mg'||gunT==='dmr'){const tip=g.clone().add(d.clone().multiplyScalar(.5));for(const z of [-.06,.06])K.seg(tip.clone().add(solV(0,0,z)),solV(tip.x+.04,0,tip.z+z*2),.014,.014,'#3b3c3a');}}
+  else if(up==='rel'){const g=L(.24,.25,.07),d=Ld(.8,-.25,-.5).normalize();gunF=solFrameX(g,d,Ld(.2,1,.4));hR=g;hLft=g.clone().add(d.clone().multiplyScalar(.08)).add(Ld(0,-.13,0));poleL=Ld(0,-1,-.8);sling=false;}
+  else if(up==='sig'){const g=L(.13,.15,.16),d=Ld(.8,-.55,-.1);gunF=solFrameX(g,d,Ld(0,1,0));hR=g;hLft=L(.08,.95,-.25);poleL=Ld(.2,.2,-1);sling=false;}
+  else if(up==='point'){const g=L(.13,.15,.16),d=Ld(.8,-.55,-.1);gunF=solFrameX(g,d,Ld(0,1,0));hR=g;hLft=L(.62,.5,-.12);poleL=Ld(0,-.3,-1);sling=false;}
+  else if(up==='crawl'||up==='crawl2'){const a=up==='crawl'?1:-1;hR=solV(.08+.1*a,.04,.18);hLft=solV(.2-.12*a,.04,-.2);poleR=solV(-.3,0,1);poleL=solV(-.3,0,-1);
+    const g=hR.clone().add(solV(0,.03,0));gunF=solFrameX(g,solV(1,.02,-.25),solV(0,0,-1));sling=false;}       // 총을 팔에 얹고 팔꿈치로 긴다
+  else if(up==='carry'){hR=L(.13,.57,.23);hLft=L(.13,.57,-.23);poleR=Ld(.3,-1,.5);poleL=Ld(.3,-1,-.5);}
+  else if(up==='down'){hR=solV(-.3,.05,.3);hLft=solV(-.05,.2,-.06);poleR=solV(0,.2,1);poleL=solV(0,1,-.4);
+    gunF=solFrameX(solV(-.1,.035,.5),solV(1,0,.15),solV(0,0,-1));sling=false;}
+  else if(up==='dead'){hR=solV(.05,.05,.55);hLft=solV(-.15,.05,-.55);poleR=solV(-1,.3,0);poleL=solV(-1,.3,0);
+    gunF=solFrameX(solV(.3,.035,.75),solV(.8,0,.6),solV(0,0,-1));sling=false;}
+  if(gunF)solGun(K,gunF,s,gunT);
+  if(sling)solGun(K,solFrameX(L(-.21,.25,-.05),Ld(.15,.75,.6),Ld(-1,0,0)),s,gunT);   // 등에 멘 총
+  if(tube)solTube(K,tube,kind,s);
+  else if(SOL_LAUNCH[kind]&&up!=='down'&&up!=='dead')solTube(K,solFrameX(L(-.27,.36,.02),Ld(.2,1,-.55),Ld(-1,0,0)),kind,s);   // 등에 멘 발사관
+  if(ctrl){K.at(ctrl,Ld(1,.6,0),Ld(-.6,1,0),.12,.03,.2,'#2a2b28');K.seg(ctrl.clone().add(Ld(0,.02,.07)),ctrl.clone().add(Ld(-.02,.14,.08)),.008,.008,'#1e1e1c');}
+  /* 팔 */
+  for(const [S,H,pole,side] of [[shR,hR,poleR,1],[shL,hLft,poleL,-1]]){const E=solIK(S,H,.29,.27,pole);
+    K.seg(S,E,.105,.1,ar,s.topC);const hand=H.clone().sub(E).normalize();const W=H.clone().sub(hand.clone().multiplyScalar(.04));
+    K.seg(E,W,.088,.085,ar,s.topC);K.seg(W,H.clone().add(hand.multiplyScalar(.03)),.085,.06,s.glove);
+    if(kind==='medic')K.seg(S.clone().lerp(E,.3),S.clone().lerp(E,.55),.115,.11,'#e9e6dc');}               // 위생병 완장
+  /* 다리(서 있는 자세는 따로 그린다) */
+  if(Q.legs!=='sep')solLegs(K,s,Q.legs,TF,L);
+  return solMerge(P);}
+/* 머리(머리 좌표: 머리 가운데, Y 정수리, X 얼굴) */
+function solHead(K,F,s){const dk='#262624';
+  K.sph(F,.098,0,0,0,s.skin,0,.95,1.12,.9);
+  if(s.eye)K.box(F,.03,.032,.15,.085,.012,0,'#151617');
+  const h=s.head;
+  if(h==='helm'){K.sph(F,.128,-.01,.025,0,s.helm,s.helmC,1,.95,1.02,Math.PI*.5);K.box(F,.05,.012,.05,-.02,.148,0,s.tape);
+    if(s.nvg)K.box(F,.035,.045,.05,.115,.075,0,dk);if(s.ear)for(const z of [-.112,.112])K.box(F,.07,.07,.04,0,-.01,z,'#2f302b');
+    K.box(F,.1,.02,.02,-.03,.07,.115,dk);K.box(F,.1,.02,.02,-.03,.07,-.115,dk);}// 옆 레일
+  else if(h==='boonie'){const c=s.mil?'#6b6244':s.top;K.cyl(F,.1,.108,.08,0,.08,0,c,s.mil?0:1);K.cyl(F,.17,.17,.012,0,.045,0,c,s.mil?0:1,0,0,0,10);}
+  else if(h==='cap'){K.sph(F,.104,0,.02,0,s.cap,0,1,1,1,Math.PI*.5);K.box(F,.09,.012,.12,.1,.035,0,s.cap);K.box(F,.03,.08,.22,0,-.01,0,dk);}
+  else if(h==='beanie')K.sph(F,.106,0,.012,0,s.cap,0,1,1.1,1,Math.PI*.55);
+  else if(h==='scarf'){K.sph(F,.104,0,.0,0,s.scarf,0,1,1.12,1,Math.PI*.62);K.box(F,.07,.06,.17,.07,-.045,0,s.scarf);}
+  else K.sph(F,.1,-.005,.015,0,['#1d1a17','#3a2a1e','#2a2522'][s.skin.charCodeAt(2)%3],0,1,1,1,Math.PI*.42);
+  if(s.kind==='dteam')K.box(F,.07,.06,.18,.09,.02,0,'#1c1c1a');}                                         // FPV 고글
+/* 다리: 엉덩이·무릎·발목 점을 잇는다 */
+function solLeg(K,s,hip,ank,pole,foot,knee){const kn=knee||solIK(hip,ank,.46,.45,pole);const pc=s.pantsC;
+  K.seg(hip,kn,.15,.15,s.pants,pc);K.seg(kn,ank,.12,.12,s.pants,pc);
+  if(s.knee){const out=pole.clone().normalize();K.at(kn.clone().add(out.multiplyScalar(.06)),ank.clone().sub(kn),solV(0,1,0),.09,.1,.13,'#2d2e2a');}
+  const f=foot.clone().normalize();const sole=solV(0,1,0).sub(f.clone().multiplyScalar(f.y)).normalize();
+  K.at(ank.clone().add(f.clone().multiplyScalar(.06)).add(sole.clone().multiplyScalar(-.04)),f,sole,.27,.1,.11,'#2e2a24');}
+function solLegs(K,s,how,TF,L){
+  if(how==='kneel'){solLeg(K,s,L(0,0,-.1),solV(.38,.09,-.14),solV(1,.2,0),solV(1,0,0));                    // 왼다리: 발을 앞에 딛고 무릎을 세움
+    solLeg(K,s,L(0,0,.1),solV(-.4,.08,.15),solV(1,-1,0),solV(-.35,-1,0));}                               // 오른다리: 무릎을 땅에
+  else if(how==='prone'){for(const z of [-1,1])solLeg(K,s,L(0,0,.1*z),solV(-1.42,.07,.26*z),solV(0,-1,.2*z),solV(-.25,-1,0));}
+  else if(how==='crawlA'||how==='crawlB'){const a=how==='crawlA'?1:-1;solLeg(K,s,L(0,0,-.1*a),solV(-1.4,.07,-.22*a),solV(0,-1,-.2*a),solV(-.25,-1,0));
+    solLeg(K,s,L(0,0,.1*a),solV(-1.0,.07,.42*a),solV(.2,-.2,a),solV(-.3,-1,.3*a));}                         // 한쪽 무릎을 옆으로 끌어올린다
+  else if(how==='down'){solLeg(K,s,L(0,0,-.1),solV(-1.3,.06,-.16),solV(0,1,0),solV(-.1,1,0));solLeg(K,s,L(0,0,.1),solV(-1.05,.07,.25),solV(.2,1,.3),solV(-.2,1,.4));}
+  else{solLeg(K,s,L(0,0,-.1),solV(-1.25,.06,-.38),solV(0,1,-.3),solV(-.2,.6,-.8));solLeg(K,s,L(0,0,.1),solV(-1.05,.08,.32),solV(.5,.4,1),solV(-.2,.8,.5));}}
+/* 따로 움직이는 다리 하나(엉덩이가 원점) */
+function solLegGeo(s){const P=[],K=solKit(P);solLeg(K,s,solV(0,0,0),solV(0,-.87,0),solV(1,0,0),solV(1,0,0));return solMerge(P);}
+
+/* ---------- 병사 만들기 ---------- */
+function v3SoldierM(n,kind){const T=V3.T;kind=kind||'rifle';
+  const mil=n%2===1,vi=Math.floor(Math.random()*(mil?SOLV.mil:SOLV.reg));const vkey=n+'|'+kind+'|'+vi;
+  V3.solR=V3.solR||new Map();V3.solByGeo=V3.solByGeo||new WeakMap();
+  let R=V3.solR.get(vkey);
+  if(!R){const s=solSpec(n,kind,vi);R={s,geo:{},leg:solLegGeo(s),n};R.geo.move=solBody(s,'move');V3.solR.set(vkey,R);V3.solByGeo.set(R.geo.move,R);}
+  if(V3.solG)V3.solG.set(vkey,R.geo.move);                                                        // 묶어 그리기(07z-inst)가 모양 수를 센다
+  const mat=solMat(n);
+  const g=new T.Group();const body=new T.Mesh(R.geo.move,mat);body.castShadow=true;g.add(body);
+  const legL=new T.Mesh(R.leg,mat),legR=new T.Mesh(R.leg,mat);legL.position.set(0,.95*MU,-.1*MU);legR.position.set(0,.95*MU,.1*MU);legL.castShadow=legR.castShadow=true;g.add(legL,legR);
+  g.scale.setScalar(.95+Math.random()*.1);
+  body.userData.keepGeo=1;legL.userData.keepGeo=1;legR.userData.keepGeo=1;
+  g.userData={legL,legR,tor:body,pose:'move'};return g;}
+V3.solG=V3.solG||new Map();
+/* 자세 바꾸기: 몸 형상을 바꿔 끼우고, 서 있는 자세가 아니면 따로 그린 다리를 숨긴다 */
+function v3FigPose(fig,pose){const U=fig&&fig.userData;if(!U||!U.tor||U.pose===pose)return;const body=U.tor;
+  const R=body.userData.rec||(body.userData.rec=V3.solByGeo&&V3.solByGeo.get(body.geometry));if(!R)return;
+  if(!SOL_POSE[pose])pose='move';let g=R.geo[pose];if(!g){g=R.geo[pose]=solBody(R.s,pose);}
+  body.geometry=g;U.pose=pose;const st=!!SOL_STAND[pose];if(U.legL){U.legL.visible=st;U.legR.visible=st;if(!st){U.legL.rotation.z=0;U.legR.rotation.z=0;}}}
+/* 시신: 그 병사의 차림 그대로, 먼지 낀 색으로 쓰러진 자세 */
+function v3SoldierDead(fig,nat){const T=V3.T;const body=fig&&fig.userData&&fig.userData.tor;
+  const R=body&&(body.userData.rec||(V3.solByGeo&&V3.solByGeo.get(body.geometry)))||null;
+  let g;if(R){if(!R.geo.dead)R.geo.dead=solBody(R.s,'dead');g=R.geo.dead;}else{const f=v3SoldierM(nat,'rifle');v3FigPose(f,'dead');g=f.userData.tor.geometry;}
+  const m=new T.Mesh(g,solMat(R?R.n:nat,true));m.castShadow=true;m.userData.keepGeo=1;m.userData.keepMat=1;return m;}
 
 /* ---- 07n-env.js ---- */
 /* ===================== 야간전과 날씨: 화면 =====================
@@ -9783,12 +10293,18 @@ function v3MenAnim(o,uu,dt,now,fa){const M=uu._men,S=o.userData.sold;const ox=o.
     const kneel=!prone&&m.spd<.05&&(m.rl>0||t-m.ft<2.5||m.hold||uu.tgt!=null);
     const head=ins&&ins.stair&&s.spd>.05?Math.atan2(dz,dx):pk?pk.f:m.f;
     let cur=fig.rotation.y,want=-head,dd=want-cur;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;fig.rotation.y=cur+dd*Math.min(1,dt*9);
-    const tilt=prone?-1.42:0;fig.rotation.z+=(tilt-fig.rotation.z)*Math.min(1,dt*7);
-    const sy=kneel?.72:1;fig.scale.y+=(sy-fig.scale.y)*Math.min(1,dt*7);
+    /* 자세: 다른 코드가 m.pose를 정했으면 그것(point→signal, crawl→prone 등 없는 이름은 가까운 자세로), 아니면 상황으로 고른다 */
+    let pz=m.pose||(m.down?'down':prone?(moving&&m.spd>.05?'crawl':'prone'):pk?'aim':moving?(t-m.ft<1.2?'aim':'move'):m.rl>0?'reload':kneel?'kneel':'move');
+    if(pz==='lean')pz=(m.leanS||1)>0?'leanR':'leanL';
+    if(pz==='crawl'&&Math.floor(now/420+s.ph)%2)pz='crawl2';
+    if(typeof v3FigPose==='function'){const U=fig.userData;if(U.pose!==pz){if(s.pw!==pz){s.pw=pz;s.pwt=0;}s.pwt=(s.pwt||0)+dt;
+      if(s.pwt>.14||pz==='crawl'||pz==='crawl2'||U.pose==='crawl'||U.pose==='crawl2')v3FigPose(fig,pz);}else s.pw=pz;}
+    else{const tilt=prone?-1.42:0;fig.rotation.z+=(tilt-fig.rotation.z)*Math.min(1,dt*7);const sy=kneel?.72:1;fig.scale.y+=(sy-fig.scale.y)*Math.min(1,dt*7);}
+    const standing=!fig.userData.pose||{move:1,aim:1,signal:1,carry:1,point:1,leanL:1,leanR:1}[fig.userData.pose];
     if(pk){s.py=(s.py??y)+(y-(s.py??y))*k;y=s.py;}else s.py=y;   // 창턱으로 오르내림은 부드럽게
-    fig.position.set(s.wx-ox,y+(prone?.012:0)-(typeof trenchAt==='function'&&trenchAt(s.wx,s.wz)?.9*MU:0),s.wz-oz);/* 참호 안 병사는 허리까지 잠긴다 */
+    fig.position.set(s.wx-ox,y+(prone&&typeof v3FigPose!=='function'?.012:0)-(typeof trenchAt==='function'&&trenchAt(s.wx,s.wz)?.9*MU:0),s.wz-oz);/* 참호 안 병사는 허리까지 잠긴다 */
     const gait=prone?.25:1,sw=Math.min(1,s.spd/.35)*Math.sin(now/(prone?160:70)+s.ph)*.7*gait;
-    if(fig.userData.legL){fig.userData.legL.rotation.z=sw;fig.userData.legR.rotation.z=-sw;}});}
+    if(fig.userData.legL&&standing){fig.userData.legL.rotation.z=sw;fig.userData.legR.rotation.z=-sw;}});}
 /* 분대 사격 연출: 쏜 병사마다 예광탄 하나씩 */
 {const _f=v3FxFire;v3FxFire=function(a,r,c){const args=[...arguments];if(!a||!UT[a.type]||UT[a.type].cls!=='inf'||!a._sh||a._sh.length<2)return _f.apply(null,args);
   const sh=a._sh.slice(0,4);sh.forEach((i,k)=>{const go=()=>{if(!G||!V3.uo.has(a.id))return;const keep=a._sh;a._sh=[i];try{_f.apply(null,args);}finally{a._sh=keep;}};if(k===0)go();else setTimeout(go,k*55+Math.random()*60);});};}
@@ -9813,12 +10329,12 @@ FXH.vhit=function(u,r){if(!V3.on)return;const o=V3.uo.get(u.id);if(!o)return;con
    _a(o,uu,dt,now,fa);
    // 쓰러진 사람은 팔다리를 움직이지 않는다
    S.forEach((s,i)=>{const m=M[i];if(m&&m.down&&s.m.userData.legL){s.m.userData.legL.rotation.z=.2;s.m.userData.legR.rotation.z=-.1;}});};}
-function v3CasFig(nat,lying){const f=v3Soldier(nat,'rifle');if(lying){f.rotation.z=-1.42;f.position.y=.012;}return f;}
+function v3CasFig(nat,lying,pose){const f=v3Soldier(nat,'rifle');if(typeof v3FigPose==='function'){if(lying||pose)v3FigPose(f,pose||'down');}else if(lying){f.rotation.z=-1.42;f.position.y=.012;}return f;}
 /* 후송조·남겨진 부상자·환자집결지를 맞춘다(매 동기화) */
 function v3SyncCas(vs,vn){const T=V3.T;V3.evo=V3.evo||new Map();V3.orpo=V3.orpo||new Map();const see=(x,z)=>!G.fog||!vs||vs.has(key(Math.floor(z),Math.floor(x)));
   const keepE=new Set();
   for(const p of G.evac||[]){if(!see(p.x,p.z)&&p.nat!==vn)continue;keepE.add(p.id);let o=V3.evo.get(p.id);
-    if(!o){o=new T.Group();const car=v3CasFig(p.nat,false);o.add(car);const cas=v3CasFig(p.nat,false);cas.rotation.set(0,0,-1.5);cas.position.set(-.004,.1,0);car.add(cas);
+    if(!o){o=new T.Group();const car=v3CasFig(p.nat,false,'carry');o.add(car);const cas=v3CasFig(p.nat,false,'down');if(typeof v3FigPose==='function'){cas.rotation.set(0,Math.PI/2,0.15);cas.position.set(.03,.105,-.01);}else{cas.rotation.set(0,0,-1.5);cas.position.set(-.004,.1,0);}car.add(cas);
       o.userData={car,cas,ph:.0};o.position.set(p.x,v3TopAt(p.x,p.z),p.z);V3.G.units.add(o);V3.evo.set(p.id,o);}
     o.userData.p=p;o.userData.cas.visible=p.ph==='out';}
   for(const [id,o] of V3.evo)if(!keepE.has(id)){V3.G.units.remove(o);V3.evo.delete(id);}
@@ -9972,6 +10488,305 @@ if(typeof renderActbar==='function'){const _ra=renderActbar;renderActbar=functio
   const ab=el.querySelector('.ab');if(ab&&d&&d.fuse==null&&!isAI(G.viewer))ab.insertAdjacentHTML('afterbegin','<button class="btn sm primary" data-act="ug:fire" id="ab-ug-fire">폭약 터뜨리기</button>');}catch(e){}};}
 if(typeof uInfo==='function'){const _ui=uInfo;uInfo=function(u){let s=_ui(u);if(u.tun)s+=' · 땅굴 이동 중';else if(u.bsm)s+=(u.trapT||0)>(G.time||0)?' · 지하실(잔해에 갇힘)':' · 지하실';else if(u.bsmGo)s+=u.bsmGo.down?' · 지하로 내려가는 중':' · 올라오는 중';
   if(u.mh)s+=' · 벽 뚫는 중';if(u.demo)s+=' · 폭약 설치 중';if(u.tunDig&&tunById(u.tunDig)&&tunById(u.tunDig).prog<1)s+=` · 땅굴 ${Math.round(tunById(u.tunDig).prog*100)}%`;return s;};}
+
+/* ---- 07w-city.js ---- */
+/* ===================== 도시 디테일 =====================
+   건물과 거리를 실제 도시처럼 보이게 하는 장식. 그림만 바꾸고 게임 규칙(엄폐·시야·이동)은 건드리지 않는다.
+   - 외벽(v3BuildCity 뒤): 발코니(아파트는 샷시로 막은 발코니), 벽걸이 실외기, 벽돌 상가의 비상계단과 세로 간판,
+     홈통, 유리 빌딩의 세로 멀리언, 창고 셔터와 배관. 창 자리는 외벽 무늬(64px 칸)와 맞춘다.
+   - 옥상: 환기구, 위성 안테나, 태양광 판, 고층 곤돌라, 초록 방수 페인트 옥상(우레탄 방수).
+   - 전투 흔적: 창 위 그을음, 무너진 건물의 철근, 길로 쏟아진 잔해와 먼지.
+   - 거리(v3BuildWorld 뒤): 전봇대와 전선, 버스 정류장, 가로수, 소화전, 맨홀·빗물받이, 덧씌운 아스팔트,
+     쓰레기 봉투 더미, 통신 함체.
+   외벽·옥상 장식은 건물 단면(07f-floors)이 잘린 층보다 위에 있으면 숨긴다. */
+
+const CXW=1.68;   // 외벽 무늬 한 장(8칸)의 가로 길이: 창 한 칸 = .21
+// 외벽 종류별 창 세로 자리(층 높이 대비, 아래에서): 0 패널, 1 유리, 2 벽돌, 3 골함석
+const CX_WIN=[[.31,.78],[0,.77],[.25,.75],[.75,.91]];
+const CX={cut:null,ctag:null,lab:[],fac:[]};
+
+function cxMats(){if(CX.m)return CX.m;const T=V3.T;
+  const m={
+    paint:new T.MeshStandardMaterial({color:'#ffffff',roughness:.85}),
+    iron:new T.MeshStandardMaterial({color:'#ffffff',roughness:.6,metalness:.45}),
+    glass:new T.MeshStandardMaterial({color:'#ffffff',roughness:.22,metalness:.55}),
+    deb:new T.MeshStandardMaterial({color:'#ffffff',roughness:1,flatShading:true}),
+    wire:new T.LineBasicMaterial({color:'#1b1a19',transparent:true,opacity:.85}),
+  };
+  for(const k of ['paint','iron','glass','deb'])v3FowMat(m[k]);
+  // 그을음: 아래가 짙고 위로 옅어지는 불규칙한 띠
+  const R=mulberry(77);
+  const soot=v3Tex(64,128,(g,w,h)=>{g.clearRect(0,0,w,h);for(let i=0;i<26;i++){const x=10+R()*44,ww=6+R()*16,top=R()*60;const gr=g.createLinearGradient(0,h,0,top);
+      gr.addColorStop(0,'rgba(0,0,0,.55)');gr.addColorStop(.45,'rgba(0,0,0,.28)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-ww/2,top,ww,h-top);}});
+  m.grime=new T.MeshBasicMaterial({map:soot,color:'#2a241c',transparent:true,opacity:.45,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
+  m.soot=new T.MeshBasicMaterial({map:soot,color:'#16130f',transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  // 바닥 얼룩: 흙먼지(밝게), 덧씌운 아스팔트·기름(어둡게). 둥글고 가장자리가 흐린 무늬
+  const blot=v3Tex(64,64,(g,w,h)=>{g.clearRect(0,0,w,h);for(let i=0;i<14;i++){const x=16+R()*32,y=16+R()*32,r=8+R()*16;const gr=g.createRadialGradient(x,y,0,x,y,r);
+      gr.addColorStop(0,'rgba(255,255,255,.5)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,w,h);}});
+  m.dust=new T.MeshStandardMaterial({map:blot,color:'#a39883',roughness:1,transparent:true,opacity:.45,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
+  m.stain=new T.MeshStandardMaterial({color:'#ffffff',roughness:1,transparent:true,opacity:.5,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  for(const k of ['dust','stain'])v3FowMat(m[k]);
+  CX.m=m;return m;}
+
+function cxGeos(){if(CX.g)return CX.g;const T=V3.T;
+  const dish=new T.CylinderGeometry(.034,.01,.014,10);dish.rotateX(-1.05);dish.translate(0,.05,0);
+  const flat=new T.PlaneGeometry(1,1);flat.rotateX(-Math.PI/2);
+  CX.g={box:new T.BoxGeometry(1,1,1),cyl:new T.CylinderGeometry(.5,.5,1,6),ico:new T.IcosahedronGeometry(1,0),dode:new T.DodecahedronGeometry(1,0),
+    plane:new T.PlaneGeometry(1,1),flat,dish};
+  return CX.g;}
+
+/* 인스턴스 묶음. it: {x,y,z,sx,sy,sz,rx,ry,rz,col,k} (y는 가운데). keyed면 단면용 키·높이를 남긴다 */
+function cxInst(g,geo,mat,L,opt){if(!L.length)return null;
+  const T=V3.T;const im=new T.InstancedMesh(geo,mat,L.length);
+  const m4=new T.Matrix4(),q=new T.Quaternion(),p=new T.Vector3(),s=new T.Vector3(),e=new T.Euler(0,0,0,'YXZ'),c=new T.Color();
+  L.forEach((it,i)=>{p.set(it.x,it.y,it.z);e.set(it.rx||0,it.ry||0,it.rz||0);q.setFromEuler(e);s.set(it.sx,it.sy,it.sz);m4.compose(p,q,s);im.setMatrixAt(i,m4);im.setColorAt(i,c.set(it.col||'#ffffff'));});
+  im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;
+  im.castShadow=!(opt&&opt.noShadow);im.receiveShadow=!(opt&&opt.noRecv);im.computeBoundingSphere();
+  if(!(opt&&opt.chunk))im.userData.chunk=1;   // 작은 형상은 07z-perf가 구역별로 쪼개지 않는다(쪼개면 그리기 호출만 는다)
+  im.userData.cx=1;if(opt&&opt.fac)CX.fac.push(im);
+  if(opt&&opt.keyed){im.userData.chunk=1;   // 07z-perf가 조각내지 않게(단면이 이 메시를 직접 고친다)
+    const by=new Map();L.forEach((it,i)=>{if(it.k==null)return;let a=by.get(it.k);if(!a)by.set(it.k,a=[]);a.push(i);});
+    CX.cut.push({im,by,y:L.map(it=>it.cy!=null?it.cy:it.y+(it.sy||0)/2),m0:im.instanceMatrix.array.slice()});}
+  g.add(im);return im;}
+
+/* 칸의 바깥 벽 면들. 빈 땅을 향한 면만(이웃 건물과 맞댄 면은 뺀다). v3BuildCity의 box()와 같은 꼭짓점·무늬 좌표를 쓴다 */
+function cxFaces(r,c,x0,x1,z0,z1){const F=[];
+  const S=[[-1,0,[x1,z0],[x0,z0],0,-1,x0],[0,1,[x1,z1],[x1,z0],1,0,z0],[1,0,[x0,z1],[x1,z1],0,1,x1],[0,-1,[x0,z0],[x0,z1],-1,0,z1]];
+  for(const [a,b,A,B,nx,nz,cb] of S){const rr=r+a,cc=c+b;if(inb(rr,cc)&&G.map[rr][cc].t==='bldg')continue;
+    const len=Math.hypot(B[0]-A[0],B[1]-A[1]);if(len<.15)continue;const nb=inb(rr,cc)?G.map[rr][cc]:null;
+    F.push({ax:A[0],az:A[1],dx:(B[0]-A[0])/len,dz:(B[1]-A[1])/len,len,nx,nz,cb,ry:Math.atan2(nx,nz),road:!!nb&&nb.t==='road'&&!nb.al,nb});}
+  return F;}
+// 면 위 자리: 면 시작점에서 t만큼, 바깥으로 o만큼
+const cxAt=(f,t,o)=>[f.ax+f.dx*t+f.nx*o,f.az+f.dz*t+f.nz*o];
+// 이 면에서 창 칸 가운데가 오는 자리 목록 [t, 무늬 속 칸 번호 0..7]
+function cxCols(f,u0,m){const uA=u0+f.cb/CXW,out=[];const n0=Math.ceil(uA*8-.5+m/.21);
+  for(let n=n0;;n++){const t=.21*(n+.5-uA*8);if(t>f.len-m)break;out.push([t,((n%8)+8)%8]);}return out;}
+
+const CX_SIGN=['#7d3a31','#2f4b66','#a8913f','#4c6648','#d6d0c2','#5e3a55','#b55a2c','#c9c3b4'];
+const CX_DEB={0:['#8f8a82','#a39e94','#77736c','#b3ada2'],1:['#8f969a','#a9b0b2','#6f777c','#8f8a82'],2:['#7d5a4b','#8e6a58','#6b5248','#a08672'],3:['#8c9194','#6f7578','#9a8f80']};
+
+/* ---------- 건물: 외벽·옥상·전투 흔적 ---------- */
+function cxBuildCity(){const T=V3.T,g=V3.G.city;if(!G||!g||!T)return;cxMats();cxGeos();CX.cut=[];CX.lab=[];CX.fac=[];CX.labMesh=null;CX.ctag=null;CX.prev=new Map();
+  const FH=FLOOR_H,IN=.08,M=G.map;const cl=typeof bmClime==='function'?bmClime():'temp';
+  const P=[],I=[],GL=[],CY=[],DI=[],SO=[],DEB=[],DU=[],RP=[],RC=[],GR=[];   // 칠한 상자, 쇠, 유리, 원통, 접시 안테나, 그을음, 잔해, 먼지, 옥상 상자·원통
+  const roofPaint=[],HP=[],LAB=new Map();const H=v3Hash;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
+    if(x.t==='rubble'){// 무너진 칸: 잔해 더미에서 삐져나온 철근
+      for(let i=0;i<4;i++)if(H(k,600+i)<.6){const a=H(k,610+i)*6.283,rr=H(k,620+i)*.3,l=.06+H(k,630+i)*.1;I.push({x:cx+Math.cos(a)*rr,y:.03+l*.4,z:cz+Math.sin(a)*rr,sx:.006,sy:l,sz:.006,rx:(H(k,640+i)-.5)*1.4,rz:(H(k,650+i)-.5)*1.4,col:'#4a3a30'});}
+      continue;}
+    if(x.t!=='bldg'||x.lm)continue;
+    const dmg=1-x.bhp/x.bmax;let h=x.f*FH;if(dmg>.5)h*=1-(dmg-.5)*.6;
+    const ks=x.ks||(x.ind?'ware':x.f>=8?'tower':x.dist==='res'&&x.f<=2?'house':'panel');const bk=x.blk??k;
+    const s=ks==='house'&&H(bk,5)<.45?0:(KSTY[ks]||KSTY.panel).s;
+    const same=(a,b)=>inb(a,b)&&M[a][b].t==='bldg'&&x.blk!=null&&M[a][b].blk===x.blk&&M[a][b].bhp/M[a][b].bmax>.5&&dmg<.5;
+    const x0=cx-.5+(same(r,c-1)?0:IN),x1=cx+.5-(same(r,c+1)?0:IN),z0=cz-.5+(same(r-1,c)?0:IN),z1=cz+.5-(same(r+1,c)?0:IN);
+    const u0=((H(bk,3)*8)|0)*.37;const nf=Math.max(1,Math.floor(h/FH+.01));const W=CX_WIN[s];
+    const faces=x._ch?[]:cxFaces(r,c,x0,x1,z0,z1);const ok=i=>dmg<.25||H(k,700+i)>dmg*1.6;   // 조금 부서진 건물은 장식이 듬성듬성
+    const box=(L,f,t,o,y,sx,sy,sz,col,ex)=>{const [px,pz]=cxAt(f,t,o);L.push(Object.assign({x:px,y,z:pz,sx,sy,sz,ry:f.ry,col,k},ex||null));};
+    const yF=i=>.06+i*FH;
+    if(dmg<.4)faces.forEach((f,fi)=>{const cols=cxCols(f,u0,.06);const fk=k*4+fi;
+      // 1층 아래 걸레받이(돌·타일 띠)와 땅 쪽 때(빗물 튄 자국)
+      if(s!==1)box(P,f,f.len/2,.005,.06+.035,f.len,.07,.012,s===2?'#6a5d52':s===3?'#6b6e6f':'#6a6762');
+      GR.push({x:f.ax+f.dx*f.len/2+f.nx*.004,y:.06+.13,z:f.az+f.dz*f.len/2+f.nz*.004,sx:f.len,sy:.26,sz:1,ry:f.ry,col:'#ffffff'});
+      // 벽돌 건물 지붕선 코니스
+      if(s===2&&!gableRoof(x))box(P,f,f.len/2,.018,.06+h-.016,f.len,.03,.036,'#b8af9e');
+      // 전쟁 대비: 아래 두 층 창을 판자로 막거나 모래주머니를 쌓았다
+      if(s===0||s===2)for(const [t,n] of cols){if(s===0&&(n%4===1||n%4===2)||s===2&&n%4===3)continue;
+        for(let i=0;i<Math.min(2,nf);i++){if(i===0&&(ks==='shop'||x.dist==='down'))continue;const yc=yF(i)+(W[0]+W[1])/2*FH,hh=(W[1]-W[0])*FH;const q=H(fk,1500+i*8+n);
+          if(q<.08){box(P,f,t,.007,yc,.13,hh*1.05,.008,['#8a7450','#7d6a4c','#96825c'][(H(fk,1510+n)*3)|0]);box(P,f,t,.012,yc+(H(fk,1520+n)-.5)*hh*.4,.15,.012,.006,'#6b5a40');}   // 판자
+          else if(q<.12)box(P,f,t,.022,yF(i)+W[0]*FH+.022,.13,.045,.04,'#8a7c62');}}   // 모래주머니
+      // 홈통: 면 끝 모서리
+      if(nf>=2&&H(fk,710)<.7)P.push({x:f.ax+f.dx*(f.len-.03)+f.nx*.01,y:.06+h/2,z:f.az+f.dz*(f.len-.03)+f.nz*.01,sx:.014,sy:h,sz:.014,col:s===3?'#7d8487':'#6e6b65',k});
+      if(s===0){// 패널·아파트: 발코니(무늬의 발코니 칸 1·2에 맞춘다)와 실외기
+        const apt=ks==='apt',bal=apt||H(bk,720)<.7;
+        for(const [t,n] of cols){for(let i=1;i<nf;i++){if(!ok(i*8+n))continue;const y=yF(i);
+            if(n%4===1&&bal&&t+.21<f.len-.04){const tc=t+.105;
+              box(P,f,tc,.035,y+.2*FH,.42,.014,.07,'#b9b5ac');                                   // 바닥판
+              if(apt){const yb=y+.2*FH;box(GL,f,tc,.066,yb+.1,.42,.17,.006,H(fk,760+i)<.15?'#3c4448':'#93a3ab');box(P,f,tc,.068,yb+.018,.43,.03,.012,'#d8d4cc');box(P,f,tc,.068,yb+.19,.43,.012,.012,'#e2ded6');}   // 샷시로 막은 발코니
+              else{box(I,f,tc,.068,y+.2*FH+.045,.42,.006,.006,'#3a3a37');box(P,f,tc,.068,y+.2*FH+.02,.42,.03,.004,'#a8a49b');}}   // 난간
+            else if(n%4!==1&&n%4!==2&&H(fk,800+i*8+n)<.24)box(P,f,t,.022,y+W[0]*FH-.035,.075,.052,.04,H(fk,900+i)<.5?'#cfccc4':'#b9b7b0');}}}   // 벽걸이 실외기
+      else if(s===2){// 벽돌: 창 아래 실외기, 빈 벽 칸(3)에 세로 간판, 상가·빌라 한 면에 비상계단
+        let signs=0;
+        for(const [t,n] of cols){
+          if(n%4===3){if((ks==='shop'||ks==='villa'&&x.dist!=='res')&&signs<2&&nf>=2&&H(fk,820+n)<.45){const top=Math.min(nf-1,3);signs++;
+              box(P,f,t,.06,(yF(1)+yF(top)+FH*.9)/2,.022,yF(top)-yF(1)+FH*.85,.11,CX_SIGN[(H(fk,830+n)*CX_SIGN.length)|0],{});
+              box(I,f,t,.01,yF(top)+FH*.85,.012,.012,.03,'#3a3a37');}
+            continue;}
+          for(let i=1;i<nf;i++)if(ok(i*8+n)&&H(fk,840+i*8+n)<.2)box(P,f,t,.02,yF(i)+W[0]*FH+.022,.07,.045,.045,'#c9c6bd');}
+        const fire=(ks==='shop'||ks==='villa'||ks==='school')&&nf>=3&&f.road&&fi===faces.findIndex(q=>q.road)&&H(bk,850)<.55;
+        if(fire){const pair=cols.find(([t,n])=>n%4===0&&t+.21<f.len-.04);if(pair){const tc=pair[0]+.105,w=.44,dep=.08;
+            for(let i=1;i<nf;i++){const y=yF(i)+W[0]*FH-.012;
+              box(I,f,tc,dep/2+.004,y,w,.008,dep,'#34322f');                 // 발판
+              box(I,f,tc,dep+.002,y+.05,w,.006,.006,'#34322f');              // 손잡이
+              box(I,f,tc,dep+.002,y+.025,w,.004,.004,'#34322f');
+              for(const e of [-1,1])box(I,f,tc+e*w/2,dep/2+.004,y+.025,.006,.05,dep,'#34322f');
+              if(i<nf-1){const run=w*.7,ang=Math.atan2(FH,run);box(I,f,tc,dep/2+.004,y+FH/2,Math.hypot(run,FH),.008,dep*.55,'#2b2a28',{rz:(i%2?1:-1)*ang});}}}}}
+      else if(s===1){// 유리 빌딩: 칸 경계마다 세로 멀리언
+        if(H(bk,860)<.65)for(const [t] of cols){const tb=t-.105;if(tb<.03)continue;box(P,f,tb,.012,.06+h/2,.014,h,.024,'#c4c7c6');}}
+      else if(s===3){// 창고·공장: 셔터와 벽 배관
+        if(f.len>.4){const w=Math.min(.36,f.len*.55),tc=f.len/2+(H(fk,870)-.5)*(f.len-w-.1);
+          box(P,f,tc,.006,.06+.12,w,.24,.012,['#8a8d8c','#6d7a80','#8c6e56','#9a9890'][(H(fk,871)*4)|0]);
+          box(P,f,tc,.014,.06+.25,w+.03,.02,.025,'#5e6266');}
+        if(H(fk,880)<.45&&h>.3){const y=.06+h-.07-H(fk,881)*.1;const [px,pz]=cxAt(f,f.len/2,.018);CY.push({x:px,y,z:pz,sx:.022,sy:f.len*.92,sz:.022,rx:Math.PI/2,ry:f.ry+Math.PI/2,col:'#7b7f80',k});}}});
+    if(ks==='apt'&&nf>=6&&dmg<.3&&x.blk!=null){const f=faces.find(q=>q.road)||faces[0];if(f&&f.len>.6){const o=LAB.get(x.blk);const sc=(f.road?2:0)+H(k,990);if(!o||sc>o.sc)LAB.set(x.blk,{sc,f,k,top:.06+h,blk:x.blk});}}
+    // 옥상
+    const top=.06+h;
+    if(dmg<.4&&!gableRoof(x)&&ks!=='ware'){const st=v3Stair(r,c);const free=(px,pz)=>Math.hypot(px-st.sx,pz-st.sz)>.22&&px>x0+.05&&px<x1-.05&&pz>z0+.05&&pz<z1-.05;
+      const spot=(i)=>{const px=cx+(H(k,900+i)-.5)*.75,pz=cz+(H(k,910+i)-.5)*.75;return free(px,pz)?[px,pz]:null;};
+      for(let i=0;i<3;i++)if(H(k,920+i)<.45){const p=spot(i);if(p){RC.push({x:p[0],y:top+.025,z:p[1],sx:.026,sy:.05,sz:.026,col:'#8d8a84',k});RC.push({x:p[0],y:top+.053,z:p[1],sx:.04,sy:.008,sz:.04,col:'#6f6c67',k});}}   // 환기구
+      const resi=ks==='apt'||ks==='panel'||ks==='villa'||ks==='house'||ks==='shop';
+      if(resi)for(let i=0;i<2;i++)if(H(k,930+i)<.28){const p=spot(3+i);if(p){DI.push({x:p[0],y:top,z:p[1],sx:1,sy:1,sz:1,cy:top+.08,ry:Math.PI+(H(k,935+i)-.5)*.8,col:'#a9a7a0',k});
+          I.push({x:p[0],y:top+.025,z:p[1],sx:.006,sy:.05,sz:.006,col:'#4a4a47',k});}}   // 위성 안테나(남쪽을 본다)
+      if((ks==='house'||ks==='villa'||ks==='school'||ks==='office')&&H(k,940)<.3){const n=2+(H(k,941)*2|0);for(let i=0;i<n;i++){const px=cx-.2+i*.15,pz=cz+.12;if(!free(px,pz))continue;
+          GL.push({x:px,y:top+.04,z:pz,sx:.13,sy:.008,sz:.2,rx:-.45,col:'#2c3a4a',k});I.push({x:px,y:top+.02,z:pz-.06,sx:.12,sy:.04,sz:.006,col:'#555',k});}}   // 태양광 판
+      if(s===1&&nf>=10&&H(bk,950)<.5&&!x._ch){RP.push({x:cx,y:top+.03,z:cz,sx:.16,sy:.05,sz:.1,col:'#a7aaa8',k});RP.push({x:cx+.09,y:top+.065,z:cz,sx:.2,sy:.016,sz:.016,col:'#8f9391',k});}   // 외벽 청소 곤돌라
+      if((ks==='office'||ks==='tower'||ks==='school'||ks==='shop'&&x.dist==='down')&&!x._ch)for(let i=0;i<2;i++)if(H(k,970+i)<.5){const p=spot(6+i);if(!p)continue;const rot=H(k,975+i)<.5?0:Math.PI/2;   // 냉각탑·공조기: 상자 위에 팬 두 개
+          RP.push({x:p[0],y:top+.035,z:p[1],sx:.2,sy:.07,sz:.11,ry:rot,col:'#b4b6b3',k});for(const d of [-.05,.05])RC.push({x:p[0]+(rot?0:d),y:top+.072,z:p[1]+(rot?d:0),sx:.07,sy:.006,sz:.07,col:'#2f3132',k});}
+      if(ks==='tower'&&nf>=14&&H(bk,980)<.35&&!x._ch&&Math.hypot(st.sx-cx,st.sz-cz)>.15)HP.push({x:cx,y:top+.004,z:cz,k,cy:top+.01});   // 옥상 헬기장
+      if((s===0||ks==='villa'||ks==='school')&&cl!=='winter'&&cl!=='desert'&&H(bk,960)<.38)roofPaint.push([k,H(bk,961)<.8?'#6f8c6c':'#7a6f5e']);}   // 초록 우레탄 방수 옥상
+    // 전투 흔적
+    if(dmg>.12&&faces.length){const n=Math.round(dmg*8);for(let i=0;i<n;i++){const f=faces[(H(k,1000+i)*faces.length)|0];const cols=cxCols(f,u0,.06);if(!cols.length)continue;
+        const [t]=cols[(H(k,1010+i)*cols.length)|0];const fl=Math.min(nf-1,(H(k,1020+i)*nf)|0);const y0=yF(fl)+(W[0]+W[1])/2*FH;const hh=FH*(1.1+H(k,1030+i)*.9);
+        const [px,pz]=cxAt(f,t,.004);SO.push({x:px,y:y0+hh/2,z:pz,sx:.2+H(k,1040+i)*.1,sy:hh,sz:1,cy:y0+.02,ry:f.ry,col:'#ffffff',k});}}
+    if(dmg>.5){const n=6+Math.round(dmg*6);for(let i=0;i<n;i++){const e=(H(k,1100+i)*4)|0,t=H(k,1110+i);const px=e===0?x0+(x1-x0)*t:e===1?x1:e===2?x0+(x1-x0)*t:x0,pz=e===1?z0+(z1-z0)*t:e===3?z0+(z1-z0)*t:e===0?z0:z1;
+        const l=.03+H(k,1120+i)*.07;I.push({x:px,y:top+l*.4,z:pz,sx:.004,sy:l,sz:.004,rx:(H(k,1130+i)-.5)*1.2,rz:(H(k,1140+i)-.5)*1.2,col:'#4a3a30',k});}}
+    if(dmg>.3){const pal=CX_DEB[s]||CX_DEB[0];
+      for(const f of cxFaces(r,c,x0,x1,z0,z1)){if(f.nb&&f.nb.t==='water')continue;const n=Math.round(dmg*10);const fk=k*4+f.ry*7|0;
+        for(let i=0;i<n;i++){const t=H(fk,1200+i)*f.len,o=.02+Math.pow(H(fk,1210+i),1.6)*.42,sz=.014+Math.pow(H(fk,1220+i),2)*.045;const [px,pz]=cxAt(f,t,o);
+          DEB.push({x:px,y:sz*.25,z:pz,sx:sz*1.4,sy:sz*.6,sz:sz,rx:H(fk,1230+i)*3,ry:H(fk,1240+i)*6,col:pal[(H(fk,1250+i)*pal.length)|0]});}
+        const [px,pz]=cxAt(f,f.len/2,.2);DU.push({x:px,y:.008,z:pz,sx:Math.abs(f.dx)>.5?f.len*1.25:.55,sy:1,sz:Math.abs(f.dx)>.5?.55:f.len*1.25,ry:0,col:'#ffffff'});}}}
+  const m=CX.m,G2=CX.g;
+  // 외벽의 작은 장식은 그림자를 드리우지 않는다(그림자 패스 비용). 옥상 설비·비상계단은 드리운다
+  cxInst(g,G2.box,m.paint,P,{keyed:1,noShadow:1,fac:1});cxInst(g,G2.box,m.iron,I,{keyed:1});cxInst(g,G2.box,m.glass,GL,{keyed:1,noShadow:1,fac:1});cxInst(g,G2.cyl,m.paint,CY,{keyed:1,noShadow:1,fac:1});cxInst(g,G2.dish,m.paint,DI,{keyed:1});
+  cxInst(g,G2.box,m.paint,RP,{keyed:1});cxInst(g,G2.cyl,m.paint,RC,{keyed:1});
+  cxInst(g,G2.plane,m.soot,SO,{keyed:1,noShadow:1,noRecv:1});cxInst(g,G2.plane,m.grime,GR,{noShadow:1,noRecv:1,fac:1});
+  if(HP.length){const im=cxInst(g,G2.flat,cxHeliMat(),HP.map(o=>Object.assign(o,{sx:.62,sy:1,sz:.62,col:'#ffffff'})),{keyed:1,noShadow:1});}
+  cxAptLabels(g,[...LAB.values()]);
+  cxInst(g,G2.dode,m.deb,DEB);cxInst(g,G2.flat,m.dust,DU,{noShadow:1});
+  // 옥상 칠: 지붕 사각형(키별)의 꼭짓점 색을 바꾼다
+  const C=V3.cityM,rq=C&&C.rq,ra=C&&C.r&&C.r.geometry.attributes.color;
+  if(rq&&ra&&roofPaint.length){const col=new T.Color(),o=new T.Color();for(const [k,hex] of roofPaint){col.set(hex);for(const q of rq.get(k)||[])for(let v=0;v<6;v++){const i=q*6+v;o.setRGB(ra.getX(i),ra.getY(i),ra.getZ(i));o.lerp(col,.75);ra.setXYZ(i,o.r,o.g,o.b);}}ra.needsUpdate=true;}}
+
+/* 헬기장 표시: 원과 H */
+function cxHeliMat(){if(CX.heli)return CX.heli;const T=V3.T;const t=v3Tex(128,128,(g,w,h)=>{g.clearRect(0,0,w,h);g.strokeStyle='rgba(225,220,205,.85)';g.lineWidth=7;g.beginPath();g.arc(64,64,54,0,7);g.stroke();
+    g.fillStyle='rgba(225,220,205,.85)';g.fillRect(40,34,12,60);g.fillRect(76,34,12,60);g.fillRect(40,58,48,12);});
+  CX.heli=new T.MeshStandardMaterial({map:t,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});v3FowMat(CX.heli);return CX.heli;}
+/* 아파트 동 번호: 길 쪽 벽 꼭대기에 크게 칠한 "1xx". 번호 40개를 한 장(8×5칸)에 그려 두고 한 메시로 그린다 */
+function cxLabMat(){if(CX.labM)return CX.labM;const T=V3.T;
+  const t=v3Tex(1024,320,(c,w,h)=>{c.clearRect(0,0,w,h);c.fillStyle='rgba(70,72,76,.9)';c.font='bold 46px sans-serif';c.textAlign='center';c.textBaseline='middle';
+    for(let i=0;i<40;i++)c.fillText(String(101+i),(i%8)*128+64,Math.floor(i/8)*64+34);});
+  CX.labM=new T.MeshStandardMaterial({map:t,transparent:true,depthWrite:false,roughness:1,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});v3FowMat(CX.labM);return CX.labM;}
+function cxAptLabels(g,list){if(!list.length)return;const T=V3.T,P=[],UV=[];
+  for(const o of list){const i=((o.blk%40)+40)%40,u0=(i%8)/8,u1=u0+1/8,v1=1-Math.floor(i/8)/5,v0=v1-1/5;const f=o.f,[cx,cz]=cxAt(f,f.len/2,.003);
+    const w=.25,ux=-f.dx,uz=-f.dz,y0=o.top-.325,y1=o.top-.075;   // 바깥에서 볼 때 글자가 바로 읽히게(면 진행 방향의 반대가 오른쪽)
+    const A=[cx-ux*w,y0,cz-uz*w],B=[cx+ux*w,y0,cz+uz*w],C=[cx+ux*w,y1,cz+uz*w],D=[cx-ux*w,y1,cz-uz*w];
+    for(const q of [A,B,C,A,C,D])P.push(...q);UV.push(u0,v0,u1,v0,u1,v1,u0,v0,u1,v1,u0,v1);CX.lab.push({k:o.k,y:o.top-.08});}
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('uv',new T.Float32BufferAttribute(UV,2));geo.computeVertexNormals();
+  const m=new T.Mesh(geo,cxLabMat());m.receiveShadow=true;m.userData.cx=1;g.add(m);CX.labMesh=m;CX.lab0=geo.attributes.position.array.slice();}
+/* 단면: 잘린 층(lv) 위에 있는 외벽·옥상 장식을 숨긴다 */
+function cxApplyCut(m){if(!CX.cut||!CX.cut.length)return;const tag=[...m].map(([k,v])=>k+':'+v).sort().join(';');if(tag===CX.ctag)return;CX.ctag=tag;
+  const keys=new Set([...CX.prev.keys(),...m.keys()]);
+  for(const E of CX.cut){const A=E.im.instanceMatrix.array;let ch=false;
+    for(const k of keys){const lv=m.get(k);if(CX.prev.get(k)===lv)continue;const idx=E.by.get(k);if(!idx)continue;const cy=lv==null?1e9:.06+lv*FLOOR_H+FLOOR_H*CUT_SILL;
+      for(const i of idx){const o=i*16;if(E.y[i]>cy+.005)for(let j=0;j<16;j++)A[o+j]=0;else for(let j=0;j<16;j++)A[o+j]=E.m0[o+j];}ch=true;}
+    if(ch)E.im.instanceMatrix.needsUpdate=true;}
+  if(CX.labMesh){const A=CX.labMesh.geometry.attributes.position;CX.lab.forEach((L,i)=>{const lv=m.get(L.k);const show=lv==null||L.y<=.06+lv*FLOOR_H+FLOOR_H*CUT_SILL;
+      for(let j=0;j<18;j++)A.array[i*18+j]=show?CX.lab0[i*18+j]:0;});A.needsUpdate=true;}
+  CX.prev=new Map(m);}
+
+/* ---------- 거리 ---------- */
+function cxBuildStreet(){const T=V3.T,g=V3.G.world;if(!G||!g||!T)return;cxMats();cxGeos();const M=G.map,H=v3Hash,cl=typeof bmClime==='function'?bmClime():'temp';
+  const at=(r,c)=>inb(r,c)?M[r][c]:null;const road=(r,c)=>{const q=at(r,c);return !!q&&q.t==='road'&&!q.al;};
+  const curb=(r,c)=>{const q=at(r,c);return !!q&&q.t!=='road'&&q.t!=='plaza'&&q.t!=='water'&&!q.sea;};
+  const city=q=>!q.dirt&&!q.rural&&!q.rail&&!q.br&&!q.sea&&!q.pier&&!q.quay&&!q.sand;
+  // 기존 소품(가로등·차·방벽 등)과 겹치지 않게
+  const busy=new Set();for(const p of G.props||[])busy.add(Math.round(p.x*8)+','+Math.round(p.z*8));
+  const near=(x,z)=>{const a=Math.round(x*8),b=Math.round(z*8);for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)if(busy.has((a+i)+','+(b+j)))return true;return false;};
+  const take=(x,z)=>busy.add(Math.round(x*8)+','+Math.round(z*8));
+  const P=[],I=[],GL=[],CY=[],ST=[],BAG=[],LEAF=[],TR=[],L=[],AR=[];const poles=new Map();
+  const LEAFC=cl==='autumn'?['#8a6a3a','#9b7440','#7a5a32','#a07a3e']:['#6e6a4c','#7a7353','#5f5d43','#76704f'];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const me=M[r][c];if(me.t!=='road'||!city(me))continue;const k=key(r,c),cx=c+.5,cz=r+.5;
+    // 맨홀·빗물받이·덧씌운 아스팔트(골목에도)
+    if(H(k,1300)<.3){const ox=(H(k,1301)-.5)*.5,oz=(H(k,1302)-.5)*.5;CY.push({x:cx+ox,y:.002,z:cz+oz,sx:.058,sy:.004,sz:.058,col:'#3b3a37'});}
+    if(H(k,1310)<.35){const ro=me.ro==='v'?0:Math.PI/2;ST.push({x:cx+(H(k,1311)-.5)*.6,y:.003,z:cz+(H(k,1312)-.5)*.6,sx:.1+H(k,1313)*.22,sy:1,sz:.06+H(k,1314)*.14,ry:ro+(H(k,1315)-.5)*.2,col:H(k,1316)<.6?'#1d1c1a':'#45423d'});}
+    if(me.al)continue;const ro=me.ro||'x';
+    if(me.rw===2&&(ro==='h'||ro==='v')){// 대로 차선 화살표: 교차로 앞 칸, 우측 통행
+      const h=ro==='h';const first=h?!(road(r-1,c)&&at(r-1,c).ro==='h'):!(road(r,c-1)&&at(r,c-1).ro==='v');
+      const dx=h?(first?-1:1):0,dz=h?0:(first?1:-1);const nx=r+dz,nc=c+dx;
+      if(road(nx,nc)&&(at(nx,nc).ro||'x')==='x')for(const o of [-.25,.25])AR.push({x:cx+(h?-dx*.12:o),y:.004,z:cz+(h?o:-dz*.12),sx:.09,sy:1,sz:.2,ry:Math.atan2(-dx,-dz),col:'#ffffff'});}
+    const sides=[[-1,0],[1,0],[0,-1],[0,1]].filter(([a,b])=>curb(r+a,c+b));
+    sides.forEach(([a,b],si)=>{const sk=k*4+si;const nb=at(r+a,c+b);
+      // 자리: 길 가운데에서 보도 쪽으로 o, 길을 따라 t
+      const pos=(t,o)=>[cx+b*o+(a?t:0),cz+a*o+(b?t:0)];const ryA=a?0:-Math.PI/2;   // 상자 가로축을 길 방향으로
+      if(H(sk,1320)<.3){const [px,pz]=pos(.38*(a?b||1:a||1)*(H(sk,1321)<.5?1:-1),.47);ST.push({x:px,y:.003,z:pz,sx:.05,sy:1,sz:.02,ry:ryA,col:'#26231f'});}   // 빗물받이
+      if(ro!=='h'&&ro!=='v')return;
+      const nearX=(a?[[r,c-1],[r,c+1]]:[[r-1,c],[r+1,c]]).some(([p,q])=>road(p,q)&&(at(p,q).ro||'x')==='x');
+      // 소화전: 교차로 가까운 보도
+      if(nearX&&H(sk,1330)<.35){const [px,pz]=pos((H(sk,1331)-.5)*.6,.44);if(!near(px,pz)){take(px,pz);CY.push({x:px,y:.024,z:pz,sx:.022,sy:.048,sz:.022,col:H(sk,1332)<.7?'#8e2d24':'#b49a3a'});CY.push({x:px,y:.05,z:pz,sx:.028,sy:.008,sz:.028,col:'#5b2520'});}}
+      // 버스 정류장: 대로, 교차로에서 떨어진 칸
+      if(me.rw===2&&!nearX&&H(sk,1340)<.12){const tc=.16;const [px,pz]=pos(tc,.43);if(!near(px,pz)){for(const d of [-.15,0,.15])take(...pos(tc+d,.43));
+          const [bx,bz]=pos(tc,.478),[fx,fz]=pos(tc,.43);
+          P.push({x:fx,y:.205,z:fz,sx:.36,sy:.014,sz:.1,ry:ryA,col:'#5d6266'});GL.push({x:bx,y:.11,z:bz,sx:.36,sy:.17,sz:.006,ry:ryA,col:'#7e8c93'});
+          for(const d of [-.17,.17]){const [qx,qz]=pos(tc+d,.392);I.push({x:qx,y:.1,z:qz,sx:.01,sy:.2,sz:.01,ry:ryA,col:'#3a3b3a'});}
+          const [sx2,sz2]=pos(tc,.455);P.push({x:sx2,y:.042,z:sz2,sx:.22,sy:.012,sz:.035,ry:ryA,col:'#6b5843'});
+          const [ax,az]=pos(tc+.19,.43);P.push({x:ax,y:.1,z:az,sx:.008,sy:.15,sz:.09,ry:ryA,col:'#d6d6cf'});}}
+      // 가로수: 도심·중심가 대로
+      const bd=nb&&nb.t==='bldg'?nb.dist:nb&&nb.t==='park'?'park':null;
+      if(me.rw===2&&(bd==='down'||bd==='mid'||bd==='park'))for(const t of [-.27,.27]){if(H(sk,1350+(t>0))>.5)continue;const [px,pz]=pos(t,.44);if(near(px,pz))continue;take(px,pz);
+          const sc=.62+H(sk,1352+(t>0))*.22;TR.push({x:px,y:.17*sc,z:pz,sx:.016,sy:.34*sc,sz:.016,col:'#4a3d30'});ST.push({x:px,y:.003,z:pz,sx:.085,sy:1,sz:.085,col:'#2e2a22'});
+          if(cl!=='winter'&&cl!=='desert')LEAF.push({x:px,y:0,z:pz,sx:sc,sy:sc,sz:sc,ry:H(sk,1354)*6,col:LEAFC[(H(sk,1355)*LEAFC.length)|0]});}
+      // 쓰레기 봉투 더미와 상자 (수거가 끊긴 도시)
+      if(H(sk,1360)<.11){const tc=(H(sk,1361)-.5)*.6;const n=3+(H(sk,1362)*4|0);for(let i=0;i<n;i++){const [px,pz]=pos(tc+(H(sk,1363+i)-.5)*.12,.465-H(sk,1370+i)*.04);const s=.016+H(sk,1380+i)*.012;
+          BAG.push({x:px,y:s*.6,z:pz,sx:s,sy:s*.75,sz:s*1.1,ry:H(sk,1390+i)*6,col:['#1d1d1e','#2a2c2e','#3a4a5c','#5c5a54','#cfccc4'][(H(sk,1400+i)*5)|0]});}
+        if(H(sk,1365)<.6){const [px,pz]=pos(tc+.07,.47);P.push({x:px,y:.017,z:pz,sx:.05,sy:.034,sz:.04,ry:ryA+(H(sk,1366)-.5),col:'#8a7556'});}}
+      // 연석: 차도와 보도 사이 돌 턱(건널목 칸은 비워 둔다 = 턱 낮춤)
+      {const [px,pz]=pos(0,.333);P.push({x:px,y:.007,z:pz,sx:1,sy:.014,sz:.016,ry:ryA,col:'#a6a195'});}
+      // 교통 표지판: 교차로 앞 보도
+      if(nearX&&H(sk,1600)<.3){const [px,pz]=pos((H(sk,1601)<.5?1:-1)*.3,.4);if(!near(px,pz)){take(px,pz);I.push({x:px,y:.11,z:pz,sx:.007,sy:.22,sz:.007,col:'#4a4b4a'});
+          const kind=(H(sk,1602)*4)|0;P.push({x:px,y:.205,z:pz,sx:.006,sy:kind===3?.05:.06,sz:kind===3?.08:.06,ry:ryA,col:['#9c2b25','#2a4f8a','#c9a53a','#2a4f8a'][kind]});
+          if(kind===0)P.push({x:px,y:.205,z:pz,sx:.007,sy:.012,sz:.04,ry:ryA,col:'#e8e4da'});}}   // 빨강(진입 금지), 파랑(방향), 노랑(주의), 길 이름판
+      // 볼라드: 교차로 모퉁이
+      if(nearX&&H(sk,1610)<.35){const e=H(sk,1611)<.5?1:-1;for(let i=0;i<3;i++){const [px,pz]=pos(e*(.42-i*.05),.36);CY.push({x:px,y:.022,z:pz,sx:.014,sy:.044,sz:.014,col:'#7b7d7c'});}}
+      // 보도에 세운 오토바이·자전거
+      if((bd==='res'||bd==='mid')&&H(sk,1620)<.12){const n=1+(H(sk,1621)*3|0);for(let i=0;i<n;i++){const [px,pz]=pos((H(sk,1622)-.5)*.5+i*.06,.4);const col=['#8e2d24','#2f4b66','#c9c6bd','#2b2b2b','#a8913f'][(H(sk,1623+i)*5)|0];
+          const ry=ryA+Math.PI/2+(H(sk,1630+i)-.5)*.4;P.push({x:px,y:.022,z:pz,sx:.022,sy:.03,sz:.075,ry,col});P.push({x:px,y:.042,z:pz,sx:.018,sy:.008,sz:.035,ry,col:'#1f1f1f'});}}
+      // 공사 칸막이·꼬깔
+      if(H(sk,1640)<.025){const tc=(H(sk,1641)-.5)*.5;for(let i=0;i<3;i++){const [px,pz]=pos(tc+i*.07,.3);CY.push({x:px,y:.018,z:pz,sx:.022,sy:.036,sz:.022,col:i%2?'#e0ddd4':'#c4632a'});}
+        const [bx,bz]=pos(tc+.07,.25);P.push({x:bx,y:.03,z:bz,sx:.22,sy:.04,sz:.008,ry:ryA,col:'#c9b23a'});}
+      // 통신 함체
+      if(H(sk,1410)<.05){const [px,pz]=pos((H(sk,1411)-.5)*.6,.475);if(!near(px,pz)){take(px,pz);P.push({x:px,y:.035,z:pz,sx:.045,sy:.07,sz:.025,ry:ryA,col:'#8e9190'});}}
+      // 전봇대: 골목이 아닌 좁은 길(대로·도심 제외), 길마다 한쪽에만 3칸 간격
+      if(me.rw!==2&&bd!=='down'){const line=a?'h'+r:'v'+c,pos0=a?c:r,want=H(a?r*131+7:c*131+11,1420)<.5?-1:1;const s2=a?a:b;
+        const other=a?curb(r-a,c):curb(r,c-b);if(s2!==want&&other)return;
+        const off=(H(a?r:c,1421)*3)|0;if((pos0+off)%3!==0)return;const [px,pz]=pos(.2,.455);if(near(px,pz))return;take(px,pz);
+        const key2=line+(s2>0?'+':'-');let arr=poles.get(key2);if(!arr)poles.set(key2,arr=[]);
+        arr.push({x:px,z:pz,i:pos0,ax:a,bx:b,tf:H(sk,1422)<.35,drop:nb&&nb.t==='bldg'?Math.min(.5,nb.f*FLOOR_H*.85):0,dk:sk});}});}
+  // 전봇대와 전선
+  const sag=(x1,y1,z1,x2,y2,z2,d)=>{let px=x1,py=y1,pz=z1;for(let j=1;j<=6;j++){const t=j/6;const x=x1+(x2-x1)*t,z=z1+(z2-z1)*t,y=y1+(y2-y1)*t-Math.sin(Math.PI*t)*d;L.push(px,py,pz,x,y,z);px=x;py=y;pz=z;}};
+  for(const arr of poles.values()){arr.sort((p,q)=>p.i-q.i);
+    arr.forEach((p,j)=>{const ry=p.ax?Math.PI/2:0;   // 가로대는 길을 가로지른다
+      CY.push({x:p.x,y:.43,z:p.z,sx:.024,sy:.86,sz:.024,col:'#8b8780'});P.push({x:p.x,y:.78,z:p.z,sx:.16,sy:.014,sz:.014,ry,col:'#5f5d58'});
+      if(p.tf)CY.push({x:p.x-p.bx*.03,y:.66,z:p.z-p.ax*.03,sx:.05,sy:.07,sz:.05,col:'#7d817f'});
+      if(p.drop&&H(p.dk,1430)<.6){const tx=p.x+p.bx*.12+(p.ax?(H(p.dk,1431)-.5)*.3:0),tz=p.z+p.ax*.12+(p.bx?(H(p.dk,1431)-.5)*.3:0);sag(p.x,.7,p.z,tx,p.drop,tz,.03);}
+      const q=arr[j+1];if(!q||q.i-p.i>3)return;
+      for(let i=p.i+1;i<q.i;i++)if(p.ax?!road(Math.floor(p.z),i):!road(i,Math.floor(p.x)))return;
+      const lx=p.ax?0:.06,lz=p.ax?.06:0;
+      sag(p.x-lx,.785,p.z-lz,q.x-lx,.785,q.z-lz,.05);sag(p.x+lx,.785,p.z+lz,q.x+lx,.785,q.z+lz,.05);sag(p.x,.62,p.z,q.x,.62,q.z,.07);sag(p.x,.58,p.z,q.x,.58,q.z,.08);});}
+  const m=CX.m,G2=CX.g;
+  cxInst(g,G2.box,m.paint,P);cxInst(g,G2.box,m.iron,I);cxInst(g,G2.box,m.glass,GL);cxInst(g,G2.cyl,m.paint,CY);cxInst(g,G2.cyl,m.paint,TR);
+  cxInst(g,G2.flat,m.stain,ST,{noShadow:1});if(AR.length)cxInst(g,G2.flat,cxArrowMat(),AR,{noShadow:1});cxInst(g,G2.ico,m.deb,BAG);
+  if(LEAF.length&&typeof v3LeafTreeG==='function')cxInst(g,v3LeafTreeG(),v3PropMats().leaf,LEAF,{chunk:1});
+  if(L.length){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(L,3));const ln=new T.LineSegments(geo,m.wire);ln.frustumCulled=false;ln.userData.cx=1;g.add(ln);}}
+
+function cxArrowMat(){if(CX.arrow)return CX.arrow;const T=V3.T;const t=v3Tex(32,64,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='rgba(226,222,206,.75)';g.fillRect(13,22,6,40);g.beginPath();g.moveTo(16,2);g.lineTo(29,24);g.lineTo(3,24);g.closePath();g.fill();});
+  CX.arrow=new T.MeshStandardMaterial({map:t,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});v3FowMat(CX.arrow);return CX.arrow;}
+/* 원래 함수를 감싼다 */
+if(typeof v3BuildCity==='function'){const f=v3BuildCity;v3BuildCity=function(){const r=f.apply(this,arguments);try{cxBuildCity();}catch(e){console.warn('city detail',e);}return r;};}
+if(typeof v3BuildWorld==='function'){const f=v3BuildWorld;v3BuildWorld=function(){const r=f.apply(this,arguments);try{cxBuildStreet();}catch(e){console.warn('street detail',e);}return r;};}
+// 멀리서 볼 때(지도 전체)는 외벽의 작은 장식을 그리지 않는다: 몇 픽셀도 안 되는데 삼각형만 많다
+const CX_FAR=24;
+if(typeof v3EnvFrame==='function'){const f=v3EnvFrame;v3EnvFrame=function(){const r=f.apply(this,arguments);try{const on=!V3.cs||V3.cs.d<CX_FAR;if(CX.facOn!==on||CX.facN!==CX.fac.length){CX.facOn=on;CX.facN=CX.fac.length;for(const m of CX.fac)m.visible=on;}}catch(e){}return r;};}
+if(typeof v3ApplyCut==='function'){const f=v3ApplyCut;v3ApplyCut=function(m){const r=f.apply(this,arguments);try{cxApplyCut(m);}catch(e){console.warn('city cut',e);}return r;};}
 
 /* ---- 07x-air.js ---- */
 /* ===================== 공중전 연출 =====================
@@ -10948,7 +11763,7 @@ if(typeof v3HomeCam==='function'){const _hc=v3HomeCam;v3HomeCam=function(now){co
 /* ---- 07z-sound.js ---- */
 /* ===================== 소리: 게임 사건 연결과 소리 설정 창 =====================
    - 내 편 무전: 병사가 다치면 위생병 호출, 거점 확보·상실, 증원 도착.
-   - 소리 버튼은 작은 설정 창을 연다: 켜기/끄기와 전체·전투·무전·환경음 음량. M 키로 음소거. */
+   - 소리 버튼은 작은 설정 창을 연다: 켜기/끄기와 전체·전투·무전·환경음·음악 음량. M 키로 음소거. */
 (function(){
   // 다친 병사: 내 편이면 다급한 무전
   const cas0=FXH.cas;FXH.cas=function(u,m,out){if(typeof G!=='undefined'&&G&&u&&u.nat===G.viewer&&!isAI(u.nat)&&(out==='hw'||out==='kia'||out==='lw'))sndRadio('casualty');return cas0&&cas0.apply(this,arguments);};
@@ -10975,7 +11790,7 @@ function sndPop(){const p=document.getElementById('sndpop'),b=document.getElemen
 /* ===================== 무전 음성: 부대들이 주고받는 무전을 귀로 듣는다 =====================
    - 본부의 명령, 부대의 수신 응답, 적 발견, 사상자, 격파, 거점 확보·상실, 화력 지원 요청, 재밍 두절·전령을 영어 군 무전 말투로 만든다
      (한국어 번역 문장도 함께 만들어 자막으로 고를 수 있다).
-   - 기기의 영어 남자 목소리로 읽는다(남자 목소리가 없으면 영어 목소리를 낮게). 세력마다 다른 목소리·높이. 앞뒤로 무전기 "치익"과 잡음.
+   - 기기의 영어 남자 목소리로 읽는다(남자 목소리가 없으면 영어 목소리를 낮게). 세력마다 다른 목소리·높이. 앞뒤로 무전기 "치익", 말하는 중엔 드문드문 "지직".
      없거나 설정이 '잡음'이면 알아들을 수 없는 무전 소리(02b sndRadio)에 자막만 붙인다.
    - 무전망은 한 번에 한 교신만 싣는다. 급한 교신(부상자, 적 발견)이 먼저고, 오래 기다린 교신은 버린다.
    - 들리는 세력: 내 편. 관전 중 전 세력 시야면 모든 세력(세력마다 목소리 높이가 다르다), 한 세력 시야면 그 세력.
@@ -11107,10 +11922,12 @@ function voxVoice(n){const vs=voxVoices();if(!vs.length)return null;return vs[(n
 const voxSpeaks=()=>VOX.mode==='voice'&&!!voxVoice(0);
 /* 무전기 "치익"(누를 때·뗄 때)과 말하는 동안 깔리는 잡음 */
 function voxSquelch(end,jam){const a=SFX.ctx;if(!a||!SFX.on)return;const t=a.currentTime+.01;const V={a,mix:SFX.bus.radio};
-  sndNz(V,t,end?.18:.08,'bandpass',end?2400:2600,.5,end?.5:.45,.003);if(!end)sndTn(V,t+.02,.05,1250,0,.15,'square');if(jam&&!end)sndNz(V,t,.5,'bandpass',1500,.4,.5,.01);}
-function voxBed(on,jam){const a=SFX.ctx;if(!a)return;if(!VOX.bed){const s=a.createBufferSource();s.buffer=SFX.noise;s.loop=true;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=1900;f.Q.value=.7;
-    const g=a.createGain();g.gain.value=0;s.connect(f);f.connect(g);g.connect(SFX.bus.radio);s.start();VOX.bed=g;}
-  VOX.bed.gain.setTargetAtTime(on&&SFX.on?(jam?.32:.05):0,a.currentTime,.04);}
+  sndNz(V,t,end?.18:.08,'bandpass',end?2400:2600,.5,end?.5:.45,.003);sndCrackle(V,t+(end?.02:.06),end?.08:.05,.28);if(!end)sndTn(V,t+.02,.05,1250,0,.15,'square');if(jam&&!end)sndNz(V,t,.5,'bandpass',1500,.4,.5,.01);}
+// 말하는 동안 깔리는 잡음은 없다. 실제 무전처럼 드문드문 "지직"(재밍 중이면 자주, 길게 끊긴다)
+function voxBed(on,jam){clearTimeout(VOX.bedT);const a=SFX.ctx;if(!on||!a||!SFX.on)return;
+  const tick=()=>{if(!VOX.busy||!SFX.on)return;sndCrackle({a,mix:SFX.bus.radio},a.currentTime+.01,jam?.12+Math.random()*.35:.03+Math.random()*.08,jam?.45:.2);
+    VOX.bedT=setTimeout(tick,(jam?.2+Math.random()*.5:.7+Math.random()*1.8)*1000);};
+  VOX.bedT=setTimeout(tick,(jam?.1:.3+Math.random()*.6)*1000);}
 function voxSub(it){if(VOX.sub==='off'||typeof document==='undefined')return;let el=document.getElementById('rvox');
   if(!el){el=document.createElement('div');el.id='rvox';el.className='rvox';el.setAttribute('aria-hidden','true');(document.getElementById('app')||document.body).appendChild(el);}
   VOX.lines.push({it,t:Date.now()});if(VOX.lines.length>3)VOX.lines.shift();voxSubDraw();}
@@ -12898,7 +13715,7 @@ function landAfter(){if(landCmdAuto()&&typeof autoSet==='function')autoSet(0,tru
 function landSecOpen(i){const C=G.camp,s=C&&C.secs&&C.secs[i];if(!s)return false;if(s.tide&&C.st.low)return false;
   if(s.need!=null){const o=G.objs[s.need];if(G.map[o.r][o.c].owner!==0)return false;}return true;}
 function landSec(){const C=G.camp;if(landSecOpen(C.sec))return C.sec;return C.secs.findIndex((s,j)=>landSecOpen(j));}
-function landPick(i){if(!landOn()||!landSecOpen(i))return false;G.camp.sec=i;if(typeof toast==='function')toast(`다음 상륙 지점: ${G.camp.secs[i].n}`);if(typeof render==='function')render();return true;}
+function landPick(i,ai){if(!landOn()||!landSecOpen(i))return false;if(!ai)G.camp.secMan=1;else if(G.camp.sec===i)return true;G.camp.sec=i;if(ai){campMsg(`다음 상륙 지점: ${G.camp.secs[i].n}`);return true;}if(typeof toast==='function')toast(`다음 상륙 지점: ${G.camp.secs[i].n}`);if(typeof render==='function')render();return true;}
 function landBusy(){const s=new Set(G.units.map(u=>key(u.r,u.c)));for(const b of G.camp.boats||[])if(b.st==='in'||b.st==='un')s.add(key(b.r,b.c));return s;}
 function landSpots(type){const i=landSec();if(i<0)return [];const busy=landBusy();
   return G.camp.secs[i].tl.filter(([r,c])=>!busy.has(key(r,c))&&mcost(type,G.map[r][c])<Infinity).map(([r,c])=>key(r,c));}
@@ -12961,7 +13778,25 @@ function landNaval(C,M,S){const nv=M.naval;if(!nv||G.time<nv.t0||G.time<(S.navT|
   for(let i=0;i<nv.n;i++){const s=shellLaunch({x0:-5,z0:tz+(i-nv.n/2)*.9,h0:3,tx:tx+(Math.random()-.5)*.6,tz:tz+(Math.random()-.5)*.6,n:0,src:null,type:'spg',pw:1.6,spread:.45,delay:.5+i*.7,T:2.6,ap:6});s.off=1;}
   if(typeof FXH.naval==='function')FXH.naval(tx,tz,nv.n);
   if(!S.navMsg){S.navMsg=1;campMsg(nv.msg||'구축함이 해안 가까이 들어와 함포 사격을 시작합니다');}}
+/* AI가 상륙 지점을 고른다(관전, 또는 부관 지휘에서 플레이어가 아직 직접 고르지 않았을 때).
+   적 화기가 적고, 아군이 이미 연 출구·거점 옆이고, 남은 목표에 가까운 해변을 고른다 */
+function landAiPick(C){const n0=G.nats[0];if(!(isAI(0)||(n0.auto&&!C.secMan)))return;
+  const O=G.objs,foes=G.units.filter(e=>e.nat!==0&&!UT[e.type].fly),mine=G.units.filter(u=>u.nat===0&&!UT[u.type].fly);
+  let pm=null;try{pm=typeof planMainOf==='function'?planMainOf(0):null;}catch(e){}
+  const todo=O.filter((o,i)=>!ownObj(i));let best=-1,bs=-1e9;
+  C.secs.forEach((s,i)=>{if(!landSecOpen(i)||!s.tl.length)return;const [r,c]=s.tl[Math.floor(s.tl.length/2)];const x=c+2.5,z=(s.r0+s.r1)/2+.5;const half=(s.r1-s.r0)/2+2;
+    const near=(px,pz,R)=>Math.abs(pz-z)<=half&&px-x<=R&&px-x>=-2;
+    let sc=-foes.filter(e=>near(e.x,e.z,7)).length*1.2-(G.forts||[]).filter(f=>f.nat!==0&&f.k==='bunker'&&near(f.x,f.z,7)).length*1.5;
+    sc+=Math.min(6,mine.filter(u=>near(u.x,u.z,8)).length)*.35;
+    O.forEach((o,j)=>{if(Math.abs(o.r+.5-z)<=half&&o.c-x<9){sc+=ownObj(j)?3:1;}});
+    if(todo.length)sc-=Math.min(...todo.map(o=>Math.hypot(o.c-x,o.r-z)))*.12;
+    if(pm&&pm.x!=null)sc-=Math.hypot(pm.x-x,pm.z-z)*.15;   // 06i-plan의 주공 목표 쪽 해변
+    if(s.need!=null)sc+=4;   // 부두는 안벽보다 빨리 내린다
+    if(i===C.sec)sc+=1;      // 자주 바꾸지 않게
+    if(sc>bs){bs=sc;best=i;}});
+  if(best>=0)landPick(best,true);}
 function landTick(C,dt){const M=CAMP[C.id],S=C.st;C.boats=C.boats||[];
+  C._apT=(C._apT||0)+dt;if(C._apT>=15||(G.time||0)<.2){C._apT=0;landAiPick(C);}
   if(M.tide)M.tide(C,S);
   S.lw=S.lw||{};for(const w of M.lw||[]){if(S.lw[w.t]||G.time<w.t)continue;if(landWave(w))S.lw[w.t]=1;}
   C._ht=(C._ht||0)+dt;const shoot=C._ht>=.5;if(shoot)C._ht=0;let foes=null;
@@ -13039,9 +13874,16 @@ CAMP.omaha.units=function(){const {SAND,BL}=OMAHA;const D=omahaDraws();const m=c
   const t=G.objs[3];campPut(1,'rifle',t.r,t.c,{bldg:true,post:1});campPut(1,'sniper',t.r-2,t.c,{bldg:true,post:1});campPut(1,'mg',t.r+1,t.c-1,{bldg:false,post:1});
   campPut(1,'rifle',t.r-3,t.c+2,{bldg:false});campPut(1,'at',t.r+3,t.c+1,{bldg:false});campPut(1,'tank',t.r,t.c+4,{bldg:false});campPut(1,'rifle',m-12,BL+8,{bldg:false});campPut(1,'rifle',m+12,BL+8,{bldg:false});
   G.nats[0].cp=8;G.nats[1].cp=0;};
-CAMP_TICK.omaha=function(C,S){const O=G.objs;let ex=0;
-  for(let i=0;i<3;i++)if(ownObj(i)){ex++;if(!S.exo[i]){S.exo[i]=1;campMsg(`${O[i].name} 확보: 이 길로 차량이 해변을 벗어날 수 있습니다${G.forts.some(f=>f.k==='jersey'&&f.nat===1&&Math.abs(f.z-O[i].r-.5)<.6&&Math.abs(f.x-O[i].c)<2)?' (길막이는 공병이 치웁니다)':''}`);}}
+/* 출구의 길막이(콘크리트 방벽): 출구를 점령하고 10초 지나면 공병·불도저가 치운다 */
+const omahaBlocks=i=>{const o=G.objs[i];return (G.forts||[]).filter(f=>f.k==='jersey'&&f.nat!==0&&Math.abs(f.z-o.r-.5)<.6&&Math.abs(f.x-o.c)<2.2);};
+CAMP_TICK.omaha=function(C,S,dt){const O=G.objs;let ex=0;S.exT=S.exT||{};
+  for(let i=0;i<3;i++)if(ownObj(i)){ex++;if(!S.exo[i]){S.exo[i]=1;campMsg(`${O[i].name} 확보${omahaBlocks(i).length?': 10초 뒤 길막이를 치우면 차량이 이 길로 해변을 벗어납니다':': 이 길로 차량이 해변을 벗어날 수 있습니다'}`);}
+    S.exT[i]=(S.exT[i]||0)+dt;const bl=omahaBlocks(i);if(bl.length&&S.exT[i]>=10){for(const f of bl)fortRemove(f,'clear');campMsg(`${O[i].name} 길막이를 치웠습니다: 차량이 해변을 벗어납니다`);}}
   S.exits=ex;if(ex===3)S.allEx=1;
+  // 해변에 멈춘 차량은 열린 출구 중 가까운 곳으로 올라간다(갈 데가 없으면 해변에서 기다린다)
+  S.vT=(S.vT||0)+dt;if(S.vT>=3){S.vT=0;const open=[0,1,2].filter(i=>ownObj(i)&&!omahaBlocks(i).length);
+    if(open.length)for(const u of G.units){if(u.nat!==0||UT[u.type].fly||UT[u.type].cls!=='veh'||u.hold||(u.path&&u.path.length))continue;if(u.x>=OMAHA.BL)continue;
+      const i=open.reduce((a,b)=>Math.abs(O[b].r-u.z)<Math.abs(O[a].r-u.z)?b:a);try{orderMoveTo(u,OMAHA.TOWN+1.5,O[i].r+.5);}catch(e){}}}
   if(ownObj(3)&&ex>=2)G.over={win:0,why:'교두보 확보'};};
 CAMP.omaha.stars2=(C,S,win,t)=>[win,win&&!!S.allEx,win&&t<=720];
 CAMP.omaha.obj=function(C,S,li){const ex=S.exits||0;

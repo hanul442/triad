@@ -43,7 +43,8 @@ test('구난차: 안전하면 현장에서 고치고, 적이 가까우면 보급
   assert.equal(v.vd.mob, 0, '현장 수리로 궤도 복구');
   // 적이 가까우면 견인
   v.vd.mob = 1; v.x = 14.5; v.z = 12.5; T.bump();
-  const e = T.mkUnit(1, 'rifle', 12, 17); e.cd = 9999; e.nocas = 1; e.am = 0;
+  // 적이 4칸쯤(위험 3.2칸 밖, 뜨거운 5칸 안): 고리를 걸어 끌고 간다
+  const e = T.mkUnit(1, 'rifle', 12, 18); e.cd = 9999; e.nocas = 1; e.am = 0;
   run(T, 8);
   assert.equal(r.tow, v.id, '견인 시작');
   const d = F(T, 'depotOf')(0);
@@ -51,6 +52,19 @@ test('구난차: 안전하면 현장에서 고치고, 적이 가까우면 보급
   assert.ok(Math.hypot(v.x - d.x, v.z - d.z) < 3, `보급소로 끌려옴 ${v.x.toFixed(1)},${v.z.toFixed(1)}`);
   run(T, 25);
   assert.equal(v.vd.mob, 0, '보급소에서 수리'); assert.ok(v.hp > 9);
+});
+
+test('구난차: 고장 차량 바로 곁에 적이 있으면 가지 않고 기다렸다가, 적이 사라지면 간다', () => {
+  const T = loadGame(); const G = setup(T); G.nats[1].ctrl = 'human';
+  const v = T.mkUnit(0, 'tank', 12, 16); F(T, 'vdOf')(v).mob = 1;
+  const e = T.mkUnit(1, 'rifle', 12, 18); e.cd = 9999; e.nocas = 1; e.am = 0;
+  const r = T.mkUnit(0, 'rec', 12, 6);
+  run(T, 12);
+  assert.ok(Math.hypot(r.x - v.x, r.z - v.z) > 4, `위험한 곳엔 가지 않음 ${Math.hypot(r.x - v.x, r.z - v.z).toFixed(1)}`);
+  assert.ok(r.tow == null, '견인 안 함');
+  G.units.splice(G.units.indexOf(e), 1); T.bump();
+  run(T, 70);
+  assert.ok(v.vd.mob === 0 || r.tow === v.id, `적이 사라지면 고치거나 끌고 감: 거리 ${Math.hypot(r.x - v.x, r.z - v.z).toFixed(1)} lj ${JSON.stringify(r.lj)} nog ${JSON.stringify(r.nog)} t ${G.time.toFixed(0)} hold ${r.hold}`);
 });
 
 test('AI: 탄약이 떨어지면 보급 트럭을 사서 보내고, 고장 난 차량엔 구난차를 보낸다', () => {
