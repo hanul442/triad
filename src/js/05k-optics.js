@@ -14,7 +14,7 @@ const OPT={settle:2.5,
   button:20};
 const OBS={fast:2,call:8,lost:4,types:{drone:1,sniper:1,dteam:1,hmv:1,gunship:1}};
 for(const k in OPT.vis)if(UT[k])UT[k].vis=OPT.vis[k];
-if(UT.mortar)UT.mortar.desc='곡사. 멈추면 쌍안경으로 7칸까지 직접 관측. 드론·저격수가 본 적은 2초, 다른 아군 분대가 본 적은 무전 요청 8초 뒤 포격';
+if(UT.mortar)UT.mortar.desc='곡사. 멈추면 쌍안경으로 7칸까지 직접 관측. 드론·저격수가 본 적은 1.5초, 다른 아군 분대가 본 적은 무전 요청 5초 뒤 포격';
 if(UT.spg)UT.spg.desc='곡사 장거리 포격. 관측자(드론·저격수·아군 분대 무전)가 본 곳을 쏘고, 이동 직후엔 쏘지 못함. 가까이 붙은 적에 약함';
 if(UT.mlrs)UT.mlrs.desc='곡사 로켓 12발을 넓게 흩뿌림. 관측자가 본 곳을 쏘고, 다시 장전하는 데 25초. 가까운 적·대포병에 약함';
 if(UT.sniper)UT.sniper.desc+='. 멈추면 조준경으로 9칸, 곡사 화기의 관측자 노릇';
