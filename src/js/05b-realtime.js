@@ -64,7 +64,7 @@ function rtShoot(a,d){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.fac
   const dmg=Math.round(rawDmg(a,d,false)*hits/k*DPS_K*COOL[a.type]*(.8+Math.random()*.4)*10)/10;if(ta.sup)d.supp=Math.max(d.supp||0,hits?1.2:.8);   // 기관총·박격포는 빗나가도 고개를 숙이게 한다
   if(ta.ex&&typeof fortBlast==='function')fortBlast(d.x,d.z,.25,(hits?3:1.5)*ta.ex*COOL[a.type]);// 폭발물은 근처 방어물도 부순다
   if(!hits)return 0;if(ta.ex)d.supp=Math.max(d.supp||0,1);
-  if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.max(1,Math.round(dmg*ta.ex*.8)));
+  if(ta.ex&&cell(d.r,d.c).t==='bldg')damageBldg(d.r,d.c,Math.max(1,Math.round(dmg*ta.ex*(a.type==='tank'?.4:.8))));   // 전차 고폭탄은 방 하나를 부수지 건물을 무너뜨리진 않는다
   G.nats[a.nat].dmg=(G.nats[a.nat].dmg||0)+dmg;harm(d,dmg,a,{kind:ta.ex?'blast':'bullet',hits});if(d.hp<=0&&G.units.includes(d))kill(d,a);return dmg;}   // FPV는 한 발에 떨어진다(피해가 0이어도)
 function rtShootBldg(a,r,c){const ta=UT[a.type];a.shot=G.turn;a.firedT=G.time||0;a.face=Math.atan2(r-a.r,c-a.c)*180/Math.PI;FXH.fire(a,r,c);
   const amt=Math.max(1,Math.round((ta.atk.inf+ta.atk.veh)/2*ta.ex*DPS_K*COOL[a.type]*1.2*(.85+Math.random()*.3)));damageBldg(r,c,amt);

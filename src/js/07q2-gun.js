@@ -213,7 +213,7 @@ v3FxFire=function(a,r,c,d,shot){if(typeof v3AirFire==='function'&&v3AirFire(a,r,
   if(a.type==='eng'){const Ld=gfxLand(x1,y1,z1,x2,y2,z2,d,true,tile);const T=V3.T;const g=new T.Mesh(V3.gfxNadeG||(V3.gfxNadeG=new T.SphereGeometry(.012,6,4)),V3.M.dark);g.userData.keepGeo=1;g.userData.keepMat=1;V3.G.fx.add(g);
     V3.fx.push({o:g,t0:performance.now(),dur:600,upd:(o,k)=>{o.position.set(x1+(Ld.x-x1)*k,y1+(Ld.y-y1)*k+Math.sin(k*Math.PI)*.25,z1+(Ld.z-z1)*k);}});
     setTimeout(()=>{if(!V3.on)return;if(Ld.ny<.5){pfxBlast(Ld.x,Ld.y,Ld.z,.6,{ground:false,fire:.4,dust:GFXM.wall.c[0]});v3Debris(Ld.x,Ld.y,Ld.z,8,.7);}else gfxShellHit(Ld.x,Ld.y,Ld.z,.5,Ld.m);dsScar('scorch',Ld.x,Ld.z,.08);V3.shake=Math.max(V3.shake,.05);if(typeof sndBoom==='function')sndBoom(Ld.x,Ld.z,.5);},1600);return;}
-  const W=GFXW[a.type]||GFXW.rifle;
+  const W=GFXW[shot&&shot.w]||GFXW[a.type]||GFXW.rifle;   // 차량 부무장(05na-pen)은 shot.w로 총 모양을 고른다
   // 차량 기관총·기관포는 총열 끝에서
   if(ta.cls==='veh'){const br=gfxBarrel(a);if(br){x1=br.x;y1=br.y;z1=br.z;}}
   else{x1+=dx*.03;z1+=dz*.03;y1+=.01;}

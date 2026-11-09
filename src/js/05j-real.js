@@ -38,8 +38,8 @@ function elevOK(a,d,ax,az,ae){if(a.type!=='tank'||UT[d.type].fly)return true;con
   if(td.cls==='veh'&&atWpn(a)&&ta.cls==='inf'&&escorted(d))p*=.8;               // 호위 보병이 대전차조를 견제한다
   h.p=Math.max(0,Math.min(1,p));return h;};}
 /* 차량 피해: 맞은 방향에 따라 관통이 달라지고, 호위 없는 차량은 대전차조에 더 크게 당한다 */
-{const _harm=harm;harm=function(u,amt,by,o){o=o||{};if(u&&by&&amt>0&&UT[u.type].cls==='veh'&&G.units.includes(u)&&atWpn(by)&&by!==u){
-    const s=armorArc(u,by);o.arm=REAL.arc[s];o.arc=s;amt*=REAL.arc[s];if(UT[by.type].cls==='inf'&&!escorted(u)){amt*=1.25;o.lone=1;}
+{const _harm=harm;harm=function(u,amt,by,o){o=o||{};if(u&&by&&amt>0&&UT[u.type].cls==='veh'&&G.units.includes(u)&&atWpn(by)&&!o.w&&by!==u){
+    const s=o.pv?o.pv.arc:armorArc(u,by);o.arc=s;if(!o.pv){o.arm=REAL.arc[s];amt*=REAL.arc[s];}   // 관통 판정(05na-pen)이 있으면 그쪽 장갑을 쓴다if(UT[by.type].cls==='inf'&&!escorted(u)){amt*=1.25;o.lone=1;}
     u._arcT=G.time||0;u._arc=s;if(s!=='front'&&(!u._arcL||(G.time||0)-u._arcL>6)){u._arcL=G.time||0;L(`${natName(u.nat)} ${UT[u.type].n} ${REAL.arcN[s]} 피격${o.lone?' (호위 보병 없음)':''}`);}}
   const r=_harm(u,amt,by,o);if(u&&G.units.includes(u)&&UT[u.type].cls==='veh'&&by&&atWpn(by))vehSmoke(u,by);return r;};}
 /* 차량 연막탄: 대전차 화기에 맞으면 연막을 터뜨리고 정면을 적에게 둔 채 뒤로 빠진다 */

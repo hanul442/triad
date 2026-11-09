@@ -9,7 +9,7 @@
    - 공격헬기는 지휘점수 12로 비싸지고 화력이 조금 줄었다.
    - 손실 원인: 출혈·차량 포기처럼 쏜 쪽 없이 끝난 손실은 마지막으로 피해를 준 부대 몫으로 센다(90초 안).
      화력 지원(포격·폭격)으로 죽은 경우 u._cause에 그 종류를 남긴다. */
-const POL={vcommit:6,vsettle:8,vturn:1.05,truckHot:3.2,truckFlee:30,truckIdle:25,lastBy:90,ffR:{arty:3,air:1.5,tbm:2.2,cruise:1.6}};
+const POL={vcommit:6,vsettle:8,vturn:1.05,truckHot:3.2,truckFlee:30,truckIdle:25,lastBy:90,ffR:{arty:3.2,air:3.2,tbm:4,cruise:3.4}};
 /* ---------- 차량 명령 고정 ---------- */
 const polEnd=u=>u.path&&u.path.length?u.path[u.path.length-1]:null;
 {const _ai=aiThink;aiThink=function(n){const t=G.time||0;const snap=new Map();
@@ -62,7 +62,7 @@ if(UT.gunship){UT.gunship.atk={...UT.gunship.atk,inf:6,veh:6};}
   try{polFloors();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 /* ---------- 곡사·폭발물 근접 아군 확인 ---------- */
 // 곡사는 표적 둘레(박격포 1.2칸, 자주포 1.8칸, 다연장 2.4칸)에 아군 지상 부대가 있으면, 직접 쏘는 폭발물은 표적 0.7칸 안에 아군이 있으면 쏘지 않는다
-const POL_DC={mortar:1.2,spg:1.8,mlrs:2.4};
+const POL_DC={mortar:1.6,spg:2.4,mlrs:2.4};   // 05na-pen 구경별 반경
 {const _ch=canHit;canHit=function(a,d,fromR,fromC,moved){const r=_ch(a,d,fromR,fromC,moved);if(!r||!d)return r;const ta=UT[a.type];
   const R=ta.ind?(POL_DC[a.type]||1.5):ta.ex?.7:0;if(!R)return r;const [dx,dz]=posOf(d);
   for(const o of G.units){if(o.nat!==a.nat||o===a||UT[o.type].fly)continue;const [ox,oz]=posOf(o);if(Math.abs(ox-dx)<R&&Math.abs(oz-dz)<R&&Math.hypot(ox-dx,oz-dz)<R)return false;}
@@ -70,7 +70,7 @@ const POL_DC={mortar:1.2,spg:1.8,mlrs:2.4};
 /* ---------- 박격포 손보기: 관측은 그대로 두고 빨리·정확하게 ---------- */
 // 분대 무전 사격 요청 8초 → 5초, 드론·저격수 2초 → 1.5초. 같은 표적을 이어 쏘면 탄착을 고쳐 흩어짐이 줄어든다(1발 1, 2발 .75, 3발째부터 .6)
 if(typeof OBS==='object'){OBS.call=5;OBS.fast=1.5;}
-POL_DC.mortar=.9;
+POL_DC.mortar=1.3;
 if(UT.mortar)UT.mortar.atk={...UT.mortar.atk,inf:6};   // 보병 피해 5 → 6
 if(typeof shellShoot==='function'&&typeof shellLaunch==='function'){
   const _sl=shellLaunch;shellLaunch=function(o){if(G._spK&&o)o.spread=(o.spread||1)*G._spK;if(G._pwK&&o)o.pw=(o.pw??1)*G._pwK;return _sl(o);};
