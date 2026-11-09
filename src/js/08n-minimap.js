@@ -14,15 +14,16 @@ function mmBase(){const P=3,W=N*P;let c=MM.base;if(!c||c.width!==W){c=document.c
   const g=c.getContext('2d');g.fillStyle='#1d2124';g.fillRect(0,0,W,W);
   for(let r=0;r<N;r++)for(let q=0;q<N;q++){const x=G.map[r][q];let col=MMCOL[x.t]||'#33373a';
     if(x.t==='bldg'){const f=Math.min(8,x.f||1);const l=92+f*10;col=`rgb(${l},${l-3},${l-10})`;}
+    if(x.crop)col=['#7d6f45','#7d6f45','#76694c','#4a5233','#4a3d2f'][x.crop];else if(x.wild)col=x.orch?'#3d4630':'#283022';else if(x.mead)col='#465034';else if(x.dirt)col='#5e5240';else if(x.quay||x.pier)col='#6f6b62';else if(x.cy)col='#4a4846';   // 03c-biome 땅
     if(x.br)col=MMCOL.bridge;g.fillStyle=col;g.fillRect(q*P,r*P,P,P);
     if(x.t==='bldg'){g.fillStyle='rgba(0,0,0,.35)';g.fillRect(q*P,r*P+P-1,P,1);}}
-  MM.baseT=G.time||0;MM.baseV=G.fortV;}
+  MM.baseT=G.time||0;MM.baseV=G.fortV;MM.baseG=G;}
 /* 지도 점 (x,z) → 미니맵 픽셀 */
 function mmTo(x,z){const dx=x-MM.cx,dz=z-MM.cz,c=Math.cos(MM.yaw),s=Math.sin(MM.yaw);return [MM.px/2+(dx*c-dz*s)*MM.scale,MM.px/2+(dx*s+dz*c)*MM.scale];}
 function mmFrom(px,py){const dx=(px-MM.px/2)/MM.scale,dz=(py-MM.px/2)/MM.scale,c=Math.cos(-MM.yaw),s=Math.sin(-MM.yaw);return [MM.cx+dx*c-dz*s,MM.cz+dx*s+dz*c];}
 function mmDraw(){if(!MM.ctx||!G||!G.map)return;const el=MM.el;const hide=!MM.on||G.boot&&!G.spec||(V3.press)||$('#app').classList.contains('sheet-open');
   el.classList.toggle('off',!MM.on);if(hide&&MM.on){el.style.visibility='hidden';return;}el.style.visibility='';if(!MM.on)return;
-  const t=G.time||0;if(!MM.base||MM.base.width!==N*3||t-MM.baseT>2||t<MM.baseT||MM.baseV!==G.fortV)mmBase();
+  const t=G.time||0;if(!MM.base||MM.base.width!==N*3||t-MM.baseT>2||t<MM.baseT||MM.baseV!==G.fortV||MM.baseG!==G)mmBase();   // 새 판(같은 크기라도 다른 지도)
   const g=MM.ctx,S=MM.px,dpr=MM.dpr||1;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,S,S);
   const yaw=V3.cs?V3.cs.yaw:0;MM.yaw=yaw;MM.cx=N/2;MM.cz=N/2;MM.scale=S/(N*(Math.abs(Math.cos(yaw))+Math.abs(Math.sin(yaw))))*.98;
   g.save();g.translate(S/2,S/2);g.rotate(yaw);g.scale(MM.scale/3,MM.scale/3);g.imageSmoothingEnabled=false;g.drawImage(MM.base,-N*3/2,-N*3/2);

@@ -14,15 +14,15 @@ const specMaps=()=>[['free','자유 전투'],['scn:assault','시나리오 · 도
   ...(typeof CAMP_IDS!=='undefined'?CAMP_IDS.map(id=>['camp:'+id,`캠페인 ${CAMP[id].no} · ${CAMP[id].n}`]):[])];
 function specStart(cfg){cfg=cfg||{};const map=specMaps().some(m=>m[0]===cfg.map)?cfg.map:'free';const seed=cfg.seed==null||cfg.seed===''||!isFinite(+cfg.seed)?null:Math.abs(Math.floor(+cfg.seed));
   const opt=id=>typeof document!=='undefined'&&document.getElementById(id)?document.getElementById(id).value:null;
-  UI.specCfg={win:cfg.win==='lts'?'lts':'vp',n:cfg.n||2,size:cfg.size||'m',map,seed,layout:cfg.layout||opt('opt-layout')||'sym',relief:cfg.relief||opt('opt-relief')||'flat'};   // 자유 전투 지형은 새 게임 설정을 따른다
+  UI.specCfg={win:cfg.win==='lts'?'lts':'vp',n:cfg.n||2,size:cfg.size||'m',map,seed,layout:cfg.layout||opt('opt-layout')||'sym',relief:cfg.relief||opt('opt-relief')||'flat',clime:cfg.clime||opt('opt-clime')||'temp'};   // 자유 전투 지형은 새 게임 설정을 따른다
   // 시나리오·캠페인은 원래 사람 자리를 AI로 바꿔 차린다(newGame 감싸기가 UI.specForce를 본다)
   UI.specForce=true;UI.specSeed=seed;
-  try{if(map==='free')newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,layout:UI.specCfg.layout,relief:UI.specCfg.relief,diff:'normal',fog:true,speed:0,seed:seed??undefined,win:UI.specCfg.win});
+  try{if(map==='free')newGame({slots:specSlots(UI.specCfg.n),size:UI.specCfg.size,layout:UI.specCfg.layout,relief:UI.specCfg.relief,clime:UI.specCfg.clime,diff:'normal',fog:true,speed:0,seed:seed??undefined,win:UI.specCfg.win});
     else if(map.startsWith('scn:'))scnSetup(map.slice(4),0);
     else campStart(map.slice(5));}
   finally{UI.specForce=false;UI.specSeed=null;}
   G.boot=false;G.spd=1;G.paused=false;return G;}
-function specMapName(){if(!G)return '';if(G.camp)return `캠페인 ${CAMP[G.camp.id].no} · ${CAMP[G.camp.id].n}`;if(G.scn&&typeof SCN!=='undefined'&&SCN[G.scn])return SCN[G.scn].n;return '자유 전투';}
+function specMapName(){if(!G)return '';if(G.camp)return `캠페인 ${CAMP[G.camp.id].no} · ${CAMP[G.camp.id].n}`;if(G.scn&&typeof SCN!=='undefined'&&SCN[G.scn])return SCN[G.scn].n;return '자유 전투'+(typeof bmMapName==='function'?' · '+bmMapName():'');}
 /* 교전이 가장 뜨거운 부대: 최근 4초 안에 쏜 부대가 둘레 5칸에 많을수록, 적이 가까울수록 높다.
    교전이 없으면 적과 가장 가까운 부대(전선). skip에 든 부대는 뺀다. */
 function specHot(skip,ok){if(!G||!G.units.length)return null;const t=G.time||0;const hot=u=>t-(u.firedT??-99)<4;
