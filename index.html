@@ -579,6 +579,8 @@ function occAll(){const m=new Map();for(const u of G.units){const k=key(u.r,u.c)
 const natName=n=>n==null?'중립':NATS[n].name;
 const mapCol=n=>n==null?'#8b9294':MAPCOL[n];
 const isAI=n=>G.nats[n].ctrl==='ai';
+/* AI 두뇌가 이 세력을 움직이는가: AI 세력, 또는 플레이어가 부관(06f-auto)에게 맡긴 세력 */
+const aiRun=n=>G.nats[n].ctrl==='ai'||!!G.nats[n].auto;
 const hostile=(a,b)=>a!==b;
 const hpMax=u=>UT[u.type].hpMax||10;
 const hourOf=()=>Math.floor(typeof dayH==='function'?dayH():(7+(G.turn-1))%24);
@@ -1852,7 +1854,7 @@ function aiFlare(n){const N2=G.nats[n];if(nightK()<.6||!canSupport(n,'flare',0,0
 /* ---------- 매 틱 ---------- */
 function envTick(dt){flareTick(dt);
   // AI는 2초마다, 그리고 수입이 막 들어온 직후(지휘점수를 다 쓰기 전)에 조명탄을 따져 본다
-  const fresh=G._envR!==G.turn;G._envR=G.turn;G._envT=(G._envT||0)-dt;if(G._envT<=0||fresh){G._envT=2;for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;if(fresh||Math.random()<.35)try{aiFlare(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}}
+  const fresh=G._envR!==G.turn;G._envR=G.turn;G._envT=(G._envT||0)-dt;if(G._envT<=0||fresh){G._envT=2;for(const n of G.order){if(!aiRun(n)||!G.nats[n].alive)continue;if(fresh||Math.random()<.35)try{aiFlare(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}}
 {const _tk=rtTick;rtTick=function(dt){if(G&&!G.over)envTick(dt);return _tk(dt);};}
 
 /* HUD 글: 날씨와 그 효과 */
@@ -2030,7 +2032,7 @@ function rtTick(dt){if(!G||G.over)return;G.time=(G.time||0)+dt;
   if(typeof msAllTick==='function')msAllTick(dt);
   for(const u of G.units.slice()){if(!G.units.includes(u))continue;if(u.supp>0)u.supp=Math.max(0,u.supp-dt/3);u.cd=(u.cd||0)-dt;if(!flTick(u,dt))rtMove(u,dt);if(G.units.includes(u))rtFight(u);}
   rtSeparate(dt);
-  for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;
+  for(const n of G.order){if(!aiRun(n)||!G.nats[n].alive)continue;const N2=G.nats[n];N2.aiT=(N2.aiT??Math.random()*1.5)-dt;
     if(N2.aiT<=0){N2.aiT=1.6+Math.random()*1.2;try{aiThink(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}
   if(typeof scnAfterAct==='function'&&G.scn==='tut')scnAfterAct();
   if(G.camp&&typeof campTick==='function')campTick(dt);
@@ -2502,7 +2504,7 @@ function airTick(dt){if(!G)return;
     if(t.heli){gunshipTick(u,dt);continue;}droneTick(u,dt);}
   for(const u of G.units.slice())if(UT[u.type].dteam&&G.units.includes(u))dteamTick(u,dt);
   // AI: 적이 가까이 보이면 험비·장갑차가 드론팀을 내려놓는다
-  for(const v of G.units.slice()){if(!canDismount(v)||!isAI(v.nat)||G.units.filter(o=>o.nat===v.nat).length>=unitCap())continue;if(Math.random()>dt*.15)continue;
+  for(const v of G.units.slice()){if(!canDismount(v)||!aiRun(v.nat)||G.units.filter(o=>o.nat===v.nat).length>=unitCap())continue;if(Math.random()>dt*.15)continue;
     if(G.units.some(e=>e.nat!==v.nat&&!UT[e.type].fly&&Math.hypot(e.x-v.x,e.z-v.z)<8&&(!G.fog||seen(e,v.nat))))(typeof aiDismount==='function'?aiDismount:dismount)(v);}}
 
 /* ---------- AI ---------- */
@@ -3521,7 +3523,7 @@ function supTick(u,dt){if(u.cargo==null)u.cargo=CARGO;u._srv=null;
   if(u._srv)return;                                   // 지금 누군가에게 나눠 주는 중
   if(u.cargo<15){if(!atDepot(u))supHome(u);return;}
   if((u._auT||0)>(G.time||0))return;u._auT=(G.time||0)+2;
-  const ai=isAI(u.nat),R=ai?99:5;let best=null,bs=0;
+  const ai=aiRun(u.nat),R=ai?99:5;let best=null,bs=0;
   for(const o of G.units){if(o.nat!==u.nat||o===u||!amMax(o)||UT[o.type].fly)continue;const f=amFrac(o);if(f>.6||inZone(o.nat,o.r,o.c))continue;const d=Math.hypot(o.x-u.x,o.z-u.z);if(d>R)continue;
     if(u.nog&&(u.nog[o.id]||0)>(G.time||0))continue;if(G.units.some(s=>s!==u&&s.type==='sup'&&s.nat===u.nat&&s.lj&&s.lj.id===o.id))continue;
     const s=(1-f)*LOAD[o.type]/(1+d*.25)*(f<.05?2:1);if(s>bs){bs=s;best=o;}}
@@ -3546,7 +3548,7 @@ function recTick(u,dt,t){u._fixing=null;
     u._hk=0;u._fixing=v.id;if(!fixVeh(v,dt,.6)||!vNeed(v)){u.lj=null;u._fixing=null;}return;}
   if(u.hold||!idle(u))return;
   if((u._auT||0)>t)return;u._auT=t+2;
-  const v=recPick(u,isAI(u.nat)?99:7);if(v)recSend(u,v);}
+  const v=recPick(u,aiRun(u.nat)?99:7);if(v)recSend(u,v);}
 function recPick(u,R){let best=null,bs=0;
   for(const v of G.units){if(v.nat!==u.nat||v===u||v.towBy!=null)continue;const need=vNeed(v);if(!need)continue;if(atDepot(v))continue;
     if(v.vd&&!v.vd.mob&&v.path&&v.path.length)continue;   // 움직이는 차는 쫓아가지 않는다
@@ -3906,7 +3908,7 @@ function cqbNext(u,blk){let best=null,bd=1e9;for(const e of G.units){if(e.nat===
   const d=Math.hypot(e.c+.5-u.x,e.r+.5-u.z);if(d<bd){bd=d;best=[e.r,e.c];}}return best;}
 function cqbStep(u,t){const C=u.cqb;const r=kr(C.k),c=kc(C.k),X=G.map[r][c];
   if(!isB(X)){cqbEnd(u,0,'gone');return;}if(t-C.t0>CQB.maxT){cqbEnd(u,0,'slow');return;}                                         // 무너졌거나 너무 오래 걸린다
-  if(isAI(u.nat)&&u.hp<hpMax(u)*.3){cqbEnd(u,0,'hurt');return;}                                     // 너무 다쳤다: AI는 물러난다
+  if(aiRun(u.nat)&&u.hp<hpMax(u)*.3){cqbEnd(u,0,'hurt');return;}                                     // 너무 다쳤다: AI는 물러난다
   const moving=u.path&&u.path.length;
   if(C.st==='move'){if(moving)return;
     if(cell(u.r,u.c)===X||sameBlk(cell(u.r,u.c),X)){C.st='entry';return;}
@@ -4523,7 +4525,7 @@ function ambTick(a,dt,t){a.load=a.load||[];const moving=a.path&&a.path.length;co
   if(a.hold||moving)return;
   if(a.load.length){const f=ccpOf(a.nat,a.x,a.z,false);if(Math.hypot(f.x-a.x,f.z-a.z)<1.2){ambUnload(a);return;}}
   if((a._auT||0)>t)return;a._auT=t+2;
-  const o=ambWant(a.nat,a.x,a.z,isAI(a.nat)?99:7);if(!o)return;const sp=ambSpot(a,o);if(!sp)return;
+  const o=ambWant(a.nat,a.x,a.z,aiRun(a.nat)?99:7);if(!o)return;const sp=ambSpot(a,o);if(!sp)return;
   a.mj={k:'move',id:o.id};a.path=pathPts(a,sp[0],sp[1]);}
 /* 구급차가 부서지면 실린 환자도 죽는다 */
 {const _k=kill;kill=function(u,by){if(u&&u.type==='amb'&&u.load&&u.load.length){const S=medStats(u.nat);
@@ -4554,7 +4556,7 @@ function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat
     return;}
   _at(a,dt,t);
   if(a.mj||a.hold||(a.path&&a.path.length)||a.load.length>=AMB_CAP||(a._oT||0)>t)return;a._oT=t+2;
-  const o=orphFree(a.nat,a.x,a.z,isAI(a.nat)?40:10);if(!o||o.noAmb)return;o.taken=1;a.mj={k:'orph',id:o.id};a.path=pathPts(a,o.x,o.z);};}
+  const o=orphFree(a.nat,a.x,a.z,aiRun(a.nat)?40:10);if(!o||o.noAmb)return;o.taken=1;a.mj={k:'orph',id:o.id};a.path=pathPts(a,o.x,o.z);};}
 // 적 보병이 곁을 지나고 아군이 멀면 남겨진 부상자는 포로로 잡혀 간다
 function orphPow(){if(!G.cas||!G.cas.length)return;G.cas=G.cas.filter(o=>{if(o.taken)return true;
   const foe=G.units.find(e=>hostile(e.nat,o.nat)&&UT[e.type].cls==='inf'&&Math.hypot(e.x-o.x,e.z-o.z)<1.2);if(!foe)return true;
@@ -4637,12 +4639,12 @@ function genBreach(n,site,by){if(!genOn()||!site||!G.nats[n])return;const t=G.ti
   const prot=G.units.filter(e=>e.nat!==u.nat&&genProtUnit(e)&&!(u.tgt===e.id&&!isAI(u.nat)));if(!prot.length)return _p(u);
   const all=G.units;G.units=all.filter(e=>!prot.includes(e));try{return _p(u);}finally{G.units=all;}};}
 // AI가 보호 대상을 공격 명령 표적으로 고르지 않게
-{const _oa=orderAttack;orderAttack=function(u,e){if(isAI(u.nat)&&genKeeps(u.nat)&&genProtUnit(e)&&e.nat!==u.nat)return;return _oa(u,e);};}
+{const _oa=orderAttack;orderAttack=function(u,e){if(aiRun(u.nat)&&!u.man&&genKeeps(u.nat)&&genProtUnit(e)&&e.nat!==u.nat)return;return _oa(u,e);};}
 /* 직접 사격: 보호 대상을 겨눈 사격은 위반 */
 {const _s=rtShoot;rtShoot=function(a,d){if(genOn()&&d&&genProtUnit(d)&&hostile(a.nat,d.nat))genBreach(a.nat,{x:d.x,z:d.z,nat:d.nat,k:'amb',u:d},a);return _s(a,d);};}
 /* 지원 사격: AI(지키는 세력)는 보호 시설 둘레를 피하고, 그 자리에 부르면 위반 */
 {const _c=canSupport;canSupport=function(n,kind,r,c){if(!_c(n,kind,r,c))return false;
-  if(isAI(n)&&genKeeps(n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&genNear(n,c+.5,r+.5,(SUP[kind].rad||1)+GEN.supPad))return false;return true;};}
+  if((isAI(n)||G._adj===n)&&genKeeps(n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&genNear(n,c+.5,r+.5,(SUP[kind].rad||1)+GEN.supPad))return false;return true;};}
 {const _su=support;support=function(n,kind,r,c){const ok=_su(n,kind,r,c);
   if(ok&&genOn()&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any){const s=genNear(n,c+.5,r+.5,(SUP[kind].rad||1)+.2);if(s)genBreach(n,s,null);}return ok;};}
 /* 보호를 잃는 경우: 구호소 곁에서 그 세력 부대가 사격(사격 진지로 씀) */
@@ -4744,7 +4746,7 @@ function civEscort(dt){for(const u of G.units){if(UT[u.type].cls!=='inf'||u.tun|
 const civIn=(r,c,rad)=>{let s=0;for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))s+=G.map[a][b].civ||0;
   for(const g of G.civF||[])if(Math.abs(g.x-(c+.5))<=rad+.5&&Math.abs(g.z-(r+.5))<=rad+.5)s+=g.n;return s;};
 {const _c=canSupport;canSupport=function(n,kind,r,c){if(!_c(n,kind,r,c))return false;
-  if(civOn()&&isAI(n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&civIn(r,c,(SUP[kind].rad||1))>=CIV.aiMax)return false;return true;};}
+  if(civOn()&&(isAI(n)||G._adj===n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&civIn(r,c,(SUP[kind].rad||1))>=CIV.aiMax)return false;return true;};}
 {const _n=newGame;newGame=function(cfg){const g=_n(cfg);G.civOn=!(cfg&&cfg.civ===false);G.civF=[];G.civDead=0;G.civOut=0;
   if(G.civOn)for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.civ!=null)continue;const k=key(r,c);
     x.civ=dHash(k,51)<CIV.occ?Math.min(CIV.cap,Math.max(1,Math.round((x.f||1)*(1+dHash(k,52)*1.5)))):0;}
@@ -4825,7 +4827,7 @@ function vbDet(u){if(u&&u.type==='vbied'){u.det=1;return true;}return false;}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;try{const t=G.time||0;
   for(const u of G.units.slice()){if(u.demo)demoPlantTick(u,dt);if(u.type==='vbied'&&G.units.includes(u))vbTick(u);}
   demoTick(dt);
-  if(t>=(G._dmAI||0)){G._dmAI=t+1.5;for(const n of G.order||[])if(G.nats[n].alive&&isAI(n)){vbAI(n);demoAI(n);}}}
+  if(t>=(G._dmAI||0)){G._dmAI=t+1.5;for(const n of G.order||[])if(G.nats[n].alive&&aiRun(n)){vbAI(n);demoAI(n);}}}
   catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 /* AI: 지키는 거점 둘레 건물에 폭약을 심어 둔다(나라당 셋까지) */
 function demoAI(n){const N2=G.nats[n];if(N2.cp<DEMO.cost||(G.demo||[]).filter(d=>!d.gone&&d.nat===n).length>=3||Math.random()>.3)return;
@@ -4871,7 +4873,7 @@ function snpAI(n){const t=G.time||0;
       if(G.units.some(e=>e.nat!==n&&Math.hypot(e.x-(c+.5),e.z-(r+.5))<2))continue;const s=X.f-Math.hypot(r-u.r,c-u.c)*.5+Math.random();if(s>bs){bs=s;best=[r,c];}}
     if(best){orderMove(u,best[0],best[1]);u._snpN=0;u.job='ug';u._ugT=t+12;}}}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;const t=G.time||0;if(t<(G._snpAI||0))return;G._snpAI=t+1;
-  try{for(const n of G.order||[])if(G.nats[n].alive&&isAI(n))snpAI(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+  try{for(const n of G.order||[])if(G.nats[n].alive&&aiRun(n))snpAI(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 
 /* ---- 05n-under.js ---- */
 /* ===================== UNDER: 쥐구멍·지하실·땅굴 =====================
@@ -5017,7 +5019,7 @@ function ugAI(n){const t=G.time||0;const N2=G.nats[n];
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;try{const t=G.time||0;
   for(const u of G.units.slice()){if(UT[u.type].cls!=='inf')continue;if(u.mh)mhTick(u,dt);if(u.bsm||u.bsmGo)bsmTick(u,dt);if(u.tun)tunTravel(u);}
   tunWatch(dt);
-  if(t>=(G._ugAI||0)){G._ugAI=t+2;for(const n of G.order||[])if(G.nats[n].alive&&isAI(n))ugAI(n);}}
+  if(t>=(G._ugAI||0)){G._ugAI=t+2;for(const n of G.order||[])if(G.nats[n].alive&&aiRun(n))ugAI(n);}}
   catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 
 /* ---- 06-ai.js ---- */
@@ -5238,7 +5240,7 @@ const tacIdle=u=>!(u.path&&u.path.length);
 function tacOrganize(n){const P=tacPl();const t=G.time||0;
   for(const p of P)if(p.nat===n)p.mem=p.mem.filter(id=>G.units.some(u=>u.id===id&&u.nat===n));
   for(let i=P.length-1;i>=0;i--)if(P[i].nat===n&&!P[i].mem.length)P.splice(i,1);
-  if(!isAI(n))return;
+  if(!aiRun(n))return;
   for(const u of G.units){if(u.nat!==n||!tacUnit(u))continue;if(u.pl&&P.some(p=>p.id===u.pl&&p.mem.includes(u.id)))continue;
     if(!u.tk)u.tk={role:'move',at:t};
     let best=null,bd=7;for(const p of P){if(p.nat!==n||p.mode==='defend'||p.mem.length>=TAC.size+1)continue;const c=tacCtr(p);if(!c)continue;const d=Math.hypot(c[0]-u.x,c[1]-u.z);if(d<bd){bd=d;best=p;}}
@@ -5264,7 +5266,7 @@ function tacPickObj(p,K){const n=p.nat,t=G.time||0;const c=tacCtr(p);if(!c)retur
 function tacThink(n){tacOrganize(n);const K=tacKnown(n);const objs=coverObjs();
   for(const p of tacPl()){if(p.nat!==n)continue;try{tacPlatoon(p,K,objs);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}
 function tacPlatoon(p,K0,objs){const M=tacMembers(p);if(!M.length)return;const t=G.time||0;const c=tacCtr(p);
-  if(p.auto!==false&&isAI(p.nat))tacPickObj(p,K0);
+  if(p.auto!==false&&aiRun(p.nat))tacPickObj(p,K0);
   const K=K0.filter(k=>M.some(u=>Math.hypot(k.x-u.x,k.z-u.z)<TAC.near));
   for(const u of M)if(!u.tk)u.tk={role:'move',at:t};
   // 전력 비교: 우리(체력·사기 반영) 대 가까운 적
@@ -5509,13 +5511,13 @@ function polVeh(u,s,t){const e=polEnd(u);const c=u._cmE;
     u._cmT=t;u._cmE=[e[0],e[1]];u._arT=null;}
 /* ---------- 보급 트럭 ---------- */
 if(typeof supTick==='function'){
-  const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!isAI(u.nat)||!G.units.includes(u))return;const t=G.time||0;
+  const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!aiRun(u.nat)||!G.units.includes(u))return;const t=G.time||0;
     const hot=hotAt(u.nat,u.x,u.z,POL.truckHot)||t-(u._hitT??-99)<6;
     if(hot&&!atDepot(u)&&!(u.lj&&u.lj.k==='home'&&u.path&&u.path.length)){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');return;}
     // 할 일 없이 서 있으면: 짐이 넉넉하면 전선 뒤 안전한 곳(아군 중심에서 보급소 쪽 3칸)으로 나가 기다리고, 모자라면 보급소로
     if(idle(u)&&!u._srv&&!(u.lj&&u.lj.k==='serve')){if(u._idleT==null)u._idleT=t;else if(t-u._idleT>POL.truckIdle){u._idleT=null;
       if((u.cargo??CARGO)<40){if(!atDepot(u))supHome(u);}else{const P=polStage(u,3);if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)>2.5){u.lj={k:'stage'};u.path=pathPts(u,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}}}}else u._idleT=null;};
-  const _ss=supSend;supSend=function(u,e){if(isAI(u.nat)&&hotAt(u.nat,e.x,e.z,POL.truckHot)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}return _ss(u,e);};}
+  const _ss=supSend;supSend=function(u,e){if(aiRun(u.nat)&&hotAt(u.nat,e.x,e.z,POL.truckHot)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}return _ss(u,e);};}
 if(typeof aiLogi==='function'){const _al=aiLogi;aiLogi=function(n){_al(n);
   for(const u of G.units){if(u.nat!==n||!amMax(u)||u.rearm||amOf(u)>=1||inZone(n,u.r,u.c)||u.brk||UT[u.type].fly)continue;
     if(!hotAt(n,u.x,u.z,3.5))continue;u.rearm=1;u.tgt=null;u.tgtTile=null;if(u.pl&&typeof msnLeave==='function'&&!u.msn)msnLeave(u);const d=depotOf(n);u.path=pathPts(u,d.x,d.z);}};}
@@ -5526,7 +5528,7 @@ function polFloors(){for(const u of G.units){if(UT[u.type].cls!=='inf'||UT[u.typ
   if(out&&u.flT==null){u.flT=0;u._polFl=1;}else if(!out&&u._polFl){u.flT=null;u._polFl=0;}}}
 /* ---------- 아군 근처 포격 금지(AI) ---------- */
 {const _s=support;support=function(n,kind,r,c){const R=POL.ffR[kind];
-  if(R&&isAI(n)&&G.units.some(o=>o.nat===n&&!UT[o.type].fly&&Math.hypot(o.x-(c+.5),o.z-(r+.5))<R))return false;
+  if(R&&aiRun(n)&&G.units.some(o=>o.nat===n&&!UT[o.type].fly&&Math.hypot(o.x-(c+.5),o.z-(r+.5))<R))return false;
   const p=G._supN;G._supN={n,kind};try{return _s(n,kind,r,c);}finally{G._supN=p;}};}
 /* ---------- 공격헬기 ---------- */
 if(SUP.gunship){SUP.gunship.cost=12;}
@@ -5574,11 +5576,11 @@ function polFront(n){let x=0,z=0,k=0;for(const u of G.units){if(u.nat!==n)contin
 function polStage(u,back){const n=u.nat;const d=depotOf(n);const f=polFront(n);if(!f)return null;const dx=d.x-f[0],dz=d.z-f[1],L=Math.hypot(dx,dz)||1;
   for(const k of [back,back+1.5,back+3]){const x=f[0]+dx/L*Math.min(k,L),z=f[1]+dz/L*Math.min(k,L);if(!hotAt(n,x,z,4.5)){const tl=tileAt(x,z);if(tl&&mcost(u.type,tl)<Infinity)return [x,z];}}return null;}
 // 구난차: 고칠 차가 없으면 전선 뒤 4칸에서 기다린다(보급소에 서 있으면 멀리서 고장 난 차까지 너무 오래 걸린다)
-if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!isAI(u.nat)||!G.units.includes(u))return;
+if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u,dt,t);if(!aiRun(u.nat)||!G.units.includes(u))return;
   if(u.tow!=null||u.lj||!idle(u)||u._fixing){u._idleT=null;return;}if(u._idleT==null){u._idleT=t;return;}if(t-u._idleT<POL.truckIdle)return;u._idleT=null;
   const P=polStage(u,4);if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)>2.5){u.path=pathPts(u,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}};}
 // 구급차: 25초 넘게 할 일이 없으면 전선 4.5칸 뒤로 나가 기다린다(기다리는 구급차는 가까운 응급 후송 지점이 된다)
-if(typeof ambTick==='function'){const _ab=ambTick;ambTick=function(a,dt,t){_ab(a,dt,t);if(!isAI(a.nat)||!G.units.includes(a))return;
+if(typeof ambTick==='function'){const _ab=ambTick;ambTick=function(a,dt,t){_ab(a,dt,t);if(!aiRun(a.nat)||!G.units.includes(a))return;
   if(a.mj||(a.load&&a.load.length)||(a.path&&a.path.length)||a.towBy!=null||hotAt(a.nat,a.x,a.z,4)){a._idleT=null;return;}
   if(a._idleT==null){a._idleT=t;return;}if(t-a._idleT<POL.truckIdle)return;a._idleT=null;
   const P=polStage(a,4.5);if(P&&Math.hypot(P[0]-a.x,P[1]-a.z)>2.5){a.path=pathPts(a,P[0],P[1]);if(typeof tacN==='function')tacN('stage');}};}
@@ -5601,6 +5603,94 @@ function polStuck(){const t=G.time||0;for(const u of G.units){const ty=UT[u.type
   if(t-u._psT<8)continue;u._psT=null;const id=u.lj&&u.lj.id!=null?u.lj.id:u.mj&&u.mj.id!=null?u.mj.id:null;
   if(id!=null){(u.nog=u.nog||{})[id]=t+40;if(u.type==='amb'){G.ambNog=G.ambNog||{};(G.ambNog[u.nat]=G.ambNog[u.nat]||{})[id]=t+40;}}u.path=[];u.dest=null;if(u.type!=='amb'||!(u.load&&u.load.length))u.lj=null;if(u.mj&&u.mj.k!=='flee')u.mj=null;u._auT=t+3;u._idleT=null;if(typeof tacN==='function')tacN('logiStuck');}}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;const t=G.time||0;if((G._pstT||0)>t)return;G._pstT=t+1;try{polStuck();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+
+/* ---- 06f-auto.js ---- */
+/* ===================== AUTO: 부관에게 맡기기 (쉬운 지휘) =====================
+   "어렵다, 명령만 내리면 AI가 알아서 했으면" 하는 의견을 받아, 플레이어 세력도 AI 두뇌(aiThink: 소대 전술·화력 지원·
+   증원·보급·후송·건물 돌입…)가 움직이게 한다. 플레이어는 큰 방향만 정한다.
+   - G.nats[n].auto = 부관이 지휘 중. 컨트롤은 그대로 사람(ctrl 'human')이라 화면·조작은 바뀌지 않는다.
+   - 주공 목표 N2.intent = {k:'atk'|'def', x,z, r,c}: 공격이면 모든 소대·차량이 그쪽으로, 방어면 그 둘레를 지킨다.
+     없으면 부관이 알아서 가까운 거점부터 잡는다.
+   - 플레이어가 부대에 직접 명령(이동·공격·정지 등)을 주면 그 부대는 '직접 지휘'(u.man)가 되어 부관이 손대지 않는다.
+     명령을 다 하고 45초 동안 새 명령이 없으면(사수 명령이 아니면) 다시 부관에게 돌아간다.
+   - 자동 증원 N2.autoBuy(기본 켬): 끄면 부관이 지휘점수로 부대를 사지 않는다(화력 지원은 계속 부른다).
+   - 부관이 부르는 화력 지원은 AI처럼 구호소·민간인 둘레를 피한다(G._adj).
+   이 파일은 06z-radio-ai보다 먼저 읽혀야 한다: 부관의 명령도 무전을 타고 늦게 닿는다. */
+const AUTO={hold:45,near:4};
+const AUTO_HIDE={auto:1};
+const autoOn=n=>!!(G&&G.nats&&G.nats[n]&&G.nats[n].auto&&!isAI(n));
+function autoSet(n,on){const N2=G.nats[n];if(!N2)return;N2.auto=!!on;if(N2.autoBuy==null)N2.autoBuy=true;
+  if(!on){// 부관이 짠 소대는 풀고, 부대는 그 자리에 선다
+    const P=tacPl();for(let i=P.length-1;i>=0;i--){const p=P[i];if(p.nat!==n||p.human)continue;for(const id of p.mem){const u=G.units.find(o=>o.id===id);if(u){u.pl=null;u.tk=null;}}P.splice(i,1);}
+    for(const u of G.units)if(u.nat===n)u.man=null;}
+  else{N2.aiT=0;}}
+/* 주공 목표: 거점 1.5칸 안을 누르면 그 거점에 맞춘다 */
+function autoIntent(n,k,x,z){const N2=G.nats[n];if(!N2)return null;if(!k){N2.intent=null;return null;}
+  let bx=x,bz=z,obj=null;for(const o of G.objs){const d=Math.hypot(o.c+.5-x,o.r+.5-z);if(d<1.5&&(!obj||d<obj.d)){obj={o,d};}}
+  if(obj){bx=obj.o.c+.5;bz=obj.o.r+.5;}bx=Math.max(.5,Math.min(N-.5,bx));bz=Math.max(.5,Math.min(N-.5,bz));
+  N2.intent={k:k==='def'?'def':'atk',x:bx,z:bz,r:Math.floor(bz),c:Math.floor(bx),t:G.time||0,obj:obj?obj.o.name:null};N2.aiT=0;return N2.intent;}
+/* 직접 지휘 중인가: 움직이는 중·사수 중이면 계속, 아니면 마지막 명령 뒤 45초 */
+function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||u.path&&u.path.length||u.tgt!=null||u.cqb)return true;
+  if(t-u.man<AUTO.hold)return true;u.man=null;return false;}
+/* ---------- 엔진에 끼우기 ---------- */
+// 플레이어 명령을 받은 부대는 직접 지휘로
+{const _rs=radioSend;radioSend=function(n,us,k,a){if(k!=='mis'&&k!=='ai'&&autoOn(n))for(const u of us||[])if(u&&u.nat===n)u.man=G.time||0;return _rs.apply(this,arguments);};}
+// 부관 세력: 직접 지휘 부대를 숨기고 생각한다. 자동 증원이 꺼져 있으면 사지 않는다
+{const _ai=aiThink;aiThink=function(n){if(!autoOn(n))return _ai(n);const hid=[];
+  for(const u of G.units)if(u.nat===n&&!u.job&&autoManual(u)){u.job=AUTO_HIDE;hid.push(u);}
+  const prev=G._adj;G._adj=n;
+  try{return _ai(n);}finally{G._adj=prev;for(const u of hid)if(u.job===AUTO_HIDE)u.job=null;}};}
+// 임무 지휘(06d)의 소대 판단은 부관 세력이면 aiThink 안에서 이미 한다(두 번 하면 직접 지휘 부대까지 소대로 끌려간다)
+{const _m=msnThink;msnThink=function(n){if(!autoOn(n))return _m(n);for(const p of tacPl())if(p.nat===n&&p.human)msnCas(p);for(const u of G.units)if(u.nat===n&&u.msn)msnFollow(u);};}
+{const _b=buy;buy=function(n){if(G._adj===n&&G.nats[n]&&G.nats[n].autoBuy===false)return null;return _b.apply(this,arguments);};}
+// 주공 목표: 소대가 아닌 부대(차량·곡사·저격·드론)는 aiGoal로, 바로 앞 적과 싸우는 중이면 그 적
+{const _g=aiGoal;aiGoal=function(n,u,vis){const g=_g(n,u,vis);const I=autoOn(n)&&G.nats[n].intent;if(!I)return g;
+  if(vis&&vis.some(e=>e.r===g[0]&&e.c===g[1])&&dist(u.r,u.c,g[0],g[1])<AUTO.near)return g;
+  if(I.k==='def'&&dist(u.r,u.c,I.r,I.c)<3)return g&&dist(g[0],g[1],I.r,I.c)<4?g:[I.r,I.c];
+  return [I.r,I.c];};}
+// 주공 목표: 소대는 목표를 그쪽으로(수비대로 남긴 소대는 그대로)
+{const _tp=tacPickObj;tacPickObj=function(p,K){const N2=G.nats[p.nat];const I=autoOn(p.nat)&&!p.human?N2.intent:null;
+  if(p.mode==='defend'&&!p._idef)return _tp(p,K);
+  if(!I){if(p._idef){p._idef=0;p.mode='attack';p.obj=null;p.pt=null;}return _tp(p,K);}
+  if(I.k==='def'){p.mode='defend';p._idef=1;}else if(p._idef){p._idef=0;p.mode='attack';}
+  const t=G.time||0;if(!p.obj||p.obj[0]!==I.r||p.obj[1]!==I.c||!p.pt||p.pt[0]!==I.x||p.pt[1]!==I.z){p.obj=[I.r,I.c];p.pt=[I.x,I.z];p.objT=t;}};}
+// 새 판: 설정 화면의 '지휘 방식'을 읽는다(자유 전투만). cfg.auto로 직접 줄 수도 있다
+{const _n=newGame;newGame=function(cfg){const r=_n(cfg);let on=cfg&&cfg.auto;
+  if(on==null&&cfg&&cfg.slots&&!cfg.force&&typeof document!=='undefined'){const el=document.getElementById('opt-cmd');on=el?el.value==='auto':false;}
+  for(const n of G.order){const N2=G.nats[n];N2.autoBuy=true;N2.intent=null;N2.auto=false;if(on&&N2.ctrl==='human')autoSet(n,true);}
+  return r;};}
+
+/* ---- 06g-logi.js ---- */
+/* ===================== LOGI: 보급 트럭을 덜 잃게 =====================
+   AI 관전 24판(main b56393a): 보급 트럭이 판마다 10대 나와 6.2대(62%)가 부서졌다. 12판을 더 들여다보니
+   38대 중 32대가 탄약을 나르러 가는 길에, 25대는 적이 4칸 안에 있을 때 죽었다(공격헬기·대전차·박격포).
+   예전 위험 판단(hotAt)은 '지금 보이는 지상 적'만 봐서, 안 보이지만 기억하는 적과 헬기는 몰랐다.
+   - 위험: 보이는 지상 적(3.2칸) + 세력이 8초 안에 본 적(기억, 3.2칸) + 적 공격헬기·FPV(4.5칸).
+   - 트럭은 받을 부대 바로 곁이 아니라 그 부대에서 보급소 쪽으로 1.1칸 뒤에 선다(나눠 주는 거리 1.6칸 안).
+   - 가는 길이나 서 있는 자리가 위험하면 보급소로 물러나고, 그 부대는 30초 동안 건너뛴다(기존 규칙과 같음). */
+const LOGI={r:3.2,air:4.5,mem:8,back:1.1};
+const lgAI=n=>typeof aiRun==='function'?aiRun(n):isAI(n);   // 부관(06f-auto)이 있으면 부관 세력도
+function logiDanger(n,x,z){const t=G.time||0;
+  if(hotAt(n,x,z,LOGI.r))return true;
+  if(typeof memOf==='function'){const M=memOf(n);for(const id in M){const p=M[id];if(t-p.t>LOGI.mem)continue;if(Math.hypot(p.x-x,p.z-z)<LOGI.r)return true;}}
+  for(const e of G.units){if(e.nat===n||!(e.type==='gunship'||e.type==='fpv'))continue;if(G.fog&&!seen(e,n))continue;if(Math.hypot(e.x-x,e.z-z)<LOGI.air)return true;}
+  return false;}
+/* 받을 부대 뒤 (보급소 쪽) 만남 지점 */
+function logiMeet(u,e){const d=depotOf(u.nat);const dx=d.x-e.x,dz=d.z-e.z,L=Math.hypot(dx,dz)||1;const k=Math.min(LOGI.back,L);
+  const x=e.x+dx/L*k,z=e.z+dz/L*k;return walkable(u,x,z)?[x,z]:[e.x,e.z];}
+if(typeof supSend==='function'){const _ss=supSend;supSend=function(u,e){if(!lgAI(u.nat))return _ss(u,e);
+  if(logiDanger(u.nat,e.x,e.z)){(u.nog=u.nog||{})[e.id]=(G.time||0)+20;u._auT=0;return;}
+  const r=_ss(u,e);if(u.lj&&u.lj.k==='serve'){const m=logiMeet(u,e);const P=pathPts(u,m[0],m[1]);if(P.length)u.path=P;}return r;};}
+if(typeof supTick==='function'){const _st=supTick;supTick=function(u,dt){
+  // 기존 판단은 받을 부대 바로 곁까지 다시 길을 찾는다: 만남 지점까지만 가게 고친다
+  const pre=u.lj&&u.lj.k==='serve'?u.lj.id:null;const pp=u.path;
+  _st(u,dt);if(!G.units.includes(u)||!lgAI(u.nat))return;const t=G.time||0;
+  if(pre!=null&&u.lj&&u.lj.k==='serve'&&u.lj.id===pre&&u.path!==pp&&u.path&&u.path.length){const e=uById(pre);if(e){const m=logiMeet(u,e);const P=pathPts(u,m[0],m[1]);if(P.length)u.path=P;}}
+  if(atDepot(u)||(u.lj&&u.lj.k==='home'&&u.path&&u.path.length))return;
+  if((u._lgT||0)>t)return;u._lgT=t+.5;
+  let bad=logiDanger(u.nat,u.x,u.z);
+  if(!bad&&u.lj&&u.lj.k==='serve'){const e=uById(u.lj.id);if(e&&logiDanger(u.nat,e.x,e.z))bad=true;}
+  if(bad){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');}};}
 
 /* ---- 06z-radio-ai.js ---- */
 /* ===================== AI 명령도 무전으로 =====================
@@ -8823,7 +8913,7 @@ void main(){vec3 c=texture2D(tCol,vUv).rgb;float d=texture2D(tDep,vUv).x;
   if(grade>0.){float l=dot(c,vec3(.299,.587,.114));
     vec3 g=mix(vec3(l),c,mix(.6,.8,night));                              // 채도 빼기
     g*=mix(vec3(.92,.98,1.02),vec3(.99,1.01,.91),smoothstep(.15,.75,l));   // 그늘은 청회색, 빛은 바랜 올리브
-    g=g*.92+.035;g=mix(g,g*g*(3.-2.*g),.25);                            // 검은색을 살짝 띄우고 대비는 부드럽게
+    g=g*mix(1.04,.92,night)+mix(.05,.035,night);g=mix(g,g*g*(3.-2.*g),.25);                            // 검은색을 살짝 띄우고 대비는 부드럽게
     float L=28.;g=floor(g*L+bayer(gl_FragCoord.xy)+.5)/L;               // 4×4 디더링, 색 단계 줄이기
     vec2 v=vUv-.5;g*=1.-dot(v,v)*.35;c=g;}
   gl_FragColor=vec4(clamp(c,0.,1.),1.);}`});
@@ -8937,6 +9027,45 @@ function perfHud(){if(typeof document==='undefined'||!/[?&]fps\b/.test(location.
     if(now-H.t0>=1000){const k=H.n||1;el.textContent=`${(H.n*1000/(now-H.t0)).toFixed(0)} fps  ${Math.round(H.calls/k)} draws  ${Math.round(H.tris/k/1000)}k tris\nsim ${(H.sim/Math.max(1,H.ticks)).toFixed(1)} ms/tick  ${G?G.units.length:0} units`;H.n=H.calls=H.tris=H.sim=H.ticks=0;H.t0=now;}};
   const tk=rtTick;rtTick=function(dt){const t=performance.now();const r=tk.apply(this,arguments);H.sim+=performance.now()-t;H.ticks++;return r;};}
 if(typeof startView==='function'){const f=startView;startView=async function(){const r=await f.apply(this,arguments);try{perfHud();}catch(e){}return r;};}
+
+/* ---- 07z-read.js ---- */
+/* ===================== READ: 전장 알아보기 쉽게 =====================
+   병사 모형이 작고 화면이 어두워서 어디에 누가 있는지 알기 어렵다는 의견을 받아:
+   - 부대 발밑에 세력 색 고리(보병 작은 고리, 차량 큰 고리). 땅 위에 깔려 건물·차에 가려지면 같이 가려진다.
+   - 부대 이름표 앞에 병종 글자(소총·기관총·전차…)를 세력 색 칩으로 붙인다.
+   - 멀리 볼 때(예전엔 이름표가 모두 사라짐)에도 병종 칩만은 남긴다. 그래서 줌을 빼고 전체 흐름을 볼 수 있다.
+   - 적 부대 칩은 테두리를 굵게 해서 아군과 바로 갈린다. */
+const READ={ty:{rifle:'소총',mg:'기관총',at:'대전차',atgm:'미사일',sniper:'저격',eng:'공병',mortar:'박격포',ifv:'장갑차',tank:'전차',hmv:'험비',spg:'자주포',drone:'드론',
+  gunship:'공격헬기',sup:'보급',rec:'구난',amb:'구급',aa:'대공',zu:'대공포',ew:'전자전',fpv:'FPV',dteam:'드론팀',mlrs:'다연장',vbied:'차량',civ:'민간'},
+  far:30};
+function readTy(u){const t=UT[u.type]||{};return READ.ty[u.type]||(t.n||u.type).replace(/(분대|팀)$/,'').slice(0,3);}
+/* 고리: 보병은 반지름 .19, 차량 .27 */
+function readRing(o,u){const T=V3.T;const t=UT[u.type];if(o.userData.tring)return;const veh=t.cls==='veh'||t.fly;const r=veh?.27:.19;
+  const key='rg'+u.nat+(veh?'v':'i');let geo=V3.matc.get(key+'g');if(!geo){geo=new T.RingGeometry(r-.034,r,28);V3.matc.set(key+'g',geo);}
+  let mat=V3.matc.get(key);if(!mat){mat=new T.MeshBasicMaterial({color:mapCol(u.nat),transparent:true,opacity:.95,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});V3.matc.set(key,mat);}
+  const m=new T.Mesh(geo,mat);m.rotation.x=-Math.PI/2;m.renderOrder=2;o.add(m);o.userData.tring=m;}
+if(typeof v3SyncUnits==='function'){const _su=v3SyncUnits;v3SyncUnits=function(vs,vn){const r=_su.apply(this,arguments);if(!V3.T)return r;
+  for(const o of V3.uo.values()){const u=o.userData.u;if(!u)continue;try{readRing(o,u);}catch(e){}const m=o.userData.tring;if(m&&o.userData.ring)m.position.y=o.userData.ring.position.y+.004;}
+  return r;};}
+/* 이름표 앞 병종 칩 */
+if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){const h=_ut(u);const foe=G&&u.nat!==G.viewer;return `<span class="ty${foe?' foe':''}">${readTy(u)}</span>${h}`;};}
+/* 이름표 자리: 멀리 볼 때도 부대 이름표는 남기고 병종 칩만 보인다 */
+v3PlaceLabels=function(){const v=V3.tmpV||(V3.tmpV=new V3.T.Vector3());const w=V3.cv.clientWidth,h=V3.cv.clientHeight;const far=V3.cs.d>READ.far,off=V3.cine||V3.press;
+  const lab=$('#v3d-lab');if(lab&&lab._far!==far){lab._far=far;lab.classList.toggle('far',far);}
+  for(const o of V3.labels.values()){let p=o.p;if(o.uid!=null){const uo=V3.uo.get(o.uid);if(!uo||off){o.el.style.display='none';continue;}p=[uo.position.x,uo.position.y+(uo.userData.air?.25:.45),uo.position.z];}
+    v.set(p[0],p[1]+(typeof v3TY==='function'?v3TY(p[0],p[2]):0),p[2]).project(V3.cam);if(v.z>1||v.x<-1.1||v.x>1.1||v.y<-1.1||v.y>1.1){o.el.style.display='none';continue;}o.el.style.display='';
+    o.el.style.transform=`translate(${((v.x+1)/2*w).toFixed(1)}px,${((1-v.y)/2*h).toFixed(1)}px) translate(-50%,-50%)`;}};
+if(typeof document!=='undefined'&&!document.getElementById('read-css')){const st=document.createElement('style');st.id='read-css';
+  st.textContent=`.v3u .ty{display:inline-block;font:700 9px/1 var(--font-d);letter-spacing:-.02em;color:#0b0f14;background:var(--c);padding:2px 3px 2px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.7);white-space:nowrap}
+.v3u .ty.foe{box-shadow:0 0 0 1.5px #0b0f14,0 0 0 2.5px var(--c)}
+#v3d-lab.far .v3u>:not(.ty){display:none}
+#v3d-lab.far .v3u .ty{font-size:8px;padding:1px 2px}
+#v3d-lab.spec-clean .v3u>.ty{display:inline-block}`;
+  document.head.appendChild(st);}
+/* 처음 화면: 우리 부대가 화면 가운데쯤 오게(예전엔 집결지가 화면 아래 끝에 걸렸다) */
+if(typeof v3HomeCam==='function'){const _hc=v3HomeCam;v3HomeCam=function(now){const r=_hc.apply(this,arguments);if(!G||!V3.cs||G.spec)return r;
+  const us=G.units.filter(u=>u.nat===G.viewer&&!UT[u.type].fly);if(!us.length)return r;const s=V3.cs;const m=N/2;
+  const ux=us.reduce((a,u)=>a+u.x,0)/us.length,uz=us.reduce((a,u)=>a+u.z,0)/us.length;s.gx=ux+(m-ux)*.12;s.gz=uz+(m-uz)*.12;if(now){s.x=s.gx;s.z=s.gz;}return r;};}
 
 /* ---- 07z-sound.js ---- */
 /* ===================== 소리: 게임 사건 연결과 소리 설정 창 =====================
@@ -9338,6 +9467,155 @@ if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e
   if(a==='aut'){UI.msnAut=(UI.msnAut||'full')==='full'?'semi':'full';render();return;}
   if(a==='off'){radioSend(n,grp,'mis',['off']);UI.phase='select';render();return;}
   if(MSN[a]){UI.phase='msn';UI.msnK=a;render();}});
+
+/* ---- 08n-minimap.js ---- */
+/* ===================== MINIMAP: 작은 지도 =====================
+   왼쪽 위에 도시 전체를 작게 그린다. 화면 위쪽 = 카메라가 보는 쪽이 되도록 지도를 돌린다.
+   - 건물(높을수록 밝게)·길·공원·물·잔해, 거점(차지한 세력 색), 보이는 부대(아군 밝게, 적은 보일 때만),
+     세력이 기억하는 적 자리(속 빈 점), 지금 화면에 보이는 범위(흰 사각형)를 그린다.
+   - 누르거나 끌면 카메라가 그 자리로 간다. 다른 모듈이 mmPick(x,z)를 감싸면 지도 지정(예: 부관 목표)에도 쓴다.
+   - 접기/펴기 버튼, 상태는 localStorage triad-mm. 기자 카메라·작전 메뉴가 열려 있으면 숨긴다.
+   CSS는 여기서 넣는다(body.html·style.css를 건드리지 않아 다른 작업과 덜 부딪친다). */
+const MM={on:true,px:176,base:null,baseT:-99,cv:null,ctx:null,el:null,drag:false,lastT:0,scale:1,yaw:0,cx:0,cz:0};
+const MMCOL={road:'#2c2f31',plaza:'#4a4945',park:'#3d4a32',rubble:'#5d5448',water:'#2e5566',bldg:'#77736b',rail:'#3a3632',bridge:'#4f4c47'};
+function mmLoad(){try{const v=localStorage.getItem('triad-mm');if(v!=null)MM.on=v!=='0';}catch(e){}}
+function mmSave(){try{localStorage.setItem('triad-mm',MM.on?'1':'0');}catch(e){}}
+/* 바탕: 칸마다 한 점(지도 칸 수 × 3픽셀) */
+function mmBase(){const P=3,W=N*P;let c=MM.base;if(!c||c.width!==W){c=document.createElement('canvas');c.width=c.height=W;MM.base=c;}
+  const g=c.getContext('2d');g.fillStyle='#1d2124';g.fillRect(0,0,W,W);
+  for(let r=0;r<N;r++)for(let q=0;q<N;q++){const x=G.map[r][q];let col=MMCOL[x.t]||'#33373a';
+    if(x.t==='bldg'){const f=Math.min(8,x.f||1);const l=92+f*10;col=`rgb(${l},${l-3},${l-10})`;}
+    if(x.br)col=MMCOL.bridge;g.fillStyle=col;g.fillRect(q*P,r*P,P,P);
+    if(x.t==='bldg'){g.fillStyle='rgba(0,0,0,.35)';g.fillRect(q*P,r*P+P-1,P,1);}}
+  MM.baseT=G.time||0;MM.baseV=G.fortV;}
+/* 지도 점 (x,z) → 미니맵 픽셀 */
+function mmTo(x,z){const dx=x-MM.cx,dz=z-MM.cz,c=Math.cos(MM.yaw),s=Math.sin(MM.yaw);return [MM.px/2+(dx*c-dz*s)*MM.scale,MM.px/2+(dx*s+dz*c)*MM.scale];}
+function mmFrom(px,py){const dx=(px-MM.px/2)/MM.scale,dz=(py-MM.px/2)/MM.scale,c=Math.cos(-MM.yaw),s=Math.sin(-MM.yaw);return [MM.cx+dx*c-dz*s,MM.cz+dx*s+dz*c];}
+function mmDraw(){if(!MM.ctx||!G||!G.map)return;const el=MM.el;const hide=!MM.on||G.boot&&!G.spec||(V3.press)||$('#app').classList.contains('sheet-open');
+  el.classList.toggle('off',!MM.on);if(hide&&MM.on){el.style.visibility='hidden';return;}el.style.visibility='';if(!MM.on)return;
+  const t=G.time||0;if(!MM.base||MM.base.width!==N*3||t-MM.baseT>2||t<MM.baseT||MM.baseV!==G.fortV)mmBase();
+  const g=MM.ctx,S=MM.px,dpr=MM.dpr||1;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,S,S);
+  const yaw=V3.cs?V3.cs.yaw:0;MM.yaw=yaw;MM.cx=N/2;MM.cz=N/2;MM.scale=S/(N*(Math.abs(Math.cos(yaw))+Math.abs(Math.sin(yaw))))*.98;
+  g.save();g.translate(S/2,S/2);g.rotate(yaw);g.scale(MM.scale/3,MM.scale/3);g.imageSmoothingEnabled=false;g.drawImage(MM.base,-N*3/2,-N*3/2);
+  // 전장의 안개: 지금 안 보이는 칸은 어둡게
+  const vn=G.viewer;const fog=G.fog&&!(typeof specOn==='function'&&specOn()&&UI.specVis==='all');
+  if(fog&&typeof visSet==='function'){const vs=visSet(vn);g.fillStyle='rgba(6,9,12,.62)';for(let r=0;r<N;r++)for(let q=0;q<N;q++)if(!vs.has(key(r,q)))g.fillRect(q*3-N*3/2,r*3-N*3/2,3,3);}
+  g.restore();
+  // 거점
+  for(const o of G.objs){const x=G.map[o.r][o.c];const [px,py]=mmTo(o.c+.5,o.r+.5);g.fillStyle=x.owner!=null?mapCol(x.owner):'#c9c4b6';g.strokeStyle='#0b0f14';g.lineWidth=1.5;
+    g.beginPath();g.moveTo(px,py-5);g.lineTo(px+5,py);g.lineTo(px,py+5);g.lineTo(px-5,py);g.closePath();g.fill();g.stroke();}
+  // 기억하는 적(지금은 안 보임): 속 빈 점
+  if(fog&&typeof memOf==='function'){const M=memOf(vn);for(const id in M){const p=M[id];if(t-p.t>20)continue;const e=G.units.find(o=>String(o.id)===id);if(!e||seen(e,vn))continue;
+      const [px,py]=mmTo(p.x,p.z);g.strokeStyle=mapCol(e.nat);g.globalAlpha=Math.max(.25,1-(t-p.t)/20);g.lineWidth=1.2;g.beginPath();g.arc(px,py,2.6,0,6.283);g.stroke();g.globalAlpha=1;}}
+  // 부대: 아군은 크게, 차량은 네모, 항공은 세모
+  const sel=new Set([UI.sel,...(UI.group||[])].filter(Boolean).map(u=>u.id));
+  for(const u of G.units){if(fog&&u.nat!==vn&&!seen(u,vn))continue;const [px,py]=mmTo(u.x??u.c+.5,u.z??u.r+.5);const t0=UT[u.type];const own=u.nat===vn;
+    g.fillStyle=mapCol(u.nat);g.strokeStyle=sel.has(u.id)?'#ffffff':'rgba(0,0,0,.85)';g.lineWidth=sel.has(u.id)?1.6:1;const R=own?2.6:2.3;
+    g.beginPath();if(t0.fly){g.moveTo(px,py-R-1);g.lineTo(px+R+1,py+R);g.lineTo(px-R-1,py+R);g.closePath();}else if(t0.cls==='veh')g.rect(px-R,py-R,R*2,R*2);else g.arc(px,py,R,0,6.283);g.fill();g.stroke();}
+  // 다른 모듈이 덧그림(부관 목표 등)
+  if(typeof mmOverlay==='function')try{mmOverlay(g);}catch(e){}
+  // 화면 범위: 화면 네 귀퉁이가 땅에 닿는 곳
+  if(V3.on&&V3.cv&&typeof v3Ground==='function'){const b=V3.cv.getBoundingClientRect();const C=[[b.left,b.top],[b.right,b.top],[b.right,b.bottom],[b.left,b.bottom]];const P=[];
+    for(const [x,y] of C){let p=v3Ground(x,Math.max(y,b.top+b.height*.04));if(!p)p=v3Ground(x,b.top+b.height*.35);if(p)P.push(mmTo(p.x,p.z));}
+    if(P.length===4){g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=1.3;g.beginPath();P.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.stroke();}}
+  // 북쪽 표시
+  const [nx,ny]=mmTo(N/2,-N*.02);g.fillStyle='#e8ecef';g.font='600 9px '+getComputedStyle(document.body).getPropertyValue('--font-m');g.textAlign='center';g.textBaseline='middle';
+  const nd=Math.hypot(nx-S/2,ny-S/2)||1;g.fillText('N',S/2+(nx-S/2)/nd*(S/2-7),S/2+(ny-S/2)/nd*(S/2-7));}
+/* 미니맵을 누르면: 기본은 카메라 이동. 감싼 쪽이 true를 돌려주면 그걸로 끝 */
+function mmPick(x,z,first){if(!V3.cs)return true;const s=V3.cs;s.gx=Math.max(0,Math.min(N,x));s.gz=Math.max(0,Math.min(N,z));if(UI.follow!=null){UI.follow=null;UI.specAuto=false;}return true;}
+function mmSize(){const sm=window.matchMedia&&window.matchMedia('(max-width:760px)').matches;MM.px=sm?118:176;MM.dpr=Math.min(2,window.devicePixelRatio||1);
+  const cv=MM.cv;if(!cv)return;cv.width=Math.round(MM.px*MM.dpr);cv.height=Math.round(MM.px*MM.dpr);cv.style.width=cv.style.height=MM.px+'px';}
+function mmInit(){if(typeof document==='undefined'||MM.el)return;mmLoad();
+  const st=document.createElement('style');st.id='mm-css';
+  st.textContent=`.mm{position:absolute;left:max(10px,env(safe-area-inset-left,0px));top:calc(56px + env(safe-area-inset-top,0px));z-index:2;display:flex;flex-direction:column;align-items:flex-start;gap:4px;pointer-events:none;transition:right .2s}
+.mm canvas{display:block;border-radius:6px;background:rgba(9,13,18,.86);border:1px solid rgba(255,255,255,.16);box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:auto;touch-action:none;cursor:crosshair}
+.mm .mm-t{pointer-events:auto;height:26px;min-width:26px;padding:0 8px;display:flex;align-items:center;gap:5px;background:rgba(9,13,18,.84);color:#e8ecef;border:1px solid rgba(255,255,255,.14);border-radius:6px;font:600 11px/1 var(--font-m);cursor:pointer}
+.mm .mm-t svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+.mm.off canvas{display:none}
+@media (max-width:760px){.mm{top:calc(104px + env(safe-area-inset-top,0px))}}`;
+  document.head.appendChild(st);
+  const el=document.createElement('div');el.className='mm';el.id='mm';
+  el.innerHTML=`<button class="mm-t" id="mm-t" aria-label="작은 지도 접기/펴기" aria-pressed="true" title="작은 지도 (K)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span>지도</span></button><canvas id="mm-cv" aria-label="작은 지도: 누르면 그 자리로 화면 이동"></canvas>`;
+  $('#app').appendChild(el);MM.el=el;MM.cv=el.querySelector('canvas');MM.ctx=MM.cv.getContext('2d');mmSize();window.addEventListener('resize',mmSize);
+  const tb=el.querySelector('#mm-t');const sync=()=>{tb.setAttribute('aria-pressed',MM.on?'true':'false');};sync();
+  tb.addEventListener('click',()=>{MM.on=!MM.on;mmSave();sync();mmDraw();});
+  window.addEventListener('keydown',e=>{if(e.key!=='k'&&e.key!=='K'||e.target&&/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;MM.on=!MM.on;mmSave();sync();mmDraw();});
+  const at=e=>{const b=MM.cv.getBoundingClientRect();return mmFrom(e.clientX-b.left,e.clientY-b.top);};
+  MM.cv.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();MM.drag=true;try{MM.cv.setPointerCapture(e.pointerId);}catch(_){}const [x,z]=at(e);if(mmPick(x,z,true)===false)MM.drag=false;mmDraw();});
+  MM.cv.addEventListener('pointermove',e=>{if(!MM.drag)return;e.preventDefault();const [x,z]=at(e);mmPick(x,z,false);});
+  const up=()=>{MM.drag=false;};MM.cv.addEventListener('pointerup',up);MM.cv.addEventListener('pointercancel',up);
+  const loop=now=>{requestAnimationFrame(loop);if(now-MM.lastT<180&&!MM.drag)return;MM.lastT=now;try{mmDraw();}catch(e){}};requestAnimationFrame(loop);}
+if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mmInit);else setTimeout(mmInit,0);}
+
+/* ---- 08o-auto.js ---- */
+/* ===================== AUTO UI: 부관 지휘 화면 (06f-auto) =====================
+   - 새 판 설정에 '지휘 방식' 줄: 부관에게 맡기기(기본) / 직접 지휘. 고른 값은 localStorage triad-cmd.
+   - 아무 부대도 고르지 않은 하단 바(지휘소)에 부관 줄: 공격 목표·방어 지점·부관 재량, 자동 증원, 부관 켜고 끄기.
+   - 공격 목표·방어 지점은 3D 지도나 작은 지도(08n-minimap)를 탭해 정한다. 목표는 지도에 '주공' 이름표로 남는다.
+   - 부대를 골라 직접 명령하면 그 부대에 '직접' 표시가 붙고, [부관에게 돌려주기]로 되돌린다.
+   CSS는 여기서 넣는다. */
+if(typeof document!=='undefined'&&!document.getElementById('adj-css')){const st=document.createElement('style');st.id='adj-css';
+  st.textContent=`.adj-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%;padding:2px 0 6px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:6px;font-size:12.5px}
+.adj-row b{color:#ffd27a;font-size:13px}.adj-row .adj-i{color:#c9d1d6}.adj-row .btn{min-height:32px}
+.v3u u.man{border-color:#ffd27a;color:#ffd27a}
+.adj-row .adj-s{display:none}
+@media (max-width:760px){.adj-row{gap:4px}.adj-row .adj-l{display:none}.adj-row .adj-s{display:inline}.adj-row .btn{padding:0 9px;min-height:30px;font-size:12px}.adj-row .adj-i{flex:1 1 100%;font-size:11.5px}}`;
+  document.head.appendChild(st);}
+const ADJ_K={atk:'공격',def:'방어'};
+const adjL=(l,sh)=>`<span class="adj-l">${l}</span><span class="adj-s">${sh}</span>`;
+function adjDesc(I){if(!I)return '부관 재량 (가까운 거점부터)';if(I.obj)return `${ADJ_K[I.k]} · ${I.obj}`;
+  let o=null,bd=7;for(const q of G.objs){const d=Math.hypot(q.c+.5-I.x,q.r+.5-I.z);if(d<bd){bd=d;o=q;}}return `${ADJ_K[I.k]} · ${o?o.name+' 근처':'지정 지점'}`;}
+const adjCan=()=>G&&!G.over&&!G.boot&&!isAI(G.viewer)&&!(typeof specOn==='function'&&specOn())&&!(G.scn==='tut');
+function adjAim(x,z){const n=G.viewer;const k=UI.phase==='aim:def'?'def':'atk';const I=autoIntent(n,k,x,z);UI.phase=null;
+  if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#ffd27a');if(typeof sndRadio==='function')sndRadio('ack');toast(`주공 목표: ${adjDesc(I)}`);L(`부관: 주공 ${adjDesc(I)}`);}render();}
+/* 설정 화면: 지휘 방식 */
+function adjSetupRow(){const sz=document.getElementById('opt-size');if(!sz||document.getElementById('opt-cmd'))return;const row=sz.closest('.slot');if(!row)return;
+  const d=document.createElement('div');d.className='slot';let v='auto';try{v=localStorage.getItem('triad-cmd')||'auto';}catch(e){}
+  d.innerHTML=`<span></span><label for="opt-cmd">지휘 방식</label><select id="opt-cmd"><option value="auto">부관에게 맡기기 (목표만 정하면 AI가 알아서, 쉬움)</option><option value="direct">직접 지휘 (부대마다 명령)</option></select>`;
+  row.parentNode.insertBefore(d,row);const sel=d.querySelector('select');sel.value=v==='direct'?'direct':'auto';sel.addEventListener('change',()=>{try{localStorage.setItem('triad-cmd',sel.value);}catch(e){}});}
+if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',adjSetupRow);else adjSetupRow();}
+/* 하단 바 */
+{const _ra=renderActbar;renderActbar=function(){_ra();const el=$('#actbar');if(!el||!adjCan())return;const n=G.viewer,N2=G.nats[n];
+  if(UI.phase==='aim:atk'||UI.phase==='aim:def'){const k=UI.phase==='aim:def'?'방어 지점':'공격 목표';
+    el.innerHTML=`<b style="color:#ffd27a">${k} 지정</b><span>지도나 왼쪽 위 작은 지도를 탭하세요 · 거점 가까이 누르면 그 거점</span><div class="ab"><button class="btn sm" data-act="adj:cancel" id="ab-adj-cancel">취소</button></div>`;return;}
+  const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;
+  if(s){if(!N2.auto)return;const grp=[s,...(UI.group||[])].filter(u=>u&&G.units.includes(u));const ab=el.querySelector('.ab');
+    if(ab&&grp.some(u=>u.man!=null))ab.insertAdjacentHTML('afterbegin','<button class="btn sm primary" data-act="adj:free" id="ab-adj-free" title="이 부대를 다시 부관이 지휘합니다">부관에게 돌려주기</button>');
+    const sp=el.querySelector(':scope>span');if(sp&&!grp.some(u=>u.man!=null))sp.insertAdjacentText('beforeend',' · 직접 명령하면 이 부대만 직접 지휘');return;}
+  if(UI.pane||UI.phase==='buy'||UI.phase==='sup')return;
+  const div=document.createElement('div');div.className='adj-row';
+  if(N2.auto){const I=N2.intent;
+    div.innerHTML=`<b>부관 지휘 중</b><span class="adj-i">주공: ${adjDesc(I)}</span>`+
+      `<button class="btn sm${I&&I.k==='atk'?' primary':''}" data-act="adj:atk" id="ab-adj-atk" title="모든 부대가 그쪽으로 공격합니다">${adjL('공격 목표','공격')}</button>`+
+      `<button class="btn sm${I&&I.k==='def'?' primary':''}" data-act="adj:def" id="ab-adj-def" title="그 둘레 엄폐에서 지킵니다">${adjL('방어 지점','방어')}</button>`+
+      `<button class="btn sm${I?'':' primary'}" data-act="adj:free-all" id="ab-adj-any" title="부관이 가까운 거점부터 알아서 잡습니다">${adjL('부관 재량','재량')}</button>`+
+      `<button class="btn sm" data-act="adj:buy" id="ab-adj-buy" aria-pressed="${N2.autoBuy!==false}" title="부관이 지휘점수로 부대를 사서 보냅니다">${adjL('자동 증원: ','증원 ')}${N2.autoBuy!==false?'켬':'끔'}</button>`+
+      `<button class="btn sm" data-act="adj:off" id="ab-adj-off" title="모든 부대를 직접 지휘합니다">${adjL('직접 지휘로','직접')}</button>`;}
+  else div.innerHTML=`<span class="adj-i">어렵다면 부관에게 맡기세요: 목표만 정하면 이동·엄폐·지원·증원을 AI가 합니다</span><button class="btn sm primary" data-act="adj:on" id="ab-adj-on">부관에게 맡기기</button>`;
+  el.prepend(div);
+  if(N2.auto){const sp=el.querySelector(':scope>span');if(sp)sp.textContent=sp.textContent.replace('아군을 탭해 지휘','부대를 골라 직접 명령도 가능');}};}
+if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e.target.closest('[data-act^="adj:"]');if(!b||b.disabled||!adjCan())return;
+  const a=b.dataset.act.slice(4),n=G.viewer,N2=G.nats[n];
+  if(a==='atk'||a==='def'){clearSel();UI.pane=null;UI.phase='aim:'+a;render();return;}
+  if(a==='cancel'){UI.phase=null;render();return;}
+  if(a==='free-all'){autoIntent(n,null);toast('부관 재량: 가까운 거점부터 잡습니다');render();return;}
+  if(a==='buy'){N2.autoBuy=N2.autoBuy===false;toast(`자동 증원 ${N2.autoBuy?'켬':'끔'}`);render();return;}
+  if(a==='on'){autoSet(n,true);toast('부관이 지휘합니다. 공격 목표를 정해 주세요');render();return;}
+  if(a==='off'){autoSet(n,false);toast('직접 지휘로 바꿨습니다');render();return;}
+  if(a==='free'){const grp=[UI.sel,...(UI.group||[])].filter(u=>u&&G.units.includes(u));for(const u of grp){u.man=null;u.hold=false;}toast(`${grp.length}개 부대를 부관에게 돌려줌`);clearSel();render();return;}});
+/* 지도 탭: 목표 지정 중이면 목표로 */
+{const _tap=tap;tap=function(k){if(G&&!G.over&&(UI.phase==='aim:atk'||UI.phase==='aim:def')){const pt=(typeof V3!=='undefined'&&V3.pickPt)||[kc(k)+.5,kr(k)+.5];adjAim(pt[0],pt[1]);return;}return _tap(k);};}
+if(typeof mmPick==='function'){const _mp=mmPick;mmPick=function(x,z,first){if(G&&(UI.phase==='aim:atk'||UI.phase==='aim:def')){if(first)adjAim(x,z);return false;}return _mp.apply(this,arguments);};}
+/* 작은 지도에 주공 목표 */
+{const _mo=typeof mmOverlay==='function'?mmOverlay:null;mmOverlay=function(g){if(_mo)_mo(g);if(!G||!autoOn(G.viewer))return;const I=G.nats[G.viewer].intent;if(!I||typeof mmTo!=='function')return;
+  const [x,y]=mmTo(I.x,I.z);g.strokeStyle='#ffd27a';g.lineWidth=1.8;g.beginPath();g.arc(x,y,6,0,6.283);g.stroke();g.beginPath();g.moveTo(x-9,y);g.lineTo(x-3,y);g.moveTo(x+3,y);g.lineTo(x+9,y);g.moveTo(x,y-9);g.lineTo(x,y-3);g.moveTo(x,y+3);g.lineTo(x,y+9);g.stroke();
+  if(I.k==='def'){g.fillStyle='rgba(255,210,122,.25)';g.beginPath();g.arc(x,y,6,0,6.283);g.fill();}};}
+/* 3D 지도에 주공 이름표, 직접 지휘 부대 표시 */
+if(typeof occLabels==='function'){const _ol=occLabels;occLabels=function(want,vs,vn){_ol.apply(this,arguments);if(!G||!autoOn(vn))return;const I=G.nats[vn].intent;if(!I)return;
+  const y=(typeof v3TopAt==='function'?v3TopAt(I.x,I.z):0)+.7;want.set('adj-int',{html:`<span>주공 · ${ADJ_K[I.k]}</span>`,cls:'v3c',col:'#ffd27a',p:[I.x,y,I.z]});};}
+if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){const h=_ut(u);return G&&u.nat===G.viewer&&u.man!=null&&autoOn(u.nat)?h+'<u class="man">직접</u>':h;};}
+/* 판을 시작하면 한 번 안내 */
+{const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(G&&!G._adjHint&&adjCan()&&G.nats[G.viewer].auto&&$('#setup').hidden){G._adjHint=1;toast('부관이 부대를 지휘합니다 · 아래 [공격 목표]로 주공 방향을 정하세요');}}catch(e){}return r;};}
 
 /* ---- 08v-spec.js ---- */
 /* ===================== 관전 모드: 모든 세력을 AI가 지휘한다 =====================
