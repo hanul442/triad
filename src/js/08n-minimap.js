@@ -53,7 +53,7 @@ function mmDraw(){if(!MM.ctx||!G||!G.map)return;const el=MM.el;const hide=!MM.on
   const nd=Math.hypot(nx-S/2,ny-S/2)||1;g.fillText('N',S/2+(nx-S/2)/nd*(S/2-7),S/2+(ny-S/2)/nd*(S/2-7));}
 /* 미니맵을 누르면: 기본은 카메라 이동. 감싼 쪽이 true를 돌려주면 그걸로 끝 */
 function mmPick(x,z,first){if(!V3.cs)return true;const s=V3.cs;s.gx=Math.max(0,Math.min(N,x));s.gz=Math.max(0,Math.min(N,z));if(UI.follow!=null){UI.follow=null;UI.specAuto=false;}return true;}
-function mmSize(){const sm=window.matchMedia&&window.matchMedia('(max-width:760px)').matches;MM.px=sm?118:176;MM.dpr=Math.min(2,window.devicePixelRatio||1);
+function mmSize(){const mq=q=>!!(window.matchMedia&&window.matchMedia(q).matches);MM.px=mq('(max-height:500px)')?112:mq('(max-width:760px)')?136:176;MM.dpr=Math.min(2,window.devicePixelRatio||1);
   const cv=MM.cv;if(!cv)return;cv.width=Math.round(MM.px*MM.dpr);cv.height=Math.round(MM.px*MM.dpr);cv.style.width=cv.style.height=MM.px+'px';}
 function mmInit(){if(typeof document==='undefined'||MM.el)return;mmLoad();
   const st=document.createElement('style');st.id='mm-css';

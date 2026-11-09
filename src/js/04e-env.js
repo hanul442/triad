@@ -111,11 +111,11 @@ function aiFlare(n){const N2=G.nats[n];if(nightK()<.6||!canSupport(n,'flare',0,0
   const mine=G.units.filter(u=>u.nat===n&&!UT[u.type].fly);
   const E=G.units.filter(e=>e.nat!==n&&!UT[e.type].fly);
   let best=null,bs=0;
-  for(const u of mine){const s=(u.supp>.2?2:0)+(G.objs.some(o=>Math.hypot(o.c+.5-u.x,o.r+.5-u.z)<3&&G.map[o.r][o.c].owner!==n)?1:0)+(E.some(e=>Math.hypot(e.x-u.x,e.z-u.z)<6&&!seen(e,n))?1:0);if(!s)continue;
+  for(const u of mine){const s=(u.supp>.2?2:0)+(G.objs.some(o=>Math.hypot(o.c+.5-u.x,o.r+.5-u.z)<3&&G.map[o.r][o.c].owner!==n)?1:0)+(E.some(e=>Math.hypot(e.x-u.x,e.z-u.z)<15&&!seen(e,n))?1:0);if(!s)continue;
     if(litU(u))continue;
-    // 가장 가까운 적(보이든 안 보이든 대략 그쪽)으로 2.5칸 앞
+    // 가장 가까운 적(보이든 안 보이든 대략 그쪽) 2.5칸 앞
     let tx=N/2,tz=N/2,bd=99;for(const e of E){const d=Math.hypot(e.x-u.x,e.z-u.z);if(d<bd){bd=d;tx=e.x;tz=e.z;}}
-    if(bd>8)continue;const sc=s+Math.random();if(sc>bs){bs=sc;const k=Math.min(2.5,bd*.6)/(bd||1);best=[u.x+(tx-u.x)*k,u.z+(tz-u.z)*k];}}
+    if(bd>16)continue;const sc=s+Math.random();if(sc>bs){bs=sc;const k=Math.max(bd*.6,bd-2.5)/(bd||1);/* 적 바로 앞을 비춘다 */best=[u.x+(tx-u.x)*k,u.z+(tz-u.z)*k];}}
   if(!best)return false;const r=Math.min(N-1,Math.max(0,Math.floor(best[1]))),c=Math.min(N-1,Math.max(0,Math.floor(best[0])));
   return support(n,'flare',r,c);}
 
