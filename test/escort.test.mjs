@@ -36,7 +36,7 @@ test('호위: 적이 쏠 거리에 들어오면 멈춰 싸우고, 일이 끝나�
   e.x = h.x + 3; e.z = h.z; e.c = Math.floor(e.x); e.r = Math.floor(e.z); run(T, 1);
   assert.ok(h.esc && h.esc.ft > G.time, '싸우는 중'); assert.ok(!(h.path && h.path.length), '멈춤');
   // 적이 사라지고 트럭 일이 끝나면 놓아준다
-  G.units = G.units.filter(u => u !== e); s.lj = null; s.path = []; run(T, 6);
+  G.units = G.units.filter(u => u !== e); a.am = T.__eval('amMax')(a); s.lj = null; s.path = []; run(T, 6);
   assert.ok(!h.esc, '풀림'); assert.equal(s.escBy, null);
 });
 
@@ -49,7 +49,7 @@ test('호위: 직접 지휘에서도 명령 없이 서 있는 부대가 호위�
   F(T, 'supSend')(s, a); run(T, 3);
   assert.ok(h.esc && s.escBy === h.id, '서 있던 험비가 호위'); assert.ok(!busy.esc, '방금 명령받은 험비는 그대로');
   run(T, 3); assert.ok(Math.hypot(h.x - h0[0], h.z - h0[1]) > 1, '함께 감');
-  G.units = G.units.filter(u => u !== e); s.lj = null; s.path = []; run(T, 20);
+  G.units = G.units.filter(u => u !== e); a.am = T.__eval('amMax')(a); s.lj = null; s.path = []; run(T, 20);   // 일이 끝남(다시 보낼 곳 없음)
   assert.ok(!h.esc, '풀림'); assert.ok(Math.hypot(h.x - h0[0], h.z - h0[1]) < .8, `제자리 ${Math.hypot(h.x - h0[0], h.z - h0[1])}`);
 });
 

@@ -6776,7 +6776,11 @@ function escLen(P,x0,z0){let l=0,px=x0,pz=z0;for(const q of P){l+=Math.hypot(q[0
    부대가 몰려 있으면 트럭이 나눠 주는 거리(1.6칸) 바로 밖에서 더 다가가지 못하고 서 버린다(06e polStuck이 일을 내려놓음).
    트럭이 2초 넘게 서 있고 받을 부대가 2.6칸 안에서 멈춰 있으면 그 부대가 트럭 곁(0.9칸)으로 걸어온다. */
 if(typeof supTick==='function'){const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!G.units.includes(u)||!(u.lj&&u.lj.k==='serve'))return;const t=G.time||0;
-  if(u.path&&u.path.length){u._swT=null;return;}if(u._swT==null){u._swT=t;return;}if(t-u._swT<2)return;
+  if(u.path&&u.path.length){u._swT=null;
+    // 길은 있는데 3초 동안 거의 못 갔고 받을 부대가 가까우면(몰린 부대에 막힘) 멈추고 부대가 걸어오게 한다
+    if(u._swP==null||Math.hypot(u.x-u._swP[0],u.z-u._swP[1])>.1){u._swP=[u.x,u.z];u._swP2=t;return;}
+    if(t-u._swP2<3)return;const e0=uById(u.lj.id);if(e0&&Math.hypot(e0.x-u.x,e0.z-u.z)<2.6){u.path=[];u._swP=null;}return;}
+  u._swP=null;if(u._swT==null){u._swT=t;return;}if(t-u._swT<2)return;
   const e=uById(u.lj.id);if(!e||e.path&&e.path.length||e.post||e.cqb||e.climb||e.hold)return;const d=Math.hypot(e.x-u.x,e.z-u.z);
   if(d<SERVE_R*.95||d>2.6)return;const k=.9/d;const x=u.x+(e.x-u.x)*k,z=u.z+(e.z-u.z)*k;
   if(!walkable(e,x,z))return;const P=pathPts(e,x,z);if(P.length){e.path=P;e.dest=[x,z];u._swT=t;if(typeof tacN==='function')tacN('supWalk');}};}
@@ -6801,11 +6805,13 @@ function hideSpot(u,K){let best=null,bs=-1e9;const nb=G.units.filter(o=>o!==u&&o
     let crowd=0;for(const o of nb)if(Math.hypot(o.x-x,o.z-z)<1)crowd++;
     const s=Math.min(dk,12)+cov*1.5-r*.25-crowd*2+(inZone(u.nat,r0,c0)?.5:0);if(s>bs){bs=s;best=[x,z];}}
   return best;}
-function hideTick(u,t){if(!selfRun(u)||u.tow!=null||u.towBy!=null||(u.path&&u.path.length))return;if((u._hdT||0)>t)return;u._hdT=t+.5;
+/* 일을 맡지 않은(대기·돌아옴·전진 대기) 차량만: 일하는 중이면 06e·06g·05m의 물러나기 판단이 따로 있다 */
+const hideFree=u=>u.type==='amb'?!u.mj&&!(u.load&&u.load.length):!(u.lj&&(u.lj.k==='serve'||u.lj.k==='fix'));
+function hideTick(u,t){if(!selfRun(u)||u.tow!=null||u.towBy!=null||(u.path&&u.path.length)||!hideFree(u))return;if((u._hdT||0)>t)return;u._hdT=t+.5;
   if(!(logiDanger(u.nat,u.x,u.z)||t-(u._hitT??-99)<3))return;
   if((u._hideT||-99)+HIDE.cd>t)return;u._hideT=t;
   const sp=hideSpot(u,escKnown(u.nat,ESC.mem));if(!sp)return;const P=pathPts(u,sp[0],sp[1]);if(!P.length)return;
-  u.path=P;u._idleT=null;if(u.type==='sup'&&u.lj&&u.lj.k!=='serve')u.lj=null;if(typeof tacN==='function')tacN('hide');}
+  u.path=P;u._idleT=null;if(u.type==='sup'&&u.lj)u.lj=null;if(typeof tacN==='function')tacN('hide');}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units||!ESC.on)return;const t=G.time||0;
   try{for(const u of G.units)if(ESC_SUP[u.type])hideTick(u,t);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 
