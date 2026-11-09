@@ -131,7 +131,7 @@ function v3Ground(cx,cy){const T=V3.T,p=new T.Vector3();return v3Ray(cx,cy).ray.
 /* 손가락(커서) 아래 지점을 고정한 채 확대·축소 */
 function v3ZoomAt(f,cx,cy,now){const s=V3.cs,o=s.gd;const p=cx!=null?v3Ground(cx,cy):null;v3Zoom(f);if(now)s.d=s.gd;if(!p)return;const k=1-s.gd/o;
   s.gx=Math.min(N,Math.max(0,s.gx+(p.x-s.gx)*k));s.gz=Math.min(N,Math.max(0,s.gz+(p.z-s.gz)*k));if(now){s.x=s.gx;s.z=s.gz;}}
-/* 마우스(PC): 왼쪽 클릭 선택·이동, 왼쪽 끌기 범위 선택(Shift: 더하기), 오른쪽 클릭 명령, 오른쪽 끌기·Ctrl/Alt+끌기 회전·기울기, 가운데 끌기 이동, 휠 확대.
+/* 마우스(PC): 왼쪽 클릭 선택·이동, 왼쪽 끌기 화면 이동, Shift+끌기·길게 눌러 끌기·[범위 선택] 범위 선택, 오른쪽 클릭 명령, 오른쪽 끌기·Ctrl/Alt+끌기 회전·기울기, 휠 확대.
    터치 조작: 한 손가락 드래그 이동(관성), 두 손가락 확대·회전·기울기, 짧게 탭 명령, 길게 눌러 끌기 범위 선택, 두 손가락 탭 선택 해제 */
 const LP_MS=420;
 function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,last2=null,lp=null,lpT=0,vel=[0,0],lastMv=0,inertia=0;const pos=e=>[e.clientX,e.clientY];
@@ -142,13 +142,13 @@ function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,las
   const drawBox=(a,b)=>{if(!box)return;const x=Math.min(a[0],b[0]),y=Math.min(a[1],b[1]);box.style.left=x+'px';box.style.top=y+'px';box.style.width=Math.abs(a[0]-b[0])+'px';box.style.height=Math.abs(a[1]-b[1])+'px';box.hidden=false;};
   cv.addEventListener('contextmenu',e=>e.preventDefault());
   cv.addEventListener('pointerdown',e=>{stopInertia();if(typeof closeMore==='function')closeMore();try{cv.setPointerCapture(e.pointerId);}catch(_){}const ms=e.pointerType==='mouse';P.set(e.pointerId,{p:pos(e),b:e.button,mod:ms?e.ctrlKey||e.altKey:e.shiftKey||e.ctrlKey||e.altKey,sh:e.shiftKey});
-    if(P.size===1){start={p:pos(e),t:performance.now(),touch:!ms,mb:ms&&e.button===0&&!P.get(e.pointerId).mod};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
-      if(e.button===0&&!P.get(e.pointerId).mod&&!ms){const bm=typeof UI!=='undefined'&&UI.boxMode;const go=()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p,bm};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}};if(bm)go();else lpT=setTimeout(go,LP_MS);}}
+    if(P.size===1){start={p:pos(e),t:performance.now(),touch:!ms,mb:ms&&e.button===0&&!P.get(e.pointerId).mod&&(e.shiftKey||!!(typeof UI!=='undefined'&&UI.boxMode))};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
+      if(e.button===0&&!P.get(e.pointerId).mod&&!start.mb){const bm=typeof UI!=='undefined'&&UI.boxMode;const go=()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p,bm};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}};if(bm)go();else lpT=setTimeout(go,LP_MS);}}
     else{multi=true;last2=null;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}}});
   cv.addEventListener('pointermove',e=>{const q=P.get(e.pointerId);if(!q){if(e.pointerType==='mouse')v3Hover(e);return;}
     const np=pos(e),dx=np[0]-q.p[0],dy=np[1]-q.p[1];q.p=np;moved+=Math.abs(dx)+Math.abs(dy);
     if(P.size===1){if(lp){lp.b=np;drawBox(lp.a,lp.b);return;}
-      if(start&&start.mb&&q.b===0){if(moved>4){lp={a:start.p,b:np,add:q.sh};drawBox(lp.a,lp.b);}return;}
+      if(start&&start.mb&&q.b===0){if(moved>4){lp={a:start.p,b:np,add:q.sh,bm:typeof UI!=='undefined'&&UI.boxMode};drawBox(lp.a,lp.b);}return;}
       if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}
       else if(moved>(start&&start.touch?10:4)){v3Pan(dx,dy);const now=performance.now(),dt=Math.max(1,now-lastMv);lastMv=now;const k=Math.min(1,dt/40);vel=[vel[0]*(1-k)+dx/dt*k,vel[1]*(1-k)+dy/dt*k];}}
     else if(P.size===2){const [a,b]=[...P.values()];const mx=(a.p[0]+b.p[0])/2,my=(a.p[1]+b.p[1])/2,dd=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]),an=Math.atan2(b.p[1]-a.p[1],b.p[0]-a.p[0]);
