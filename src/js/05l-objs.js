@@ -183,8 +183,9 @@ const OBJ_AIW={hosp:6,bcast:5,comm:6,power:7,rail:5,supply:5,spire:4,gov:8,bank:
    주인 쪽 병력이 거점 둘레 1칸 안에 있으면 다툼 중이라 진행이 멈춘다. 진지로 굳힌 건물(fb)·벙커는 더 오래 걸린다.
    병력이 빠지면 진행은 천천히 줄어든다. 주인 없는 거점은 예전처럼 밟으면 바로 확보. */
 const CAP={t:12,fb:1.6,bunker:1.3,decay:.5};
+const capOn=()=>!!G&&!!G.objs;   // 점령 규칙은 캠페인에도 쓴다(특별 거점 기능 objOn은 캠페인에서 꺼짐)
 {const _am=afterMove;afterMove=function(u){const x=cell(u.r,u.c);
-  if(!objOn()||!UT[u.type].cap||x.obj==null||x.owner==null||x.owner===u.nat)return _am(u);
+  if(!capOn()||!UT[u.type].cap||x.obj==null||x.owner==null||x.owner===u.nat)return _am(u);
   const was=x.owner;x.owner=u.nat;try{_am(u);}finally{x.owner=was;}   // 경계 사격 등 나머지는 그대로, 소유만 미룬다
   if(!x.cap||x.cap.n!==u.nat)x.cap={n:u.nat,p:x.cap&&x.cap.n===u.nat?x.cap.p:0};};}
 function capArea(o,m){const f=o.fp||{r0:o.r,r1:o.r,c0:o.c,c1:o.c};return {x0:f.c0-m,x1:f.c1+1+m,z0:f.r0-m,z1:f.r1+1+m};}
@@ -197,10 +198,10 @@ function capTick(dt){for(const o of G.objs){const x=G.map[o.r][o.c];const c=x.ca
   const atk=G.units.filter(u=>u.nat===c.n&&UT[u.type].cap&&!UT[u.type].fly&&capIn(u,inA));
   if(!atk.length){c.p-=dt*CAP.decay;if(c.p<=0)delete x.cap;continue;}
   c.k=G.units.some(u=>u.nat===x.owner&&!UT[u.type].fly&&u.type!=='amb'&&capIn(u,near))?1:0;   // 다툼 중
-  if(c.k)continue;c.p+=dt*Math.min(1.5,.75+atk.length*.25);
+  if(c.k)continue;const S=atk.reduce((a,u)=>a+(UT[u.type].cap||0),0);c.p+=dt*Math.min(1.5,.75*Math.min(1,S)+.25*S);   // 점령 힘(05l3-capture): 소총분대 하나면 1, 전차 혼자면 .5
   if(c.p>=capNeed(o)){const was=x.owner;x.owner=c.n;delete x.cap;
     L(`${natName(c.n)} ${o.name} 확보 (${natName(was)}에게서 탈환)`);sfx('build');
     if(typeof giveXp==='function'&&typeof VET!=='undefined')for(const u of atk)giveXp(u,VET.xp.cap);}}}
 function capPct(o){const x=G.map[o.r][o.c];return x.cap?Math.min(99,Math.floor(x.cap.p/capNeed(o)*100)):null;}
-{const _ot=objTick;objTick=function(dt){if(objOn()&&G.objs)capTick(dt);return _ot(dt);};}
+{const _ot=objTick;objTick=function(dt){if(capOn())capTick(dt);return _ot(dt);};}
 {const _ol=objLabel;objLabel=function(o){const s=_ol(o);const p=G&&G.map&&capPct(o);if(p==null)return s;const x=G.map[o.r][o.c];return `${s} · ${natName(x.cap.n)} 점령 ${p}%${x.cap.k?' (다툼)':''}`;};}
