@@ -646,7 +646,7 @@ test('공중전: FPV는 표적에 날아가 터지고, 전파 방해 안에서�
 
 test('공중전: 전투기 폭격은 몇 초 뒤에 떨어지고, 공격헬기는 시간이 끝나면 돌아간다', () => {
   const T = loadGame(); const G = setup(T);
-  G.nats[1].ctrl = 'human'; const e = T.mkUnit(1, 'rifle', 5, 5); const s = T.mkUnit(0, 'rifle', 5, 2); e.hold = s.hold = true;
+  G.nats[1].ctrl = 'human'; const e = T.mkUnit(1, 'rifle', 5, 5); const s = T.mkUnit(0, 'drone', 5, 2); e.hold = s.hold = true;   // 관측은 드론(아군 지상 부대가 100m 안이면 폭격이 거부된다: 06x-ff)
   G.nats[0].cp = 50; G.wx = 'clear'; assert.ok(T.support(0, 'air', 5, 5));
   assert.equal(e.hp, 10, '바로 떨어지지 않음'); T.rtRun(3.2); assert.ok(e.hp < 10 || !G.units.includes(e), '몇 초 뒤 폭격');
   const far = T.mkUnit(1, 'rifle', 15, 15); far.hold = true; G.over = null;
@@ -873,7 +873,7 @@ test('제병협동 AI: 적 무더기엔 포격·폭격을 부르고, 장갑차�
   const T = loadGame(); const G = setup(T); G.fog = false; G.time = 100;
   // 적 소총분대 셋이 한데 모여 있다 → 화력 지원
   for (const [r, c] of [[10, 20], [10, 21], [11, 20]]) T.mkUnit(1, 'rifle', r, c);
-  T.mkUnit(0, 'rifle', 10, 16); G.nats[0].cp = 30; T.bump();
+  T.mkUnit(0, 'rifle', 10, 10); G.nats[0].cp = 30; T.bump();   // 아군은 위험 거리(포병 100m) 밖
   const E = G.units.filter(u => u.nat === 1);
   assert.ok(T.__get('aiSupport')(0, E), '지원 호출'); assert.ok(G.nats[0].cp < 30);
   assert.ok(G.nats[0].supT > G.time, '재사용 대기');
