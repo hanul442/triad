@@ -35,13 +35,14 @@ if(typeof document!=='undefined'){if(document.readyState==='loading')document.ad
     const sp=el.querySelector(':scope>span');if(sp&&!grp.some(u=>u.man!=null))sp.insertAdjacentText('beforeend',' · 직접 명령하면 이 부대만 직접 지휘');return;}
   if(UI.pane||UI.phase==='buy'||UI.phase==='sup')return;
   const div=document.createElement('div');div.className='adj-row';
-  if(N2.auto){const I=N2.intent;
-    div.innerHTML=`<b>부관 지휘 중</b><span class="adj-i">주공: ${adjDesc(I)}</span>`+
-      `<button class="btn sm${I&&I.k==='atk'?' primary':''}" data-act="adj:atk" id="ab-adj-atk" title="모든 부대가 그쪽으로 공격합니다">${adjL('공격 목표','공격')}</button>`+
-      `<button class="btn sm${I&&I.k==='def'?' primary':''}" data-act="adj:def" id="ab-adj-def" title="그 둘레 엄폐에서 지킵니다">${adjL('방어 지점','방어')}</button>`+
-      `<button class="btn sm${I?'':' primary'}" data-act="adj:free-all" id="ab-adj-any" title="부관이 가까운 거점부터 알아서 잡습니다">${adjL('부관 재량','재량')}</button>`+
-      `<button class="btn sm" data-act="adj:buy" id="ab-adj-buy" aria-pressed="${N2.autoBuy!==false}" title="부관이 지휘점수로 부대를 사서 보냅니다">${adjL('자동 증원: ','증원 ')}${N2.autoBuy!==false?'켬':'끔'}</button>`+
-      `<button class="btn sm" data-act="adj:off" id="ab-adj-off" title="모든 부대를 직접 지휘합니다">${adjL('직접 지휘로','직접')}</button>`;}
+  if(N2.auto){const I=N2.intent;const og=typeof orgOn==='function'&&orgOn(n);
+    // 목표는 아래 편성 칩(전체·중대)을 고르고 지도를 탭해서 준다. 여기엔 상태와 설정(⚙)만
+    div.innerHTML=`<b>부관 지휘</b><span class="adj-i">${I?`주공: ${adjDesc(I)}`:og?'중대를 고르고 지도를 탭하면 그곳을 공격합니다':`주공: ${adjDesc(I)}`}</span>`+
+      `<button class="btn sm" data-act="adj:more" id="ab-adj-more" aria-expanded="${!!UI.adjMore}" title="자동 증원·직접 지휘">⚙</button>`+
+      (UI.adjMore||!og?(og?'':`<button class="btn sm${I&&I.k==='atk'?' primary':''}" data-act="adj:atk" id="ab-adj-atk">${adjL('공격 목표','공격')}</button><button class="btn sm${I&&I.k==='def'?' primary':''}" data-act="adj:def" id="ab-adj-def">${adjL('방어 지점','방어')}</button>`)+
+      (I?`<button class="btn sm" data-act="adj:free-all" id="ab-adj-any" title="부관이 가까운 거점부터 알아서 잡습니다">${adjL('목표 지우기','지우기')}</button>`:'')+
+      (UI.adjMore?`<button class="btn sm" data-act="adj:buy" id="ab-adj-buy" aria-pressed="${N2.autoBuy!==false}" title="부관이 지휘점수로 부대를 사서 보냅니다">${adjL('자동 증원: ','증원 ')}${N2.autoBuy!==false?'켬':'끔'}</button>`+
+      `<button class="btn sm" data-act="adj:off" id="ab-adj-off" title="모든 부대를 직접 지휘합니다">${adjL('직접 지휘로','직접')}</button>`:''):'');}
   else div.innerHTML=`<span class="adj-i">어렵다면 부관에게 맡기세요: 목표만 정하면 이동·엄폐·지원·증원을 AI가 합니다</span><button class="btn sm primary" data-act="adj:on" id="ab-adj-on">부관에게 맡기기</button>`;
   el.prepend(div);
   if(N2.auto){const sp=el.querySelector(':scope>span');if(sp)sp.textContent=sp.textContent.replace('아군을 탭해 지휘','부대를 골라 직접 명령도 가능');}};}
@@ -49,9 +50,10 @@ if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e
   const a=b.dataset.act.slice(4),n=G.viewer,N2=G.nats[n];
   if(a==='atk'||a==='def'){clearSel();UI.pane=null;UI.phase='aim:'+a;render();return;}
   if(a==='cancel'){UI.phase=null;render();return;}
+  if(a==='more'){UI.adjMore=!UI.adjMore;render();return;}
   if(a==='free-all'){autoIntent(n,null);toast('부관 재량: 가까운 거점부터 잡습니다');render();return;}
   if(a==='buy'){N2.autoBuy=N2.autoBuy===false;toast(`자동 증원 ${N2.autoBuy?'켬':'끔'}`);render();return;}
-  if(a==='on'){autoSet(n,true);toast('부관이 지휘합니다. 공격 목표를 정해 주세요');render();return;}
+  if(a==='on'){autoSet(n,true);toast('부관이 지휘합니다 · 중대를 고르고 지도를 탭해 목표를 정하세요');render();return;}
   if(a==='off'){autoSet(n,false);toast('직접 지휘로 바꿨습니다');render();return;}
   if(a==='free'){const grp=[UI.sel,...(UI.group||[])].filter(u=>u&&G.units.includes(u)&&(N2.auto||SELF_RUN[u.type]));for(const u of grp){u.man=null;u.hold=false;}toast(N2.auto?`${grp.length}개 부대를 부관에게 돌려줌`:`${grp.length}개 지원 부대 자동 임무`);clearSel();render();return;}});
 /* 지도 탭: 목표 지정 중이면 목표로 */
@@ -66,6 +68,6 @@ if(typeof occLabels==='function'){const _ol=occLabels;occLabels=function(want,vs
   const y=(typeof v3TopAt==='function'?v3TopAt(I.x,I.z):0)+.7;want.set('adj-int',{html:`<span>주공 · ${ADJ_K[I.k]}</span>`,cls:'v3c',col:'#ffd27a',p:[I.x,y,I.z]});};}
 if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){const h=_ut(u);return G&&u.nat===G.viewer&&u.man!=null&&autoOn(u.nat)?h+'<u class="man">직접</u>':h;};}
 /* 판을 시작하면 한 번 안내 */
-{const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(G&&!G._adjHint&&adjCan()&&G.nats[G.viewer].auto&&$('#setup').hidden){G._adjHint=1;toast('부관이 부대를 지휘합니다 · 아래 [공격 목표]로 주공 방향을 정하세요');}}catch(e){}return r;};}
+{const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(G&&!G._adjHint&&adjCan()&&G.nats[G.viewer].auto&&$('#setup').hidden){G._adjHint=1;toast('부관이 부대를 지휘합니다 · 아래 [1중대]를 고르고 지도를 탭하면 그곳을 공격합니다');}}catch(e){}return r;};}
 /* 지원 부대 정보: 자동 임무 중인지 */
 {const _ui=uInfo;uInfo=function(u){let s=_ui(u);if(G&&u.nat===G.viewer&&!isAI(u.nat)&&SELF_RUN[u.type])s+=selfRun(u)?' · 자동 임무':' · 직접 명령 중';return s;};}
