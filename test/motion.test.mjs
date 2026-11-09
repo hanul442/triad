@@ -9,6 +9,7 @@ function setup(T) {
   const G = T.G;
   for (let r = 0; r < T.N; r++) for (let c = 0; c < T.N; c++) G.map[r][c] = { t: 'road', owner: null, obj: null, smoke: 0 };
   G.wx = 'clear'; T.bump();
+  G.nats[1].cp = 0; G.nats[1].auto = false;   // 상대 세력(부관)이 증원을 사서 시험 차량을 쏘지 않게
   return G;
 }
 const F = (T, n) => T.__get(n);
