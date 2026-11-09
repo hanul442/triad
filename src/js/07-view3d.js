@@ -484,7 +484,7 @@ function v3SyncSmoke(){const T=V3.T,g=V3.G.amb;for(const sp of V3.smoke)g.remove
     for(let i=0;i<1+Math.round(dmg*2);i++)add(cx+(v3Hash(k,540+i)-.5)*.6,y,cz+(v3Hash(k,550+i)-.5)*.6,v3Hash(k,560+i),'smoke',.7+dmg);
     if(dmg>=.5)add(cx+(v3Hash(k,570)-.5)*.4,y,cz+(v3Hash(k,571)-.5)*.4,v3Hash(k,572),'fire');}
   if(!V3.dust){const n=500,P=new Float32Array(n*3);for(let i=0;i<n;i++)P.set([(Math.random()-.5)*30,Math.random()*6,(Math.random()-.5)*30],i*3);const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));
-    V3.dust=new T.Points(geo,new T.PointsMaterial({color:'#d8d2c4',size:.05,transparent:true,opacity:.5,depthWrite:false}));V3.scene.add(V3.dust);}
+    V3.dust=new T.Points(geo,new T.PointsMaterial({color:'#d8d2c4',size:.03,transparent:true,opacity:.28,depthWrite:false}));V3.scene.add(V3.dust);}
   if(V3.rainObj){g.remove(V3.rainObj);V3.rainObj=null;}
   if(V3.rain){const n=1400,P=new Float32Array(n*6);for(let i=0;i<n;i++){const x=(Math.random()-.5)*40,y=Math.random()*14,z=(Math.random()-.5)*40;P.set([x,y,z,x-.05,y-.45,z],i*6);}
     const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));V3.rainObj=new T.LineSegments(geo,new T.LineBasicMaterial({color:'#9fb0bf',transparent:true,opacity:.35,depthWrite:false}));g.add(V3.rainObj);}}
