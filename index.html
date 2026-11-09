@@ -2617,7 +2617,7 @@ function navRoomy(cls,x,z){const K=navComp(cls);const j=Math.floor(x*NAV_R),i=Ma
 function navRoomySpot(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
 if(typeof deploySpots==='function'){const _ds=deploySpots;deploySpots=function(n,type){const out=_ds.apply(this,arguments);const cls=vClsOf(type);if(!cls||typeof navGrid!=='function'||!out.length||!G.props)return out;
   const ok=out.filter(k=>navRoomySpot(cls,kr(k),kc(k)));return ok.length?ok:out;};}
-function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const p=navRoomySpot(cls,Math.floor(u.z),Math.floor(u.x));if(p){u.x=p[0];u.z=p[1];}}
+function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const p=navRoomySpot(cls,Math.floor(u.z),Math.floor(u.x));if(p){u.x=p[0];u.z=p[1];u.r=Math.floor(u.z);u.c=Math.floor(u.x);}}   // 옮긴 자리의 칸도 맞춘다(안 맞추면 서 있는 동안 칸이 어긋난다)
 {const _mk=mkUnit;mkUnit=function(n,type,r,c){const u=_mk.apply(this,arguments);if(u)vRoomyFix(u);return u;};}
 // 새 판 처음 부대는 소품(주차 차)이 깔리기 전에 놓이므로, 다 깔린 뒤에 바로잡는다
 {const _ng=newGame;newGame=function(cfg){const r=_ng.apply(this,arguments);try{if(G&&G.units&&!(cfg&&(cfg.scn||cfg.force)))for(const u of G.units)vRoomyFix(u);}catch(e){}return r;};}
@@ -16596,6 +16596,15 @@ function landRush(dt){const t=G.time||0;
 {const _go=tacGo;tacGo=function(u,x,z,role){if(u&&u._bch&&landOnBeach(u)&&u.path&&u.path.length)return false;return _go.apply(this,arguments);};}
 {const _r=tacReact;tacReact=function(u){if(u&&u._bch&&landOnBeach(u))return;return _r.apply(this,arguments);};}
 {const _mv=rtMove;rtMove=function(u,dt){if(u._bch&&typeof pinned==='function'&&pinned(u)&&landOnBeach(u)){const s=u.supp;u.supp=PINNED-.01;try{_mv(u,dt*.6);}finally{u.supp=Math.max(u.supp,s);}return;}return _mv(u,dt);};}
+
+/* ---- 98-cellsync.js ---- */
+/* ===================== 칸 맞추기 (2026-11-09 점검) =====================
+   부대의 칸(u.r,u.c)은 좌표(u.x,u.z)에서 나온다. 차량 움직임(05b2)의 몇몇 갈래와 배치 직후 자리 고치기가 좌표만 바꾸고 칸을 그대로 둬,
+   AI 관전 판에서 드물게(작은 지도 3판에 1번쯤) 보급 트럭·장갑차가 옆 칸에 서 있는 것으로 셈해졌다(점령·시야·점유가 한 칸 어긋남).
+   매 틱 끝에 어긋난 부대만 rtCell로 맞춘다(맞춘 칸으로 점령·건물 진입 같은 뒤처리도 함께). */
+{const _t=rtTick;rtTick=function(dt){const r=_t.apply(this,arguments);if(!G||!G.units)return r;
+  for(const u of G.units){if(u.x==null||u.z==null)continue;const rr=Math.min(N-1,Math.max(0,Math.floor(u.z))),cc=Math.min(N-1,Math.max(0,Math.floor(u.x)));if(rr!==u.r||cc!==u.c){try{rtCell(u);}catch(e){u.r=rr;u.c=cc;}if(u.r!==rr||u.c!==cc){u.r=rr;u.c=cc;}}}
+  return r;};}
 
 /* ---- 99-init.js ---- */
 /* ===================== BOOT ===================== */
