@@ -26,6 +26,7 @@ function cxMats(){if(CX.m)return CX.m;const T=V3.T;
   const R=mulberry(77);
   const soot=v3Tex(64,128,(g,w,h)=>{g.clearRect(0,0,w,h);for(let i=0;i<26;i++){const x=10+R()*44,ww=6+R()*16,top=R()*60;const gr=g.createLinearGradient(0,h,0,top);
       gr.addColorStop(0,'rgba(0,0,0,.55)');gr.addColorStop(.45,'rgba(0,0,0,.28)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(x-ww/2,top,ww,h-top);}});
+  m.grime=new T.MeshBasicMaterial({map:soot,color:'#2a241c',transparent:true,opacity:.45,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
   m.soot=new T.MeshBasicMaterial({map:soot,color:'#16130f',transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   // 바닥 얼룩: 흙먼지(밝게), 덧씌운 아스팔트·기름(어둡게). 둥글고 가장자리가 흐린 무늬
   const blot=v3Tex(64,64,(g,w,h)=>{g.clearRect(0,0,w,h);for(let i=0;i<14;i++){const x=16+R()*32,y=16+R()*32,r=8+R()*16;const gr=g.createRadialGradient(x,y,0,x,y,r);
@@ -75,7 +76,7 @@ const CX_DEB={0:['#8f8a82','#a39e94','#77736c','#b3ada2'],1:['#8f969a','#a9b0b2'
 /* ---------- 건물: 외벽·옥상·전투 흔적 ---------- */
 function cxBuildCity(){const T=V3.T,g=V3.G.city;if(!G||!g||!T)return;cxMats();cxGeos();CX.cut=[];CX.lab=[];CX.fac=[];CX.labMesh=null;CX.ctag=null;CX.prev=new Map();
   const FH=FLOOR_H,IN=.08,M=G.map;const cl=typeof bmClime==='function'?bmClime():'temp';
-  const P=[],I=[],GL=[],CY=[],DI=[],SO=[],DEB=[],DU=[],RP=[],RC=[];   // 칠한 상자, 쇠, 유리, 원통, 접시 안테나, 그을음, 잔해, 먼지, 옥상 상자·원통
+  const P=[],I=[],GL=[],CY=[],DI=[],SO=[],DEB=[],DU=[],RP=[],RC=[],GR=[];   // 칠한 상자, 쇠, 유리, 원통, 접시 안테나, 그을음, 잔해, 먼지, 옥상 상자·원통
   const roofPaint=[],HP=[],LAB=new Map();const H=v3Hash;
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
     if(x.t==='rubble'){// 무너진 칸: 잔해 더미에서 삐져나온 철근
@@ -92,6 +93,16 @@ function cxBuildCity(){const T=V3.T,g=V3.G.city;if(!G||!g||!T)return;cxMats();cx
     const box=(L,f,t,o,y,sx,sy,sz,col,ex)=>{const [px,pz]=cxAt(f,t,o);L.push(Object.assign({x:px,y,z:pz,sx,sy,sz,ry:f.ry,col,k},ex||null));};
     const yF=i=>.06+i*FH;
     if(dmg<.4)faces.forEach((f,fi)=>{const cols=cxCols(f,u0,.06);const fk=k*4+fi;
+      // 1층 아래 걸레받이(돌·타일 띠)와 땅 쪽 때(빗물 튄 자국)
+      if(s!==1)box(P,f,f.len/2,.005,.06+.035,f.len,.07,.012,s===2?'#6a5d52':s===3?'#6b6e6f':'#6a6762');
+      GR.push({x:f.ax+f.dx*f.len/2+f.nx*.004,y:.06+.13,z:f.az+f.dz*f.len/2+f.nz*.004,sx:f.len,sy:.26,sz:1,ry:f.ry,col:'#ffffff'});
+      // 벽돌 건물 지붕선 코니스
+      if(s===2&&!gableRoof(x))box(P,f,f.len/2,.018,.06+h-.016,f.len,.03,.036,'#b8af9e');
+      // 전쟁 대비: 아래 두 층 창을 판자로 막거나 모래주머니를 쌓았다
+      if(s===0||s===2)for(const [t,n] of cols){if(s===0&&(n%4===1||n%4===2)||s===2&&n%4===3)continue;
+        for(let i=0;i<Math.min(2,nf);i++){if(i===0&&(ks==='shop'||x.dist==='down'))continue;const yc=yF(i)+(W[0]+W[1])/2*FH,hh=(W[1]-W[0])*FH;const q=H(fk,1500+i*8+n);
+          if(q<.08){box(P,f,t,.007,yc,.13,hh*1.05,.008,['#8a7450','#7d6a4c','#96825c'][(H(fk,1510+n)*3)|0]);box(P,f,t,.012,yc+(H(fk,1520+n)-.5)*hh*.4,.15,.012,.006,'#6b5a40');}   // 판자
+          else if(q<.12)box(P,f,t,.022,yF(i)+W[0]*FH+.022,.13,.045,.04,'#8a7c62');}}   // 모래주머니
       // 홈통: 면 끝 모서리
       if(nf>=2&&H(fk,710)<.7)P.push({x:f.ax+f.dx*(f.len-.03)+f.nx*.01,y:.06+h/2,z:f.az+f.dz*(f.len-.03)+f.nz*.01,sx:.014,sy:h,sz:.014,col:s===3?'#7d8487':'#6e6b65',k});
       if(s===0){// 패널·아파트: 발코니(무늬의 발코니 칸 1·2에 맞춘다)와 실외기
@@ -156,7 +167,7 @@ function cxBuildCity(){const T=V3.T,g=V3.G.city;if(!G||!g||!T)return;cxMats();cx
   // 외벽의 작은 장식은 그림자를 드리우지 않는다(그림자 패스 비용). 옥상 설비·비상계단은 드리운다
   cxInst(g,G2.box,m.paint,P,{keyed:1,noShadow:1,fac:1});cxInst(g,G2.box,m.iron,I,{keyed:1});cxInst(g,G2.box,m.glass,GL,{keyed:1,noShadow:1,fac:1});cxInst(g,G2.cyl,m.paint,CY,{keyed:1,noShadow:1,fac:1});cxInst(g,G2.dish,m.paint,DI,{keyed:1});
   cxInst(g,G2.box,m.paint,RP,{keyed:1});cxInst(g,G2.cyl,m.paint,RC,{keyed:1});
-  cxInst(g,G2.plane,m.soot,SO,{keyed:1,noShadow:1,noRecv:1});
+  cxInst(g,G2.plane,m.soot,SO,{keyed:1,noShadow:1,noRecv:1});cxInst(g,G2.plane,m.grime,GR,{noShadow:1,noRecv:1,fac:1});
   if(HP.length){const im=cxInst(g,G2.flat,cxHeliMat(),HP.map(o=>Object.assign(o,{sx:.62,sy:1,sz:.62,col:'#ffffff'})),{keyed:1,noShadow:1});}
   cxAptLabels(g,[...LAB.values()]);
   cxInst(g,G2.dode,m.deb,DEB);cxInst(g,G2.flat,m.dust,DU,{noShadow:1});
@@ -236,6 +247,20 @@ function cxBuildStreet(){const T=V3.T,g=V3.G.world;if(!G||!g||!T)return;cxMats()
       if(H(sk,1360)<.11){const tc=(H(sk,1361)-.5)*.6;const n=3+(H(sk,1362)*4|0);for(let i=0;i<n;i++){const [px,pz]=pos(tc+(H(sk,1363+i)-.5)*.12,.465-H(sk,1370+i)*.04);const s=.016+H(sk,1380+i)*.012;
           BAG.push({x:px,y:s*.6,z:pz,sx:s,sy:s*.75,sz:s*1.1,ry:H(sk,1390+i)*6,col:['#1d1d1e','#2a2c2e','#3a4a5c','#5c5a54','#cfccc4'][(H(sk,1400+i)*5)|0]});}
         if(H(sk,1365)<.6){const [px,pz]=pos(tc+.07,.47);P.push({x:px,y:.017,z:pz,sx:.05,sy:.034,sz:.04,ry:ryA+(H(sk,1366)-.5),col:'#8a7556'});}}
+      // 연석: 차도와 보도 사이 돌 턱(건널목 칸은 비워 둔다 = 턱 낮춤)
+      {const [px,pz]=pos(0,.333);P.push({x:px,y:.007,z:pz,sx:1,sy:.014,sz:.016,ry:ryA,col:'#a6a195'});}
+      // 교통 표지판: 교차로 앞 보도
+      if(nearX&&H(sk,1600)<.3){const [px,pz]=pos((H(sk,1601)<.5?1:-1)*.3,.4);if(!near(px,pz)){take(px,pz);I.push({x:px,y:.11,z:pz,sx:.007,sy:.22,sz:.007,col:'#4a4b4a'});
+          const kind=(H(sk,1602)*4)|0;P.push({x:px,y:.205,z:pz,sx:.006,sy:kind===3?.05:.06,sz:kind===3?.08:.06,ry:ryA,col:['#9c2b25','#2a4f8a','#c9a53a','#2a4f8a'][kind]});
+          if(kind===0)P.push({x:px,y:.205,z:pz,sx:.007,sy:.012,sz:.04,ry:ryA,col:'#e8e4da'});}}   // 빨강(진입 금지), 파랑(방향), 노랑(주의), 길 이름판
+      // 볼라드: 교차로 모퉁이
+      if(nearX&&H(sk,1610)<.35){const e=H(sk,1611)<.5?1:-1;for(let i=0;i<3;i++){const [px,pz]=pos(e*(.42-i*.05),.36);CY.push({x:px,y:.022,z:pz,sx:.014,sy:.044,sz:.014,col:'#7b7d7c'});}}
+      // 보도에 세운 오토바이·자전거
+      if((bd==='res'||bd==='mid')&&H(sk,1620)<.12){const n=1+(H(sk,1621)*3|0);for(let i=0;i<n;i++){const [px,pz]=pos((H(sk,1622)-.5)*.5+i*.06,.4);const col=['#8e2d24','#2f4b66','#c9c6bd','#2b2b2b','#a8913f'][(H(sk,1623+i)*5)|0];
+          const ry=ryA+Math.PI/2+(H(sk,1630+i)-.5)*.4;P.push({x:px,y:.022,z:pz,sx:.022,sy:.03,sz:.075,ry,col});P.push({x:px,y:.042,z:pz,sx:.018,sy:.008,sz:.035,ry,col:'#1f1f1f'});}}
+      // 공사 칸막이·꼬깔
+      if(H(sk,1640)<.025){const tc=(H(sk,1641)-.5)*.5;for(let i=0;i<3;i++){const [px,pz]=pos(tc+i*.07,.3);CY.push({x:px,y:.018,z:pz,sx:.022,sy:.036,sz:.022,col:i%2?'#e0ddd4':'#c4632a'});}
+        const [bx,bz]=pos(tc+.07,.25);P.push({x:bx,y:.03,z:bz,sx:.22,sy:.04,sz:.008,ry:ryA,col:'#c9b23a'});}
       // 통신 함체
       if(H(sk,1410)<.05){const [px,pz]=pos((H(sk,1411)-.5)*.6,.475);if(!near(px,pz)){take(px,pz);P.push({x:px,y:.035,z:pz,sx:.045,sy:.07,sz:.025,ry:ryA,col:'#8e9190'});}}
       // 전봇대: 골목이 아닌 좁은 길(대로·도심 제외), 길마다 한쪽에만 3칸 간격
