@@ -10,7 +10,7 @@
    - 호송 걸음: 호위가 2칸 넘게 뒤처지면 지원 차량이 앞으로 가는 걸음을 늦춘다(물러날 때는 늦추지 않는다).
    - 일이 끝나거나 지원 차량이 물러나 적이 없으면, 또는 90초가 지나면 호위를 풀어 원래 AI로 돌려준다.
    - 안전한 길: 지원 차량의 길이 아는 적 2.8칸 안을 지나면 옆으로 3~5.5칸 돌아가는 길을 찾아 더 안전하면 그 길로. */
-const ESC={on:1,route:1,front:7,mem:8,pick:6,lead:1,upd:.4,max:90,lag:2,risk:2.8,memR:20,repath:1.2};
+const ESC={on:1,route:1,engage:4,front:7,mem:8,pick:6,lead:1,upd:.4,max:90,lag:2,risk:2.8,memR:20,repath:1.2};
 const ESC_HIDE={esc:1};
 const ESC_SUP={sup:1,rec:1,amb:1};
 const ESC_PREF={hmv:3,ifv:2,rifle:1,mg:1};
@@ -48,13 +48,16 @@ function escSlot(u,s,K){let tx=null,tz=null,bd=10;for(const p of K){const d=Math
   else{const f=escFwd(s);if(f){const dx=f[0]-s.x,dz=f[1]-s.z,m=Math.hypot(dx,dz)||1;const k=Math.min(.8,m);x=s.x+dx/m*k;z=s.z+dz/m*k;}else{x=s.x;z=s.z;}}
   x=Math.min(N-.05,Math.max(.05,x));z=Math.min(N-.05,Math.max(.05,z));
   if(!walkable(u,x,z))return [s.x,s.z];return [x,z];}
-function escFight(u){for(const e of G.units){if(e.nat===u.nat||e.hp<=0)continue;if(G.fog&&!seen(e,u.nat))continue;
+/* 멈춰 싸울 적: 호위나 지원 차량에서 4칸 안이고 쏠 수 있는 적. 사거리가 길어(험비 18칸) 먼 적까지 보면 늘 멈춰 서 버린다.
+   먼 적은 움직이면서 쏜다(엔진) */
+function escFight(u,s){for(const e of G.units){if(e.nat===u.nat||e.hp<=0)continue;if(G.fog&&!seen(e,u.nat))continue;
+  if(Math.hypot(e.x-u.x,e.z-u.z)>ESC.engage&&!(s&&Math.hypot(e.x-s.x,e.z-s.z)<ESC.engage))continue;
   if(canHit(u,e))return true;}return false;}
 /* 호위 하나: 따르기·싸우기 */
 function escFollow(u,t,K){const s=uById(u.esc.s);
   if(!s||s.nat!==u.nat||s.escBy!==u.id){escRelease(u);return;}
   const fwd=escFwd(s);
-  if(escFight(u)){u.esc.ft=t+4;if(u.path&&u.path.length)u.path=[];return;}   // 멈춰 싸운다(조준·사격은 엔진이)
+  if(escFight(u,s)){u.esc.ft=t+4;if(u.path&&u.path.length)u.path=[];return;}   // 멈춰 싸운다(조준·사격은 엔진이)
   if((u.esc.ft||0)>t)return;
   if(!fwd&&!escNear(K,s.x,s.z,ESC.front)){escRelease(u);return;}   // 일이 끝났거나 물러나 안전하다
   if(t-u.esc.t0>ESC.max||u.hp<hpMax(u)*.4||u.post||u.cqb||u.hold||u.man!=null&&u.man>u.esc.t0||u.fesc!=null&&t-(u.fescT||-99)<5){escRelease(u);return;}
@@ -110,3 +113,11 @@ function escLen(P,x0,z0){let l=0,px=x0,pz=z0;for(const q of P){l+=Math.hypot(q[0
     if(best!==P&&typeof tacN==='function')tacN('cvyRoute');}
   Object.defineProperty(u,'_cvy',{value:{t,x,z,sx:u.x,sz:u.z,P:best.slice()},writable:true,configurable:true,enumerable:false});
   return best;};}
+/* ---------- 트럭이 받을 부대 바로 앞에서 막히면 병사가 걸어와 받는다 ----------
+   부대가 몰려 있으면 트럭이 나눠 주는 거리(1.6칸) 바로 밖에서 더 다가가지 못하고 서 버린다(06e polStuck이 일을 내려놓음).
+   트럭이 2초 넘게 서 있고 받을 부대가 2.6칸 안에서 멈춰 있으면 그 부대가 트럭 곁(0.9칸)으로 걸어온다. */
+if(typeof supTick==='function'){const _st=supTick;supTick=function(u,dt){_st(u,dt);if(!G.units.includes(u)||!(u.lj&&u.lj.k==='serve'))return;const t=G.time||0;
+  if(u.path&&u.path.length){u._swT=null;return;}if(u._swT==null){u._swT=t;return;}if(t-u._swT<2)return;
+  const e=uById(u.lj.id);if(!e||e.path&&e.path.length||e.post||e.cqb||e.climb||e.hold)return;const d=Math.hypot(e.x-u.x,e.z-u.z);
+  if(d<SERVE_R*.95||d>2.6)return;const k=.9/d;const x=u.x+(e.x-u.x)*k,z=u.z+(e.z-u.z)*k;
+  if(!walkable(e,x,z))return;const P=pathPts(e,x,z);if(P.length){e.path=P;e.dest=[x,z];u._swT=t;if(typeof tacN==='function')tacN('supWalk');}};}
