@@ -2404,6 +2404,14 @@ function vObsEach(cls,x,z,c,n,s,ex,ez,fn){if(typeof navGrid!=='function')return;
         const o2=ru+ro-Math.abs(dx*vx+dz*vz);if(o2<d)d=o2;if(d<=0)break;}
       if(d>0)fn(o,d);}}}
 function vObsPen(u,cls,x,z,c,n,s,ex,ez){let k=0;vObsEach(cls,x,z,c,n,s,ex,ez,(o,d)=>{const rl=NAV_RULE[o.k];if(rl&&rl[cls]===2)k+=d;});return k;}
+/* 차체와 다른 지상 차량 차체가 겹친 깊이의 합 */
+function vVehPen(u,x,z,h){const s=vSpec(u),a=h*Math.PI/180,c=Math.cos(a),n=Math.sin(a);let k=0;
+  for(const o of G.units){if(o===u||!isGV(o)||o.hd==null||Math.abs(o.x-x)>.8||Math.abs(o.z-z)>.8||o.towBy===u.id||u.towBy===o.id||o.towBy!=null)continue;
+    const so=vSpec(o),b=o.hd*Math.PI/180,oc=Math.cos(b),on=Math.sin(b),dx=o.x-x,dz=o.z-z;let d=1e9;
+    for(const [vx,vz] of [[c,n],[-n,c],[oc,on],[-on,oc]]){const r1=s.hl*Math.abs(c*vx+n*vz)+s.hw*Math.abs(-n*vx+c*vz),r2=so.hl*Math.abs(oc*vx+on*vz)+so.hw*Math.abs(-on*vx+oc*vz);
+      const q=r1+r2-Math.abs(dx*vx+dz*vz);if(q<d)d=q;if(d<=0)break;}
+    if(d>0)k+=d;}
+  return k;}
 /* 전차·자주포는 주차된 차를 깔아뭉갠다: 차체가 차에 3cm 넘게 걸치면 그 차는 짓눌린 차(carx)가 된다 */
 function vCrush(u){const cls=typeof navCls==='function'?navCls(u):null;if(cls!=='trk')return;const s=vSpec(u),a=u.hd*Math.PI/180,c=Math.cos(a),n=Math.sin(a);
   const ex=Math.abs(c)*s.hl+Math.abs(n)*s.hw,ez=Math.abs(n)*s.hl+Math.abs(c)*s.hw;let hit=null;
@@ -2480,6 +2488,9 @@ function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
   const arrive=fin&&nx===tx&&nz===tz;
   const esc=!walkable(u,u.x,u.z)&&!!tileAt(nx,nz)&&mcost(u.type,tileAt(nx,nz))<Infinity;
   const pass=(x,z)=>{const t=tileAt(x,z);return !!t&&mcost(u.type,t)<Infinity;};
+  // 다른 차량: 앞에 선 차에 차체를 들이밀지 않고 잠깐 기다린다. 오래(1.5~3초, 차마다 다르게) 막히면 2초 동안 비켜 지나간다(서로 기다리다 멈추지 않게)
+  if(Math.abs(st)>1e-4&&!(u._ygh>now)){const v1p=vVehPen(u,nx,nz,h1);if(v1p>.01&&v1p>vVehPen(u,u.x,u.z,u.hd)+1e-4){u._yw=(u._yw||0)+dt;
+      if(u._yw>1.5+(u.id%5)*.35){u._ygh=now+2;u._yw=0;}else{u.vs=0;u._acc=0;u.face=u.hd;return;}}else if(u._yw)u._yw=Math.max(0,u._yw-dt);}
   const okPos=(esc||pass(nx,nz))&&!wallCross(u,u.x,u.z,nx,nz);
   const free=(x,z)=>(esc||pass(x,z))&&!wallCross(u,u.x,u.z,x,z);
   let done=0;
@@ -2563,10 +2574,12 @@ function navRoomy(cls,x,z){const K=navComp(cls);const j=Math.floor(x*NAV_R),i=Ma
   return l>=0&&(K.size[l]>=VCOMP_MIN||K.size[l]===K.big);}
 /* 이 칸 안에서 넓은 덩어리에 속한 가장 가운데 가까운 자리 */
 function navRoomySpot(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
-if(typeof deploySpots==='function'){const _ds=deploySpots;deploySpots=function(n,type){const out=_ds.apply(this,arguments);const cls=vClsOf(type);if(!cls||typeof navGrid!=='function'||!out.length)return out;
+if(typeof deploySpots==='function'){const _ds=deploySpots;deploySpots=function(n,type){const out=_ds.apply(this,arguments);const cls=vClsOf(type);if(!cls||typeof navGrid!=='function'||!out.length||!G.props)return out;
   const ok=out.filter(k=>navRoomySpot(cls,kr(k),kc(k)));return ok.length?ok:out;};}
-{const _mk=mkUnit;mkUnit=function(n,type,r,c){const u=_mk.apply(this,arguments);const cls=vClsOf(type);
-  if(u&&cls&&typeof navGrid==='function'&&G.map&&!navRoomy(cls,u.x,u.z)){const p=navRoomySpot(cls,r,c);if(p){u.x=p[0];u.z=p[1];}}return u;};}
+function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const p=navRoomySpot(cls,Math.floor(u.z),Math.floor(u.x));if(p){u.x=p[0];u.z=p[1];}}
+{const _mk=mkUnit;mkUnit=function(n,type,r,c){const u=_mk.apply(this,arguments);if(u)vRoomyFix(u);return u;};}
+// 새 판 처음 부대는 소품(주차 차)이 깔리기 전에 놓이므로, 다 깔린 뒤에 바로잡는다
+{const _ng=newGame;newGame=function(cfg){const r=_ng.apply(this,arguments);try{if(G&&G.units&&!(cfg&&(cfg.scn||cfg.force)))for(const u of G.units)vRoomyFix(u);}catch(e){}return r;};}
 
 /* ---- 05c-modern.js ---- */
 /* ===================== 현대 장비 =====================
@@ -2915,7 +2928,9 @@ const MEN={gapW:.2,gapN:.12,spread:.11,bound:3.4,threatT:5,mag:{rifle:5,mg:3,at:
 const menN=ty=>(typeof SQUAD==='object'&&SQUAD[ty])||MEN_N[ty]||4;
 const menWX=(u,x1,z1,x2,z2)=>typeof wallCross==='function'&&wallCross(u,x1,z1,x2,z2);
 /* 두 점 사이를 병사가 곧게 갈 수 있는가(벽·물·건물 경계) */
-function menClear(u,x1,z1,x2,z2){if(!walkable(u,x2,z2))return false;const a=tileAt(x1,z1),b=tileAt(x2,z2);
+function menClear(u,x1,z1,x2,z2){if(!walkable(u,x2,z2))return false;
+  // 이동 격자 칸(약 2.4m)보다 촘촘하게: 주차 차 같은 막는 물체 모양 안으로는 들어가지 않는다(격자 칸 가운데만 비어 있으면 차 안에 서던 것)
+  if(typeof vObsAt==='function'){const L=vObsAt('inf',x2,z2);if(L)for(const o of L){const rl=NAV_RULE[o.k];if(rl&&rl.inf===2&&inBox(o,x2,z2,.012)&&!inBox(o,x1,z1,.012))return false;}}const a=tileAt(x1,z1),b=tileAt(x2,z2);
   if(a&&b&&(a.t==='bldg')!==(b.t==='bldg')&&typeof wallCross!=='function')return false;return !menWX(u,x1,z1,x2,z2);}
 function menHash(id,i){const s=Math.sin(id*127.1+i*311.7)*43758.5453;return s-Math.floor(s);}
 function menInit(u){const n=menN(u.type);const M=[];
@@ -8561,6 +8576,30 @@ function v3BuildShops(g){const T=V3.T,pm=v3PropMats(),m=MU,IN=.08,y0=.06;const g
       for(const o of [-.22,.22]){gpost.push({x:cx+o,y:y0+.15,z:cz,ry:0,sx:.035,sy:.3,sz:.035,col:'#9a9890'});gpost.push({x:cx+o,y:y0+.03,z:cz,ry:0,sx:.06,sy:.06,sz:.28,col:'#bdbab2'});gpost.push({x:cx+o,y:y0+.075,z:cz+.06,ry:0,sx:.04,sy:.07,sz:.035,col:'#a83a30'});}}}
   if(gas.length)v3Inst(g,box,pm.awn,gas);if(gpost.length)v3Inst(g,box,pm.awn,gpost);
   v3Inst(g,box,pm.shop,glass,{noShadow:1});v3Inst(g,box,pm.awn,awn);v3Inst(g,box,pm.sign,sign,{noShadow:1});}
+
+/* ---- 07p2-crush.js ---- */
+/* ===================== 3D: 전차에 깔린 주차 차 =====================
+   05b2-motion이 전차·자주포가 깔고 지나간(또는 끼인 차량이 밀고 나간) 주차 차를 p.crush로 표시하면,
+   그 차의 차체·유리칸·지붕·바퀴 인스턴스를 찾아 납작하게 누른다. 인스턴스 메시는 07z-perf가 지도 조각별로 나눠도
+   형상(geometry)은 같이 쓰므로 형상과 자리로 찾는다. */
+const CRUSH={body:.32,top:.18,dark:'#5a5650'};
+function v3CrushCar(p){if(typeof V3==='undefined'||!V3.on||!V3.G||!V3.G.world||!V3.carG)return;const T=V3.T,cg=V3.carG[p.kind];if(!cg)return;
+  const m4=new T.Matrix4(),pos=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3(),c=new T.Color(CRUSH.dark);
+  // 바퀴 자리(07p-props와 같은 계산)
+  const wh=[];if(!p.burnt&&!p.lot){const m=MU,L=CAR_KINDS[p.kind].body[1][0]*.62*m,W=CAR_KINDS[p.kind].w*.5*m,cs=Math.cos(p.ry),sn=Math.sin(p.ry);
+    for(const [fx,fz] of [[1,1],[1,-1],[-1,1],[-1,-1]]){const lx=fx*L,lz=fz*W;wh.push([p.x+lx*cs+lz*sn,p.z-lx*sn+lz*cs]);}}
+  const parts=new Map([[cg.body,CRUSH.body],[cg.cab,CRUSH.top],[cg.roof,CRUSH.top],[V3.carG.wheel,.5]]);
+  V3.G.world.traverse(o=>{if(!o.isInstancedMesh)return;const k=parts.get(o.geometry);if(k==null)return;let hit=false;
+    for(let i=0;i<o.count;i++){o.getMatrixAt(i,m4);m4.decompose(pos,q,sc);
+      const at=o.geometry===V3.carG.wheel?wh.some(([x,z])=>Math.abs(pos.x-x)<.004&&Math.abs(pos.z-z)<.004):Math.abs(pos.x-p.x)<.002&&Math.abs(pos.z-p.z)<.002;
+      if(!at)continue;
+      // 바닥(지금 높이) 기준으로 위아래만 누르고, 조금 옆으로 퍼지게
+      const y0=o.geometry===V3.carG.wheel?0:pos.y;const S=new T.Matrix4().makeScale(1.04,k,1.04),A=new T.Matrix4().makeTranslation(-pos.x,-y0,-pos.z),B=new T.Matrix4().makeTranslation(pos.x,y0,pos.z);
+      m4.premultiply(A).premultiply(S).premultiply(B);o.setMatrixAt(i,m4);if(o.instanceColor&&o.geometry===cg.body){o.getColorAt(i,c);c.multiplyScalar(.6);o.setColorAt(i,c);o.instanceColor.needsUpdate=true;}hit=true;}
+    if(hit){o.instanceMatrix.needsUpdate=true;o.computeBoundingSphere();}});}
+FXH.carCrush=function(p){try{v3CrushCar(p);if(typeof sfx==='function')sfx('crumble',.5,p.x,p.z);}catch(e){}};
+/* 새로 그린 지도(불러오기 등)에도 이미 깔린 차를 누른 채로 */
+if(typeof v3BuildWorld==='function'){const f=v3BuildWorld;v3BuildWorld=function(){const r=f.apply(this,arguments);try{for(const p of G.props||[])if(p.crush)v3CrushCar(p);}catch(e){}return r;};}
 
 /* ---- 07q-pfx.js ---- */
 /* ===================== 입자 연출: 연기·불·폭발 =====================

@@ -6,16 +6,16 @@
 //   slow    움직이긴 하는데 (경로 길이 ÷ 느린 속도 + 20초) 안에 못 감(맴돎)
 //   gaveup  도중에 경로가 비어 섰음(도착 전)
 // 병사 낙오: 분대원이 분대 점에서 2칸 넘게 10초 넘게 떨어진 경우.
-// 사용: node tools/stuck.mjs [판 수=6] [크기=m] [초=360]   (SEED0 환경변수로 시작 시드)
+// 사용: node tools/stuck.mjs [판 수=6] [크기=m] [초=360] [지형=city|port|country|forest]   (SEED0 환경변수로 시작 시드, VERB=1 실패마다 자세히)
 import { loadGame, seedRandom } from '../test/harness.mjs';
 
-const GAMES = +(process.argv[2] || 6), SIZE = process.argv[3] || 'm', SECS = +(process.argv[4] || 360), VERB = !!process.env.VERB;
+const GAMES = +(process.argv[2] || 6), SIZE = process.argv[3] || 'm', SECS = +(process.argv[4] || 360), LAY = process.argv[5] || undefined, VERB = !!process.env.VERB;
 const res = {}, cause = {}, ex = [];
 let lag = 0, lagS = 0, errs = 0;
 const inc = (o, k, v = 1) => (o[k] = (o[k] || 0) + v);
 for (let g = 0; g < GAMES; g++) {
   const T = loadGame(); const seed = (+process.env.SEED0 || 5000) + g; seedRandom(T, seed);
-  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: SIZE, diff: 'normal', fog: true, speed: 0, seed });
+  T.newGame({ slots: ['human', 'ai', 'none', 'none'], size: SIZE, diff: 'normal', fog: true, speed: 0, seed, layout: LAY === 'city' ? undefined : LAY });
   const G = T.G; const H = 0;
   // 사람 세력에 차량도 섞는다
   const sp = T.zoneSpots(H); let k = 12;
@@ -23,12 +23,8 @@ for (let g = 0; g < GAMES; g++) {
   const P = new Map(); const lagT = new Map();
   let rs = seed * 7919 >>> 0; const rnd = () => { rs = (rs * 1664525 + 1013904223) >>> 0; return rs / 4294967296; };
   const walk = (u, x, z) => T.__eval('walkable')(u, x, z);
-  if (globalThis.__BLK) { const B = globalThis.__BLK; const ws = T.__get('walkable'), wc = T.__get('wallCross');
-    T.__set('walkable', function (u, x, z) { const r = ws(u, x, z); if (!r && u.id === B.uid && Math.hypot(x - u.x, z - u.z) < .2 && G.time >= B.t1) console.log('notwalk', G.time.toFixed(1), x.toFixed(3), z.toFixed(3), 'from', u.x.toFixed(3), u.z.toFixed(3), 'path0', JSON.stringify(u.path && u.path[0]), 'tile', T.cell(Math.floor(z), Math.floor(x)).t, 'nav', T.__eval('navCost')(T.__eval('navCls')(u), x, z)); return r; });
-    T.__set('wallCross', function (u, x1, z1, x2, z2) { const r = wc(u, x1, z1, x2, z2); if (r && u.id === B.uid && x1 === u.x && z1 === u.z && G.time >= B.t1) console.log('wall', G.time.toFixed(1), x1.toFixed(3), z1.toFixed(3), '->', x2.toFixed(3), z2.toFixed(3), JSON.stringify(u.path && u.path[0])); return r; }); }
   for (let i = 0; i < SECS * 10 && !G.over; i++) {
-    if (globalThis.__PATHWATCH) { const W = globalThis.__PATHWATCH; for (const u of G.units) if (W.want.includes(u.id) && !u.__w) { u.__w = 1; let v = u.path; Object.defineProperty(u, 'path', { get: () => v, set: n => { if (G.time >= W.t1 && v && v.length && (!n || !n.length)) console.log('CLEAR', u.id, u.type, G.time.toFixed(1), new Error().stack.split('\n').slice(2, 7).map(l => l.trim().replace(/\((.*):(\d+):\d+\)/, (m, f, n) => '@' + n)).join(' < ')); v = n; }, enumerable: true, configurable: true }); } }
-    T.rtTick(0.1); if (globalThis.__TRACE) { const R = globalThis.__TRACE; const u = G.units.find(o => o.id === R.uid); if (u && G.time >= R.t1 && i % 5 === 0) console.log(G.time.toFixed(1), u.x.toFixed(3), u.z.toFixed(3), "hd", (u.hd ?? u.face ?? 0).toFixed(0), "vs", (u.vs ?? 0).toFixed(2), "path", JSON.stringify((u.path || []).map(p => [+p[0].toFixed(2), +p[1].toFixed(2)])), "blk", (u._blk || 0).toFixed(1), "supp", (u.supp || 0).toFixed(1), "climb", u.climb ? JSON.stringify(u.climb).slice(0, 80) : "", "fl", u.fl, "dep", u.dep ?? "", "hold", u.hold ?? "", "cas", u.casV ?? "", Object.keys(u).filter(k => k[0] === "_").join(",")); }
+    T.rtTick(0.1);
     if (i % 10) continue;
     const now = G.time;
     for (const u of G.units) {
@@ -83,7 +79,7 @@ for (let g = 0; g < GAMES; g++) {
   errs += (G.errs || []).length;
 }
 const pc = (a, b) => (100 * a / Math.max(1, a + b)).toFixed(1) + '%';
-console.log(`${GAMES}판 (${SIZE}, ${SECS}초) · AI 오류 ${errs}`);
+console.log(`${GAMES}판 (${SIZE}, ${LAY || 'city'}, ${SECS}초) · AI 오류 ${errs}`);
 for (const c of ['inf', 'veh']) console.log(`${c}: 도착 ${res[c + ':ok'] || 0}, 실패 ${res[c + ':fail'] || 0} (${pc(res[c + ':fail'] || 0, res[c + ':ok'] || 0)}), 길 없음(제외) ${res[c + ':unreach'] || 0}, 무전 안 닿음 ${res[c + ':radiolost'] || 0}`);
 console.log('실패 원인:', JSON.stringify(cause));
 const byT = {}; for (const e of ex) inc(byT, e.ty + ':' + e.fail); console.log('종류별:', JSON.stringify(byT));
