@@ -15,7 +15,7 @@ const ADJ_K={atk:'공격',def:'방어'};
 const adjL=(l,sh)=>`<span class="adj-l">${l}</span><span class="adj-s">${sh}</span>`;
 function adjDesc(I){if(!I)return '부관 재량 (가까운 거점부터)';if(I.obj)return `${ADJ_K[I.k]} · ${I.obj}`;
   let o=null,bd=7;for(const q of G.objs){const d=Math.hypot(q.c+.5-I.x,q.r+.5-I.z);if(d<bd){bd=d;o=q;}}return `${ADJ_K[I.k]} · ${o?o.name+' 근처':'지정 지점'}`;}
-const adjCan=()=>G&&!G.over&&!G.boot&&!isAI(G.viewer)&&!(typeof specOn==='function'&&specOn())&&!(G.scn==='tut');
+const adjCan=()=>G&&!G.over&&!G.boot&&!isAI(G.viewer)&&!(typeof specOn==='function'&&specOn());
 function adjAim(x,z){const n=G.viewer;const k=UI.phase==='aim:def'?'def':'atk';const I=autoIntent(n,k,x,z);UI.phase=null;
   if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#ffd27a');if(typeof sndRadio==='function')sndRadio('ack');toast(`주공 목표: ${adjDesc(I)}`);L(`부관: 주공 ${adjDesc(I)}`);}render();}
 /* 설정 화면: 지휘 방식 */
@@ -29,7 +29,8 @@ if(typeof document!=='undefined'){if(document.readyState==='loading')document.ad
   if(UI.phase==='aim:atk'||UI.phase==='aim:def'){const k=UI.phase==='aim:def'?'방어 지점':'공격 목표';
     el.innerHTML=`<b style="color:#ffd27a">${k} 지정</b><span>지도나 왼쪽 위 작은 지도를 탭하세요 · 거점 가까이 누르면 그 거점</span><div class="ab"><button class="btn sm" data-act="adj:cancel" id="ab-adj-cancel">취소</button></div>`;return;}
   const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;
-  if(s){if(!N2.auto)return;const grp=[s,...(UI.group||[])].filter(u=>u&&G.units.includes(u));const ab=el.querySelector('.ab');
+  if(s){const grp=[s,...(UI.group||[])].filter(u=>u&&G.units.includes(u));const ab=el.querySelector('.ab');
+    if(!N2.auto){if(ab&&grp.some(u=>SELF_RUN[u.type]&&u.man!=null))ab.insertAdjacentHTML('afterbegin','<button class="btn sm primary" data-act="adj:free" id="ab-adj-free" title="보급·후송·견인·포 자리 잡기를 다시 알아서 합니다">자동 임무로</button>');return;}
     if(ab&&grp.some(u=>u.man!=null))ab.insertAdjacentHTML('afterbegin','<button class="btn sm primary" data-act="adj:free" id="ab-adj-free" title="이 부대를 다시 부관이 지휘합니다">부관에게 돌려주기</button>');
     const sp=el.querySelector(':scope>span');if(sp&&!grp.some(u=>u.man!=null))sp.insertAdjacentText('beforeend',' · 직접 명령하면 이 부대만 직접 지휘');return;}
   if(UI.pane||UI.phase==='buy'||UI.phase==='sup')return;
@@ -52,7 +53,7 @@ if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e
   if(a==='buy'){N2.autoBuy=N2.autoBuy===false;toast(`자동 증원 ${N2.autoBuy?'켬':'끔'}`);render();return;}
   if(a==='on'){autoSet(n,true);toast('부관이 지휘합니다. 공격 목표를 정해 주세요');render();return;}
   if(a==='off'){autoSet(n,false);toast('직접 지휘로 바꿨습니다');render();return;}
-  if(a==='free'){const grp=[UI.sel,...(UI.group||[])].filter(u=>u&&G.units.includes(u));for(const u of grp){u.man=null;u.hold=false;}toast(`${grp.length}개 부대를 부관에게 돌려줌`);clearSel();render();return;}});
+  if(a==='free'){const grp=[UI.sel,...(UI.group||[])].filter(u=>u&&G.units.includes(u)&&(N2.auto||SELF_RUN[u.type]));for(const u of grp){u.man=null;u.hold=false;}toast(N2.auto?`${grp.length}개 부대를 부관에게 돌려줌`:`${grp.length}개 지원 부대 자동 임무`);clearSel();render();return;}});
 /* 지도 탭: 목표 지정 중이면 목표로 */
 {const _tap=tap;tap=function(k){if(G&&!G.over&&(UI.phase==='aim:atk'||UI.phase==='aim:def')){const pt=(typeof V3!=='undefined'&&V3.pickPt)||[kc(k)+.5,kr(k)+.5];adjAim(pt[0],pt[1]);return;}return _tap(k);};}
 if(typeof mmPick==='function'){const _mp=mmPick;mmPick=function(x,z,first){if(G&&(UI.phase==='aim:atk'||UI.phase==='aim:def')){if(first)adjAim(x,z);return false;}return _mp.apply(this,arguments);};}
@@ -66,3 +67,5 @@ if(typeof occLabels==='function'){const _ol=occLabels;occLabels=function(want,vs
 if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){const h=_ut(u);return G&&u.nat===G.viewer&&u.man!=null&&autoOn(u.nat)?h+'<u class="man">직접</u>':h;};}
 /* 판을 시작하면 한 번 안내 */
 {const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(G&&!G._adjHint&&adjCan()&&G.nats[G.viewer].auto&&$('#setup').hidden){G._adjHint=1;toast('부관이 부대를 지휘합니다 · 아래 [공격 목표]로 주공 방향을 정하세요');}}catch(e){}return r;};}
+/* 지원 부대 정보: 자동 임무 중인지 */
+{const _ui=uInfo;uInfo=function(u){let s=_ui(u);if(G&&u.nat===G.viewer&&!isAI(u.nat)&&SELF_RUN[u.type])s+=selfRun(u)?' · 자동 임무':' · 직접 명령 중';return s;};}
