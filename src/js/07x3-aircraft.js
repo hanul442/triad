@@ -182,12 +182,24 @@ v3JetModel=function(){const T=V3.T;const g=new T.Group();const c=acJetTpl().clon
 const HUEY_FLY={v0:5,t1:1.0,Ta:3.6,Td:5.0,hov:.9,clr:.9,lift:1.2};
 // 주변(반경 2칸)에서 가장 높은 것: 지붕, 또는 숲 칸의 나무 꼭대기(약 12m)
 function acClear(x,z){let h=0;const r0=Math.floor(z),c0=Math.floor(x);for(let r=r0-2;r<=r0+2;r++)for(let c=c0-2;c<=c0+2;c++)if(inb(r,c)){const m=G.map[r][c];h=Math.max(h,v3Top(r,c)+(m.t==='park'&&(m.wild||m.orch)?(m.orch?.6:1.0):0));}return h;}
+/* 비행 고도: 바로 밑 건물 높이를 그대로 따르면 칸마다 뿅뿅 튄다.
+   그래서 (1) 가는 쪽 앞길 몇 칸의 가장 높은 지붕·나무를 미리 보고, (2) 그 높이를 임계 감쇠 스프링으로 따라간다.
+   오를 때는 빨리(초당 1.4칸까지), 내릴 때는 천천히(초당 .45칸까지). 시계는 게임 시간이라 일시정지·배속을 따른다. */
+function acObstH(x,z,R){let h=0;const r0=Math.floor(z-R),r1=Math.floor(z+R),c0=Math.floor(x-R),c1=Math.floor(x+R);
+  for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){if(!inb(r,c))continue;const dx=Math.max(c-x,0,x-c-1),dz=Math.max(r-z,0,z-r-1);if(dx*dx+dz*dz>R*R)continue;
+    const m=G.map[r][c];h=Math.max(h,v3Top(r,c)+(m.t==='park'&&(m.wild||m.orch)?(m.orch?.6:1.0):0));}return h;}
+function acLook(x,z,hx,hz,ahead,R){let h=acObstH(x,z,R);if(ahead>0)for(let d=.5;d<=ahead+1e-6;d+=.5)h=Math.max(h,acObstH(x+hx*d,z+hz*d,R));return h;}
+const ACALT=new WeakMap();
+function acAltSmooth(key,target,gt){let s=ACALT.get(key);if(!s){s={y:target,v:0,t:gt};ACALT.set(key,s);return s.y;}
+  let dt=gt-s.t;s.t=gt;if(!(dt>0))return s.y;dt=Math.min(dt,.5);
+  for(let n=Math.ceil(dt/.05),h=dt/n;n>0;n--){const a=3*(target-s.y)-3.46*s.v;s.v=Math.max(-.45,Math.min(1.4,s.v+a*h));s.y+=s.v*h;}
+  return s.y;}
 const acSm=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k);};
 function acDustCol(){return typeof bmClime==='function'&&bmClime()==='winter'?'#dfe3e6':typeof bmClime==='function'&&bmClime()==='desert'?'#b49c74':'#9c9283';}
 v3Heli=function(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const y0=v3Top(r,c);const H=acHuey(n);const h=H.userData.body;V3.G.fx.add(H);h.rotation.order='YZX';
   const dir=[[-1,0],[1,0],[0,-1],[0,1]][n??0]||[-1,0];const F=HUEY_FLY;const Dd=F.v0*(F.Ta-F.t1)/2,D=F.v0*F.t1+Dd;
   const sx=x+dir[0]*D,sz=z+dir[1]*D;const ang=Math.atan2(dir[1],-dir[0]);// 기수 = 착륙지 쪽
-  const t0=G.time;const LAND=HELI_T+1.6;const turn=Math.random()<.5?1:-1;let dustT=0,lastT=t0,pitch=-.1,roll=0,cruise=acClear(sx,sz)+F.clr;
+  const t0=G.time;const LAND=HELI_T+1.6;const turn=Math.random()<.5?1:-1;let dustT=0,lastT=t0,pitch=-.1,roll=0,cruise=acLook(sx,sz,-dir[0],-dir[1],3.5,1)+F.clr;const hs={};let ds=null;acAltSmooth(hs,cruise,t0);
   const dep={x,z,y:y0,psi:ang,v:0};
   if(typeof sndTrack==='function')sndTrack(H,'rotor');
   V3.fx.push({o:H,t0:performance.now(),dur:1e9,upd:(o)=>{const t=G.time-t0;const now=performance.now();const dt=Math.max(0,Math.min(.1,G.time-lastT));lastT=G.time;
@@ -195,15 +207,14 @@ v3Heli=function(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const 
     let px=x,pz=z,py=y0,psi=ang,wp=0,wr=0;
     if(t<F.Ta){// 접근: 순항 후 감속. 감속하는 동안 기수를 들어 속도를 죽인다
       let d,v;if(t<F.t1){d=D-F.v0*t;v=F.v0;wp=-.12;}else{const q=(t-F.t1)/(F.Ta-F.t1);d=Dd*(1-q)*(1-q);v=F.v0*(1-q);wp=.2*Math.min(1,(1-q)/.3);}
-      px=x+dir[0]*d;pz=z+dir[1]*d;cruise=Math.max(cruise-dt*.3,acClear(px,pz)+F.clr);const hk=acSm((t-F.t1)/(F.Ta-F.t1));py=cruise+(y0+F.hov-cruise)*hk;
-      py=Math.max(py,acClear(px,pz)*(1-hk)+.4);}
+      px=x+dir[0]*d;pz=z+dir[1]*d;cruise=acAltSmooth(hs,acLook(px,pz,-dir[0],-dir[1],3.5,1)+F.clr,G.time);const hk=acSm((t-F.t1)/(F.Ta-F.t1));py=cruise+(y0+F.hov-cruise)*hk;}
     else if(t<F.Td){const k=(t-F.Ta)/(F.Td-F.Ta);py=y0+F.hov*(1-acSm(k));wp=.03;wr=Math.sin(t*2.3)*.025;px+=Math.sin(t*1.7)*.03*(1-k);pz+=Math.cos(t*1.3)*.03*(1-k);}
     else if(t<LAND){py=y0;wp=0;if(t>=HELI_T)for(const p of H.userData.pax)p.visible=false;}
     else{for(const p of H.userData.pax)p.visible=false;const q=t-LAND;
       if(q<F.lift){py=y0+F.hov*acSm(q/F.lift);wp=-.06*q/F.lift;dep.y=py;}
       else{// 이륙: 기수를 숙여 앞으로 가속하며 몸을 기울여 돌아 나간다
         const w=q-F.lift;const om=w<3.2?turn*.95:0;dep.v=Math.min(F.v0,dep.v+dt*2.2);dep.psi+=om*dt;
-        dep.x+=Math.cos(dep.psi)*dep.v*dt;dep.z+=-Math.sin(dep.psi)*dep.v*dt;dep.y=Math.max(dep.y+dt*.5,acClear(dep.x,dep.z)+F.clr*Math.min(1,w/2));
+        dep.x+=Math.cos(dep.psi)*dep.v*dt;dep.z+=-Math.sin(dep.psi)*dep.v*dt;if(!ds){ds={};acAltSmooth(ds,dep.y,G.time);}const tg=Math.max(dep.y,acLook(dep.x,dep.z,Math.cos(dep.psi),-Math.sin(dep.psi),3.5,1)+F.clr*Math.min(1,w/2));dep.y=Math.max(dep.y,acAltSmooth(ds,tg,G.time));
         px=dep.x;pz=dep.z;py=dep.y;psi=dep.psi;wp=-.08-.1*Math.min(1,dep.v/F.v0)*(dep.v<F.v0?1:.4);wr=-om*dep.v*.08;
         if(w>9||Math.hypot(px-x,pz-z)>N*.75+8){o.visible=false;return false;}}
       if(q<F.lift){px=x;pz=z;dep.x=x;dep.z=z;}}
@@ -212,3 +223,11 @@ v3Heli=function(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const 
     // 로터 바람: 낮을수록 넓고 진하게 먼지가 둥글게 밀려난다
     const ag=py-v3TopAt(px,pz);if(ag<1.4&&now-dustT>150-ag*60){dustT=now;const I=1-ag/1.4;const gy=v3TopAt(px,pz)+.03;
       for(let i=0;i<1+Math.round(I*2);i++){const a=Math.random()*6.283;const d=.35+Math.random()*.45;dsDust(px+Math.cos(a)*d,pz+Math.sin(a)*d,.35+I*.45,1400+I*800,1,acDustCol(),gy);}}}});};
+
+/* ---------- 공격헬기·정찰드론·FPV 순항 고도: 앞길을 미리 보고 부드럽게 ---------- */
+{const _y=v3AirY;v3AirY=function(u){const t=u.type;if(!V3.on||!G||(t!=='gunship'&&t!=='drone'&&t!=='fpv'))return _y(u);
+  const A=u.air;if(t==='fpv'&&A&&A.dive)return _y(u);
+  let hx,hz,sp;if(A&&A.vx!=null&&Math.hypot(A.vx,A.vz)>.05){sp=Math.hypot(A.vx,A.vz);hx=A.vx/sp;hz=A.vz/sp;}else{const f=(u.hd??u.face??0)*Math.PI/180;hx=Math.cos(f);hz=Math.sin(f);sp=(UT[t].mv||5)*SPD_K;}
+  const ahead=Math.min(4,Math.max(1.5,sp*1.6));
+  const tg=t==='gunship'?Math.max(1.4,acLook(u.x,u.z,hx,hz,ahead,1.2)+.8)+(A&&A.leave?.8:0):t==='drone'?Math.max(2.4,acLook(u.x,u.z,hx,hz,ahead,.8)+1):Math.max(.9,acLook(u.x,u.z,hx,hz,ahead,.6)+.7);
+  return acAltSmooth(u,tg,G.time||0);};}
