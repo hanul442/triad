@@ -2518,6 +2518,26 @@ function heliTick(){if(!G.pending||!G.pending.length)return;const keep=[];
   for(const p of G.pending){if(p.t>G.time){keep.push(p);continue;}const u=mkUnit(p.n,p.type,p.r,p.c);u.face=Math.random()*360;L(`${natName(p.n)} ${UT[p.type].n} 헬기 투입`);if(typeof FXH.land==='function')FXH.land(u);}
   G.pending=keep;}
 
+/* ---- 05d2-doorgun.js ---- */
+/* ===================== 수송헬기 도어거너 엄호사격 =====================
+   실제 휴이처럼 양쪽 문의 기관총 사수가 착륙 직전·땅에 있는 동안·이륙 직후 착륙장 둘레의 적을 쏜다.
+   한 번에 짧은 연사(6발), 0.6초마다 한 번. 피해는 기관총보다 약하고(흔들리는 헬기에서 쏜다) 대신 맞은 쪽은 고개를 숙인다.
+   건물 안(실내층)에 있는 적은 쏘지 않는다. 보이지 않는 적(전장의 안개)도 쏘지 않는다. */
+const DG={R:4.2,from:2.2,to:3.4,gap:.6,k:6,p:.28,dmg:.55};
+{const _hi=heliInsert;heliInsert=function(n,r,c){_hi.apply(this,arguments);const tl=(G.time||0)+HELI_T;(G.dg=G.dg||[]).push({n,r,c,x:c+.5,z:r+.5,a:tl-DG.from,b:tl+DG.to,nx:0});};}
+function dgTargets(g){return G.units.filter(e=>{if(e.nat===g.n||UT[e.type].fly)return false;if(Math.hypot(e.x-g.x,e.z-g.z)>DG.R)return false;
+  const X=cell(e.r,e.c);if(X.t==='bldg'&&eye(e)<bldgH(X))return false;if(G.fog&&typeof seen==='function'&&!seen(e,g.n))return false;return true;});}
+function dgTick(){if(!G.dg||!G.dg.length)return;const now=G.time||0;
+  G.dg=G.dg.filter(g=>now<=g.b);
+  for(const g of G.dg){if(now<g.a||now<g.nx)continue;g.nx=now+DG.gap*(.85+Math.random()*.3);
+    const T=dgTargets(g);if(!T.length)continue;T.sort((a,b)=>Math.hypot(a.x-g.x,a.z-g.z)-Math.hypot(b.x-g.x,b.z-g.z));const e=T[Math.random()<.7?0:Math.floor(Math.random()*T.length)];
+    const veh=UT[e.type].cls==='veh';const X=cell(e.r,e.c);const cov=X.t==='rubble'||(typeof trenchAt==='function'&&trenchAt(e.x,e.z))?.5:1;
+    let hits=0;for(let i=0;i<DG.k;i++)if(Math.random()<DG.p*cov)hits++;
+    if(!veh&&hits)harm(e,Math.round(DG.dmg*hits/DG.k*(UT.mg.atk.inf||6)*DPS_K*COOL.mg*10*(.8+Math.random()*.4))/10,null,{kind:'bullet'});
+    e.supp=Math.max(e.supp||0,hits?1.2:.8);
+    if(typeof FXH.doorgun==='function')try{FXH.doorgun(g,e,hits,DG.k);}catch(err){}}}
+{const _ht=heliTick;heliTick=function(){_ht.apply(this,arguments);dgTick();};}
+
 /* ---- 05e-floors.js ---- */
 /* ===================== FLOORS: 문으로 들어가 계단으로 오르기 =====================
    보병은 건물 외벽을 넘지 못한다. 칸마다 바깥쪽 벽 몇 곳에 출입문이 있고, 그 문으로만 드나든다.
@@ -10256,6 +10276,21 @@ v3Heli=function(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const 
   const ahead=Math.min(4,Math.max(1.5,sp*1.6));
   const tg=t==='gunship'?Math.max(1.4,acLook(u.x,u.z,hx,hz,ahead,1.2)+.8)+(A&&A.leave?.8:0):t==='drone'?Math.max(2.4,acLook(u.x,u.z,hx,hz,ahead,.8)+1):Math.max(.9,acLook(u.x,u.z,hx,hz,ahead,.6)+.7);
   return acAltSmooth(u,tg,G.time||0);};}
+
+/* ---- 07x4-doorgun.js ---- */
+/* ===================== 도어거너 사격 연출 =====================
+   휴이 모형(07x3) 양쪽 문 기관총 총구(모형 1m 좌표 x -.75, y 1.47, z ±2.3)에서, 표적 쪽 문으로 쏜다.
+   총구 화염·탄피, 예광탄(4발에 1발), 탄착이 표적 둘레를 훑는다. */
+{const _vh=v3Heli;v3Heli=function(r,c,n){const n0=V3.fx?V3.fx.length:0;const out=_vh.apply(this,arguments);if(V3.fx&&V3.fx.length>n0){V3.hueys=V3.hueys||new Map();V3.hueys.set(key(r,c),V3.fx[V3.fx.length-1].o);}return out;};}
+FXH.doorgun=function(g,e,hits,k){if(typeof sndShot==='function')sndShot({type:'mg',x:g.x,z:g.z,r:g.r,c:g.c,nat:g.n});if(!V3.on||typeof gfxMuzzle!=='function')return;if(!PFX.on)pfxInit();if(!PFX.on)return;
+  const H=V3.hueys&&V3.hueys.get(key(g.r,g.c));if(!H||!H.visible||!H.userData.body)return;const T=V3.T;const b=H.userData.body;b.updateWorldMatrix(true,false);
+  const [x2,y2,z2]=v3Pos(e.r,e.c,e);let best=null;for(const s of [-1,1]){const p=b.localToWorld(new T.Vector3(-.75,1.47,s*2.3));const d=Math.hypot(p.x-x2,p.z-z2);if(!best||d<best.d)best={p,d};}
+  const P=best.p;let dx=x2-P.x,dy=y2-P.y,dz=z2-P.z;const D=Math.hypot(dx,dy,dz)||1;dx/=D;dy/=D;dz/=D;const tc=gfxTrC({nat:g.n});const lod=gfxLod(P.x,P.z);
+  for(let i=0;i<k;i++){const dl=i*.07*gfxR(.85,1.15);gfxMuzzle(P.x,P.y,P.z,dx,dy,dz,.07,i%2?0:.07,dl,lod);if(lod>.4)gfxBrass(P.x,P.y,P.z,dx,dz,dl);
+    const L=gfxLand(P.x,P.y,P.z,x2,y2,z2,e,i<hits,null);// 흔들리는 헬기: 더 넓게 흩어진다
+    if(L.ny>.5){L.x+=gfxR(-.12,.12);L.z+=gfxR(-.12,.12);}const dd=Math.hypot(L.x-P.x,L.y-P.y,L.z-P.z);
+    if((i+(GFX.dgc=(GFX.dgc||0)+1))%4===0)gfxTracer(P.x,P.y,P.z,L.x,L.y,L.z,72,tc,.018,dl,.5);
+    gfxHit(L.x,L.y,L.z,L.m,L.nx,L.ny,L.nz,1.1,dl+dd/72,gfxLod(L.x,L.z));}};
 
 /* ---- 07y-logi.js ---- */
 /* ===================== 화면: 보급 트럭·구난차·보급소·탄약 표시 =====================
