@@ -11,6 +11,7 @@ if(typeof document!=='undefined'&&!document.getElementById('org-css')){const st=
 .org-row .oc{display:inline-flex;gap:5px;align-items:baseline}.org-row .oc small{color:#c9d1d6;font-weight:400}.org-row .oc em{font-style:normal;color:#9fd3ff}
 .org-row .btn[aria-pressed="true"]{border-color:#9fd3ff;color:#9fd3ff}
 #roster .rh{flex:0 0 auto;min-height:34px;padding:0 8px;border-radius:8px;border:1px solid rgba(159,211,255,.45);background:rgba(20,40,60,.75);color:#9fd3ff;font:600 12px/1 inherit;cursor:pointer}
+#roster .rh small.pk{display:block;font-size:9.5px;font-weight:500;opacity:.8;margin-top:2px}
 #roster .rh.co{background:rgba(159,211,255,.18);color:#d9efff}#roster .rh[aria-pressed="true"]{background:#9fd3ff;color:#0d1a26}
 .v3u u.pq{border-color:#9fd3ff;color:#9fd3ff}
 .org-row .adj-s{display:none}
@@ -115,7 +116,7 @@ if(typeof renderRoster==='function'){const _rr=renderRoster;let sig0='';renderRo
     return `<button class="rc" data-act="pick:${u.id}" id="rc-${u.id}" aria-pressed="${sel.has(u.id)}"><b>${UT[u.type].n}</b>${st?`<small>${st}</small>`:''}<i style="--f:${f};--c:${f>.6?'#5cd18a':f>.3?'#f0c45a':'#ff6a3d'}"></i></button>`;};
   el.innerHTML=groups.map(g=>{let h='';
     if(g.c)h+=`<button class="rh co" data-act="org:co:${g.c.id}" aria-pressed="${!!(UI.org&&UI.org.k==='co'&&UI.org.id===g.c.id)}">${g.c.name}</button>`;
-    if(g.p)h+=`<button class="rh" data-act="org:pq:${g.p.id}" aria-pressed="${!!(UI.org&&UI.org.k==='pq'&&UI.org.id===g.p.id)}" title="${g.p.name}">${g.p.no}소대</button>`;
+    if(g.p)h+=`<button class="rh" data-act="org:pq:${g.p.id}" aria-pressed="${!!(UI.org&&UI.org.k==='pq'&&UI.org.id===g.p.id)}" title="${g.p.name} (${ORG_KN[orgPqKind(n,g.p)]})">${g.p.no}소대<small class="pk">${ORG_KN[orgPqKind(n,g.p)]}</small></button>`;
     else h+=`<button class="rh" data-act="org:hq" aria-pressed="${!!(UI.org&&UI.org.k==='hq')}">본부</button>`;
     return h+g.us.map(chip).join('');}).join('');
   const sid=UI.sel?UI.sel.id:null;if(sid!==rosterSel){rosterSel=sid;const on=$('#rc-'+sid);if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center'});}};}

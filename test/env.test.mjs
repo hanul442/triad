@@ -37,25 +37,25 @@ test('밤 시야: 야간투시경 정규군은 −1, 민병대 맨눈은 −2, �
   const day = [vr(a0), vr(m0), vr(d0)];
   G = setup(T, { hour: 'night' });
   const a = T.mkUnit(0, 'rifle', 5, 5), m = T.mkUnit(1, 'rifle', 9, 9), d = T.mkUnit(0, 'drone', 12, 12);
-  assert.equal(vr(a), day[0] - 1);
-  assert.equal(vr(m), day[1] - 2);
+  assert.equal(vr(a), day[0] - 2);   // 시야 보정은 06y-range에서 두 배(1칸 ≈ 12m)
+  assert.equal(vr(m), day[1] - 4);
   assert.equal(vr(d), day[2]);
 });
 
 test('조명탄: 밤에 안 보이던 적이 조명 아래 들어오면 보이고, 꺼지면 다시 숨는다', () => {
   const T = loadGame(); const G = setup(T, { hour: 'night', wx: 'clear' });
-  const a = T.mkUnit(0, 'rifle', 5, 4), e = T.mkUnit(1, 'rifle', 5, 11);
-  a.x = 4.5; a.z = 5.5; e.x = 11.1; e.z = 5.5; T.bump();
-  assert.equal(T.seen(e, 0), false, '밤에는 6.6칸 거리 적이 안 보임');
+  const a = T.mkUnit(0, 'rifle', 5, 4), e = T.mkUnit(1, 'rifle', 5, 17);
+  a.x = 4.5; a.z = 5.5; e.x = 17.1; e.z = 5.5; T.bump();
+  assert.equal(T.seen(e, 0), false, '밤에는 12.6칸 거리 적이 안 보임');
   G.nats[0].cp = 20;
-  assert.ok(T.canSupport(0, 'flare', 5, 11), '보이지 않는 곳에도 조명탄을 쏠 수 있음');
-  assert.ok(T.support(0, 'flare', 5, 11));
+  assert.ok(T.canSupport(0, 'flare', 5, 17), '보이지 않는 곳에도 조명탄을 쏠 수 있음');
+  assert.ok(T.support(0, 'flare', 5, 17));
   assert.equal(G.nats[0].supT || 0, 0, '조명탄은 포격 대기시간을 쓰지 않음');
-  for (let i = 0; i < 50; i++) { T.rtTick(0.1); a.x = 4.5; a.z = 5.5; e.x = 11.1; e.z = 5.5; a.path = []; e.path = []; a.tgt = e.tgt = null; a.cd = e.cd = 99; }
+  for (let i = 0; i < 50; i++) { T.rtTick(0.1); a.x = 4.5; a.z = 5.5; e.x = 17.1; e.z = 5.5; a.path = []; e.path = []; a.tgt = e.tgt = null; a.cd = e.cd = 99; }
   T.bump();
   assert.equal(T.seen(e, 0), true, '조명탄이 비추면 보임');
   const fine = T.visSet(0).fine, M = T.N * 3;
-  assert.equal(fine[Math.floor(5.5 * 3) * M + Math.floor(11.1 * 3)], 1, '안개 지도에서도 밝은 곳이 드러남');
+  assert.equal(fine[Math.floor(5.5 * 3) * M + Math.floor(17.1 * 3)], 1, '안개 지도에서도 밝은 곳이 드러남');
   G.time += 60; G.flares = G.flares.filter(f => G.time - f.t0 < 46); T.bump();
   assert.equal(T.seen(e, 0), false, '조명탄이 꺼지면 다시 안 보임');
 });
@@ -93,11 +93,11 @@ test('날씨는 몇 라운드씩 이어지며 바뀐다', () => {
 
 test('밤 AI: 사격을 받는데 적이 안 보이면 조명탄을 쏜다', () => {
   const T = loadGame(); const G = setup(T, { hour: 'night', wx: 'clear' }); G.nats[1].ctrl = 'ai';
-  const a = T.mkUnit(1, 'rifle', 5, 4), e = T.mkUnit(0, 'rifle', 5, 11);
-  a.x = 4.5; a.z = 5.5; e.x = 11.5; e.z = 5.5; a.supp = 1; G.nats[1].cp = 3; T.bump();
+  const a = T.mkUnit(1, 'rifle', 5, 4), e = T.mkUnit(0, 'rifle', 5, 18);
+  a.x = 4.5; a.z = 5.5; e.x = 18.5; e.z = 5.5; a.supp = 1; G.nats[1].cp = 3; T.bump();
   assert.equal(T.seen(e, 1), false);
   assert.ok(F(T, 'aiFlare')(1), '조명탄 발사');
-  const f = G.flares[0]; assert.ok(f.x > 4.5 && f.x < 11.5, '적 쪽 앞을 비춤');
+  const f = G.flares[0]; assert.ok(f.x > 4.5 && f.x < 18.5, '적 쪽 앞을 비춤');
   assert.equal(F(T, 'aiFlare')(1), false, '떠 있는 동안은 또 쏘지 않음');
 });
 

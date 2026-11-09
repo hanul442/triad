@@ -12,7 +12,8 @@ function setup(T) {
   T.bump(); return G;
 }
 const put = (T, n, ty, x, z) => { const u = T.mkUnit(n, ty, Math.floor(z), Math.floor(x)); u.x = x; u.z = z; u.cd = 99; return u; };
-const run = (T, s) => { for (let i = 0; i < s * 10; i++) T.rtTick(0.1); };
+// 다른 세력이 증원으로 들어오면(사거리가 길어 멀리서도 쏜다) 자세 검사가 흔들리니 우리 분대만 남긴다
+const run = (T, s) => { for (let i = 0; i < s * 10; i++) { T.rtTick(0.1); T.G.units = T.G.units.filter(u => u.nat === 0); } };
 
 test('전투 동작은 게임 결과를 바꾸지 않는다(난수·위치 그대로)', () => {
   const snap = on => {
@@ -71,7 +72,7 @@ test('이동 명령에 분대장이 "앞으로" 신호를 하고, 멈추면 "정
   T.orderMoveTo(u, 13.5, 10.5); T.rtTick(0.1);
   assert.equal(u._men[0].pose, 'signal', '출발 신호');
   let halt = false;
-  for (let i = 0; i < 300 && !halt; i++) { T.rtTick(0.1); halt = !u.path.length && u._men.dr.lhalt != null && u._men.find(m => m.pose === 'signal') != null; }
+  for (let i = 0; i < 300 && !halt; i++) { T.rtTick(0.1); T.G.units = T.G.units.filter(u => u.nat === 0); halt = !u.path.length && u._men.dr.lhalt != null && u._men.find(m => m.pose === 'signal') != null; }
   assert.ok(halt, `정지 신호 (path ${u.path.length}, lhalt ${u._men.dr.lhalt})`);
 });
 

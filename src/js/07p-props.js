@@ -93,7 +93,7 @@ function v3LeafTreeG(){if(V3.leafG)return V3.leafG;const T=V3.T;const parts=[];c
   let n=0;for(const g of parts)n+=g.attributes.position.count;const P=new Float32Array(n*3);let o=0;for(const g of parts){P.set(g.attributes.position.array,o);o+=g.attributes.position.array.length;g.dispose();}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.computeVertexNormals();V3.leafG=geo;return geo;}
 function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
-  const park=(r,c)=>inb(r,c)&&!G.map[r][c].yard&&(G.map[r][c].t==='park'||G.map[r][c].t==='water');
+  const park=(r,c)=>inb(r,c)&&!G.map[r][c].yard&&(G.map[r][c].t==='park'||G.map[r][c].t==='water'&&!G.map[r][c].rv&&!G.map[r][c].sea);
   const trees=[],trunks=[],bench=[],paths=[],plamp=[];const LEAF=['#6e6a4c','#7a7353','#5f5d43','#76704f','#665f45'];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='park')continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
     // 산책로: 이웃 공원 칸으로 이어지는 흙길, 칸 가운데서 만난다
@@ -117,7 +117,7 @@ function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
 /* ---------- 연못 ---------- */
 // 물 칸마다 울퉁불퉁한 원형 수면, 돌 테두리, 갈대 몇 무더기. 붙은 물 칸끼리는 수면이 겹쳐 하나로 보인다.
 function v3BuildPonds(g){const T=V3.T,pm=v3PropMats(),m=MU;const stones=[],reeds=[];
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='water'||G.map[r][c].rv||G.map[r][c].sea)continue;   // 강은 07g가, 바다는 07g2가 그린다
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='water'||G.map[r][c].rv||G.map[r][c].sea||wFount(r,c))continue;   // 광장 분수는 07g4가   // 강은 07g가, 바다는 07g2가 그린다
    const k=key(r,c);const [cx,cz]=v3x(r,c);
     const wet=(a,b)=>inb(r+a,c+b)&&G.map[r+a][c+b].t==='water';
     const S=40,pts=[];for(let i=0;i<S;i++){const a=i/S*Math.PI*2;const dx=Math.cos(a),dz=Math.sin(a);

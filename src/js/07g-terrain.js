@@ -72,7 +72,7 @@ function v3BuildTerrain(g){const f=G.feat;if(!f||G.camp)return;const T=V3.T,M=v3
     water.push({x:cx,y:.016,z:cz,rx:-Math.PI/2,sx:1.002,sy:1.002});
     if(!x.br)continue;
     if(x.br===3)continue;   // 철교는 아래에서 철길 꺾은선을 따라 잇는다
-    const H2=x.ro!=='v';deck.push({x:cx,y:.045,z:cz,sx:1,sy:.05,sz:1,col:'#8a8780'});
+    const H2=x.ro!=='v';deck.push({x:cx,y:.045,z:cz,sx:1,sy:.05,sz:1,col:'#4a4a47'});
     for(const s of [-1,1]){const y=H2?at(r+s,c):at(r,c+s);if(y&&y.br)continue;   // 다리 바깥 가장자리에만 난간
       rails.push(H2?{x:cx,y:.1,z:cz+s*.47,sx:1,sy:.06,sz:.03}:{x:cx+s*.47,y:.1,z:cz,sx:.03,sy:.06,sz:1});
       if((H2?c:r)%2===0)piers.push(H2?{x:cx,y:-.1,z:cz+s*.36,sx:.12,sy:.3,sz:.12}:{x:cx+s*.36,y:-.1,z:cz,sx:.12,sy:.3,sz:.12});}}
