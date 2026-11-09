@@ -10,7 +10,8 @@ if(typeof document!=='undefined'&&!document.getElementById('adj-css')){const st=
 .v3u u.man{border-color:#ffd27a;color:#ffd27a}`;
   document.head.appendChild(st);}
 const ADJ_K={atk:'공격',def:'방어'};
-function adjDesc(I){if(!I)return '부관 재량 (가까운 거점부터)';return `${ADJ_K[I.k]} · ${I.obj||`${I.c},${I.r} 부근`}`;}
+function adjDesc(I){if(!I)return '부관 재량 (가까운 거점부터)';if(I.obj)return `${ADJ_K[I.k]} · ${I.obj}`;
+  let o=null,bd=7;for(const q of G.objs){const d=Math.hypot(q.c+.5-I.x,q.r+.5-I.z);if(d<bd){bd=d;o=q;}}return `${ADJ_K[I.k]} · ${o?o.name+' 근처':'지정 지점'}`;}
 const adjCan=()=>G&&!G.over&&!G.boot&&!isAI(G.viewer)&&!(typeof specOn==='function'&&specOn())&&!(G.scn==='tut');
 function adjAim(x,z){const n=G.viewer;const k=UI.phase==='aim:def'?'def':'atk';const I=autoIntent(n,k,x,z);UI.phase=null;
   if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#ffd27a');if(typeof sndRadio==='function')sndRadio('ack');toast(`주공 목표: ${adjDesc(I)}`);L(`부관: 주공 ${adjDesc(I)}`);}render();}
