@@ -3346,15 +3346,15 @@ function aaCoverTick(){const now=G.time||0;if((G._aaCv||0)>now)return;G._aaCv=no
 // 적 항공기(헬기)를 본 세력은 그 뒤로도 대공을 챙긴다. 적 전투기 폭격은 소리로 안다.
 function aaAirMemo(){for(let n=0;n<G.nats.length;n++){const N2=G.nats[n];if(!N2||!aiRun(n))continue;
     if(G.units.some(e=>e.nat!==n&&UT[e.type].heli&&(!G.fog||seen(e,n))))N2.airSeenT=G.time||0;}}
-{const _aw=aiArmsW;aiArmsW=function(n){const k=G._aiN;G._aiN=n;try{return _aw.apply(this,arguments);}finally{G._aiN=k;}};}
+{const _aw=aiArmsW;aiArmsW=function(n,E,cnt,total){const k=G._aiN,kt=G._aiTot;G._aiN=n;G._aiTot=total;try{return _aw.apply(this,arguments);}finally{G._aiN=k;G._aiTot=kt;}};}
 {const _j=jetRun;jetRun=function(n){for(let k=0;k<G.nats.length;k++)if(k!==n&&G.nats[k])G.nats[k].airSeenT=G.time||0;return _j.apply(this,arguments);};}
 
 /* ---------- AI ---------- */
 // 적 헬기가 보이면 대공팀을 가장 먼저(셋까지)
-// 실제 기계화 부대는 중대마다 휴대용 대공 사수를 둔다: 처음부터 한 팀, 적 항공기를 겪었으면 두 팀, 지금 보이면 셋까지
+// 실제 기계화 부대는 중대마다 휴대용 대공 사수를 둔다: 부대가 여섯을 넘으면 한 팀, 적 항공기를 겪었으면 두 팀, 지금 보이면 셋까지
 {const _w=aiAirW;aiAirW=function(E,cnt){const w=_w.apply(this,arguments);const eHeli=E.filter(e=>UT[e.type].heli).length;
   const n=G._aiN;const seenAir=n!=null&&G.nats[n]&&(G.time||0)-(G.nats[n].airSeenT??-1e9)<300;
-  const want=eHeli?3:seenAir?2:1;if(cnt('aa')<want)w.aa=Math.max(w.aa||0,eHeli?4+eHeli*1.5:seenAir?3:1.5);return w;};}
+  const want=eHeli?3:seenAir?2:(G._aiTot||0)>=6?1:0;/* 상시 한 팀은 부대를 갖춘 뒤에 */if(cnt('aa')<want)w.aa=Math.max(w.aa||0,eHeli?4+eHeli*1.5:seenAir?3:1.5);return w;};}
 // 적 대공(본 것·기억하는 것)이 9칸 안에 있는 곳에는 수송헬기를 내리지 않는다
 function aaThreatNear(n,x,z,R){for(const e of G.units){if(e.nat===n||!isAAT(e.type))continue;if(Math.hypot(e.x-x,e.z-z)>R)continue;
     if(!G.fog||seen(e,n))return true;const m=G.mem&&G.mem[n]&&G.mem[n][e.id];if(m&&Math.hypot(m.x-x,m.z-z)<=R)return true;}
