@@ -117,7 +117,7 @@ function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
 /* ---------- 연못 ---------- */
 // 물 칸마다 울퉁불퉁한 원형 수면, 돌 테두리, 갈대 몇 무더기. 붙은 물 칸끼리는 수면이 겹쳐 하나로 보인다.
 function v3BuildPonds(g){const T=V3.T,pm=v3PropMats(),m=MU;const stones=[],reeds=[];
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='water'||G.map[r][c].rv)continue;   // 강은 07g가 그린다
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='water'||G.map[r][c].rv||G.map[r][c].sea)continue;   // 강은 07g가 그린다
    const k=key(r,c);const [cx,cz]=v3x(r,c);
     const wet=(a,b)=>inb(r+a,c+b)&&G.map[r+a][c+b].t==='water';
     const S=40,pts=[];for(let i=0;i<S;i++){const a=i/S*Math.PI*2;const dx=Math.cos(a),dz=Math.sin(a);

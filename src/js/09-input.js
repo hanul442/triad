@@ -29,6 +29,7 @@ document.addEventListener('click',e=>{const tb=e.target.closest('[data-tab]');if
   if(a.startsWith('scn:')){startScn(a.slice(4));return;}
   if(a.startsWith('camp:')){const d=$('#debrief');if(d)d.hidden=true;campBrief(a.slice(5));return;}
   if(a==='camp-go'){campGo();return;}
+  if(a.startsWith('land:')){if(typeof landPick==='function')landPick(+a.slice(5));return;}
   if(a==='camp-back'||a==='camp-list'){showSetup();return;}
   if(a==='camp-retry'){campGo(G&&G.camp?G.camp.id:UI.campSel);return;}
   if(a==='resume'){const o=loadSave();if(!o)return;N=o.N;G=o.G;UID=o.UID;$('#setup').hidden=true;clearSel();G.paused=false;render();rtStart();return;}
