@@ -141,12 +141,21 @@ test('남겨진 부상자: 구급차가 실어 가고, 적 지역에 남으면 �
 });
 
 test('구급차 안전: 적이 가까우면 물러나고 그 분대는 한동안 찾아가지 않는다', () => {
-  const T = loadGame(); seedRandom(T, 1); const G = setup(T);   // 주사위에 따라 main에서도 약 7%(40판 중 3판) 실패해 고정
+  const T = loadGame(); const G = setup(T);
   const s = T.mkUnit(0, 'rifle', 20, 20); run(T, .2); s.ws[4] = { s: 'hw', w: 'leg', b: 999, a: 1 }; F(T, 'casSync')(s, null);
   const a = T.mkUnit(0, 'amb', 20, 14); run(T, 2); assert.ok(a.mj && a.mj.id === s.id, '부상자 쪽으로 감');
   const e = T.mkUnit(1, 'rifle', 18, 16); e.x = a.x + 2; e.z = a.z; T.bump(); run(T, .3);
   assert.ok(a.mj && (a.mj.k === 'flee' || a.mj.k === 'go'), `물러남 ${a.mj && a.mj.k}`);
   assert.ok(F(T, 'ambNo')(0, s.id), '그 분대는 30초 동안 안 찾아감');
+});
+
+test('제네바 협약: 지키는 세력의 분대는 구급차에 대전차 로켓을 쏘지 않는다', () => {
+  const T = loadGame(); const G = setup(T); G.geneva = 'all';
+  const a = T.mkUnit(0, 'amb', 10, 10); const s = T.mkUnit(1, 'rifle', 10, 12); T.bump();
+  for (let i = 0; i < 20; i++) { s.cd = 0; assert.equal(F(T, 'squadRocket')(s), false, '구급차엔 안 쏨'); }
+  const h = T.mkUnit(0, 'hmv', 10, 9); T.bump(); s.cd = 0; assert.equal(F(T, 'squadRocket')(s), true, '다른 차량은 쏨');
+  G.geneva = 'off'; T.G.units = T.G.units.filter(u => u !== h); s.rk = 3; T.bump(); assert.equal(F(T, 'squadRocket')(s), true, '끄면 쏨');
+  assert.ok(a);
 });
 
 test('제네바 협약: 지키는 세력은 구급차를 겨누지 않고, 일부러 쏘면 승점과 사기를 잃는다', () => {
