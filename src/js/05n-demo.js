@@ -23,7 +23,7 @@ function demoOrder(u,r,c){if(u.type!=='eng'&&u.type!=='rifle')return '공병·�
   u.demo={r,c,t:0,t0:G.time||0};u.tgt=null;u.tgtTile=null;if(!inTile(u,r,c)){u.path=pathPts(u,c+.5,r+.5);u.dest=[c+.5,r+.5];}else{u.path=[];u.dest=null;}bump();return null;}
 function demoPlantTick(u,dt){const D=u.demo;const t=G.time||0;if(t-D.t0>60||G.map[D.r][D.c].t!=='bldg'){u.demo=null;return;}
   if(u.dest&&Math.hypot(u.dest[0]-(D.c+.5),u.dest[1]-(D.r+.5))>.05&&!inTile(u,D.r,D.c)){u.demo=null;return;}   // 다른 명령을 받음
-  if(!inTile(u,D.r,D.c)||(u.path&&u.path.length)||(u.supp||0)>=1.6)return;D.t+=dt;if(D.t<(u.type==='eng'?DEMO.plant:DEMO.plantR))return;
+  if(!inTile(u,D.r,D.c)||(u.path&&u.path.length)||(u.supp||0)>=1.6||(u.fl||0)>.01)return;D.t+=dt;   // 1층에 내려와서야 설치한다if(D.t<(u.type==='eng'?DEMO.plant:DEMO.plantR))return;
   const N2=G.nats[u.nat];u.demo=null;if(u.job==='ug')u.job=null;if(N2.cp<DEMO.cost)return;N2.cp-=DEMO.cost;
   (G.demo=G.demo||[]).push({id:UID++,nat:u.nat,r:D.r,c:D.c,t:t,fuse:null,df:{}});L(`${natName(u.nat)} 공병 건물에 폭약 설치`);bump();}
 function demoBoom(d){const x=G.map[d.r][d.c];d.gone=1;const cx=d.c+.5,cz=d.r+.5;if(FXH.demo)FXH.demo(cx,cz,x.f||1);sfx('boom',1.6,cx,cz);

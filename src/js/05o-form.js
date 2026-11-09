@@ -75,6 +75,7 @@ function formVia(f,L,s){const T=L._ftr;if(!T||T.length<2)return null;let j=-1,jd
 /* 따르는 부대 하나: 자리를 다시 잡고 그리로 간다 */
 function formFollow(f,t){const F=f.fol;const L=formUnit(F.L);
   if(!L||L===f||L.nat!==f.nat||f.cqb||f.post){formDrop(f,true);return;}
+  if(f.rearm||f.towBy!=null){formDrop(f,false);if(f.towBy==null)f.path=[];return;}   // 탄약이 떨어져 보급소로 물러나는 부대는 대형을 떠난다(05j)
   if(f.climb)return;
   if(f.path!==f._fP&&f.path&&f.path.length){formDrop(f,false);return;}   // 다른 명령을 받았다
   // 명령 행군·차량 종대: 선두가 다 왔으면 저마다 제 자리로

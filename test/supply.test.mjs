@@ -76,8 +76,10 @@ test('AI: 탄약이 떨어지면 보급 트럭을 사서 보내고, 고장 난 �
   assert.ok(sup, '보급 트럭 구매');
   T.aiThink(0);
   assert.ok(G.units.some(u => u.type === 'rec' && u.nat === 0), '구난차 구매');
-  for (let i = 0; i < 1500 && (a.am < 30 || b.am < 40); i++) { T.rtTick(0.1); if (i % 20 === 0) T.aiThink(0); }
-  assert.ok(a.am >= 30 && b.am >= 40, `재보급 ${a.am.toFixed(0)} ${b.am.toFixed(0)}`);
+  G.nats[1].cp = 0; G.nats[1].auto = false;   // 시험 대상은 0번 보급: 상대는 부대를 사서 싸우지 않는다
+  let am = 0, bm = 0;   // 채운 뒤 다시 쏴서 줄 수 있으니 가장 많이 찼던 양을 본다
+  for (let i = 0; i < 1500 && (am < 30 || bm < 40); i++) { T.rtTick(0.1); if (i % 20 === 0) T.aiThink(0); am = Math.max(am, a.am); bm = Math.max(bm, b.am); }
+  assert.ok(am >= 30 && bm >= 40, `재보급 ${am.toFixed(0)} ${bm.toFixed(0)}`);
   assert.equal((G.errs || []).length, 0, String(G.errs));
 });
 

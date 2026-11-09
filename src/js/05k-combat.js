@@ -68,7 +68,7 @@ function blastMen(u,amt,by,o){const M=menOf(u);const n=M.length||1;const now=G.t
   for(const m of M){if(m.dead||m.gone)continue;const d=Math.hypot(m.x-o.x,m.z-o.z);if(d<R*1.4)near++;
     let p=o.pk?o.pk*g(d):Math.min(.95,I/n*g(d)/gc);
     if(p>0){
-      if((m.pr>0||m.lay)&&!m.down&&d>.03)p*=.4;                                     // 엎드렸으면 파편이 위로 지나간다
+      if((m.pr>0||m.lay)&&!m.down&&d>.03)p*=o.pk?.4+.6*Math.max(0,Math.min(1,(R*.5-d)/(R*.25))):.4;   // 엎드렸으면 파편이 위로 지나간다(바로 곁 R/4 안은 폭압이라 엎드려도 소용없고, R/2까지 차츰 줄어든다)
       const mt=tileAt(m.x,m.z);
       if(mt&&mt.t==='bldg'){if(!(bt&&bt.t==='bldg'&&(bt===mt||bt.blk!=null&&bt.blk===mt.blk)))p*=o.gl?.6:.35;}   // 밖에서 터지면 벽이 막는다(유탄은 창문으로 들어오기도)
       else if(d>.05){const c=dirCoverAt(m.x,m.z,(o.x-m.x)/d,(o.z-m.z)/d,'inf',u,objs).cov;if(c>0)p*=Math.max(.25,1-c*1.5);

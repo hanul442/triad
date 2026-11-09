@@ -96,9 +96,12 @@ test('저격: 한 발에 한 명, 분대장을 먼저 노리고, 쏜 자리가 �
 test('폭파: 적 보병이 폭약 건물에 들어오고 아군이 보고 있으면 터져 건물이 무너진다', () => {
   const T = loadGame(); const G = setup(T); bldg(G, 5, 5, 3); G.nats[0].cp = 10;
   const e = unit(T, 0, 'eng', 5.5, 5.5);
-  assert.equal(g(T, 'demoOrder')(e, 5, 5), null); run(T, 7);
+  let plantFl = null; assert.equal(g(T, 'demoOrder')(e, 5, 5), null); run(T, 7, () => { if (plantFl == null && G.demo?.length) plantFl = e.fl || 0; });
+  assert.ok(plantFl != null && plantFl < .01, '폭약은 1층에서 설치한다(위층에 있었으면 내려온다)');
   assert.equal(G.demo.length, 1, '폭약 설치');
   T.orderMoveTo(e, 9.5, 5.5); run(T, 8);
+  for (let i = 0; i < 100 && Math.floor(e.x) === 5; i++) T.rtTick(0.1);   // 설치 뒤 위층에 올라갔으면 계단으로 내려오는 데 몇 초 더 걸린다
+  assert.notEqual(Math.floor(e.x), 5, '공병이 건물을 빠져나왔다');
   const watch = unit(T, 0, 'rifle', 9.5, 5.5);
   const foe = unit(T, 1, 'rifle', 5.5, 5.4); foe.nocas = 1;
   run(T, 3);

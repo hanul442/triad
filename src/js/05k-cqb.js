@@ -17,6 +17,7 @@ function bldgRoom(u,r,c,L){const x=G.map[r][c];if(!isB(x)||UT[u.type].cls!=='inf
 function flShield(u){if(UT[u.type].cls!=='inf')return 1;const x=cell(u.r,u.c);if(!isB(x))return 1;return Math.pow(.55,Math.max(0,topFl(x)-1-curFl(u)));}
 /* 멈춘 분대가 갈 층: 돌입 중이면 소탕할 층, 아니면 원하는 층(u.flT, 없으면 꼭대기)에서 같은 칸 아군이 먼저 잡은 층을 피해 가장 가까운 빈 층 */
 function flWant(u,x){if(u.cqb)return u.cqb.fl!=null?u.cqb.fl:Math.floor((u.fl||0)+1e-6);
+  if(u.demo&&inb(u.demo.r,u.demo.c)&&cell(u.r,u.c)===G.map[u.demo.r][u.demo.c])return 0;   // 폭약은 1층 기둥에 건다(05n-demo): 설치하는 동안은 1층으로 내려온다
   const k=key(u.r,u.c),top=topFl(x);const want=u.flT==null?(u.type==='sniper'?top:Math.min(top,CQB.autoFl)):Math.min(top,u.flT);   // 따로 시키지 않으면 5층까지만 오른다(저격수는 꼭대기)
   if(u._inK!==k){u._inK=k;u._inT=G.time||0;u._flC=null;}
   const taken=new Set(),me=u._inT||0;
