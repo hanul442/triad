@@ -573,7 +573,9 @@ function v3Burst(x,y,z,size,col,smoke,light){const T=V3.T;const f=new T.Sprite(n
 function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=Math.min(.5,(now-(V3.last||now))/1000),dt=Math.min(.05,rdt);V3.last=now;const s=V3.cs;
   const k=1-Math.exp(-dt*7);s.x+=(s.gx-s.x)*k;s.z+=(s.gz-s.z)*k;s.d+=(s.gd-s.d)*k;s.yaw+=(s.gyaw-s.yaw)*k;
   const cp=Math.cos(s.pitch);let sx=0,sz=0;if(V3.shake>0){sx=(Math.random()-.5)*V3.shake;sz=(Math.random()-.5)*V3.shake;V3.shake*=Math.exp(-dt*9);if(V3.shake<.003)V3.shake=0;}
-  V3.cam.position.set(s.x+Math.sin(s.yaw)*cp*s.d+sx,Math.sin(s.pitch)*s.d,s.z+Math.cos(s.yaw)*cp*s.d+sz);V3.cam.lookAt(s.x,0,s.z);
+  V3.cam.position.set(s.x+Math.sin(s.yaw)*cp*s.d+sx,Math.sin(s.pitch)*s.d,s.z+Math.cos(s.yaw)*cp*s.d+sz);
+  if(G&&G.elv&&typeof v3TY==='function'){const p=V3.cam.position,gy=v3TY(p.x,p.z)+.3;if(p.y<gy)p.y=gy;}   // 낮게 내려 봐도 언덕 속으로 들어가지 않게
+  V3.cam.lookAt(s.x,0,s.z);
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}

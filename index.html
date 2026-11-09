@@ -6802,7 +6802,9 @@ function v3Burst(x,y,z,size,col,smoke,light){const T=V3.T;const f=new T.Sprite(n
 function v3Frame(now){if(!V3.on)return;requestAnimationFrame(v3Frame);const rdt=Math.min(.5,(now-(V3.last||now))/1000),dt=Math.min(.05,rdt);V3.last=now;const s=V3.cs;
   const k=1-Math.exp(-dt*7);s.x+=(s.gx-s.x)*k;s.z+=(s.gz-s.z)*k;s.d+=(s.gd-s.d)*k;s.yaw+=(s.gyaw-s.yaw)*k;
   const cp=Math.cos(s.pitch);let sx=0,sz=0;if(V3.shake>0){sx=(Math.random()-.5)*V3.shake;sz=(Math.random()-.5)*V3.shake;V3.shake*=Math.exp(-dt*9);if(V3.shake<.003)V3.shake=0;}
-  V3.cam.position.set(s.x+Math.sin(s.yaw)*cp*s.d+sx,Math.sin(s.pitch)*s.d,s.z+Math.cos(s.yaw)*cp*s.d+sz);V3.cam.lookAt(s.x,0,s.z);
+  V3.cam.position.set(s.x+Math.sin(s.yaw)*cp*s.d+sx,Math.sin(s.pitch)*s.d,s.z+Math.cos(s.yaw)*cp*s.d+sz);
+  if(G&&G.elv&&typeof v3TY==='function'){const p=V3.cam.position,gy=v3TY(p.x,p.z)+.3;if(p.y<gy)p.y=gy;}   // 낮게 내려 봐도 언덕 속으로 들어가지 않게
+  V3.cam.lookAt(s.x,0,s.z);
   const fogK=V3.fogK||1;V3.scene.fog.near=s.d*.75*fogK;V3.scene.fog.far=s.d*2.8*fogK+10;
   const sa=V3.sunAng||0;V3.sun.position.set(s.x-12*sa-4,18-Math.abs(sa)*6,s.z+8);V3.sun.target.position.set(s.x,0,s.z);
   const shs=Math.min(34,Math.max(10,s.d*.85));const sc=V3.sun.shadow.camera;if(Math.abs(sc.right-shs)>.5){sc.left=-shs;sc.right=shs;sc.top=shs;sc.bottom=-shs;sc.updateProjectionMatrix();}
@@ -9132,6 +9134,22 @@ function prLens(d){PR.mm=Math.max(24,Math.min(85,Math.round(PR.mm*(d>0?1.18:d<0?
   // 35mm 필름(36×24) 기준 세로 화각. 세로 화면은 카메라를 세워 든 것처럼 긴 변(36mm)을 세로로 쓴다.
   const a=V3.cam.aspect||1;V3.cam.fov=2*Math.atan((a<1?18:12)/PR.mm)*180/Math.PI;V3.cam.updateProjectionMatrix();}
 
+/* ---------- 땅·벽 안으로 카메라가 들어가지 않게 ----------
+   지형은 셰이더가 정점마다 v3TY(x,z)만큼 올린다(07g). 카메라도 같은 높이를 재야 비탈에서 땅에 묻히지 않는다.
+   PR_FOOT: 둘레 재는 반경(가까운 면 모서리와 비탈 삼각형 오차를 덮는다), PR_CLR: 땅 위 최소 여유, PR_WALL: 벽과의 최소 거리. */
+const PR_FOOT=.12,PR_CLR=.06,PR_WALL=.08;
+const prTY=(x,z)=>typeof v3TY==='function'?v3TY(x,z):0;
+function prGnd(x,z,rad){let h=prTY(x,z);if(rad)for(let i=0;i<8;i++){const a=i*Math.PI/4;h=Math.max(h,prTY(x+Math.cos(a)*rad,z+Math.sin(a)*rad));}
+  const r=Math.floor(z),c=Math.floor(x);return h+(inb(r,c)&&typeof v3G==='function'?v3G(r,c):0);}
+const prIsB=(x,z)=>{const r=Math.floor(z),c=Math.floor(x);return inb(r,c)&&G.map[r][c].t==='bldg';};
+/* 한 축(v)을 건물 칸 가장자리에서 PR_WALL만큼 떼어 놓는다. o는 다른 축, zx=1이면 v가 z축 */
+function prOffWall(v,o,zx){const B=zx?(a)=>prIsB(o,a):(a)=>prIsB(a,o);if(B(v))return v;
+  if(B(v+PR_WALL))v=Math.min(v,Math.floor(v+PR_WALL)-PR_WALL);if(B(v-PR_WALL))v=Math.max(v,Math.floor(v-PR_WALL)+1+PR_WALL);return v;}
+/* 눈에서 대상까지 땅이 시선을 넘는지 재서, 넘으면 카메라를 얼마나 올려야 하는지(최대 .45) */
+function prCrest(ex,ey,ez,lx,ly,lz){const d=Math.hypot(lx-ex,lz-ez);if(d<.3||!G.elv)return 0;let L=0;const n=Math.min(24,Math.ceil(d/.25));
+  for(let i=1;i<n;i++){const t=i/n;if(t>.92)break;const y=ey+(ly-ey)*t,h=prTY(ex+(lx-ex)*t,ez+(lz-ez)*t)+.04;if(h>y)L=Math.max(L,(h-y)/(1-t));}
+  return Math.min(.45,L);}
+
 /* ---------- 매 프레임: 기자 시점 (v3Frame이 카메라를 놓은 뒤 부른다) ---------- */
 function prFrame(now,rdt){if(!G){prToggle(false);return;}const dt=Math.min(.1,rdt||.016);let u=PR.sub;
   if(!u||!G.units.includes(u)||!V3.uo.has(u.id)){if(!PR.lost)PR.lost=now;if(now-PR.lost>1200){PR.lost=0;const was=!!u;u=prPick(false);if(was&&typeof toast==='function')toast(u?`대상을 잃었습니다 · ${UT[u.type].n}에 합류`:'따라갈 부대가 없습니다');}}
@@ -9148,20 +9166,26 @@ function prFrame(now,rdt){if(!G){prToggle(false);return;}const dt=Math.min(.1,rd
     if(tx!=null){const dx=tx-PR.rx,dz=tz-PR.rz,d=Math.hypot(dx,dz);const k=1-Math.exp(-dt*1.8);let m=d*k;m=Math.min(m,1.4*dt);   // 뛰어도 초속 17m를 넘지 않는다
       if(d>4){PR.rx=tx;PR.rz=tz;}else if(d>1e-4){const nx=PR.rx+dx/d*m,nz=PR.rz+dz/d*m;if(prWalk(nx,nz)){PR.rx=nx;PR.rz=nz;PR.blk=0;}else if((PR.blk=(PR.blk||0)+dt)>1.2){PR.rx=tx;PR.rz=tz;PR.blk=0;}}}   // 모퉁이에 막히면 잠깐 뒤 건너뛴다
     // 시선: 대상, 교전 중이면 대상과 적 사이
-    lx=sx;ly=sy+.09;lz=sz;if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);const eo=e&&V3.uo.get(e.id);if(eo&&eo.visible){lx=sx+(eo.position.x-sx)*.42;lz=sz+(eo.position.z-sz)*.42;ly=sy+.09+(eo.position.y-sy)*.3;}}
-    else if(inB){lx=sx+Math.cos(f)*.6;lz=sz+Math.sin(f)*.6;ly=Math.min(sy,.35)+.09;}   // 건물 안 대상: 부대가 든 건물과 그 앞을 함께 담는다
+    // 부대 모형의 y에는 지형 높이가 빠져 있다(셰이더가 올린다): 시선 높이에 땅 높이를 더한다
+    const tS=prTY(sx,sz);lx=sx;ly=sy+.09+tS;lz=sz;if(u.tgt!=null){const e=G.units.find(z=>z.id===u.tgt);const eo=e&&V3.uo.get(e.id);if(eo&&eo.visible){lx=sx+(eo.position.x-sx)*.42;lz=sz+(eo.position.z-sz)*.42;ly=sy+.09+tS+(eo.position.y+prTY(eo.position.x,eo.position.z)-sy-tS)*.3;}}
+    else if(inB){lx=sx+Math.cos(f)*.6;lz=sz+Math.sin(f)*.6;ly=Math.min(sy,.35)+.09+tS;}   // 건물 안 대상: 부대가 든 건물과 그 앞을 함께 담는다
     else if(Math.hypot(sx-PR.rx,sz-PR.rz)<.35){lx=sx+Math.cos(f)*1.5;lz=sz+Math.sin(f)*1.5;}}
-  else{lx=PR.rx+Math.cos(PR.yaw);lz=PR.rz+Math.sin(PR.yaw);ly=.13;}
-  const r=Math.floor(PR.rz),c=Math.floor(PR.rx);const gy=inb(r,c)&&typeof v3G==='function'?v3G(r,c):0;PR.ry+=(gy-PR.ry)*Math.min(1,dt*6);
+  else{lx=PR.rx+Math.cos(PR.yaw);lz=PR.rz+Math.sin(PR.yaw);ly=.13+prGnd(lx,lz,0);}
+  // 발밑 높이: 오르막에서는 바로 올라서고(늦으면 땅에 묻힌다) 내리막에서만 부드럽게 따라간다
+  const ex=prOffWall(PR.rx,PR.rz),ez=prOffWall(PR.rz,PR.rx,1);const gy=prGnd(ex,ez,PR_FOOT);
+  PR.ry+=(gy-PR.ry)*Math.min(1,dt*6);if(PR.ry<gy)PR.ry=gy;
   const eyeT=now<PR.duck?.075:.13;PR.eye+=(eyeT-PR.eye)*Math.min(1,dt*(eyeT<PR.eye?9:2));
-  const ex=PR.rx,ey=PR.ry+PR.eye,ez=PR.rz;
+  // 앞이 언덕마루로 막히면 카메라를 머리 위로 치켜든다(조금만)
+  const lift=u?prCrest(ex,PR.ry+PR.eye,ez,lx,ly,lz):0;PR.lift=(PR.lift||0)+(lift-(PR.lift||0))*Math.min(1,dt*(lift>(PR.lift||0)?5:1.5));
+  const ey=PR.ry+PR.eye+PR.lift;
   const ty=Math.atan2(lz-ez,lx-ex),tp=Math.max(-.45,Math.min(.28,Math.atan2(ly-ey,Math.max(.05,Math.hypot(lx-ex,lz-ez)))));   // 위층 대상도 하늘만 찍지 않게
   let dy=ty-PR.yaw;while(dy>Math.PI)dy-=2*Math.PI;while(dy<-Math.PI)dy+=2*Math.PI;const kk=1-Math.exp(-dt*2.6);PR.yaw+=dy*kk;PR.pitch+=(tp-PR.pitch)*kk;
   if(!PR.drag&&now-(PR.dragT||0)>2500){PR.lyaw*=Math.exp(-dt*.8);PR.lpitch*=Math.exp(-dt*.8);}
   // 손으로 든 카메라: 숨쉬기, 걸음, 폭발 충격
   const tt=now/1000,sh=V3.shake||0;const bob=Math.sin(tt*1.3)*.004+Math.sin(tt*2.9)*.0025;
   const yaw=PR.yaw+PR.lyaw+Math.sin(tt*.7)*.006+(Math.random()-.5)*sh*.5,pit=Math.max(-1.2,Math.min(1.2,PR.pitch+PR.lpitch+bob+(Math.random()-.5)*sh*.4));
-  const cam=V3.cam;cam.position.set(ex+(Math.random()-.5)*sh*.1,ey+(Math.random()-.5)*sh*.05,ez+(Math.random()-.5)*sh*.1);
+  const cam=V3.cam;const hx=prOffWall(ex+(Math.random()-.5)*sh*.1,ez),hz=prOffWall(ez+(Math.random()-.5)*sh*.1,hx,1);
+  cam.position.set(hx,Math.max(ey+(Math.random()-.5)*sh*.05,prGnd(hx,hz,PR_FOOT)+PR_CLR),hz);   // 흔들려도 땅 밑으로는 안 간다
   const cp=Math.cos(pit);cam.lookAt(ex+Math.cos(yaw)*cp,ey+Math.sin(pit),ez+Math.sin(yaw)*cp);cam.rotateZ(Math.sin(tt*.9)*.006+(Math.random()-.5)*sh*.3);
   // 그림자·비·먼지는 기자 주변을 기준으로, 안개는 땅 높이에 맞게
   const s=V3.cs;s.gx=s.x=ex+Math.cos(yaw)*4;s.gz=s.z=ez+Math.sin(yaw)*4;s.gd=s.d=14;
