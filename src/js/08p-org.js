@@ -38,12 +38,13 @@ function orgChip(n,c){const us=orgCoUnits(n,c);const I=c.intent;const rc=G.nats[
     const ref=UI.org&&orgRefUnits(n,UI.org).length?UI.org:null;
     if(ref&&ref.k==='hq'){const T={};for(const u of g)T[UT[u.type].n]=(T[UT[u.type].n]||0)+1;
       div.innerHTML=`<b>본부</b><span class="adj-i">지원 부대 ${g.length}개 · 알아서 일합니다 (${Object.entries(T).map(([k,v])=>`${k} ${v}`).join(', ')})</span>`;}
-    else if(ref){const o=ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);const c=ref.k==='co'?o:orgCo(n,o.co);const P=c?orgCoPqs(n,c):[];
-      let h=`<b>${o.name}</b><span class="adj-i">${ref.k==='co'?`${P.length}개 소대 · `:''}${g.length}개 부대 · ${orgIDesc(n,o.intent,ref.k==='pq'?o:null)}</span>`;
-      h+=`<button class="btn sm${o.intent&&o.intent.k==='atk'?' primary':''}" data-act="org:atk" id="ab-org-atk" title="${o.name}이 그쪽을 공격합니다">${adjL('공격 목표','공격')}</button>`;
-      h+=`<button class="btn sm${o.intent&&o.intent.k==='def'?' primary':''}" data-act="org:def" id="ab-org-def" title="${o.name}이 그 둘레를 지킵니다">${adjL('방어 지점','방어')}</button>`;
-      if(o.intent)h+=`<button class="btn sm" data-act="org:clr" id="ab-org-clr" title="${autoOn(n)?'위 단위(중대·전체 주공) 목표를 따릅니다':'임무를 풉니다'}">${adjL('목표 지우기','지우기')}</button>`;
-      if(c)h+=`<button class="btn sm" data-act="org:reinf" id="ab-org-reinf" aria-pressed="${N2.reinfCo===c.id}" title="새로 오는 증원 부대가 ${c.name}으로 갑니다">${N2.reinfCo===c.id?'★ 증원 받는 중':adjL(`증원은 ${c.name}로`,'증원 받기')}</button>`;
+    else if(ref){const all=ref.k==='all';const o=all?null:ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);const c=all?null:ref.k==='co'?o:orgCo(n,o.co);const P=c?orgCoPqs(n,c):[];
+      const I=all?(N2.intent||null):o.intent;const nm=all?'전체':o.name;const K=UI.orgK==='def'?'def':'atk';
+      const anyI=all?!!N2.intent||O.co.some(q=>q.intent)||O.pq.some(q=>q.intent):!!I;
+      let h=`<b>${nm}</b><span class="adj-i">${g.length}개 부대 · ${all?(I?adjDesc(I):autoOn(n)?'부관 재량':'목표 없음'):orgIDesc(n,I,ref.k==='pq'?o:null)} · <b>지도를 탭하면 ${ADJ_K[K]}</b></span>`;
+      h+=`<button class="btn sm" data-act="org:k" id="ab-org-k" title="지도를 탭했을 때 공격 목표로 할지 방어 지점으로 할지">${K==='def'?'방어 → 공격으로':'공격 → 방어로'}</button>`;
+      if(anyI)h+=`<button class="btn sm" data-act="org:clr" id="ab-org-clr" title="${autoOn(n)?'목표를 지우면 위 단위 목표나 부관 재량을 따릅니다':'임무를 풉니다'}">${adjL('목표 지우기','지우기')}</button>`;
+      if(c)h+=`<button class="btn sm" data-act="org:reinf" id="ab-org-reinf" aria-pressed="${N2.reinfCo===c.id}" title="새로 오는 증원 부대가 ${c.name}으로 갑니다">${N2.reinfCo===c.id?'★ 증원 받는 중':adjL('증원 받기','증원 받기')}</button>`;
       if(ref.k==='co'&&P.length>1)for(const p of P)h+=`<button class="btn sm" data-act="org:pq:${p.id}" id="ab-org-pq-${p.sh}">${p.no}소대</button>`;
       if(ref.k==='pq'&&c)h+=`<button class="btn sm" data-act="org:co:${c.id}" id="ab-org-up">${adjL(`${c.name} 전체`,c.name)}</button>`;
       div.innerHTML=h;}
@@ -58,7 +59,7 @@ function orgChip(n,c){const us=orgCoUnits(n,c);const I=c.intent;const rc=G.nats[
     el.prepend(div);return;}
   if(UI.pane||UI.phase==='buy'||UI.phase==='sup'||!O.co.length&&!orgHQUnits(n).length)return;
   const hq=orgHQUnits(n).length;
-  div.innerHTML=`<span class="adj-i adj-l">편성</span>`+O.co.map(c=>orgChip(n,c)).join('')+(hq?`<button class="btn sm oc" data-act="org:hq" id="ab-org-hq" title="지원 부대(알아서 일함)"><b>본부</b><em>${hq}</em></button>`:'');
+  div.innerHTML=(O.co.length>1?`<button class="btn sm oc" data-act="org:all" id="ab-org-all" title="전투 부대 전체"><b>전체</b>${N2.intent?`<small>${ADJ_K[N2.intent.k]}${N2.intent.obj?' '+N2.intent.obj:''}</small>`:''}</button>`:'')+O.co.map(c=>orgChip(n,c)).join('')+(hq?`<button class="btn sm oc" data-act="org:hq" id="ab-org-hq" title="지원 부대(알아서 일함)"><b>본부</b><em>${hq}</em></button>`:'');
   const a=el.querySelector('.adj-row');if(a)a.after(div);else el.prepend(div);};}
 if(typeof document!=='undefined'){
   document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled||!G||!orgCan())return;const act=b.dataset.act;const n=G.viewer;
@@ -67,9 +68,11 @@ if(typeof document!=='undefined'){
     if(a.startsWith('co:')){orgSelect({k:'co',id:+a.slice(3)});return;}
     if(a.startsWith('pq:')){orgSelect({k:'pq',id:+a.slice(3)});return;}
     if(a==='hq'){orgSelect({k:'hq'});return;}
+    if(a==='all'){orgSelect({k:'all'});return;}
+    if(a==='k'){UI.orgK=UI.orgK==='def'?'atk':'def';render();return;}
     const g=orgGrp();
     if(a==='atk'||a==='def'){if(!UI.org)return;UI.aimOrg=UI.org;UI.phase='aim:'+a;render();return;}
-    if(a==='clr'){if(!UI.org)return;orgAim(n,UI.org,null);toast(`${orgRefName(n,UI.org)} 목표 지움`);render();return;}
+    if(a==='clr'){if(!UI.org)return;if(UI.org.k==='all'){if(autoOn(n))autoIntent(n,null);else{orgClearIntents(n);const us=orgRefUnits(n,UI.org);if(us.length)radioSend(n,us,'mis',['off']);}}else orgAim(n,UI.org,null);toast(`${orgRefName(n,UI.org)} 목표 지움`);render();return;}
     if(a==='reinf'){const o=UI.org&&(UI.org.k==='co'?orgCo(n,UI.org.id):orgCo(n,orgPq(n,UI.org.id)?.co));if(!o)return;const N2=G.nats[n];
       N2.reinfCo=N2.reinfCo===o.id?null:o.id;toast(N2.reinfCo!=null?`새 증원 부대는 ${o.name}로 갑니다`:'증원은 가장 작은 중대부터 채웁니다');
       if(N2.reinfCo!=null&&!autoOn(n)){UI.sheet=true;UI.tab='cmd';}render();return;}
@@ -85,6 +88,15 @@ if(typeof document!=='undefined'){
 {const _aa=adjAim;adjAim=function(x,z){const ref=UI.aimOrg;if(!ref)return _aa(x,z);const n=G.viewer;const k=UI.phase==='aim:def'?'def':'atk';UI.aimOrg=null;UI.phase=null;
   const I=orgAim(n,ref,k,x,z);if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#9fd3ff');if(typeof sndRadio==='function')sndRadio('ack');const m=`${orgRefName(n,ref)}: ${adjDesc(I)}`;toast(m);L(m);if(typeof scnAfterAct==='function')scnAfterAct();}
   orgSelect(ref);};}
+/* 중대·소대·전체를 고른 채 지도를 탭하면 그곳이 목표(공격 또는 방어). 아군을 탭하면 그 부대를 고른다 */
+const orgAimable=()=>UI.org&&UI.org.k!=='hq'&&(!UI.phase||UI.phase==='select')&&orgRefUnits(G.viewer,UI.org).length>0;
+function orgAimAt(x,z){const ref=UI.org;const n=G.viewer;const k=UI.orgK==='def'?'def':'atk';const I=orgAim(n,ref,k,x,z);
+  if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#9fd3ff');if(typeof sndRadio==='function')sndRadio('ack');const m=`${orgRefName(n,ref)}: ${adjDesc(I)}`;toast(m);L(m);if(typeof scnAfterAct==='function')scnAfterAct();}
+  orgSelect(ref);}
+{const _tap=tap;tap=function(k){if(G&&!G.over&&!G.boot&&orgCan()&&orgAimable()){const pid=typeof V3!=='undefined'?V3.pickId:null;const u0=pid!=null?G.units.find(z=>z.id===pid):null;
+    if(!(u0&&u0.nat===G.viewer)){const vis=!G.fog||!u0||seen(u0,G.viewer);const pt=u0&&vis?[u0.x,u0.z]:(typeof V3!=='undefined'&&V3.pickPt)||[kc(k)+.5,kr(k)+.5];orgAimAt(pt[0],pt[1]);return;}}
+  return _tap(k);};}
+if(typeof mmPick==='function'){const _mp=mmPick;mmPick=function(x,z,first){if(G&&orgCan()&&orgAimable()){if(first)orgAimAt(x,z);return false;}return _mp.apply(this,arguments);};}
 /* 추가 선택: 아군을 탭하면 넣고 빼기 */
 const orgAdding=()=>(UI.addSel||UI.shift)&&UI.sel&&G.units.includes(UI.sel)&&(!UI.phase||UI.phase==='select');
 {const _tap=tap;tap=function(k){if(G&&!G.over&&orgAdding()){const pid=typeof V3!=='undefined'?V3.pickId:null;const u=pid!=null?G.units.find(z=>z.id===pid&&z.nat===G.viewer):null;if(u){orgToggle(u);return;}}return _tap(k);};}
