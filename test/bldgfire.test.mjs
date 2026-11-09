@@ -32,17 +32,18 @@ test('창가의 보병은 소총에 잘 안 맞는다(엄폐 55%)', () => {
   const h = T.__get('hitP')(a, d); assert.ok(h.cov >= .55 - 1e-9 && h.kind === 'bldg', JSON.stringify(h));
 });
 
-test('건물을 지키는 분대가 길에 선 같은 분대와 맞서면 대개 이긴다', () => {
-  let win = 0;
-  for (let s = 1; s <= 6; s++) {
+test('건물을 지키는 분대가 길에 선 같은 분대와 맞서면 더 많이 살아남는다', () => {
+  // 판마다 주사위가 커서(다른 기능이 난수를 쓰는 순서만 바뀌어도 승패가 갈린다) 16판 평균 체력으로 본다.
+  // 30판 기준 건물 쪽 평균 약 6.9, 길 쪽 약 4.3~4.5
+  let dh = 0, ah = 0; const n = 16;
+  for (let s = 1; s <= n; s++) {
     const T = loadGame(); const G = setup(T); seedRandom(T, s);
     const d = T.mkUnit(1, 'rifle', 10, 10); inB(T, d, 10, 10, 1); d.post = 1; d.hold = true;
     const a = T.mkUnit(0, 'rifle', 10, 4); out(a, 10, 4); a.hold = true; T.bump();
     for (let i = 0; i < 300; i++) T.rtTick(.1);
-    const dh = G.units.includes(d) ? d.hp : 0, ah = G.units.includes(a) ? a.hp : 0;
-    if (dh > ah) win++;
+    dh += G.units.includes(d) ? d.hp : 0; ah += G.units.includes(a) ? a.hp : 0;
   }
-  assert.ok(win >= 4, `건물 쪽 승 ${win}/6`);
+  assert.ok(dh / n >= ah / n + 1, `건물 쪽 평균 ${(dh / n).toFixed(1)} · 길 쪽 ${(ah / n).toFixed(1)}`);
 });
 
 test('병사들은 위협 쪽이 안벽이면 가장 가까운 바깥 창 쪽 벽에 선다', () => {
