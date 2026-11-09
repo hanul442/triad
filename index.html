@@ -9301,7 +9301,7 @@ function cxMats(){if(CX.m)return CX.m;const T=V3.T;
   // 바닥 얼룩: 흙먼지(밝게), 덧씌운 아스팔트·기름(어둡게). 둥글고 가장자리가 흐린 무늬
   const blot=v3Tex(64,64,(g,w,h)=>{g.clearRect(0,0,w,h);for(let i=0;i<14;i++){const x=16+R()*32,y=16+R()*32,r=8+R()*16;const gr=g.createRadialGradient(x,y,0,x,y,r);
       gr.addColorStop(0,'rgba(255,255,255,.5)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,w,h);}});
-  m.dust=new T.MeshStandardMaterial({map:blot,color:'#a39883',roughness:1,transparent:true,opacity:.6,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
+  m.dust=new T.MeshStandardMaterial({map:blot,color:'#a39883',roughness:1,transparent:true,opacity:.45,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
   m.stain=new T.MeshStandardMaterial({color:'#ffffff',roughness:1,transparent:true,opacity:.5,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   for(const k of ['dust','stain'])v3FowMat(m[k]);
   CX.m=m;return m;}
@@ -9407,7 +9407,7 @@ function cxBuildCity(){const T=V3.T,g=V3.G.city;if(!G||!g||!T)return;cxMats();cx
           I.push({x:p[0],y:top+.025,z:p[1],sx:.006,sy:.05,sz:.006,col:'#4a4a47',k});}}   // 위성 안테나(남쪽을 본다)
       if((ks==='house'||ks==='villa'||ks==='school'||ks==='office')&&H(k,940)<.3){const n=2+(H(k,941)*2|0);for(let i=0;i<n;i++){const px=cx-.2+i*.15,pz=cz+.12;if(!free(px,pz))continue;
           GL.push({x:px,y:top+.04,z:pz,sx:.13,sy:.008,sz:.2,rx:-.45,col:'#2c3a4a',k});I.push({x:px,y:top+.02,z:pz-.06,sx:.12,sy:.04,sz:.006,col:'#555',k});}}   // 태양광 판
-      if(s===1&&nf>=10&&H(bk,950)<.5&&!x._ch){RP.push({x:cx,y:top+.03,z:cz,sx:.16,sy:.05,sz:.1,col:'#c9ccca',k});RP.push({x:cx+.12,y:top+.07,z:cz,sx:.34,sy:.018,sz:.018,col:'#c9ccca',k});}   // 외벽 청소 곤돌라
+      if(s===1&&nf>=10&&H(bk,950)<.5&&!x._ch){RP.push({x:cx,y:top+.03,z:cz,sx:.16,sy:.05,sz:.1,col:'#a7aaa8',k});RP.push({x:cx+.09,y:top+.065,z:cz,sx:.2,sy:.016,sz:.016,col:'#8f9391',k});}   // 외벽 청소 곤돌라
       if((ks==='office'||ks==='tower'||ks==='school'||ks==='shop'&&x.dist==='down')&&!x._ch)for(let i=0;i<2;i++)if(H(k,970+i)<.5){const p=spot(6+i);if(!p)continue;const rot=H(k,975+i)<.5?0:Math.PI/2;   // 냉각탑·공조기: 상자 위에 팬 두 개
           RP.push({x:p[0],y:top+.035,z:p[1],sx:.2,sy:.07,sz:.11,ry:rot,col:'#b4b6b3',k});for(const d of [-.05,.05])RC.push({x:p[0]+(rot?0:d),y:top+.072,z:p[1]+(rot?d:0),sx:.07,sy:.006,sz:.07,col:'#2f3132',k});}
       if(ks==='tower'&&nf>=14&&H(bk,980)<.35&&!x._ch&&Math.hypot(st.sx-cx,st.sz-cz)>.15)HP.push({x:cx,y:top+.004,z:cz,k,cy:top+.01});   // 옥상 헬기장
