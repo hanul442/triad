@@ -65,7 +65,7 @@ test('지뢰: 적 차량이 밟으면 궤도가 끊기고, 아군 차량·보병
 test('벙커·건물 요새화: 엄폐가 오르고 요새화한 건물은 덜 부서진다', () => {
   const T = loadGame(); const G = setup(T);
   const f = { id: 902, k: 'bunker', nat: 0, x: 8.5, z: 8.5, ry: 0, hp: 160, prog: 1 }; G.forts.push(f); build(T, f);
-  const a = T.mkUnit(0, 'rifle', 8, 8); a.x = 8.5; a.z = 8.5; const e = T.mkUnit(1, 'rifle', 8, 12);
+  const a = T.mkUnit(0, 'rifle', 8, 8); a.x = 8.5; a.z = 8.5; const e = T.mkUnit(1, 'rifle', 8, 20);   // 요새화하는 분대의 시야(7칸) 밖
   assert.ok(T.coverOf(a, e).cov >= .6, `벙커 엄폐 ${T.coverOf(a, e).cov}`);
   bldg(G, 14, 14); bldg(G, 14, 20);
   const b = T.mkUnit(0, 'rifle', 14, 14); b.x = 14.5; b.z = 14.5; 
