@@ -1614,7 +1614,7 @@ function losPt(x1,z1,h1,x2,z2,h2){const dx=x2-x1,dz=z2-z1;
     const x=G.map[r][c];const te=x.el||0;
     if(G.elv&&x.t!=='bldg'&&Math.max(G.elv[r*(N+1)+c],G.elv[r*(N+1)+c+1],G.elv[(r+1)*(N+1)+c],G.elv[(r+1)*(N+1)+c+1])>Math.min(h1,h2)-.5){
       const s=segBox(x1,z1,x2,z2,[c,c+1,r,r+1]);if(s){for(const t of [s[0],(s[0]+s[1])/2,s[1]]){if(elAt(x1+dx*t,z1+dz*t)>h1+(h2-h1)*t-.05)return false;}}}   // 땅(언덕 능선)이 가린다: 칸 안 세 점의 실제 지면 높이
-    if(x.t==='park'&&!x.yard&&!(x.smoke>0)){const s=segBox(x1,z1,x2,z2,[c,c+1,r,r+1]);   // 숲: 나무 높이(약 6m)보다 낮게 숲을 오래 지나면 가린다
+    if(x.t==='park'&&!x.yard&&!(x.tl>=.6)&&!(x.smoke>0)){const s=segBox(x1,z1,x2,z2,[c,c+1,r,r+1]);   // 숲: 나무 높이(약 6m)보다 낮게 숲을 오래 지나면 가린다
       if(s&&Math.min(h1+(h2-h1)*s[0],h1+(h2-h1)*s[1])<te+TREE_H){wood+=(s[1]-s[0])*L;if(wood>WOOD_L)return false;}continue;}
     if(!(x.smoke>0)&&x.t!=='bldg')continue;
     if(x.t!=='bldg')return false;           // 연막
@@ -1653,7 +1653,7 @@ function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.r
   const bx0=Math.max(0,Math.floor(qx-v)),bx1=Math.min(N-1,Math.floor(qx+v)),bz0=Math.max(0,Math.floor(qz-v)),bz1=Math.min(N-1,Math.floor(qz+v));
   const W=bx1-bx0+1;const TB=new Array(W*(bz1-bz0+1));
   for(let r=bz0;r<=bz1;r++)for(let c=bx0;c<=bx1;c++){const x=G.map[r][c];const own=r===r1&&c===c1;
-    TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0&&!own,own,e:x.el||0}:{b:null,h:0,sm:x.smoke>0&&!own,own,e:x.el||0,wd:x.t==='park'&&!x.yard};}
+    TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0&&!own,own,e:x.el||0}:{b:null,h:0,sm:x.smoke>0&&!own,own,e:x.el||0,wd:x.t==='park'&&!x.yard&&!(x.tl>=.6)};}
   // 건물 안이면 창가로만 내다본다
   const oc=G.map[r1]&&G.map[r1][c1];const h0=h+gndAt(qx,qz);   // 지형 높이를 더한 눈높이
   const inB=oc&&oc.t==='bldg'&&h<bldgH(oc)-.05?bldgBox(r1,c1):null;
@@ -5494,6 +5494,162 @@ if(typeof gunshipTick==='function'){const _g=gunshipTick;gunshipTick=function(u,
   return _g(u,dt);};}
 // 편대는 두 대가 나눠 쏜다(한 대씩 쏘는 간격을 늘려 합친 화력이 한 대일 때의 약 1.2배)
 {const _f=rtFight;rtFight=function(u){if(!u.flt)return _f(u);const c0=u.cd;_f(u);if(c0<=0&&u.cd>0)u.cd*=FLT.cdK;};}
+
+/* ---- 05o-wreck.js ---- */
+/* ===================== WRECK: 무기 위력만큼 부서지는 지형지물 =====================
+   폭발마다 폭약량(TNT 환산 kg)을 정하고, 실제 폭발처럼 세제곱근 비례(홉킨슨 법칙)로 효과 반경을 잡는다.
+     구덩이 반지름 ≈ 0.9 m × kg^(1/3)  (흙. 포장도로는 65%. 흙은 1.5 kg, 포장은 4 kg부터 팬다)
+     나무가 꺾이는 반경 ≈ 2.4 m × kg^(1/3), 세워 둔 차가 불타는 반경 ≈ 1.5 m × kg^(1/3),
+     가로등·신호등·쓰레기통·생울타리가 쓰러지는 반경 ≈ 2.0 m × kg^(1/3)  (1칸 = 12 m)
+   예: 82mm 박격포 0.9 kg → 구덩이 없음, 나무 반경 2 m / 155mm 7 kg → 구덩이 지름 3.4 m, 나무 4.6 m /
+       Mk82 폭탄 90 kg → 구덩이 지름 8 m, 나무 11 m / 탄도미사일 480 kg → 구덩이 지름 14 m.
+   - 구덩이(G.craters): 안에 엎드린 보병은 참호처럼 사방 엄폐(04d trenchAt), 큰 구덩이는 바퀴 차량을 막는다.
+   - 숲(x.tl 0..1): 포격에 나무가 꺾여 많이 부서진 숲은 더는 시야를 가리지 않는다(04b-sight). G.fellZ = 쓰러진 자리(화면).
+   - 소품: 차는 불타거나(뒤집히고), 전차가 밟으면 납작해진다. 가로등·신호등·쓰레기통·생울타리는 쓰러진다.
+   - 건물: 재질별 강도(주택·창고는 약하고 철근 콘크리트 고층은 강하다), 위층이 무너지면 그 층 병사가 떨어져 다치고,
+     무너진 잔해는 옆 길로 쏟아져(G.debris) 엄폐가 되고 길을 좁힌다. 높은 건물이 통째로 무너진 자리는 잔해 언덕(차량 못 넘음).
+   길이 바뀌면 G.navV를 올려 이동 격자를 다시 만들고, 바뀐 곳을 지나던 부대는 길을 다시 찾는다. */
+const WRK={m:12,maxCr:500,maxFell:700,maxDeb:400};
+/* 탄약별 폭약량(kg, TNT 환산). 82mm 박격포탄 ~0.9, 120mm ~2.5, 전차 125mm 고폭탄 ~3.4, 152/155mm ~7, 122mm 로켓 ~6,
+   RPG-7 ~0.7, 대전차미사일 ~4.5, 70mm 로켓 ~1.2, 공병 폭약 2, Mk82 89, 순항미사일 ~220, 탄도미사일 ~480, 자폭 차량 ~250 */
+const WRK_KG={tank:3.2,at:.7,atgm:4.5,eng:2,gunship:1.2,mortar:.9,spg:7,mlrs:6,drone:.6,fpv:.6};
+const wrkR=(kg,k)=>k*Math.cbrt(kg)/WRK.m;
+/* 건물 재질: 피해 배수 (철근 콘크리트 고층·관공서는 튼튼하고, 목조·벽돌 주택과 슬레이트 창고는 약하다) */
+const WRK_MAT={house:1.35,villa:1.15,ware:1.25,factory:1.1,shop:1,school:.9,apt:.85,panel:.85,office:.8,tower:.75};
+/* 이동 격자 규칙 (04d NAV_RULE): 0 지나감, 1 느리게 넘음, 2 막힘 */
+Object.assign(NAV_RULE,{
+  crt:{inf:0,eng:0,veh:1,trk:0},crtB:{inf:0,eng:0,veh:2,trk:1},            // 포탄 구덩이 / 폭탄 구덩이
+  deb:{inf:0,eng:0,veh:1,trk:0},debB:{inf:1,eng:1,veh:2,trk:1},            // 길로 쏟아진 잔해(작은 것 / 큰 것)
+  mound:{inf:0,eng:0,veh:2,trk:1},moundB:{inf:0,eng:0,veh:2,trk:2},        // 무너진 건물 자리 잔해 언덕(높은 건물은 전차도 못 넘음)
+  carX:{inf:0,eng:0,veh:1,trk:0}});                                       // 전차에 밟혀 납작해진 차
+NAV_RULE.car.trk=1;   // 전차·자주포는 세워 둔 승용차를 밟고 넘어간다(넘으면 납작해진다)
+COVK.crater=COVK.crater||{n:'포탄 구덩이',v:.5};
+const wrkOpen=x=>!!x&&x.t!=='bldg'&&x.t!=='water'&&x.t!=='rubble';
+function wrkInit(){if(!G)return;if(!G.craters)G.craters=[];if(!G.fellZ)G.fellZ=[];if(!G.debris)G.debris=[];}
+function wrkNav(){G.navV=(G.navV||0)+1;G.wrkV=(G.wrkV||0)+1;bump();}
+/* ---------- 폭발 하나 ---------- */
+function wrkBlast(x,z,kg,o){if(!G||!G.map||!(kg>0))return;wrkInit();o=o||{};const t=tileAt(x,z);if(!t)return;
+  const inB=t.t==='bldg'&&!o.out;let nav=false;
+  // 1) 구덩이
+  if(!inB&&t.t!=='water'&&!t.br){const hard=t.t==='road'||t.t==='plaza'||!!t.rail;if(kg>=(hard?4:1.5)){const r=wrkR(kg,.9)*(hard?.65:1);if(wrkCrater(x,z,r))nav=true;}}
+  // 2) 나무
+  if(kg>=.8)wrkFell(x,z,wrkR(kg,2.4)*(inB?.5:1),kg);
+  // 3) 소품
+  if(wrkProps(x,z,kg,inB))nav=true;
+  if(nav){wrkNav();wrkReroute(x,z,wrkR(kg,2.4)+.3);}}
+function wrkCrater(x,z,r){if(r<.04)return false;const C=G.craters;
+  for(const c of C)if(Math.hypot(c.x-x,c.z-z)<c.r*.7){const was=c.r;c.r=Math.min(.75,Math.cbrt(c.r**3+r**3));if(FXH.crater)FXH.crater(c,true);return wrkCrK(was)!==wrkCrK(c.r);}
+  if(C.length>=WRK.maxCr)return false;const c={x:Math.round(x*100)/100,z:Math.round(z*100)/100,r:Math.round(r*1000)/1000};C.push(c);wrkCG(true);if(FXH.crater)FXH.crater(c,false);return wrkCrK(r)!=null;}
+const wrkCrK=r=>r>=.25?'crtB':r>=.12?'crt':null;
+/* 구덩이를 칸별로 묶는다(참호 판정이 자주 불린다) */
+function wrkCG(reset){let g=G._wcg;if(!reset&&g&&g.n===G.craters.length&&g.N===N)return g.m;const m=new Map();
+  for(const c of G.craters){const R=c.r;for(let a=Math.floor(c.z-R);a<=Math.floor(c.z+R);a++)for(let b=Math.floor(c.x-R);b<=Math.floor(c.x+R);b++){const k=a*N+b;let L=m.get(k);if(!L)m.set(k,L=[]);L.push(c);}}
+  Object.defineProperty(G,'_wcg',{value:{n:G.craters.length,N,m},writable:true,configurable:true,enumerable:false});return m;}
+/* 이 점이 구덩이 안인가(보병 엄폐). 반지름 1.2 m 넘는 구덩이만 */
+function craterAt(x,z){if(!G.craters||!G.craters.length)return null;const L=wrkCG().get(Math.floor(z)*N+Math.floor(x));if(!L)return null;
+  for(const c of L)if(c.r>=.1&&Math.hypot(c.x-x,c.z-z)<=c.r*.85)return c;return null;}
+{const _t=trenchAt;trenchAt=function(x,z){return _t(x,z)||!!craterAt(x,z);};}
+/* ---------- 나무 ---------- */
+function wrkFell(x,z,R,kg){if(R<.06)return;const k=kg>=5?1:.6;let hit=false;
+  for(let a=Math.floor(z-R);a<=Math.floor(z+R);a++)for(let b=Math.floor(x-R);b<=Math.floor(x+R);b++){if(!inb(a,b))continue;const t=G.map[a][b];if(t.t!=='park')continue;
+    let n=0;for(let i=0;i<4;i++)for(let j=0;j<4;j++)if(Math.hypot(b+(j+.5)/4-x,a+(i+.5)/4-z)<=R)n++;if(!n)continue;hit=true;
+    const was=t.tl||0;t.tl=Math.min(1,Math.round((was+n/16*k)*100)/100);if(was<.6&&t.tl>=.6)bump();}
+  if(!hit&&!(G.props||[]).some(p=>p.tr&&Math.hypot(p.x-x,p.z-z)<R))return;   // 나무가 없는 곳(도로 한가운데)은 적지 않는다
+  const F=G.fellZ;for(const f of F)if(Math.hypot(f.x-x,f.z-z)<f.r*.4){if(R>f.r){f.r=Math.round(R*1000)/1000;G.wrkV=(G.wrkV||0)+1;}return;}
+  if(F.length>=WRK.maxFell)return;F.push({x:Math.round(x*100)/100,z:Math.round(z*100)/100,r:Math.round(R*1000)/1000});G.wrkV=(G.wrkV||0)+1;}
+/* ---------- 소품 ---------- */
+/* 소품 하나에 딸린 엄폐(G.covers) 목록: 소품이 바뀌면 같이 고친다 */
+function wrkCovOf(p){const W=G._wcov&&G._wcov.ref===G.covers?G._wcov.m:null;let m=W;
+  if(!m){m=new WeakMap();Object.defineProperty(G,'_wcov',{value:{ref:G.covers,m},writable:true,configurable:true,enumerable:false});}
+  let L=m.get(p);if(L)return L;const R=p.k==='hedge'||p.k==='bocage'?.36:p.k==='wagon'?.32:.02;const K={car:['car','wreck'],wagon:['car','wreck'],barrier:['barrier'],bin:['bin'],hedge:['hedge'],bocage:['bocage']}[p.k]||[];
+  L=(G.covers||[]).filter(c=>K.includes(c.kind)&&!c.wrk&&Math.hypot(c.x-p.x,c.z-p.z)<=R);m.set(p,L);return L;}
+function wrkPropSet(p,st){// st: 'burn' 불탄 차, 'flip' 뒤집힌 차, 'crush' 밟힌 차, 'dead' 쓰러진·날아간 소품
+  if(st==='burn'||st==='flip'){if(p.burnt&&(st==='burn'||p.flip))return false;const L=wrkCovOf(p);p.burnt=true;if(st==='flip')p.flip=true;p.col='#2b2723';for(const c of L)c.kind='wreck';}
+  else if(st==='crush'){if(p.crush)return false;const L=wrkCovOf(p);p.crush=1;for(const c of L){c.kind='rubble';c.cov=.12;c.h=.04;}}
+  else{if(p.dead)return false;const L=wrkCovOf(p);p.dead=1;if(L.length)G.covers=G.covers.filter(c=>!L.includes(c));}
+  G.propV=(G.propV||0)+1;if(FXH.propHit)FXH.propHit(p,st);return true;}
+function wrkProps(x,z,kg,inB){const P=G.props;if(!P||!P.length)return false;const k=inB?.5:1;
+  const rCar=wrkR(kg,1.5)*k,rL=wrkR(kg,2)*k,rBar=kg>=50?wrkR(kg,.7)*k:0,big=kg>=50;const R=Math.max(rCar,rL);if(R<.05)return false;let nav=false;
+  for(const p of P){if(p.dead)continue;const dx=p.x-x,dz=p.z-z;if(Math.abs(dx)>R+.3||Math.abs(dz)>R+.3)continue;const d=Math.hypot(dx,dz);
+    if(p.k==='car'){if(d<rCar*.5&&big&&!p.flip){if(wrkPropSet(p,'flip'))nav=true;}else if(d<rCar&&!p.burnt&&!p.crush)wrkPropSet(p,'burn');}
+    else if(p.k==='wagon'){if(d<rCar*.8&&!p.burnt)wrkPropSet(p,'burn');}
+    else if(p.k==='lamp'||p.k==='light'||p.k==='hedge'||p.k==='bocage'&&d<rL*.6){if(d<rL)wrkPropSet(p,'dead');}
+    else if(p.k==='bin'){if(d<rL&&wrkPropSet(p,'dead'))nav=true;}
+    else if(p.k==='barrier'){if(d<rBar&&wrkPropSet(p,'dead'))nav=true;}}
+  return nav;}
+/* ---------- 건물 ---------- */
+/* 무너진 건물의 잔해가 옆 칸(길·마당)으로 쏟아진다. sz = 깊이(칸) */
+function wrkSpill(r,c,dr,dc,sz){const a=r+dr,b=c+dc;if(!inb(a,b)||!wrkOpen(G.map[a][b]))return false;wrkInit();
+  const D=G.debris;let d=D.find(o=>o.r===r&&o.c===c&&o.dr===dr&&o.dc===dc);
+  if(d){if(sz<=d.d)return false;d.d=Math.min(.55,Math.round(Math.max(sz,d.d+.04)*1000)/1000);}else{if(D.length>=WRK.maxDeb)return false;d={r,c,dr,dc,d:Math.min(.55,Math.round(sz*1000)/1000),s:(r*131+c*17+dr*5+dc)%997};D.push(d);}
+  wrkDebGeo(d);G.covers=(G.covers||[]).filter(o=>o.wrk!==d);
+  const ax=dr?1:0,az=dr?0:1,n=3;for(let i=0;i<n;i++){const s=(i-1)*.27;G.covers.push({x:d.x+ax*s,z:d.z+az*s,r:.16,kind:'rubble',cov:d.d>=.3?.4:.3,h:Math.min(.2,.06+d.d*.3),wrk:d});}
+  if(FXH.debris)FXH.debris(d);return true;}
+/* 잔해 더미의 자리: 건물과 맞닿은 변을 따라 길게(0.84칸), 깊이 d만큼 옆 칸 안으로 */
+function wrkDebGeo(d){const cx=d.c+.5+d.dc*(.5+d.d/2),cz=d.r+.5+d.dr*(.5+d.d/2);d.x=Math.round(cx*1000)/1000;d.z=Math.round(cz*1000)/1000;d.ry=d.dr?0:Math.PI/2;d.hl=.42;d.hw=d.d/2;}
+const WRK_SIDES=[[-1,0],[1,0],[0,-1],[0,1]];
+{const _d=damageBldg;damageBldg=function(r,c,amt){const x=inb(r,c)?G.map[r][c]:null;if(!x||x.t!=='bldg'||!(amt>0))return _d(r,c,amt);
+  // 재질: 한 번에 건물을 통째로 무너뜨리는 폭파(amt ≥ 최대 내구)는 그대로 둔다
+  if(amt<x.bmax){const m=WRK_MAT[x.ks]||(x.dist==='res'?1.2:1);amt=amt*m;}
+  const f0=x.f,rf0=roofFl(x);_d(r,c,amt);
+  if(x.t==='rubble'){wrkCollapse(r,c,f0);return;}
+  const rf1=roofFl(x);if(x.t==='bldg'&&rf1<rf0)wrkFloorFall(r,c,rf0,rf1);};}
+/* 위층이 무너진다: 그 층과 옥상에 있던 병사는 떨어져 다치고, 잔해 일부가 길로 쏟아진다 */
+function wrkFloorFall(r,c,rf0,rf1){const x=G.map[r][c];const lost=rf0-rf1;
+  for(const u of G.units.slice()){if(u.r!==r||u.c!==c||UT[u.type].fly||UT[u.type].cls!=='inf')continue;const fl=typeof curFl==='function'?curFl(u):0;if(fl<rf1)continue;
+    const top=typeof topFl==='function'?topFl(x):rf1;u.fl=Math.max(0,Math.min(top,rf1-1));u.climb=0;u.onSt=0;u.supp=2;
+    harm(u,Math.max(.5,u.hp*Math.min(.8,.2+.1*(fl-rf1+1)+Math.random()*.25)),null,{kind:'crush'});}
+  const open=WRK_SIDES.filter(([p,q])=>inb(r+p,c+q)&&wrkOpen(G.map[r+p][c+q]));let nav=false;
+  if(open.length){const [p,q]=open[Math.floor(Math.random()*open.length)];if(wrkSpill(r,c,p,q,.1+.05*lost))nav=true;}
+  if(FXH.floorFall)FXH.floorFall(r,c,rf0,rf1);L(`${x.obj!=null?G.objs[x.obj].name+' ':''}건물 위층 붕괴`);
+  if(nav){wrkNav();wrkReroute(c+.5,r+.5,1.3);}}
+/* 통째로 무너졌다: 층수만큼 잔해가 사방 길로 쏟아지고, 3층 넘는 건물 자리는 잔해 언덕이 된다 */
+function wrkCollapse(r,c,f0){const x=G.map[r][c];x.rf=f0||1;const sz=.12+.035*Math.min(10,f0||1);
+  for(const [p,q] of WRK_SIDES)wrkSpill(r,c,p,q,sz*(.75+Math.random()*.5));
+  if(x.rf>=3&&G.props)for(const p of G.props){if(p.dead||Math.abs(p.x-(c+.5))>1||Math.abs(p.z-(r+.5))>1)continue;   // 쏟아진 잔해에 깔린 소품
+    const near=G.debris.some(d=>d.r===r&&d.c===c&&inBox(d,p.x,p.z,.02));if(!near)continue;if(p.k==='car')wrkPropSet(p,'crush');else if(p.k!=='barrier')wrkPropSet(p,'dead');}
+  wrkNav();wrkReroute(c+.5,r+.5,1.8);}
+/* ---------- 전차가 밟고 지나간다 ---------- */
+{const _c=fortCrush;fortCrush=function(u){_c(u);const cls=navCls(u);if(cls!=='trk'&&cls!=='veh')return;const P=G.props;let nav=false;
+  if(P)for(const p of P){if(p.dead||Math.abs(p.x-u.x)>.4||Math.abs(p.z-u.z)>.4)continue;
+    if(cls==='trk'&&p.k==='car'&&!p.crush&&inBox({x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2,hw:CAR_KIND_W[p.kind]/2},u.x,u.z,.06)){if(wrkPropSet(p,'crush'))nav=true;}
+    else if(cls==='trk'&&p.k==='bin'&&Math.hypot(p.x-u.x,p.z-u.z)<.13){if(wrkPropSet(p,'dead'))nav=true;}
+    else if((p.k==='lamp'||p.k==='light')&&Math.hypot(p.x-u.x,p.z-u.z)<(cls==='trk'?.1:.07))wrkPropSet(p,'dead');
+    else if(cls==='trk'&&(p.k==='hedge'||p.k==='bocage')&&inBox({x:p.x,z:p.z,ry:p.ry?Math.PI/2:0,hl:p.k==='hedge'?.5:.5,hw:.06},u.x,u.z,.05))wrkPropSet(p,'dead');}
+  // 숲을 헤치고 가면 나무를 쓰러뜨린다
+  if(cls==='trk'){const t=cell(u.r,u.c);if(t&&t.t==='park'&&!t.yard){const L=u._wfl;if(!L||Math.hypot(L[0]-u.x,L[1]-u.z)>.22){u._wfl=[u.x,u.z];wrkInit();
+      t.tl=Math.min(1,Math.round(((t.tl||0)+.04)*100)/100);if(G.fellZ.length<WRK.maxFell)G.fellZ.push({x:Math.round(u.x*100)/100,z:Math.round(u.z*100)/100,r:.08,tk:1});G.wrkV=(G.wrkV||0)+1;}}}
+  if(nav)wrkNav();};}
+/* ---------- 이동 격자에 넣기 ---------- */
+{const _o=navObstacles;navObstacles=function(){const P=G.props;let O;
+  if(P&&P.some(p=>p.dead||p.crush)){G.props=P.filter(p=>!p.dead&&!p.crush);try{O=_o();}finally{G.props=P;}
+    for(const p of P)if(p.crush&&!p.dead&&p.k==='car')O.push({k:'carX',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2,hw:CAR_KIND_W[p.kind]/2});}
+  else O=_o();
+  for(const c of G.craters||[]){const k=wrkCrK(c.r);if(k)O.push({k,x:c.x,z:c.z,ry:0,hl:c.r*.75,hw:c.r*.75});}
+  for(const d of G.debris||[])O.push({k:d.d>=.3?'debB':'deb',x:d.x,z:d.z,ry:d.ry,hl:d.hl,hw:d.hw});
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t==='rubble'&&x.rf>=3)O.push({k:x.rf>=6?'moundB':'mound',x:c+.5,z:r+.5,ry:0,hl:.4,hw:.4});}
+  return O;};}
+/* 바뀐 곳 둘레를 지나던 지상 부대는 다음 틱에 길을 다시 찾는다 */
+function wrkReroute(x,z,R){(G._wrr||Object.defineProperty(G,'_wrr',{value:[],writable:true,configurable:true,enumerable:false})._wrr).push([x,z,R]);}
+function wrkRerouteRun(){const Q=G._wrr;if(!Q||!Q.length)return;G._wrr=[];
+  for(const u of G.units){if(UT[u.type].fly||!u.path||!u.path.length||!u.dest)continue;let near=false;let px=u.x,pz=u.z;
+    for(const p of u.path){for(const [x,z,R] of Q){if(segDist(px,pz,p[0],p[1],x,z)<=R){near=true;break;}}if(near)break;px=p[0];pz=p[1];}
+    if(!near)continue;const np=pathPts(u,u.dest[0],u.dest[1]);if(np&&np.length)u.path=np;}}
+function segDist(x1,z1,x2,z2,px,pz){const dx=x2-x1,dz=z2-z1,L=dx*dx+dz*dz;let t=L?((px-x1)*dx+(pz-z1)*dz)/L:0;t=Math.max(0,Math.min(1,t));return Math.hypot(x1+dx*t-px,z1+dz*t-pz);}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(G&&G._wrr&&G._wrr.length)wrkRerouteRun();};}
+/* ---------- 폭발 소식 받기: 탄약마다 폭약량 ---------- */
+const wrkShellKg=s=>s.type==='mortar'?(s.pw>1.2?2.5:.9):s.type==='spg'?(s.pw>=1.6?9:7):WRK_KG[s.type]||1.5;
+{const _s=rtShoot;rtShoot=function(a,d){const t=UT[a.type],x=d.x,z=d.z;const v=_s(a,d);
+  if(t.ex&&!t.ind&&!t.guided&&!t.salvo&&v>0&&WRK_KG[a.type])wrkBlast(x,z,WRK_KG[a.type]);return v;};}
+{const _s=rtShootBldg;rtShootBldg=function(a,r,c){const v=_s(a,r,c);const kg=WRK_KG[a.type];if(kg)wrkBlast(c+.5,r+.5,kg);return v;};}
+{const _s=shellBoom;shellBoom=function(s,x,z,h,r,c){const v=_s(s,x,z,h,r,c);wrkBlast(x,z,wrkShellKg(s),{});return v;};}
+if(typeof bombHit==='function'){const _s=bombHit;bombHit=function(b){const v=_s(b);wrkBlast(b.x??b.c+.5,b.z??b.r+.5,90);return v;};}
+if(typeof msBlast==='function'){const _s=msBlast;msBlast=function(x,z,R,base,n,bc,br){const v=_s.apply(this,arguments);wrkBlast(x,z,bc>=50?480:bc>=20?220:60,{out:1});return v;};}
+if(typeof msHit==='function'){const _s=msHit;msHit=function(m,e,r,c){const v=_s(m,e,r,c);wrkBlast(e&&r==null?e.x:m.x,e&&r==null?e.z:m.z,4.5);return v;};}
+if(typeof fpvBoom==='function'){const _s=fpvBoom;fpvBoom=function(u,e){const x=e.x,z=e.z;const v=_s(u,e);wrkBlast(x,z,.6);return v;};}
+if(typeof demoBoom==='function'){const _s=demoBoom;demoBoom=function(d){const v=_s(d);wrkBlast(d.c+.5,d.r+.5,20);return v;};}
+if(typeof vbBoom==='function'){const _s=vbBoom;vbBoom=function(u,k){const was=u._boom,x=u.x,z=u.z;const v=_s(u,k);if(!was)wrkBlast(x,z,250*(k||1),{out:1});return v;};}
+{const _n=newGame;newGame=function(){const v=_n.apply(this,arguments);if(G){G.craters=[];G.fellZ=[];G.debris=[];G.wrkV=0;}return v;};}
 
 /* ---- 05z-drill.js ---- */
 /* ===================== DRILL: 분대 안 병사들의 전투 동작 =====================
@@ -12155,6 +12311,108 @@ v3VehicleM=function(ty,g,n){if(ty==='hmv'&&n%2)ty='tech';
 v3VehBuild=function(ty){return vxTemplate(ty,0);};
 v3ZuBuild=function(){return vxTemplate('zu',1);};
 v3MlrsBuild=function(){return vxTemplate('mlrs',0);};
+
+/* ---- 07zw-wreck.js ---- */
+/* ===================== 3D: 부서진 지형지물 (05o-wreck의 화면 쪽) =====================
+   - 나무: G.fellZ 안의 나무는 폭발 반대쪽으로 쓰러져 눕는다(전차가 지나간 자리는 진행 방향 옆으로).
+   - 소품: 불탄 차는 검게, 뒤집힌 차는 뒤집혀, 밟힌 차는 납작하게. 가로등·신호등·쓰레기통은 쓰러지고 생울타리는 주저앉는다.
+   - 길로 쏟아진 잔해 더미(G.debris)와 구덩이 둘레의 흙더미(G.craters)를 그린다.
+   지면 그룹의 인스턴스 메시를 직접 고친다. 07z-perf가 조각낸 뒤(v3BuildWorld 바깥)에 원래 행렬을 기억해 두고, 상태가 바뀌면 원래 행렬에서 다시 계산한다. */
+const WRV={recG:null,treeV:-1,propV:-1,pileV:-1,t:0,meshes:null};
+const wrvHash=(a,b)=>{let h=Math.imul((a|0)^0x9e3779b9,2654435761)^Math.imul(b|0,40503);h=Math.imul(h^h>>>15,2246822507);h^=h>>>13;return (h>>>0)/4294967296;};
+/* 소품을 그리는 동안 쓴 형상을 적어 둔다(공원·연못은 빼고) */
+if(typeof v3Inst==='function'){const _i=v3Inst;v3Inst=function(g,geo,mat,list,opt){if(WRV.recG&&list&&list.length)WRV.recG.add(geo);return _i(g,geo,mat,list,opt);};}
+if(typeof v3BuildProps==='function'){const _b=v3BuildProps;v3BuildProps=function(g){WRV.recG=new Set();try{return _b(g);}finally{WRV.props=WRV.recG;WRV.recG=null;}};}
+if(typeof v3BuildPark==='function'){const _b=v3BuildPark;v3BuildPark=function(g){const s=WRV.recG;WRV.recG=null;try{return _b(g);}finally{WRV.recG=s;}};}
+if(typeof v3BuildPonds==='function'){const _b=v3BuildPonds;v3BuildPonds=function(g){const s=WRV.recG;WRV.recG=null;try{return _b(g);}finally{WRV.recG=s;}};}
+{const _w=v3BuildWorld;v3BuildWorld=function(){const v=_w.apply(this,arguments);WRV.meshes=null;WRV.treeV=WRV.propV=WRV.pileV=-1;return v;};}
+/* 지면 그룹을 훑어 나무 메시·소품 메시를 고른다 */
+function wrvIndex(){const g=V3.G&&V3.G.world;if(!g)return null;const T=V3.T;
+  const treeGeo=new Set([V3.leafG,V3.treeG,V3.bmG&&V3.bmG.pine,typeof NAT==='object'&&NAT.geo&&NAT.geo.spruce,typeof NAT==='object'&&NAT.geo&&NAT.geo.pine].filter(Boolean));
+  const trunkMat=new Set([V3.pm&&V3.pm.bark,V3.M&&V3.M.trunk].filter(Boolean));const propGeo=WRV.props||new Set();
+  const trees=[],props=[];
+  for(const o of g.children){if(!o.isInstancedMesh)continue;const isT=treeGeo.has(o.geometry)||trunkMat.has(o.material);const isP=!isT&&propGeo.has(o.geometry);if(!isT&&!isP)continue;
+    const m0=o.instanceMatrix.array.slice(0,o.count*16);const c0=o.instanceColor?o.instanceColor.array.slice(0,o.count*3):null;
+    (isT?trees:props).push({o,m0,c0,own:null});}
+  // 소품 인스턴스 → 가장 가까운 소품
+  const P=G.props||[];const grid=new Map();P.forEach((p,i)=>{const k=Math.floor(p.z)*N+Math.floor(p.x);let a=grid.get(k);if(!a)grid.set(k,a=[]);a.push(i);});
+  for(const M of props){const A=M.m0,n=M.o.count;M.own=new Int32Array(n).fill(-1);
+    for(let i=0;i<n;i++){const x=A[i*16+12],z=A[i*16+14];let best=-1,bd=.36;const r0=Math.floor(z),c0=Math.floor(x);
+      for(let a=r0-1;a<=r0+1;a++)for(let b=c0-1;b<=c0+1;b++){const L=grid.get(a*N+b);if(!L)continue;for(const j of L){const d=Math.hypot(P[j].x-x,P[j].z-z);if(d<bd){bd=d;best=j;}}}
+      M.own[i]=best;}}
+  return WRV.meshes={trees,props,tmp:{m:new T.Matrix4(),r:new T.Matrix4(),t:new T.Matrix4(),t2:new T.Matrix4(),q:new T.Quaternion(),v:new T.Vector3(),ax:new T.Vector3(),c:new T.Color()}};}
+/* 원래 행렬 m0[i]를 바닥 (px,0,pz)을 축으로 ax 방향 축에 대해 ang만큼 돌린다 */
+function wrvTilt(M,i,px,py,pz,axx,axz,ang,sy){const S=WRV.meshes.tmp;S.m.fromArray(M.m0,i*16);
+  if(sy!=null){S.r.makeScale(1,sy,1);}else{S.ax.set(axx,0,axz).normalize();S.r.makeRotationAxis(S.ax,ang);}
+  S.t.makeTranslation(px,py,pz);S.t2.makeTranslation(-px,-py,-pz);S.t.multiply(S.r).multiply(S.t2).multiply(S.m);M.o.setMatrixAt(i,S.t);}
+function wrvHide(M,i){const S=WRV.meshes.tmp;S.m.makeScale(0,0,0);M.o.setMatrixAt(i,S.m);}
+/* 쓰러진 나무 */
+function wrvTrees(){const W=WRV.meshes;const Z=G.fellZ||[];const zg=new Map();
+  for(const f of Z){for(let a=Math.floor(f.z-f.r);a<=Math.floor(f.z+f.r);a++)for(let b=Math.floor(f.x-f.r);b<=Math.floor(f.x+f.r);b++){const k=a*N+b;let L=zg.get(k);if(!L)zg.set(k,L=[]);L.push(f);}}
+  for(const M of W.trees){const A=M.m0,n=M.o.count;let ch=false;
+    for(let i=0;i<n;i++){const x=A[i*16+12],z=A[i*16+14];const L=zg.get(Math.floor(z)*N+Math.floor(x));let f=null;
+      if(L)for(const q of L){const d=Math.hypot(q.x-x,q.z-z);if(d>q.r)continue;const h=wrvHash(Math.round(x*997),Math.round(z*991));if(d<q.r*.6||h<.65){f=q;break;}}
+      const was=M.o.userData.wf&&M.o.userData.wf[i];
+      if(!f){if(was){M.o.setMatrixAt(i,W.tmp.m.fromArray(A,i*16));M.o.userData.wf[i]=0;ch=true;}continue;}
+      if(was)continue;const h=wrvHash(Math.round(x*577),Math.round(z*613));let dx=x-f.x,dz=z-f.z;const dl=Math.hypot(dx,dz);
+      if(f.tk||dl<.02){const a=h*6.283;dx=Math.cos(a);dz=Math.sin(a);}else{dx/=dl;dz/=dl;}
+      // 쓰러지는 방향(dx,dz)에 수직인 축으로 눕힌다
+      wrvTilt(M,i,x,0,z,dz,-dx,1.3+h*.25);(M.o.userData.wf||(M.o.userData.wf=new Uint8Array(n)))[i]=1;ch=true;}
+    if(ch)M.o.instanceMatrix.needsUpdate=true;}}
+/* 부서진 소품 */
+function wrvProps(){const W=WRV.meshes;const P=G.props||[];const dark='#1d1b18';
+  for(const M of W.props){const n=M.o.count;let ch=false,cc=false;const cy=M.o.geometry.boundingBox||(M.o.geometry.computeBoundingBox(),M.o.geometry.boundingBox);
+    for(let i=0;i<n;i++){const j=M.own[i];if(j<0)continue;const p=P[j];if(!p)continue;const st=p.dead?'dead':p.crush?'crush':p.flip?'flip':p.burnt?'burn':'';
+      const key=st;const U=M.o.userData.ws||(M.o.userData.ws=[]);if(U[i]===key)continue;U[i]=key;ch=true;
+      const A=M.m0;const iy=A[i*16+13];
+      if(!st){M.o.setMatrixAt(i,W.tmp.m.fromArray(A,i*16));if(M.c0&&M.o.instanceColor){M.o.instanceColor.array.set(M.c0.subarray(i*3,i*3+3),i*3);cc=true;}continue;}
+      if(p.k==='car'||p.k==='wagon'){
+        if(st==='dead'){wrvHide(M,i);continue;}
+        // 바퀴·지붕판(작은 인스턴스)은 타 버리거나 깔려 사라진다
+        const small=(cy.max.y-cy.min.y)<.05&&(cy.max.x-cy.min.x)<.08;
+        if(small&&(st==='burn'||st==='crush'||st==='flip')){wrvHide(M,i);continue;}
+        if(st==='crush')wrvTilt(M,i,p.x,0,p.z,0,0,0,.32);
+        else if(st==='flip'){const cs=Math.cos(p.ry),sn=-Math.sin(p.ry);wrvTilt(M,i,p.x,.07,p.z,cs,sn,Math.PI);}
+        else M.o.setMatrixAt(i,W.tmp.m.fromArray(A,i*16));
+        if(M.o.instanceColor){W.tmp.c.set(dark);W.tmp.c.toArray(M.o.instanceColor.array,i*3);cc=true;}continue;}
+      if(p.k==='hedge'||p.k==='bocage'){wrvTilt(M,i,A[i*16+12],0,A[i*16+14],0,0,0,.28);continue;}
+      if(p.k==='barrier'){const h=wrvHash(j,7);wrvTilt(M,i,p.x,0,p.z,Math.cos(p.ry),-Math.sin(p.ry),(h<.5?-1:1)*1.4);continue;}
+      // 가로등·신호등·쓰레기통: 밑동을 축으로 한쪽으로 쓰러진다(같은 소품의 기둥·팔·등은 같이 돈다). 신호등 불은 꺼진다
+      if(p.k==='light'&&M.o.material===V3.litM){wrvHide(M,i);continue;}
+      const a=wrvHash(j,3)*6.283;wrvTilt(M,i,p.x,0,p.z,Math.cos(a),Math.sin(a),p.k==='bin'?1.57:1.48);}
+    if(ch)M.o.instanceMatrix.needsUpdate=true;if(cc)M.o.instanceColor.needsUpdate=true;}}
+/* 잔해 더미·구덩이 흙 테두리: 작은 덩어리를 쌓는다 */
+function wrvPiles(){const T=V3.T;if(!V3.wrkG){V3.wrkG=new T.Group();V3.wrkG.name='wreck';V3.scene.add(V3.wrkG);}const g=V3.wrkG;
+  for(const o of [...g.children]){g.remove(o);if(o.dispose)o.dispose();}
+  const ch=[],slab=[],dirt=[];const CC=['#6c675f','#5a5650','#7a746a','#47443f','#837c70','#3a3835'];
+  for(const d of G.debris||[]){const n=Math.round(10+d.d*70);const ax=d.dr?1:0,az=d.dr?0:1;
+    for(let i=0;i<n;i++){const h1=wrvHash(d.s*37+i,1),h2=wrvHash(d.s*37+i,2),h3=wrvHash(d.s*37+i,3);
+      const u=(h1-.5)*2*d.hl,v=(h2-.5)*d.d;const edge=1-Math.max(Math.abs(u)/d.hl,Math.abs(v)/(d.d/2+1e-6)*.8);   // 가운데·건물 쪽이 높다
+      const sz=.018+h3*.03+d.d*.025;const toB=(v+d.d/2)/(d.d+1e-6);
+      (i%3?ch:slab).push({x:d.x+ax*u-d.dc*v,z:d.z+az*u-d.dr*v,y:Math.max(0,(edge*.5+toB*.5)*d.d*.22)*(.6+h3*.6),s:sz,sx:sz*(i%3?1:2.2),sy:sz*(i%3?.55+h1*.3:.25),sz:sz*(i%3?1:1.4),ry:h2*6.28,rx:(h3-.5)*.7,rz:(h1-.5)*.6,col:CC[Math.floor(h1*CC.length)]});}}
+  for(const c of G.craters||[]){if(c.r<.08)continue;const n=Math.round(8+c.r*40);const s0=wrvHash(Math.round(c.x*97),Math.round(c.z*89))*6.28;
+    for(let i=0;i<n;i++){const h=wrvHash(i,Math.round(c.x*31+c.z*17)),h2=wrvHash(i+99,Math.round(c.x*13+c.z*41));const a=s0+i/n*6.283+(h2-.5)*.6;const rr=c.r*(.95+h*.45);dirt.push({x:c.x+Math.cos(a)*rr,z:c.z+Math.sin(a)*rr,y:-c.r*.03,s:c.r*(.12+h2*.14),sx:c.r*(.16+h*.16),sy:c.r*(.05+h*.05),ry:a+h2,col:h<.35?'#4a4136':h<.7?'#5c5143':'#6d6352'});}}
+  const M=WRV.mat||(WRV.mat=(()=>{const m=new T.MeshStandardMaterial({color:'#ffffff',roughness:1,flatShading:true});if(typeof v3FowMat==='function')v3FowMat(m);return m;})());
+  const geo=WRV.geo||(WRV.geo=new T.DodecahedronGeometry(1,0)),box=WRV.box||(WRV.box=new T.BoxGeometry(1,1,1));
+  for(const [L,sh,gg] of [[ch,true,geo],[slab,true,box],[dirt,false,geo]]){if(!L.length)continue;const im=v3Inst(g,gg,M,L,{noShadow:!sh});if(im){im.userData.keepGeo=1;im.userData.keepMat=1;im.userData.chunk=1;}}}
+function wrvFrame(now){if(!V3.on||!G||!V3.G||!V3.G.world)return;if(now-WRV.t<350)return;WRV.t=now;
+  const wv=G.wrkV||0,pv=G.propV||0;if(wv===WRV.pileV&&pv===WRV.propV&&wv===WRV.treeV&&WRV.meshes)return;
+  if(!WRV.meshes&&!wrvIndex())return;
+  try{if(WRV.treeV!==wv){WRV.treeV=wv;wrvTrees();}
+    if(WRV.propV!==pv){WRV.propV=pv;wrvProps();}
+    if(WRV.pileV!==wv){WRV.pileV=wv;wrvPiles();}}catch(e){console.warn(e);}}
+if(typeof dsFrame==='function'){const _f=dsFrame;dsFrame=function(now,dt){_f(now,dt);wrvFrame(now);};}
+/* ---------- 순간 연출 ---------- */
+Object.assign(FXH,{
+  crater(c,grow){if(typeof V3==='undefined'||!V3.on||typeof dsScar!=='function')return;dsScar('crater',c.x,c.z,c.r*1.15);if(c.r>=.2)dsScar('spray',c.x,c.z,c.r*4);},
+  propHit(p,st){if(typeof V3==='undefined'||!V3.on)return;
+    if(st==='burn'||st==='flip'){if(typeof dsFires==='function')dsFires(p.x,p.z,2,25000+Math.random()*20000,.18,.1);if(typeof dsScar==='function')dsScar('scorch',p.x,p.z,.22);}
+    if(st==='flip'&&typeof v3Debris==='function')v3Debris(p.x,.1,p.z,6,.8);
+    if(st==='crush'&&typeof dsDust==='function')dsDust(p.x,p.z,.35,2500,3,'#6d665c');},
+  debris(d){if(typeof V3==='undefined'||!V3.on)return;if(typeof dsDust==='function')dsDust(d.x,d.z,.6+d.d*2,14000,6);if(typeof dsScar==='function')dsScar('rubble',d.x,d.z,.35+d.d);},
+  floorFall(r,c,rf0,rf1){if(typeof V3==='undefined'||!V3.on)return;const [x,z]=v3x(r,c);const y=(rf1+.5)*FLOOR_H;
+    if(typeof v3Debris==='function')v3Debris(x,y,z,10+(rf0-rf1)*6,1);if(typeof dsDust==='function')dsDust(x,z,1.1,12000,8,null,y*.6);
+    if(typeof v3Burst==='function')v3Burst(x,y,z,.8,'#cbb79a',2,0);V3.shake=Math.max(V3.shake||0,.07);if(typeof sfx==='function')sfx('boom',.9,x,z);}});
 
 /* ---- 08-ui.js ---- */
 /* ===================== UI: HUD·하단 바·메뉴 ===================== */
