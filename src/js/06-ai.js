@@ -13,7 +13,7 @@ function aiAtkScore(u,e,r,c,moved){const sv=u.r,sc=u.c;u.r=r;u.c=c;let s=-1;
       if(!UT[e.type].ind&&d<e.hp&&canHit(e,u)){s-=calcDmg(e,u,true)*UT[u.type].cost/10;}}}
   finally{u.r=sv;u.c=sc;}return s;}
 function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
-  if(t.cap&&x.obj!=null&&x.owner!==n)s+=70;
+  if(t.cap&&x.obj!=null&&x.owner!==n)s+=70*Math.min(1,t.cap)*(t.cls==='veh'?.6:1);   // 차량은 거점보다 보병 곁이 먼저
   if(x.obj!=null&&x.owner===n&&t.cls==='inf')s+=vis.some(e=>dist(e.r,e.c,r,c)<=5)?14:3;
   const gd=dist(r,c,goal[0],goal[1]);
   if(t.ind||u.type==='sniper'){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-(u.type==='spg'?20:u.type==='mortar'?12:u.type==='mlrs'?26:5))*2.2+(vis.length?0:gd*(t.ind?.6:2));}

@@ -21,7 +21,7 @@ const TT={
 };
 /* 병종. cls: inf(보병) veh(차량) air(드론)
    rng: [최소, 최대] 사거리, ind: 곡사(시야 없이 아군이 보는 곳 사격, 이동 후 사격 불가)
-   ex: 폭발물(건물 피해 배수, 건물 엄폐 절반 무시), sup: 제압 사격, cap: 거점 점령 가능 */
+   ex: 폭발물(건물 피해 배수, 건물 엄폐 절반 무시), sup: 제압 사격, cap: 거점 점령 힘(1=소총분대, 05l3-capture가 다른 병과에도 준다) */
 const UT={
   rifle:{n:'소총분대',cls:'inf',mv:4,vis:5,rng:[1,4],atk:{inf:5,veh:1,air:3},cost:3,cap:1,desc:'거점 점령과 건물 장악의 주력'},
   mg:{n:'기관총팀',cls:'inf',mv:3,vis:5,rng:[1,5],atk:{inf:6,veh:1,air:4},sup:1,cost:4,desc:'맞은 적은 제압되어 다음 턴 약해짐. 경계 사격에 강함'},
