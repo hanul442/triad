@@ -1,11 +1,11 @@
-// 쥐구멍·지하실·땅굴·저격·폭파·자폭 차량·민간인 (05n-*.js)
+// 쥐구멍·지하실·땅굴·저격·폭파·자폭 차량 (05n-*.js)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadGame, playAI } from './harness.mjs';
 
 function setup(T, slots) {
   T.newGame({ slots: slots || ['human', 'human', 'none', 'none'], size: 's', seed: 3, fog: false });
-  const G = T.G; G.units = []; G.props = []; G.covers = []; G.civF = [];
+  const G = T.G; G.units = []; G.props = []; G.covers = [];
   for (let r = 0; r < T.N; r++) for (let c = 0; c < T.N; c++) G.map[r][c] = { t: 'road', owner: null, obj: null, smoke: 0 };
   G.navV = (G.navV || 0) + 1; T.bump();
   return G;
@@ -115,19 +115,11 @@ test('자폭 차량: 민병대만 배치하고, 적 가까이 가면 터진다',
   assert.ok(tgt.dmgIn > 3, '근처 부대가 크게 다친다');
 });
 
-test('민간인: 사람이 있는 건물을 부순 쪽이 승점을 잃고, 아군이 머물면 대피시킨다', () => {
-  const T = loadGame(); const G = setup(T); bldg(G, 5, 5, 3); bldg(G, 10, 10, 3);
-  G.map[5][5].civ = 9; G.map[10][10].civ = 6; G.nats[1].vp = 10;
-  const ubAs = g(T, 'ubAs');
-  ubAs(1, () => T.damageBldg(5, 5, 999));
-  assert.ok(G.nats[1].civK >= 5, '무너지면 대부분 죽는다');
-  assert.ok(G.nats[1].vp < 10, '부순 쪽이 승점을 잃는다');
-  const u = unit(T, 0, 'rifle', 10.5, 10.5);
-  run(T, 6);
-  assert.equal(G.map[10][10].civ, 0);
-  assert.ok(G.civF.length >= 1, '무리 지어 빠져나간다');
-  run(T, 120);
-  assert.ok(G.nats[0].civE >= 6, '안전하게 빠져나가면 대피 인원으로 센다');
+test('민간인은 없다: 새 판 어느 건물에도 민간인이 없고 피란 무리도 없다', () => {
+  const T = loadGame(); T.newGame({ slots: ['human', 'ai'], size: 's', seed: 7 }); const G = T.G;
+  assert.ok(G.map.every(row => row.every(x => !x.civ)), '건물에 민간인 없음');
+  assert.ok(!(G.civF || []).length, '피란 무리 없음');
+  assert.equal(typeof g(T, 'civFlee'), 'undefined');
 });
 
 test('AI끼리 한 판: 새 규칙에서 오류 없이 끝난다', async () => {

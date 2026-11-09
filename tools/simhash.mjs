@@ -10,8 +10,8 @@ T.newGame({ slots, size, diff: 'normal', fog: true, speed: 0, seed });
 const h = crypto.createHash('sha1');
 const snap = G => {
   const u = G.units.map(u => [u.id, u.type, u.nat, u.x, u.z, u.hp, u.face, u.tgt, (u._men || []).map(m => [m.x, m.z, m.dead, m.down])]);
-  const m = []; for (const row of G.map) for (const x of row) m.push(x.t, x.owner, x.bhp, x.civ);
-  return JSON.stringify([G.time, u, m, G.order.map(n => [G.nats[n].vp, G.nats[n].cp, G.nats[n].alive]), (G.cas || []).length, (G.civF || []).length]);
+  const m = []; for (const row of G.map) for (const x of row) m.push(x.t, x.owner, x.bhp);
+  return JSON.stringify([G.time, u, m, G.order.map(n => [G.nats[n].vp, G.nats[n].cp, G.nats[n].alive]), (G.cas || []).length]);
 };
 const t0 = performance.now(); let simT = 0, i = 0;
 for (; i < secs * 10 && !T.G.over; i++) { const a = performance.now(); T.rtTick(0.1); simT += performance.now() - a; if (i % 50 === 49) h.update(snap(T.G)); }
