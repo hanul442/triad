@@ -4,6 +4,9 @@ const SCN={
   assault:{n:'도심 돌파',d:'적이 모든 거점을 쥐고 있습니다. 8분 안에 거점 5곳을 동시에 확보하세요.'},
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
+const SCN_ASSAULT_ADD=['rifle','rifle','rifle','eng','mg','at','mortar','ifv','tank'];
+/* 도심 돌파: 수비는 거점을 다 쥐고 있어도 증원을 사지 않는다(정해진 수비대만) */
+{const _in=income;income=function(n){if(G&&G.scn==='assault'&&n!==0)return 0;return _in(n);};}
 function scnButtons(){return Object.keys(SCN).map(k=>`<button class="btn" data-act="scn:${k}" id="scn-${k}">${SCN[k].n}<small>${SCN[k].d}</small></button>`).join('');}
 function startScn(k){const sp=+($('#opt-speed')?.value??260);scnSetup(k,sp);
   bump();G.boot=false;$('#setup').hidden=true;clearSel();rtStart();UI.sheet=false;render();if(typeof v3HomeCam==='function')v3HomeCam(false);}
@@ -13,7 +16,10 @@ function scnSetup(k,sp){sp=sp??260;
     G.units=G.units.filter(u=>u.nat===0||u.type==='rifle');G.nats[1].cp=0;G.nats[0].cp=8;G.tut=0;G.diff='easy';}
   else if(k==='assault'){newGame({slots:['human','ai','none','none'],size:'m',fog:true,speed:sp,scn:'assault',maxR:16,vpWin:999});
     for(const o of G.objs){G.map[o.r][o.c].owner=1;if(o.c>=N/2-2||Math.random()<.5){const sp2=[[o.r,o.c],...nbrs(o.r,o.c)].find(([a,b])=>!unitAt(a,b)&&mcost('rifle',G.map[a][b])<Infinity);if(sp2)mkUnit(1,['rifle','mg','at','sniper'][Math.floor(Math.random()*4)],sp2[0],sp2[1]);}}
-    G.nats[0].cp=14;G.nats[1].cp=0;}
+    // 시가전 공격은 공격 측이 3배 넘게 앞서야 한다(교범 3:1, 시가지는 그 이상). 기본 편성에 돌격 중대 하나를 더 붙이고, 수비는 지휘점수로 부대를 더 사지 못한다
+    const B=G.units.filter(u=>u.nat===0);const br=Math.round(B.reduce((a,u)=>a+u.r,0)/(B.length||1)),bc=Math.round(B.reduce((a,u)=>a+u.c,0)/(B.length||1));
+    if(typeof campPut==='function')for(const t of SCN_ASSAULT_ADD)campPut(0,t,br,bc,{bldg:false});
+    G.nats[0].cp=20;G.nats[1].cp=0;}
   else if(k==='hold'){newGame({slots:['human','ai','none','none'],size:'m',fog:true,speed:sp,scn:'hold',maxR:14,vpWin:999});
     const m=(N-1)/2;const near=G.objs.slice().sort((a,b)=>dist(a.r,a.c,m,m)-dist(b.r,b.c,m,m)).slice(0,4);
     for(const o of near){G.map[o.r][o.c].owner=0;}

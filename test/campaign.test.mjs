@@ -117,3 +117,10 @@ test('캠페인: 아군 증원은 정해진 시각에 서쪽에서 오고, 적�
     assert.ok(G.units.filter(u => u.nat === 0).slice(-M.bw[0].u.length).every(u => u.c <= 4), `${id} 서쪽 가장자리`);
   }
 });
+
+test('도심 돌파: 공격 측이 수비보다 넉넉히 많고, 수비는 증원을 사지 않는다', () => {
+  const T = loadGame(); T.__get('scnSetup')('assault', 0); const G = T.G;
+  const b = G.units.filter(u => u.nat === 0).length, r = G.units.filter(u => u.nat === 1).length;
+  assert.ok(b >= r * 1.1, `공격 ${b} 수비 ${r}`);
+  assert.equal(T.income(1), 0); assert.ok(T.income(0) > 0);
+});
