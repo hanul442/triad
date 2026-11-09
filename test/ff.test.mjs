@@ -31,8 +31,9 @@ test('사선이 비면 쏜다', () => {
 test('표적 바로 곁에 아군이 붙어 있으면 전차가 쏘지 않는다', () => {
   const T = loadGame(); setup(T);
   const a = put(T, 0, 'tank', 4.5, 10.5); put(T, 0, 'rifle', 12.5, 11.4); put(T, 1, 'rifle', 12.5, 10.5);
+  a._sc = { coax: 1e9, cmd: 1e9, ldr: 1e9 };   // 보조 기관총은 따로 본다
   fight(T, a);
-  assert.notEqual(a.firedT, T.G.time); assert.equal(a._ffB.why, 'near');
+  assert.equal(a.lastShot, undefined, '주포를 쏘지 않았다'); assert.equal(a._ffB.why, 'near');
 });
 
 test('대전차팀 뒤 30m 원뿔에 아군 보병이 있으면 후폭풍 때문에 쏘지 않는다', () => {
@@ -101,4 +102,12 @@ test('실내 수류탄: 그 방에 아군이 있으면 던지지 않는다', () 
   const hp = e.hp; const fl = F(T, 'flOf')(e);
   const hit = F(T, 'cqbBang')(a, 10, 10, fl);
   assert.equal(hit, 0); assert.equal(e.hp, hp);
+});
+
+test('전차 보조 기관총도 사선에 아군이 있으면 쏘지 않는다', () => {
+  const T = loadGame(); const G = setup(T);
+  const a = put(T, 0, 'tank', 4.5, 10.5); put(T, 0, 'rifle', 7.5, 10.5); const e = put(T, 1, 'rifle', 10.5, 10.5);
+  a.tf = 0; a.face = 0; const hp = e.hp;
+  for (let i = 0; i < 10; i++) { G.time += .1; fight(T, a); }
+  assert.equal(e.hp, hp); assert.ok(!Object.keys(G.tac || {}).some(k => k.startsWith('sec_')), '보조 기관총 사격 없음');
 });

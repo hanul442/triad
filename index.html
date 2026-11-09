@@ -7712,11 +7712,14 @@ function ffBlock(u,why,e){const t=G.time||0;u._ffB={t,why,e:e?e.id:null};if(type
 /* ---------- 쏘기 전 확인: rtFight 안에서 고르는 표적마다 ---------- */
 {const _ch=canHit;canHit=function(a,d,fromR,fromC,moved){const r=_ch(a,d,fromR,fromC,moved);if(!r||!d||fromR!=null||G._ffS!==a)return r;
   const ta=UT[a.type];
-  if(ta.ind){const k=ta.cls==='veh'||a.type==='mortar'?a.type:null;if(k&&FF.red[k]){const R=ffRed(a.nat,k,d.x,d.z);if(R.k==='hold'){ffBlock(a,'red',d);return false;}}return r;}
+  if(ta.ind){const k=ta.cls==='veh'||a.type==='mortar'?a.type:null;if(k&&FF.red[k]){const R=ffRed(a.nat,k,d.x,d.z);const [ax,az]=posOf(a);const sp=(ta.cls==='veh'?1.15:1)*(.1+Math.hypot(d.x-ax,d.z-az)*.06);   // 멀리 쏠수록 탄착이 흩어진다(05g shellAim)
+    if(R.k==='hold'||R.d-sp<ffT(R.R[0])){ffBlock(a,'red',d);return false;}}return r;}
   const B=ffLine(a,d);if(B){ffBlock(a,B.why,d);return false;}return r;};}
 /* 제압 사격(마지막 본 자리)도 사선을 본다: supFire가 losPt로 확인하는 순간에 */
 {const _lp=losPt;losPt=function(x1,z1,h1,x2,z2,h2){const r=_lp(x1,z1,h1,x2,z2,h2);const a=G&&G._ffSup;if(!r||!a)return r;
   const P=ffP(a,null);P.near=Math.max(P.near,ffT(8));if(ffLineAt(a,x1,z1,h1,x2,z2,h2??.5,P,false,null))return false;return r;};}
+/* 차량 보조 기관총(동축·차장·지붕·링 마운트, 05na-pen)도 같은 확인 */
+if(typeof secShoot==='function'){const _ss=secShoot;secShoot=function(u,s){const p=G._ffSup;const P=Object.create(u);P.type='hmv';G._ffSup=P;try{return _ss(u,s);}finally{G._ffSup=p;}};}
 if(typeof supFire==='function'){const _sf=supFire;supFire=function(u,moving){const p=G._ffSup;G._ffSup=u;try{return _sf(u,moving);}finally{G._ffSup=p;}};}
 /* 건물 칸을 쏠 때(폭발물로 건물 사격): 그 칸·사선에 아군이 있으면 쏘지 않는다 */
 {const _sb=rtShootBldg;rtShootBldg=function(a,r,c){const x=c+.5,z=r+.5;const X=cell(r,c);
@@ -7741,6 +7744,12 @@ if(typeof demoFire==='function'){const _df=demoFire;demoFire=function(d){if(d&&!
   return _df(d);};}
 /* 수송헬기 도어건: 표적 둘레 12m 안에 아군이 있으면 쏘지 않는다 */
 if(typeof dgTargets==='function'){const _dt=dgTargets;dgTargets=function(g){return _dt(g).filter(e=>!G.units.some(o=>ffFriend(o,g.n)&&!UT[o.type].fly&&!o.tun&&Math.hypot(o.x-e.x,o.z-e.z)<ffT(FF.near.dg)));};}
+/* FPV 자폭 드론: 표적 둘레(파편 0.6칸 + 여유)에 아군이 있으면 덮치지 않고 머문다 */
+if(typeof fpvBoom==='function'){const _fb=fpvBoom;fpvBoom=function(u,e){if(u&&e&&G.units.some(o=>o!==e&&ffFriend(o,u.nat)&&!UT[o.type].fly&&!o.tun&&Math.hypot(o.x-e.x,o.z-e.z)<.9)){
+    if(typeof tacN==='function')tacN('ff_fpv');return;}return _fb(u,e);};}
+/* 자폭 차량: 스스로 터질 때(명령 기폭이 아니면) 폭발 반경 안에 자기편이 있으면 기다린다 */
+if(typeof vbBoom==='function'){const _vb=vbBoom;vbBoom=function(u,k){if(u&&k===1&&!u.det&&!u._boom&&G.units.some(o=>o!==u&&ffFriend(o,u.nat)&&!UT[o.type].fly&&!o.tun&&Math.hypot(o.x-u.x,o.z-u.z)<DEMO.vbR)){
+    if(typeof tacN==='function')tacN('ff_vb');return;}return _vb(u,k);};}
 /* ---------- 화력 지원 요청 ---------- */
 {const _s=support;support=function(n,kind,r,c){const R=FF.red[kind];if(!R||!inb(r,c))return _s(n,kind,r,c);
   const me=n===G.viewer&&!isAI(n);let F=ffRed(n,kind,c+.5,r+.5,kind==='air'?ffStick(n,r,c).pts:null);
@@ -7778,6 +7787,7 @@ if(typeof gsAng==='function'&&typeof gunshipTick==='function'){
   const _gt=gunshipTick;gunshipTick=function(u,dt){const p=G._gsN;G._gsN=u.nat;try{return _gt(u,dt);}finally{G._gsN=p;}};}
 /* ---------- 사격 보류가 이어지면 옆으로 옮겨 사선을 연다 ---------- */
 function ffShift(u,e){const t=UT[u.type];if(t.fly||t.ind||u.hold||u.cqb||u.climb||u.job||u.demo||u.mh||u.tun||u.bsm||(u.path&&u.path.length))return false;
+  if(u.fol||(u.dest&&Math.hypot(u.dest[0]-u.x,u.dest[1]-u.z)>.8))return false;   // 대형을 따라가는 중이거나 아직 가야 할 곳이 남았으면 그대로
   if(cell(u.r,u.c).t==='bldg'||(typeof trenchAt==='function'&&trenchAt(u.x,u.z)))return false;
   const [ex,ez]=posOf(e);const L=Math.hypot(ex-u.x,ez-u.z)||1;const px=-(ez-u.z)/L,pz=(ex-u.x)/L;const ae=t.cls==='veh'?.8:.5;
   for(const s of [.6,-.6,1,-1,1.5,-1.5]){const x=u.x+px*s,z=u.z+pz*s;const X=tileAt(x,z);if(!X||X.t==='bldg'||!walkable(u,x,z)||!segClear(u,u.x,u.z,x,z))continue;
