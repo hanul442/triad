@@ -92,7 +92,7 @@ function hullOk(u,x,z,h,p0){if(!tileAt(x,z))return false;const p=hullPen(u,x,z,h
 /* 차체가 벽에 조금 걸쳐 있으면 걸침이 줄어드는 쪽으로 조금씩 밀어낸다 */
 function vSettle(u){if(u._gh>(G.time||0))return;const p=hullPen(u,u.x,u.z,u.hd);if(!p)return;let best=null,bp=p;
   for(let k=0;k<8;k++){const a=k*Math.PI/4,x=u.x+Math.cos(a)*.03,z=u.z+Math.sin(a)*.03;const t=tileAt(x,z);if(!t||mcost(u.type,t)===Infinity||wallCross(u,u.x,u.z,x,z))continue;const q=hullPen(u,x,z,u.hd);if(q<bp){bp=q;best=[x,z];}}
-  if(best){u.x=best[0];u.z=best[1];}}
+  if(best){u.x=best[0];u.z=best[1];rtCell(u);}}
 /* 길이 끝내 막혀 멈춤: 사람이 지휘하는 부대면 알려 준다(같은 부대는 20초에 한 번) */
 function vGiveUp(u){u.path=[];u.vs=0;u._stuckN=(u._stuckN||0)+1;G.stuckN=(G.stuckN||0)+1;const t=G.time||0;
   if(G.nats[u.nat]&&!isAI(u.nat)&&t-(u._stuckT??-99)>20){u._stuckT=t;try{L(`${UT[u.type].n} 길이 막혀 멈춤 — 다른 길로 다시 명령하세요`);}catch(e){}}}
@@ -209,7 +209,7 @@ function vAimPt(u){let tg=null;
 function vTurret(u,dt){const s=vSpec(u);if(!s.trav){u.tf=u.hd;return;}const now=G.time||0;
   const want=u._aim!=null&&now-(u._aimT||-99)<VM.aimHold?u._aim:u.hd;u.tf=vTurn(u.tf,want,s.trav*dt);}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units)return;
-  for(const u of G.units){if(!isGV(u))continue;vInit(u);
+  for(const u of G.units.slice()){if(!isGV(u)||!G.units.includes(u))continue;vInit(u);
     if(u.towBy!=null){u.hd=vTurn(u.hd,u.face||0,40*dt);u.face=u.hd;u.vs=0;}         // 끌려가는 차는 구난차 쪽으로 천천히 돈다
     else if(u.face!==u.hd)u.face=u.hd;   // 다른 규칙이 방향을 바로 바꿔도 차체는 천천히 돈다
     if(!(u.path&&u.path.length)&&u.towBy==null&&!(u.vd&&u.vd.mob))vSettle(u);
