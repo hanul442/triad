@@ -84,7 +84,7 @@ test('차체 충돌: 건물 옆에서 돌거나 움직여도 차체가 건물 �
 
 test('공격헬기: 목표 위에 머물지 않고 떨어져 대기하다 스쳐 지나가며 쏘고, 기수는 천천히 돈다', () => {
   const T = loadGame(); const G = setup(T);
-  const e = T.mkUnit(1, 'rifle', 10, 10); e.hold = true; e.hp = 999;
+  const e = T.mkUnit(1, 'rifle', 10, 10); e.hold = true; e.hp = 999; e.nocas = 1;   // 로켓 폭발에도 표적이 남게
   F(T, 'callGunship')(0, 10, 10); const g = G.units.find(u => u.type === 'gunship'); g.air.until = 1e9;
   let over = 0, n = 0, prev = g.face, maxRate = 0; const modes = new Set(); let offShot = 0, shots = 0;
   // 쏘는 순간의 기수와 표적 방향을 잰다
