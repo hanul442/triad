@@ -42,16 +42,18 @@ function blastHurt(u,dmg,by,o){if(!(dmg>0)||!G.units.includes(u))return;u.supp=M
 /* 터짐: (x,z,h) 지점. 건물(r,c)에 꽂혔으면 r,c가 있다 */
 function shellBoom(s,x,z,h,r,c){const by=s.src!=null?G.units.find(u=>u.id===s.src):null;const ta=UT[s.type]||UT.mortar;const base=DPS_K*(COOL[s.type]||4.6)*1.25*s.pw;
   if(r!=null){damageBldg(r,c,Math.max(1,Math.round((2+ta.ex*2)*s.pw*(.8+Math.random()*.4))));if(typeof ignite==='function')ignite(r,c,.18*s.pw);}
-  const bf=r!=null?Math.floor(h):null;
-  for(const u of G.units.slice()){if(UT[u.type].fly)continue;const d=Math.hypot(u.x-x,u.z-z);if(d>SHELL_R*1.6)continue;
-    const X=cell(u.r,u.c);const inB=X.t==='bldg'&&eye(u)<bldgH(X);let f=Math.max(0,1-d/SHELL_R);
+  const bf=r!=null?Math.floor(h):null;const SR=(typeof SHELL_RK==='object'&&SHELL_RK[s.type])||SHELL_R;   // 구경별 반경(05na-pen)
+  for(const u of G.units.slice()){if(UT[u.type].fly)continue;const d=Math.hypot(u.x-x,u.z-z);if(d>SR*1.6)continue;
+    const X=cell(u.r,u.c);const inB=X.t==='bldg'&&eye(u)<bldgH(X);let f=Math.max(0,1-d/SR);
     if(r!=null&&u.r===r&&u.c===c&&UT[u.type].cls==='inf'){const df=Math.abs(curFl(u)-bf);f=df<.6?1:df<1.6?.45:.12;}   // 꽂힌 건물: 그 층이 크게 다친다
     else if(inB)f*=.12;                                  // 다른 건물 안: 벽이 막아 준다
     else if(r!=null)f*=.6;
     if(r==null&&UT[u.type].cls==='inf'&&typeof trenchAt==='function'&&trenchAt(u.x,u.z))f*=d<.25?.8:.45;   // 참호: 바로 옆에 떨어지지 않으면 파편을 막는다                              // 벽·지붕에서 터진 파편이 길로 쏟아진다
-    if(d>SHELL_R&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
-    const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor)dm*=.5;
-    dm=Math.round(dm*10)/10;if(dm>0)blastHurt(u,dm,by,{kind:'blast',x,z,rad:SHELL_R*.6});else u.supp=Math.max(u.supp||0,1);}
+    if(d>SR&&f<=0){u.supp=Math.max(u.supp||0,.8);continue;}
+    const atk=ta.atk[UT[u.type].cls]||0;let dm=atk*base*f*(.8+Math.random()*.4);if(UT[u.type].armor&&typeof PEN_SH!=='object')dm*=.5;   // 장갑은 관통 판정(05na-pen)이 따진다
+    dm=Math.round(dm*10)/10;
+    if(dm>0&&UT[u.type].cls==='inf'&&typeof SHELL_PK==='object'){const fd=Math.max(.05,1-d/SR);blastHurt(u,Math.max(.1,dm),by,{kind:'blast',x,z,rad:SR,pk:Math.min(.97,(SHELL_PK[s.type]||.8)*Math.min(1.2,f/fd)*Math.min(1.3,s.pw)),sh:s.type});}   // 보병: 병사마다 거리로(05k blastMen, 05p 반경)
+    else if(dm>0)blastHurt(u,dm,by,{kind:'blast',x,z,rad:SR*.6,sh:s.type});else u.supp=Math.max(u.supp||0,1);}
   if(typeof fortBlast==='function')fortBlast(x,z,r!=null?.5:.9,Math.round(14*s.pw));   // 바리케이드·참호도 부서진다(04d-fort)
   if(typeof FXH.boom==='function')FXH.boom(x,z,h,r!=null,s);
   bump();}

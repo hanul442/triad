@@ -657,7 +657,7 @@ test('드론팀: 차량에서 내리고, 멈춰서 FPV를 띄우며, 조종수�
   const v = T.mkUnit(0, 'hmv', 5, 3); v.hold = true; G.nats[0].cp = 10;
   const d = T.__get('dismount')(v); assert.ok(d && d.type === 'dteam'); assert.equal(G.nats[0].cp, 7);
   assert.equal(T.__get('dismount')(v), null, '차량마다 한 번');
-  const tk = T.mkUnit(1, 'tank', 5, 11); tk.hold = true; d.hold = true;
+  const tk = T.mkUnit(1, 'tank', 5, 11); tk.hold = true; d.hold = true; tk._sc = { coax: 1e9, cmd: 1e9, ldr: 1e9 }; tk.cd = 1e9;   // 전차 주포·기관총이 먼저 드론팀을 쓰러뜨리지 않게
   T.rtRun(6); assert.ok(G.log.some(m => m.includes('FPV 이륙')), 'FPV 이륙'); assert.ok(d.dr < 4);
   const f = T.__get('launchFpv')(d, null); f.hold = true; G.units = G.units.filter(u => u !== d); T.rtRun(0.3);
   assert.ok(!G.units.includes(f), '조종수가 없으면 추락');

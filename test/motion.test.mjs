@@ -17,6 +17,7 @@ const diff = (a, b) => { let d = (a - b) % 360; if (d > 180) d -= 360; if (d < -
 test('포탑: 차체는 그대로 두고 포탑만 표적 쪽으로 돌린 뒤에야 쏜다', () => {
   const T = loadGame(); const G = setup(T);
   const tk = T.mkUnit(0, 'tank', 8, 8); tk.x = 8.5; tk.z = 8.5; tk.face = 0; tk.cd = 0; tk.hold = true;
+  tk._sc = { coax: 1e9, cmd: 1e9, ldr: 1e9 };   // 주포만 본다(차장 원격 기관총은 포탑과 따로 돈다)
   const e = T.mkUnit(1, 'rifle', 8, 4); e.x = 4.5; e.z = 8.5; e.hold = true; e.cd = 99; e.hp = 99; e.ssm = 0; // 연막을 던져 숨지 않게(포탑만 본다)
   T.rtTick(0.1);
   assert.equal(tk.firedT, undefined, '포탑이 뒤를 보기 전에는 쏘지 않음');
@@ -83,7 +84,7 @@ test('차체 충돌: 건물 옆에서 돌거나 움직여도 차체가 건물 �
 
 test('공격헬기: 목표 위에 머물지 않고 떨어져 대기하다 스쳐 지나가며 쏘고, 기수는 천천히 돈다', () => {
   const T = loadGame(); const G = setup(T);
-  const e = T.mkUnit(1, 'rifle', 10, 10); e.hold = true; e.hp = 999;
+  const e = T.mkUnit(1, 'rifle', 10, 10); e.hold = true; e.hp = 999; e.nocas = 1;   // 로켓 폭발에도 표적이 남게
   F(T, 'callGunship')(0, 10, 10); const g = G.units.find(u => u.type === 'gunship'); g.air.until = 1e9;
   let over = 0, n = 0, prev = g.face, maxRate = 0; const modes = new Set(); let offShot = 0, shots = 0;
   // 쏘는 순간의 기수와 표적 방향을 잰다
