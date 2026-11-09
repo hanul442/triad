@@ -186,7 +186,16 @@ function dirFrame(now){const s=V3.cs;if(!DIR.on){DIR.on=true;DIR.bak={pitch:s.pi
 function dirApply(c){const s=V3.cs;
   // 맞춘 뒤에도 카메라가 건물 속이나 땅 밑이면 올린다
   let pitch=c.pitch,d=c.d;for(let i=0;i<12;i++){const C=dirCamAt({...c,pitch,d});if(dirTopR(C.x,C.z,.4)<C.y-.12)break;if(i<4&&d>2.4)d=Math.max(2.4,d*.8);else pitch=Math.min(1.35,pitch+.1);}   // 먼저 다가서고, 그래도 안 되면 올린다
-  s.x=s.gx=Math.max(-2,Math.min(N+2,c.x));s.z=s.gz=Math.max(-2,Math.min(N+2,c.z));s.d=s.gd=d;s.yaw=s.gyaw=c.yaw;s.pitch=pitch;s.ly=c.ly;}
+  s.x=s.gx=Math.max(-2,Math.min(N+2,c.x));s.z=s.gz=Math.max(-2,Math.min(N+2,c.z));s.d=s.gd=d;s.yaw=s.gyaw=c.yaw;s.pitch=pitch;s.ly=c.ly;dirOffset(true);}
+/* 아래 패널(목표·관전 막대)과 위 HUD가 가린 곳을 빼고 남은 화면 한가운데에 피사체가 오게 시야를 위로 민다(낮은 샷에서 피사체가 패널 밑에 숨지 않게) */
+function dirOffset(on){if(typeof document==='undefined'||!V3.cam)return;const cam=V3.cam,now=dirNow();
+  if(!on){if(cam.view&&cam.view.enabled){cam.clearViewOffset();}DIR.vo=null;return;}
+  if(DIR.vo&&now-DIR.vo.t<500)return;const a=document.getElementById('app'),dk=document.querySelector('.dock');if(!a||!dk)return;
+  const A=a.getBoundingClientRect(),w=A.width,h=A.height;if(!(w>0&&h>0))return;let bot=h;
+  for(const el of dk.children){if(el.hidden)continue;const R=el.getBoundingClientRect();if(R.height>0&&R.width>w*.25)bot=Math.min(bot,R.top-A.top);}
+  const top=Math.min(h*.15,64);const sh=Math.max(0,Math.min(h*.22,h/2-(top+bot)/2));DIR.vo={t:now};
+  if(Math.abs((cam.view&&cam.view.enabled?cam.view.offsetY:0)-sh)<2&&(!cam.view||cam.view.fullWidth===w))return;
+  if(sh<2)cam.clearViewOffset();else cam.setViewOffset(w,h,0,sh,w,h);}
 /* 공습·세력 탈락: 자리와 거리는 그쪽이 정하고, 감독은 각도와 컷만 맡는다 */
 function dirExt(now){const s=V3.cs,S=UI.specStrike;if(!S&&!(UI.specOut&&now<UI.specOut.until)){DIR.shot=null;DIR.story=null;return dirFrame(now);}const k=S?'strike':'out';
   if(!DIR.shot||DIR.shot.k!=='ext'||DIR.shot.e!==k){const yaw=S?Math.atan2(S.hx??0,S.hz??1):(DIR.cam?DIR.cam.yaw:s.yaw);
@@ -198,7 +207,7 @@ function dirExt(now){const s=V3.cs,S=UI.specStrike;if(!S&&!(UI.specOut&&now<UI.s
   const c=DIR.cam,kk=1-Math.exp(-rdt*2.2);c.x+=(P.x-c.x)*kk;c.z+=(P.z-c.z)*kk;c.ly+=(P.ly-c.ly)*kk;c.d+=(P.d-c.d)*kk;c.pitch+=(P.pitch-c.pitch)*kk;let dy=P.yaw-c.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));c.yaw+=dy*kk;
   dirApply(c);}
 /* 자동 연출이 꺼지면 원래 기울기로 돌려준다 */
-function dirRelease(){if(!DIR.on)return;DIR.on=false;DIR.shot=null;DIR.story=null;DIR.cam=null;dirCapHide();
+function dirRelease(){if(!DIR.on)return;DIR.on=false;dirOffset(false);DIR.shot=null;DIR.story=null;DIR.cam=null;dirCapHide();
   if(typeof V3!=='undefined'&&V3.cs){const s=V3.cs;s.ly=0;s.pitch=DIR.bak?DIR.bak.pitch:1.1;if(s.gd<8)s.gd=s.d=12;}}
 
 /* ---------- 중계 화면: 암전 컷과 자막 ---------- */

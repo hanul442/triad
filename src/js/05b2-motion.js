@@ -234,7 +234,7 @@ function navRoomy(cls,x,z){const K=navComp(cls);const j=Math.floor(x*NAV_R),i=Ma
 function navRoomySpot(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
 if(typeof deploySpots==='function'){const _ds=deploySpots;deploySpots=function(n,type){const out=_ds.apply(this,arguments);const cls=vClsOf(type);if(!cls||typeof navGrid!=='function'||!out.length||!G.props)return out;
   const ok=out.filter(k=>navRoomySpot(cls,kr(k),kc(k)));return ok.length?ok:out;};}
-function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const p=navRoomySpot(cls,Math.floor(u.z),Math.floor(u.x));if(p){u.x=p[0];u.z=p[1];}}
+function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const p=navRoomySpot(cls,Math.floor(u.z),Math.floor(u.x));if(p){u.x=p[0];u.z=p[1];u.r=Math.floor(u.z);u.c=Math.floor(u.x);}}   // 옮긴 자리의 칸도 맞춘다(안 맞추면 서 있는 동안 칸이 어긋난다)
 {const _mk=mkUnit;mkUnit=function(n,type,r,c){const u=_mk.apply(this,arguments);if(u)vRoomyFix(u);return u;};}
 // 새 판 처음 부대는 소품(주차 차)이 깔리기 전에 놓이므로, 다 깔린 뒤에 바로잡는다
 {const _ng=newGame;newGame=function(cfg){const r=_ng.apply(this,arguments);try{if(G&&G.units&&!(cfg&&(cfg.scn||cfg.force)))for(const u of G.units)vRoomyFix(u);}catch(e){}return r;};}

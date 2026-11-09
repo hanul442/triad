@@ -11,7 +11,7 @@
    - 움직이다 적을 직접 보면 가까운 엄폐에 붙어 멈추고 응사한다(접적 반응). 측면조·후퇴 중엔 계속 간다.
    차량·곡사·저격·드론·헬기는 예전 AI(06-ai, 06b-arms)가 그대로 맡는다. 플레이어 부대는 임무를 받으면(묶음 B) 같은 두뇌를 쓴다. */
 const TAC={types:{rifle:1,mg:1,at:1,eng:1},size:3,memAge:20,near:9,travel:9,leg:3.2,flankR:[3,4.2],ret:.42,regroup:18,think:2};
-const tacUnit=u=>!!TAC.types[u.type]&&!u.post&&!u.cqb&&(!u.job||u.job===TAC_HIDE);   // 건물 진입·소탕 중(u.cqb, 05k-cqb)이면 손대지 않는다
+const tacUnit=u=>!!TAC.types[u.type]&&!u.post&&!u.cqb&&!u.rearm&&u.towBy==null&&(!u.job||u.job===TAC_HIDE);   // 탄약을 받으러 물러나는 부대(u.rearm, 05j)·견인되는 차량은 소대 기동에서 뺀다   // 건물 진입·소탕 중(u.cqb, 05k-cqb)이면 손대지 않는다
 const TAC_HIDE={tac:1};
 const tacCost=t=>(UT[t]&&UT[t].cost)||3;
 function tacPl(){return G.plat||(G.plat=[]);}
