@@ -183,7 +183,8 @@ CAMP.omaha.setup=function(){const {SAND,BL,TOWN}=OMAHA;const D=omahaDraws();
     let c=TOWN,k=0;while(inb(r,c)&&k++<10&&G.map[r][c].t!=='road'){campCell(r,c,{t:'road',ro:'h',rw:1});c++;}}
   landVillage(TOWN,c=>c<30?2:3,(x,c)=>x.f<=2?'house':'villa');
   G.props=(G.props||[]).filter(p=>p.x>=TOWN+.05);
-  const m=campMid();const town=campNear(m+3,TOWN+6,(r,c,x)=>x.t==='bldg'&&Math.abs(r-m)>1,9)||[m+3,TOWN+6];
+  const m=campMid();// 마을 거점은 건물 안이 아니라 마을 한가운데 길목(교차로): 건물 칸이면 보병이 문을 못 찾아 둘레에 몰려 있기만 하고 끝내 못 잡는 판이 나왔다
+  const town=campNear(m+3,TOWN+6,(r,c,x)=>(x.t==='road'||x.t==='plaza')&&Math.abs(r-m)>1&&[[0,1],[0,-1],[1,0],[-1,0]].some(([a,b])=>inb(r+a,c+b)&&G.map[r+a][c+b].t==='bldg'),9)||campNear(m+3,TOWN+6,(r,c,x)=>x.t==='bldg'&&Math.abs(r-m)>1,9)||[m+3,TOWN+6];
   campObjs([{r:D[0],c:BL+1,name:'D-1 출구 (비에르빌)',owner:1},{r:D[1],c:BL+1,name:'E-1 출구 (생로랑)',owner:1},{r:D[2],c:BL+1,name:'F-1 출구 (콜빌)',owner:1},{r:town[0],c:town[1],name:'생로랑 마을',owner:1}]);
   const C=G.camp;C.boats=[];C.shore=SAND;C.sec=1;
   C.secs=[landSecDef('도그 비치','북쪽 · D-1 출구 앞',1,D[0]+7),landSecDef('이지 비치','가운데 · E-1 출구 앞',D[0]+8,D[1]+8),landSecDef('폭스 비치','남쪽 · F-1 출구 앞',D[1]+9,N-2)];
