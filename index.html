@@ -5026,7 +5026,7 @@ function genTick(){if(!genOn())return;const t=G.time||0;
 
 /* ---- 05n-0core.js ---- */
 /* ===================== URBAN CORE: 폭발 소식과 "누가 쐈나" =====================
-   민간인(05n-civ)·폭파(05n-demo)·지하(05n-under)가 같이 쓰는 작은 바탕.
+   폭파(05n-demo)·지하(05n-under)가 같이 쓰는 작은 바탕.
    - UB.by: 지금 건물·사람을 다치게 하는 쪽 세력 번호(사격·포탄·폭탄 함수가 도는 동안만 정해진다).
      건물 피해(damageBldg)에는 쏜 쪽이 넘어오지 않아서, 감싼 함수들이 여기에 적어 둔다.
    - ubBlast(x,z,R,n): 폭발이 났다는 소식. 등록된 함수(onBlast)들이 받는다. G.ubHot에 최근 12초 폭발이 남는다. */
@@ -5052,73 +5052,6 @@ if(typeof breach==='function'){const _s=breach;breach=function(a,P){return ubAs(
 {const _s=shootBldg;shootBldg=function(a,r,c){return ubAs(a.nat,()=>_s(a,r,c));};}
 /* 건물 칸에 마지막으로 피해를 준 세력(불이 번져 무너져도 그 세력 몫) */
 {const _d=damageBldg;damageBldg=function(r,c,amt){const x=G.map[r][c];if(x&&x.t==='bldg'&&amt>0&&UB.by!=null)x.lastBy=UB.by;return _d(r,c,amt);};}
-
-/* ---- 05n-civ.js ---- */
-/* ===================== CIV: 민간인과 대피 =====================
-   근거(공개 자료): MWI 모술 사례 연구(전단·전화로 대피 유도, 좁은 탈출로, 저격수 건물 공습으로 민간인 200명 넘게 사망),
-   MWI 팔루자 사례 연구(주민 25~30만 중 약 3만 명이 남아 있었음), FM 3-21.71(민간인이 있을 수 있는 건물엔 수류탄 대신 섬광탄).
-   - 건물 몇 곳(약 4분의 1)에 민간인이 남아 있다(층이 많을수록 많다). 지도에 표시된다.
-   - 건물이 맞으면 피해만큼 민간인이 다치고, 무너지면 대부분 죽는다. 그 건물을 친 세력이 승점을 잃는다(약 3명에 1점).
-     불이 번져 무너져도 마지막으로 친 세력 몫이다.
-   - 근처에서 총격·폭발이 나면 민간인이 몇 명씩 무리 지어 지도 가장자리로 피란한다. 길 위 피란민도 폭발에 다친다.
-   - 아군 보병이 민간인이 있는 건물 칸에 4초 머무르면(적이 가깝지 않을 때) 모두를 자기 편 뒤쪽으로 안내한다.
-     무사히 빠져나가면 4명에 지휘점수 1을 얻는다.
-   - AI는 민간인이 여섯 명 이상 있는 곳에는 포격·폭격을 부르지 않는다. */
-const CIV={occ:.25,cap:9,vp:.34,kill:1.4,fleeR:2.5,panicP:.35,spd:.32,escort:4,cpEsc:.25,aiMax:6,bullet:.12};
-const civRoll=v=>Math.floor(v)+(Math.random()<v%1?1:0);
-const civOn=()=>!!(G&&G.civOn);
-function civStats(n){const N2=G.nats[n];if(N2.civK==null){N2.civK=0;N2.civE=0;N2.civPen=0;N2.civCp=0;}return N2;}
-function civKill(n,cnt,x,z){if(!(cnt>0))return;G.civDead=(G.civDead||0)+cnt;if(FXH.civDead)FXH.civDead(x,z,cnt);
-  if(n!=null&&G.nats[n]){const N2=civStats(n);N2.civK+=cnt;N2.civPen+=cnt*CIV.vp;while(N2.civPen>=1){N2.civPen-=1;N2.vp=Math.max(0,N2.vp-1);}
-    L(`${natName(n)} 공격에 민간인 ${cnt}명 사망`);}else L(`민간인 ${cnt}명 사망`);}
-/* 피란 무리: 가장자리로 걸어간다. esc = 안내한 세력 */
-function civEdge(n,x,z){if(n!=null&&typeof airEdge==='function')return airEdge(n,x,z);
-  const d=[[x,0],[N-x,1],[z,2],[N-z,3]].sort((a,b)=>a[0]-b[0])[0][1];return d===0?[.2,z]:d===1?[N-.2,z]:d===2?[x,.2]:[x,N-.2];}
-function civFlee(r,c,cnt,esc){if(!(cnt>0))return null;const x=G.map[r][c];x.civ=Math.max(0,(x.civ||0)-cnt);
-  let sx=c+.5,sz=r+.5;if(x.t==='bldg'&&typeof doorSides==='function'){const ds=doorSides(r,c);if(ds){const s=ds.findIndex(v=>v);if(s>=0){const [a,b]=SIDES[s];[sx,sz]=doorPos(r,c,s);sx+=b*.12;sz+=a*.12;}}}
-  const [tx,tz]=civEdge(esc,sx,sz);let path=null;
-  try{if(typeof navPath==='function')path=navPath({type:'rifle',x:sx,z:sz,nat:-1,id:-1},tx,tz);}catch(e){path=null;}
-  if(!path||!path.length)path=[[tx,tz]];else if(Math.hypot(path[path.length-1][0]-tx,path[path.length-1][1]-tz)>1)path.push([tx,tz]);
-  const g={id:UID++,x:sx,z:sz,n:cnt,path,esc:esc??null,t0:G.time||0};(G.civF=G.civF||[]).push(g);bump();return g;}
-function civGroupTick(dt){const keep=[];
-  for(const g of G.civF||[]){if(g.n<=0)continue;const p=g.path[0];if(!p){civOut(g);continue;}
-    const dx=p[0]-g.x,dz=p[1]-g.z,d=Math.hypot(dx,dz);const st=CIV.spd*dt*(g.esc!=null?.85:1);
-    if(d<=st){g.x=p[0];g.z=p[1];g.path.shift();}else{g.x+=dx/d*st;g.z+=dz/d*st;}
-    if(g.x<.35||g.z<.35||g.x>N-.35||g.z>N-.35||(G.time||0)-g.t0>240){civOut(g);continue;}keep.push(g);}
-  G.civF=keep;}
-function civOut(g){G.civOut=(G.civOut||0)+g.n;if(g.esc!=null&&G.nats[g.esc]){const N2=civStats(g.esc);N2.civE+=g.n;N2.civCp+=g.n*CIV.cpEsc;const a=Math.floor(N2.civCp);if(a>0){N2.civCp-=a;N2.cp+=a;}
-  if(g.esc===G.viewer)L(`민간인 ${g.n}명 안전하게 대피`);}g.n=0;}
-/* 건물 피해 → 안의 민간인 */
-{const _d=damageBldg;damageBldg=function(r,c,amt){const x=G.map[r][c];const pop=x.civ||0;if(!civOn()||!pop||x.t!=='bldg'||!(amt>0))return _d(r,c,amt);
-  const by=UB.by!=null?UB.by:x.lastBy!=null?x.lastBy:null;_d(r,c,amt);
-  let dead=Math.min(pop,civRoll(pop*Math.min(1,amt/(x.bmax||10)*CIV.kill)));
-  if(x.t!=='bldg')dead=Math.min(pop,dead+civRoll((pop-dead)*.7));
-  x.civ=pop-dead;x.civP=1;civKill(by,dead,c+.5,r+.5);if(x.t!=='bldg'&&x.civ>0)civFlee(r,c,x.civ,null);};}
-onBlast((x,z,R,n)=>{if(!civOn())return;for(const g of G.civF||[]){if(g.n<=0)continue;const d=Math.hypot(g.x-x,g.z-z);if(d>R)continue;
-  const dead=Math.min(g.n,civRoll(g.n*(1-d/R)*.8));if(dead){g.n-=dead;civKill(n,dead,g.x,g.z);}}});
-{const _s=rtShoot;rtShoot=function(a,d){const r=_s(a,d);if(!civOn()||!(r>0)||!G.civF)return r;
-  for(const g of G.civF){if(g.n>0&&Math.hypot(g.x-d.x,g.z-d.z)<.35&&Math.random()<CIV.bullet){g.n--;civKill(a.nat,1,g.x,g.z);break;}}return r;};}
-/* 무서워서 나간다: 근처 총격·폭발 */
-function civPanic(){const t=G.time||0;const sh=G.units.filter(u=>u.firedT!=null&&t-u.firedT<2);
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(!x.civ||x.t!=='bldg')continue;const cx=c+.5,cz=r+.5;
-    const dz=x.civP||ubHotNear(cx,cz,CIV.fleeR,3)||sh.some(u=>Math.hypot(u.x-cx,u.z-cz)<CIV.fleeR);if(!dz||Math.random()>CIV.panicP)continue;
-    x.civP=0;civFlee(r,c,Math.min(x.civ,2+Math.floor(Math.random()*4)),null);}}
-/* 아군 보병이 건물에 머물면 안내해서 내보낸다 */
-function civEscort(dt){for(const u of G.units){if(UT[u.type].cls!=='inf'||u.tun||u.bsm){u._esc=0;continue;}const r=Math.floor(u.z),c=Math.floor(u.x);if(!inb(r,c))continue;const x=G.map[r][c];
-  if(!x.civ||x.t!=='bldg'||(u.path&&u.path.length)||(u.supp||0)>.6){u._esc=0;continue;}
-  if(u._escK!==key(r,c)){u._escK=key(r,c);u._esc=0;}
-  if(G.units.some(e=>e.nat!==u.nat&&!UT[e.type].fly&&Math.hypot(e.x-u.x,e.z-u.z)<2)){u._esc=0;continue;}
-  u._esc=(u._esc||0)+dt;if(u._esc<CIV.escort)continue;u._esc=0;const n=x.civ;civFlee(r,c,n,u.nat);L(`${natName(u.nat)} ${UT[u.type].n} 민간인 ${n}명 대피 안내`);}}
-const civIn=(r,c,rad)=>{let s=0;for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))s+=G.map[a][b].civ||0;
-  for(const g of G.civF||[])if(Math.abs(g.x-(c+.5))<=rad+.5&&Math.abs(g.z-(r+.5))<=rad+.5)s+=g.n;return s;};
-{const _c=canSupport;canSupport=function(n,kind,r,c){if(!_c(n,kind,r,c))return false;
-  if(civOn()&&(isAI(n)||G._adj===n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&civIn(r,c,(SUP[kind].rad||1))>=CIV.aiMax)return false;return true;};}
-{const _n=newGame;newGame=function(cfg){const g=_n(cfg);G.civOn=!(cfg&&cfg.civ===false);G.civF=[];G.civDead=0;G.civOut=0;
-  if(G.civOn)for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.civ!=null)continue;const k=key(r,c);
-    x.civ=dHash(k,51)<CIV.occ?Math.min(CIV.cap,Math.max(1,Math.round((x.f||1)*(1+dHash(k,52)*1.5)))):0;}
-  for(const n of G.order||[])civStats(n);return g;};}
-{const _t=rtTick;rtTick=function(dt){_t(dt);if(!civOn()||!G.units||G.over)return;try{const t=G.time||0;civGroupTick(dt);civEscort(dt);
-  if(t>=(G._civT||0)){G._civT=t+1;civPanic();}}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 
 /* ---- 05n-demo.js ---- */
 /* ===================== DEMO: 건물 폭파와 자폭 차량 =====================
@@ -6274,7 +6207,7 @@ function polStuck(){const t=G.time||0;for(const u of G.units){const ty=UT[u.type
    - 플레이어가 부대에 직접 명령(이동·공격·정지 등)을 주면 그 부대는 '직접 지휘'(u.man)가 되어 부관이 손대지 않는다.
      명령을 다 하고 45초 동안 새 명령이 없으면(사수 명령이 아니면) 다시 부관에게 돌아간다.
    - 자동 증원 N2.autoBuy(기본 켬): 끄면 부관이 지휘점수로 부대를 사지 않는다(화력 지원은 계속 부른다).
-   - 부관이 부르는 화력 지원은 AI처럼 구호소·민간인 둘레를 피한다(G._adj).
+   - 부관이 부르는 화력 지원은 AI처럼 구호소 둘레를 피한다(G._adj).
    이 파일은 06z-radio-ai보다 먼저 읽혀야 한다: 부관의 명령도 무전을 타고 늦게 닿는다. */
 const AUTO={hold:45,near:4};
 const AUTO_HIDE={auto:1};
@@ -10211,10 +10144,10 @@ function v3DrillArm(fig){if(fig.userData.drArm)return fig.userData.drArm;const T
     if(arm){arm.visible=sig;if(sig){const w=p==='signal'?Math.sin(now/160+i)*.25:0;arm.rotation.set(0,0,p==='point'?-1.45:-.15+w);}}});};}
 
 /* ---- 07u-urban.js ---- */
-/* ===================== 3D·조작: 쥐구멍·지하·땅굴·폭약·저격 표시·민간인·자폭 차량 =====================
+/* ===================== 3D·조작: 쥐구멍·지하·땅굴·폭약·저격 표시·자폭 차량 =====================
    05n-*.js 규칙을 보여 주고 명령 버튼을 단다. 기존 화면 함수(fortBar, fortTip, tap, renderActbar, uInfo,
    v3VehicleM, v3FortFrame)는 감싸서 덧붙이기만 한다. */
-const UGV={civCol:['#c9c2b3','#5b6b7d','#8a5a44','#d8d3c8','#4d5a3f','#9b8f7a','#2f3338','#b07a52'],lab:new Map()};
+const UGV={lab:new Map()};
 /* 글자 딱지(스프라이트). 같은 글자·색은 한 번만 그린다 */
 function ugLabel(txt,col,bg){const k=txt+'|'+col+'|'+(bg||'');let tex=UGV.lab.get(k);const T=V3.T;
   if(!tex){const cv=document.createElement('canvas');cv.width=128;cv.height=40;const g=cv.getContext('2d');g.font='bold 22px sans-serif';g.textAlign='center';g.textBaseline='middle';
@@ -10227,11 +10160,8 @@ function ugMats(){if(V3.ugm)return V3.ugm;const T=V3.T;return V3.ugm={
   bomb:new T.MeshBasicMaterial({color:'#ff4b2b'}),ring:new T.MeshBasicMaterial({color:'#ff5a3c',transparent:true,opacity:.6,side:T.DoubleSide,depthWrite:false}),
   steel:new T.MeshStandardMaterial({color:'#8a8478',roughness:.7,metalness:.4,flatShading:true})};}
 function ugGeos(){if(V3.ugg)return V3.ugg;const T=V3.T;return V3.ugg={hole:new T.BoxGeometry(.11,.11,.11),pit:new T.CylinderGeometry(.065,.065,.012,10),
-  mound:new T.TorusGeometry(.085,.025,4,10).rotateX(Math.PI/2),bomb:new T.BoxGeometry(.05,.03,.04),ring:new T.RingGeometry(.22,.27,24).rotateX(-Math.PI/2),
-  civ:new T.BoxGeometry(.032,.13,.026).translate(0,.065,0)};}
-function ugReset(){const T=V3.T;if(V3.ugGrp)V3.scene.remove(V3.ugGrp);V3.ugGrp=new T.Group();V3.scene.add(V3.ugGrp);V3.ugObj=new Map();V3.ugOf=G;
-  const CAP=420;const im=new T.InstancedMesh(ugGeos().civ,new T.MeshStandardMaterial({color:'#ffffff',roughness:1}),CAP);im.count=0;im.castShadow=true;im.frustumCulled=false;
-  im.instanceColor=new T.InstancedBufferAttribute(new Float32Array(CAP*3),3);V3.ugCiv=im;V3.ugGrp.add(im);}
+  mound:new T.TorusGeometry(.085,.025,4,10).rotateX(Math.PI/2),bomb:new T.BoxGeometry(.05,.03,.04),ring:new T.RingGeometry(.22,.27,24).rotateX(-Math.PI/2)};}
+function ugReset(){const T=V3.T;if(V3.ugGrp)V3.scene.remove(V3.ugGrp);V3.ugGrp=new T.Group();V3.scene.add(V3.ugGrp);V3.ugObj=new Map();V3.ugOf=G;}
 /* 그릴 것 하나를 id로 붙잡아 두고, 이번 프레임에 안 쓰였으면 지운다 */
 function ugGet(id,mk){let o=V3.ugObj.get(id);if(!o){o=mk();V3.ugObj.set(id,o);V3.ugGrp.add(o);}o.userData.live=V3.ugTick;return o;}
 function ugFrame(){if(!G||!V3.T||!V3.scene)return;if(V3.ugOf!==G||!V3.ugGrp)ugReset();const T=V3.T,M=ugMats(),Gm=ugGeos();V3.ugTick=(V3.ugTick||0)+1;
@@ -10258,15 +10188,6 @@ function ugFrame(){if(!G||!V3.T||!V3.scene)return;if(V3.ugOf!==G||!V3.ugGrp)ugRe
   for(const m of G.snpMk||[]){if(m.t<=t||(fog&&m.n!==vn))continue;const id='sm'+m.id+'_'+Math.round(m.x*100);
     const r=ugGet(id,()=>{const g=new T.Group();const ring=new T.Mesh(Gm.ring,M.ring.clone());ring.position.y=.03;g.add(ring);const s=ugLabel('저격 추정','#ffd0c4');s.position.y=.3;g.add(s);g.position.set(m.x,0,m.z);return g;});
     const k=1+.15*Math.sin(now/180);r.children[0].scale.set(k,1,k);r.children[0].material.opacity=Math.min(.6,(m.t-t)/SNP.mark);}
-  // 민간인: 건물 표시(숫자) + 피란 무리
-  if(G.civOn){for(let rr=0;rr<N;rr++)for(let cc=0;cc<N;cc++){const x=G.map[rr][cc];if(!x.civ||x.t!=='bldg')continue;
-      const s=ugGet(`cv${rr}_${cc}_${x.civ}`,()=>{const s=ugLabel(`민간인 ${x.civ}`,'#e6eef7','rgba(52,78,104,.78)');s.scale.set(.34,.105,1);return s;});s.position.set(cc+.5,bldgH(x)*FLOOR_H+.1,rr+.38);}
-    const im=V3.ugCiv;const mat=new T.Matrix4(),q=new T.Quaternion(),sc=new T.Vector3(1,1,1),ps=new T.Vector3(),col=new T.Color();let i=0;
-    for(const g of G.civF||[]){if(g.n<=0)continue;if(fog&&typeof seenPt==='function'&&!seenPt(vn,g.x,g.z))continue;const k=Math.min(8,g.n);const p=g.path[0]||[g.x,g.z];const fa=Math.atan2(p[0]-g.x,p[1]-g.z);
-      for(let j=0;j<k&&i<im.count+420;j++){if(i>=420)break;const a=j*2.4+g.id,rd=.035+.03*(j%3);const bob=Math.abs(Math.sin(now/140+j*1.7))*.008;
-        ps.set(g.x+Math.cos(a)*rd,bob,g.z+Math.sin(a)*rd);q.setFromAxisAngle(new T.Vector3(0,1,0),fa);sc.set(1,j%4===3?.62:1,1);mat.compose(ps,q,sc);im.setMatrixAt(i,mat);
-        col.set(UGV.civCol[(g.id*7+j*3)%UGV.civCol.length]);im.setColorAt(i,col);i++;}}
-    im.count=i;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}
   for(const [id,o] of V3.ugObj)if(o.userData.live!==V3.ugTick){V3.ugGrp.remove(o);V3.ugObj.delete(id);}}
 if(typeof v3FortFrame==='function'){const _f=v3FortFrame;v3FortFrame=function(){_f();try{ugFrame();}catch(e){if(!UGV.err){UGV.err=1;console.warn('ugFrame',e);}}};}
 /* ---------- 효과 ---------- */
@@ -10303,9 +10224,9 @@ if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e
   if(a==='ug:det'){let n=0;for(const u of grp)if(vbDet(u))n++;if(n)toast('자폭 차량 기폭');render();return;}
   if(a==='ug:bsm'){const down=!grp[0].bsm;let msg=null;for(const u of grp){if(UT[u.type].cls!=='inf')continue;const m=bsmOrder(u,down);if(m)msg=msg||m;}if(msg)toast(msg);render();return;}
   UI.phase=UI.phase===a?'select':a;render();});
-/* 칸 정보에 민간인·지하실·폭약 */
+/* 칸 정보에 지하실·폭약 */
 if(typeof renderActbar==='function'){const _ra=renderActbar;renderActbar=function(){_ra();try{const el=$('#actbar');if(!el||!G||!UI.pane||UI.sel)return;const {r,c}=UI.pane;const x=cell(r,c);const ex=[];
-  if(x.civ)ex.push(`민간인 ${x.civ}명`);if(x.bsm&&(x.t==='bldg'||x.t==='rubble'))ex.push('지하실 있음');
+  if(x.bsm&&(x.t==='bldg'||x.t==='rubble'))ex.push('지하실 있음');
   const d=(G.demo||[]).find(d=>!d.gone&&d.nat===G.viewer&&d.r===r&&d.c===c);if(d)ex.push(d.fuse!=null?'폭약 기폭 중':'아군 폭약 설치됨');
   const sp=el.querySelector('span');if(sp&&ex.length)sp.textContent+=' · '+ex.join(' · ');
   const ab=el.querySelector('.ab');if(ab&&d&&d.fuse==null&&!isAI(G.viewer))ab.insertAdjacentHTML('afterbegin','<button class="btn sm primary" data-act="ug:fire" id="ab-ug-fire">폭약 터뜨리기</button>');}catch(e){}};}
