@@ -29,6 +29,7 @@
     <label class="sp-r"><span>전투</span><input type="range" min="0" max="100" step="1" data-snd="fx"></label>
     <label class="sp-r"><span>무전</span><input type="range" min="0" max="100" step="1" data-snd="radio"></label>
     <label class="sp-r"><span>환경음</span><input type="range" min="0" max="100" step="1" data-snd="amb"></label>
+    <label class="sp-r"><span>음악</span><input type="range" min="0" max="100" step="1" data-snd="mus"></label>
   </div>
   <div class="selbox" id="selbox" hidden></div>
   <div class="press" id="press" hidden>
@@ -95,7 +96,6 @@
     <div class="slot"><span></span><label for="opt-wx">날씨</label><select id="opt-wx"><option value="auto">바뀜 (무작위)</option><option value="clear">맑음</option><option value="rain">비</option><option value="fog">짙은 안개</option><option value="storm">폭우</option></select></div>
     <div class="slot"><span></span><label for="opt-win">승리 방식</label><select id="opt-win"><option value="vp" selected>승점 (거점을 쥐어 승점 먼저 채우기)</option><option value="lts">최후 생존 (마지막까지 남은 세력이 승리)</option></select></div>
     <div class="slot"><span></span><label for="opt-diff">AI 난이도</label><select id="opt-diff"><option value="normal">보통</option><option value="easy">쉬움</option><option value="hard">어려움</option></select></div>
-    <div class="slot"><span></span><label for="opt-radio">무전 지연</label><select id="opt-radio"><option value="1">켜기 (명령이 무전으로 1~3초 늦게 닿음)</option><option value="0">끄기</option></select></div>
     <div class="slot"><span></span><label for="opt-geneva">제네바 협약</label><select id="opt-geneva"><option value="mil" selected>민병대는 무시 (나머지는 구급차·구호소를 쏘지 않음)</option><option value="all">모두 지킴</option><option value="off">끄기 (보호 없음)</option></select></div>
     <input type="hidden" id="opt-speed" value="0">
     <div class="err" id="setup-err"></div>

@@ -17,12 +17,12 @@ FXH.vhit=function(u,r){if(!V3.on)return;const o=V3.uo.get(u.id);if(!o)return;con
    _a(o,uu,dt,now,fa);
    // 쓰러진 사람은 팔다리를 움직이지 않는다
    S.forEach((s,i)=>{const m=M[i];if(m&&m.down&&s.m.userData.legL){s.m.userData.legL.rotation.z=.2;s.m.userData.legR.rotation.z=-.1;}});};}
-function v3CasFig(nat,lying){const f=v3Soldier(nat,'rifle');if(lying){f.rotation.z=-1.42;f.position.y=.012;}return f;}
+function v3CasFig(nat,lying,pose){const f=v3Soldier(nat,'rifle');if(typeof v3FigPose==='function'){if(lying||pose)v3FigPose(f,pose||'down');}else if(lying){f.rotation.z=-1.42;f.position.y=.012;}return f;}
 /* 후송조·남겨진 부상자·환자집결지를 맞춘다(매 동기화) */
 function v3SyncCas(vs,vn){const T=V3.T;V3.evo=V3.evo||new Map();V3.orpo=V3.orpo||new Map();const see=(x,z)=>!G.fog||!vs||vs.has(key(Math.floor(z),Math.floor(x)));
   const keepE=new Set();
   for(const p of G.evac||[]){if(!see(p.x,p.z)&&p.nat!==vn)continue;keepE.add(p.id);let o=V3.evo.get(p.id);
-    if(!o){o=new T.Group();const car=v3CasFig(p.nat,false);o.add(car);const cas=v3CasFig(p.nat,false);cas.rotation.set(0,0,-1.5);cas.position.set(-.004,.1,0);car.add(cas);
+    if(!o){o=new T.Group();const car=v3CasFig(p.nat,false,'carry');o.add(car);const cas=v3CasFig(p.nat,false,'down');if(typeof v3FigPose==='function'){cas.rotation.set(0,Math.PI/2,0.15);cas.position.set(.03,.105,-.01);}else{cas.rotation.set(0,0,-1.5);cas.position.set(-.004,.1,0);}car.add(cas);
       o.userData={car,cas,ph:.0};o.position.set(p.x,v3TopAt(p.x,p.z),p.z);V3.G.units.add(o);V3.evo.set(p.id,o);}
     o.userData.p=p;o.userData.cas.visible=p.ph==='out';}
   for(const [id,o] of V3.evo)if(!keepE.has(id)){V3.G.units.remove(o);V3.evo.delete(id);}
