@@ -11,7 +11,7 @@ function setup(T) {
   for (let r = 0; r < T.N; r++) G.map[r][6] = { t: 'water', rv: 1, owner: null, obj: null, smoke: 0 };
   for (const r of [2, 9]) G.map[r][6] = { t: 'road', ro: 'h', rw: 1, br: 2, rv: 1, owner: null, obj: null, smoke: 0 };
   G.navV = (G.navV || 0) + 1; T.bump();
-  for (const n of G.order) G.nats[n].cp = 50;
+  for (const n of G.order) { G.nats[n].cp = 50; G.nats[n].ctrl = 'human'; G.nats[n].auto = false; }
   return G;
 }
 const g = (T, n) => T.__get(n);
