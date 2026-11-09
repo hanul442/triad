@@ -97,7 +97,7 @@ function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
   const trees=[],trunks=[],bench=[],paths=[],plamp=[];const LEAF=['#6e6a4c','#7a7353','#5f5d43','#76704f','#665f45'];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='park')continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
     // 산책로: 이웃 공원 칸으로 이어지는 흙길, 칸 가운데서 만난다
-    const yard=G.map[r][c].yard;// 주택 마당은 길·벤치 없이 나무만
+    const yard=G.map[r][c].yard||G.map[r][c].wild;// 주택 마당·숲(03c)은 길·벤치 없이 나무만
     const nb=yard?[]:[[0,1],[1,0]].filter(([a,b])=>park(r+a,c+b));
     if(!yard&&(nb.length||v3Hash(k,400)<.5)){paths.push({x:cx,y:.004,z:cz,sx:1,sz:1,ry:0,k,disc:1});
       for(const [a,b] of nb)paths.push({x:cx+b*.5,y:.003,z:cz+a*.5,ry:b?0:Math.PI/2,k});}
@@ -117,7 +117,7 @@ function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
 /* ---------- 연못 ---------- */
 // 물 칸마다 울퉁불퉁한 원형 수면, 돌 테두리, 갈대 몇 무더기. 붙은 물 칸끼리는 수면이 겹쳐 하나로 보인다.
 function v3BuildPonds(g){const T=V3.T,pm=v3PropMats(),m=MU;const stones=[],reeds=[];
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='water'||G.map[r][c].rv)continue;   // 강은 07g가 그린다
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='water'||G.map[r][c].rv||G.map[r][c].sea)continue;   // 강은 07g가, 바다는 07g2가 그린다
    const k=key(r,c);const [cx,cz]=v3x(r,c);
     const wet=(a,b)=>inb(r+a,c+b)&&G.map[r+a][c+b].t==='water';
     const S=40,pts=[];for(let i=0;i<S;i++){const a=i/S*Math.PI*2;const dx=Math.cos(a),dz=Math.sin(a);

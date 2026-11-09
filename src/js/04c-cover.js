@@ -16,14 +16,14 @@ function coverGrid(){const C=G.covers||[];let g=G._cg;if(g&&g.ref===C&&g.n===C.l
 /* 세워 둔 차·불탄 차는 땅에 선 사람 눈높이를 가린다: 시야선이 그 위를 낮게(PROP_LOS_H층 아래) 지나가면 막힌다.
    바로 붙어 있는 쪽(엄폐로 쓰는 쪽)은 위나 옆으로 내다보니 막지 않는다. 낮은 소품(방호벽·모래주머니·덤불)은 시야를 막지 않는다. */
 const PROP_LOS={car:1,wreck:1},PROP_LOS_H=.7;
-function propBlocks(x1,z1,h1,x2,z2,h2){if(h1>=PROP_LOS_H&&h2>=PROP_LOS_H)return false;const C=G.covers;if(!C||!C.length)return false;
+function propBlocks(x1,z1,h1,x2,z2,h2){const HM=typeof PLH_MAX==='number'?Math.max(PROP_LOS_H,PLH_MAX):PROP_LOS_H;if(h1>=HM&&h2>=HM)return false;const C=G.covers;if(!C||!C.length)return false;
   const m=coverGrid();const dx=x2-x1,dz=z2-z1,L=Math.hypot(dx,dz);if(L<.5)return false;const seen=new Set();
   const n=Math.ceil(L/.3);for(let i=0;i<=n;i++){const px=x1+dx*i/n,pz=z1+dz*i/n;
     for(const [ox,oz] of [[-.2,-.2],[.2,-.2],[-.2,.2],[.2,.2]]){const k=Math.floor(pz+oz)*N+Math.floor(px+ox);if(seen.has(k))continue;seen.add(k);const a=m.get(k);if(!a)continue;
       for(const o of a){if(!PROP_LOS[o.kind])continue;const R=(o.r??.2)*.85;
         const t=((o.x-x1)*dx+(o.z-z1)*dz)/(L*L);if(t<=0||t>=1)continue;const qx=x1+dx*t,qz=z1+dz*t;if(Math.hypot(qx-o.x,qz-o.z)>R)continue;
         if(Math.hypot(o.x-x1,o.z-z1)<R+.3||Math.hypot(o.x-x2,o.z-z2)<R+.3)continue;
-        if(h1+(h2-h1)*t<PROP_LOS_H)return true;}}}
+        if(h1+(h2-h1)*t<(o.lh||PROP_LOS_H))return true;}}}   // lh: 소품마다 다른 높이(생울타리·컨테이너·선체, 03c-biome)
   return false;}
 function coverObjs(skip){const o=[];for(const u of G.units)if(u!==skip&&UT[u.type].cls==='veh'){const [x,z]=posOf(u);o.push({x,z,r:.22,cov:COVK.veh.v,kind:'veh'});}
   const m=coverGrid();o.near=(px,pz)=>{const out=o.slice();const r0=Math.floor(pz),c0=Math.floor(px);
