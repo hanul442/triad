@@ -877,9 +877,11 @@ test('제병협동 AI: 적 무더기엔 포격·폭격을 부르고, 장갑차�
   const E = G.units.filter(u => u.nat === 1);
   assert.ok(T.__get('aiSupport')(0, E), '지원 호출'); assert.ok(G.nats[0].cp < 30);
   assert.ok(G.nats[0].supT > G.time, '재사용 대기');
-  // 장갑차 하차는 소총분대
+  // 장갑차 하차는 태운 소총분대(지휘점수를 쓰지 않는다). 빈 장갑차는 내릴 것이 없다
   G.nats[0].cp = 10; const v = T.mkUnit(0, 'ifv', 5, 3);
-  const r = T.__get('aiDismount')(v); assert.ok(r && r.type === 'rifle'); assert.equal(G.nats[0].cp, 10 - 3);
+  assert.equal(T.__get('aiDismount')(v), null);
+  const p = T.mkUnit(0, 'rifle', 5, 4); assert.ok(T.__get('fleetEmbark')(p, v));
+  const r = T.__get('aiDismount')(v); assert.ok(r === p && r.type === 'rifle'); assert.equal(G.nats[0].cp, 10); assert.ok(G.units.includes(p));
   // 부대 구성: 장갑차·전차가 하나도 없으면 가중치가 소총보다 크게 뛴다
   const cnt = t => G.units.filter(u => u.nat === 0 && u.type === t).length;
   const w = T.__get('aiArmsW')(0, [], cnt, 10);

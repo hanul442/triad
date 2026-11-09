@@ -122,6 +122,9 @@ function solGun(K,F,s,ty){const dk='#262624',st='#3b3c3a',fu=s.furn;
 function solTube(K,F,kind,s){const ol=s.mil?'#4a5040':'#5f6450';
   if(kind==='at'){K.cyl(F,.044,.044,1.0,0,0,0,ol,0,0,0,Math.PI/2,7);K.cyl(F,.05,.05,.06,.48,0,0,'#2a2a28',0,0,0,Math.PI/2,7);K.cyl(F,.05,.05,.06,-.48,0,0,'#2a2a28',0,0,0,Math.PI/2,7);K.box(F,.06,.05,.03,.08,.06,-.02,'#2a2a28');K.box(F,.04,.09,.03,.1,-.07,0,'#2a2a28');}
   else if(kind==='aa'){K.cyl(F,.038,.042,1.5,0,0,0,'#5d6450',0,0,0,Math.PI/2,7);K.box(F,.14,.09,.06,.1,-.08,0,'#3a3c36');K.box(F,.04,.18,.03,.22,.05,-.08,'#2a2a28');K.box(F,.08,.06,.07,-.1,-.06,.04,'#3a3c36');}
+  else if(kind==='tb'){// 열압력 로켓: 굵은 관(서방 칼구스타프 꼴: 앞 손잡이·조준경, 동구권 RPO-A 꼴: 매끈한 일회용 관)
+    if(s.mil){K.cyl(F,.06,.065,1.07,0,0,0,'#3e4436',0,0,0,Math.PI/2,8);K.cyl(F,.08,.06,.12,-.55,0,0,'#2a2a28',0,0,0,Math.PI/2,8);K.box(F,.12,.07,.05,.1,.08,-.04,'#1d1f1f');K.box(F,.04,.12,.04,.25,-.09,0,'#2a2a28');K.box(F,.04,.1,.04,-.05,-.09,0,'#2a2a28');}
+    else{K.cyl(F,.055,.055,.92,0,0,0,'#55603f',0,0,0,Math.PI/2,8);K.box(F,.05,.08,.03,.12,.07,-.03,'#2a2a28');K.box(F,.04,.11,.03,.15,-.08,0,'#2a2a28');}}
   else if(kind==='atgm'){K.cyl(F,.065,.07,1.2,0,0,0,'#6a6b55',0,0,0,Math.PI/2,8);K.box(F,.22,.15,.2,.12,.03,-.15,'#3e4038');K.cyl(F,.035,.035,.08,.27,.06,-.15,'#151615',0,0,0,Math.PI/2,6);}}
 
 /* ---------- 자세: 아래(다리)·몸통 방향·윗몸(손과 무기) ---------- */
@@ -141,7 +144,7 @@ const SOL_POSE={
   down:{pel:[-.45,.11,0],tor:[1,.03,0],chest:[-.03,1,0],legs:'down',up:'down',head:'body'},
   dead:{pel:[-.45,.11,0],tor:[1,.02,.18],chest:[-.2,1,-.35],legs:'dead',up:'dead',head:'body'},
 };
-const SOL_LAUNCH={at:1,aa:1,atgm:1};
+const SOL_LAUNCH={at:1,aa:1,atgm:1,tb:1};
 function solBody(s,pose){const T=V3.T,P=[],K=solKit(P),Q=SOL_POSE[pose]||SOL_POSE.move,kind=s.kind;
   const pel=solV(...Q.pel),tY=solV(...Q.tor).normalize(),tX=Q.chest?solV(...Q.chest):solV(1,0,0);
   const TF=solFrameY(pel,tX,tY);const L=(x,y,z)=>solV(x,y,z).applyMatrix4(TF);                     // 몸통 좌표 → 월드

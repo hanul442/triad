@@ -22,8 +22,8 @@ const FORT_KS=Object.keys(FORT);
 Object.assign(COVK,{trench:{n:'참호',v:.5},nest:{n:'기관총 진지',v:.45},sandbag:{n:'모래주머니',v:.4},jersey:{n:'콘크리트 방벽',v:.35},hedgehog:{n:'대전차 장애물',v:.1}});
 /* 누가 무엇을 지을 수 있나: 공병은 전부, 소총·기관총은 모래주머니·철조망, 나머지 보병은 모래주머니 */
 function fortKinds(type){const t=UT[type];if(!t||t.cls!=='inf')return [];if(type==='eng')return FORT_KS.slice();if(type==='mg')return ['sandbag','wire','trench','nest'];if(type==='rifle')return ['sandbag','wire','trench'];return ['sandbag','trench'];}
-const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return u.type==='eng'?'eng':'inf';return u.type==='tank'||u.type==='spg'?'trk':'veh';};
-const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15};   // 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
+const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return u.type==='eng'?'eng':'inf';return u.type==='cev'?'dz':u.type==='tank'||u.type==='spg'||u.type==='bmp'||u.type==='spaa'?'trk':'veh';};
+const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15,dz:.16};   // dz 공병전차(규칙은 09e-fleet). 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
   car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 헤치고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
