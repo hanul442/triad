@@ -6361,17 +6361,17 @@ const cvAct=m=>!m.dead&&!m.down&&!m.gone&&!m.task;
 const cvNow=()=>G.time||0;
 const cvLay=m=>m.lay||m.pr>0;
 /* 병사 m이 (ax,az) 쪽에서 오는 직사에 대해 받는 엄폐. low = 내려다보는 사격 */
-function cvMan(u,m,ax,az,low,objs){const t=tileAt(m.x,m.z);if(!t)return 0;if(t.t==='bldg')return COVK.bldg.v;
+function cvMan(u,m,ax,az,low,objs,up){const t=tileAt(m.x,m.z);if(!t)return 0;if(t.t==='bldg')return COVK.bldg.v;
   let c=TT[t.t].cov||0;if(typeof trenchAt==='function'&&trenchAt(m.x,m.z))c=Math.max(c,COVK.trench.v);
   const d=Math.hypot(ax-m.x,az-m.z);if(d>.02){const k=dirCoverAt(m.x,m.z,(ax-m.x)/d,(az-m.z)/d,'inf',u,objs);c=Math.max(c,k.cov*(low?.5:1));}
-  if(cvLay(m)&&!G._cvNoLay)c+=(c>=.2?CV.layLow:CV.lay)*(low?.5:1);   // 엎드리면 몸이 작아진다(위에서 내려다보면 덜)
+  if(cvLay(m)&&!G._cvNoLay)c+=(c>=.2?CV.layLow:CV.lay)*(up?.25:1);   // 엎드리면 몸이 작아진다(한 층 이상 위에서 내려다보면 엎드린 몸이 다 보인다)
   return Math.min(.85,c);}
 /* 분대가 a의 직사에 대해 받는 엄폐(병사 평균). 0.5초·쏘는 쪽마다 기억 */
 function cvSquad(d,a){const M=d._men;if(!M)return null;const L=M.filter(cvAct);if(!L.length)return null;
   const q=Math.floor(cvNow()/CV.q);let C=G._cvc;if(!C||C.q!==q){C={q,m:new Map()};Object.defineProperty(G,'_cvc',{value:C,writable:true,configurable:true,enumerable:false});}
   const k=d.id+':'+a.id+(G._cvNoLay?'n':'');if(C.m.has(k))return C.m.get(k);
-  const [ax,az]=posOf(a);const low=eye(a)+elU(a)>=eye(d)+elU(d)+2;const objs=coverObjs(d);let s=0,lay=0;
-  for(const m of L){s+=cvMan(d,m,ax,az,low,objs);if(cvLay(m))lay++;}
+  const [ax,az]=posOf(a);const ha=eye(a)+elU(a),hd=eye(d)+elU(d);const low=ha>=hd+2,up=ha>=hd+.9;const objs=coverObjs(d);let s=0,lay=0;
+  for(const m of L){s+=cvMan(d,m,ax,az,low,objs,up);if(cvLay(m))lay++;}
   const r={cov:s/L.length,lay:lay/L.length};C.m.set(k,r);return r;}
 {const _co=coverOf;coverOf=function(d,a){const r=_co(d,a);try{
     if(!a||UT[d.type].cls!=='inf'||UT[d.type].fly||UT[a.type].ind||!d._men)return r;const x=cell(d.r,d.c);if(x.t==='bldg')return r;
@@ -6458,10 +6458,12 @@ function cvHideTick(u,objs){const M=u._men;const tu=UT[u.type];
 /* 맨땅에서 위협을 받는 멈춘 병사는 재장전·경계 중에도 엎드린다(분대장 손신호·부상자 돌보기는 그대로). 엎드린 병사는 m.lay */
 const CV_STAND={kneel:1,reload:1,aim:1};
 function cvPose(u){const M=u._men;const moving=!!(u.path&&u.path.length)&&!u.climb;const thr=!moving&&!UT[u.type].ind&&menThreat(u);const th=thr?menThreatDir(u):0;
+  // 엎드림(m.lay)은 그리는 자세(05z-drill의 m.pose)를 읽지 않고 여기서 따로 정한다: 자세는 화면용, 결과는 이 판단만 따른다
   for(const m of M){if(m.dead||m.gone){m.lay=0;continue;}
-    if(thr&&!m.task&&!m.down&&m.spd<.05&&(m.pose==null||CV_STAND[m.pose])&&typeof drCover==='function'&&drCover(u,m,th).k==='open')m.pose='prone';
-    m.lay=m.pose==='prone'||m.pose==='crawl'?1:0;}}
-/* ---------- 엔진에 끼우기(05z-drill 뒤: 자세를 보고 엎드림을 정한다) ---------- */
+    const open=thr&&!m.task&&!m.down&&m.spd<.05&&typeof drCover==='function'&&drCover(u,m,th).k==='open';
+    m.lay=open||(m.pr>0&&!m.down)?1:0;
+    if(open&&(m.pose==null||CV_STAND[m.pose]))m.pose='prone';}}
+/* ---------- 엔진에 끼우기(05z-drill 뒤: 맨땅의 병사 자세를 엎드림으로 맞춘다) ---------- */
 {const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||!G.units||G.over)return;
   try{for(const u of G.units)if(u._men&&UT[u.type].cls==='inf')cvPose(u);
     cvDuck();
