@@ -16,12 +16,18 @@ function v3MenAnim(o,uu,dt,now,fa){const M=uu._men,S=o.userData.sold;const ox=o.
     const kneel=!prone&&m.spd<.05&&(m.rl>0||t-m.ft<2.5||m.hold||uu.tgt!=null);
     const head=ins&&ins.stair&&s.spd>.05?Math.atan2(dz,dx):pk?pk.f:m.f;
     let cur=fig.rotation.y,want=-head,dd=want-cur;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;fig.rotation.y=cur+dd*Math.min(1,dt*9);
-    const tilt=prone?-1.42:0;fig.rotation.z+=(tilt-fig.rotation.z)*Math.min(1,dt*7);
-    const sy=kneel?.72:1;fig.scale.y+=(sy-fig.scale.y)*Math.min(1,dt*7);
+    /* 자세: 다른 코드가 m.pose를 정했으면 그것(point→signal, crawl→prone 등 없는 이름은 가까운 자세로), 아니면 상황으로 고른다 */
+    let pz=m.pose||(m.down?'down':prone?(moving&&m.spd>.05?'crawl':'prone'):pk?'aim':moving?(t-m.ft<1.2?'aim':'move'):m.rl>0?'reload':kneel?'kneel':'move');
+    if(pz==='lean')pz=(m.leanS||1)>0?'leanR':'leanL';
+    if(pz==='crawl'&&Math.floor(now/420+s.ph)%2)pz='crawl2';
+    if(typeof v3FigPose==='function'){const U=fig.userData;if(U.pose!==pz){if(s.pw!==pz){s.pw=pz;s.pwt=0;}s.pwt=(s.pwt||0)+dt;
+      if(s.pwt>.14||pz==='crawl'||pz==='crawl2'||U.pose==='crawl'||U.pose==='crawl2')v3FigPose(fig,pz);}else s.pw=pz;}
+    else{const tilt=prone?-1.42:0;fig.rotation.z+=(tilt-fig.rotation.z)*Math.min(1,dt*7);const sy=kneel?.72:1;fig.scale.y+=(sy-fig.scale.y)*Math.min(1,dt*7);}
+    const standing=!fig.userData.pose||{move:1,aim:1,signal:1,carry:1,point:1,leanL:1,leanR:1}[fig.userData.pose];
     if(pk){s.py=(s.py??y)+(y-(s.py??y))*k;y=s.py;}else s.py=y;   // 창턱으로 오르내림은 부드럽게
-    fig.position.set(s.wx-ox,y+(prone?.012:0)-(typeof trenchAt==='function'&&trenchAt(s.wx,s.wz)?.9*MU:0),s.wz-oz);/* 참호 안 병사는 허리까지 잠긴다 */
+    fig.position.set(s.wx-ox,y+(prone&&typeof v3FigPose!=='function'?.012:0)-(typeof trenchAt==='function'&&trenchAt(s.wx,s.wz)?.9*MU:0),s.wz-oz);/* 참호 안 병사는 허리까지 잠긴다 */
     const gait=prone?.25:1,sw=Math.min(1,s.spd/.35)*Math.sin(now/(prone?160:70)+s.ph)*.7*gait;
-    if(fig.userData.legL){fig.userData.legL.rotation.z=sw;fig.userData.legR.rotation.z=-sw;}});}
+    if(fig.userData.legL&&standing){fig.userData.legL.rotation.z=sw;fig.userData.legR.rotation.z=-sw;}});}
 /* 분대 사격 연출: 쏜 병사마다 예광탄 하나씩 */
 {const _f=v3FxFire;v3FxFire=function(a,r,c){const args=[...arguments];if(!a||!UT[a.type]||UT[a.type].cls!=='inf'||!a._sh||a._sh.length<2)return _f.apply(null,args);
   const sh=a._sh.slice(0,4);sh.forEach((i,k)=>{const go=()=>{if(!G||!V3.uo.has(a.id))return;const keep=a._sh;a._sh=[i];try{_f.apply(null,args);}finally{a._sh=keep;}};if(k===0)go();else setTimeout(go,k*55+Math.random()*60);});};}

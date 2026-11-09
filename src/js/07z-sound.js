@@ -1,6 +1,6 @@
 /* ===================== 소리: 게임 사건 연결과 소리 설정 창 =====================
    - 내 편 무전: 병사가 다치면 위생병 호출, 거점 확보·상실, 증원 도착.
-   - 소리 버튼은 작은 설정 창을 연다: 켜기/끄기와 전체·전투·무전·환경음 음량. M 키로 음소거. */
+   - 소리 버튼은 작은 설정 창을 연다: 켜기/끄기와 전체·전투·무전·환경음·음악 음량. M 키로 음소거. */
 (function(){
   // 다친 병사: 내 편이면 다급한 무전
   const cas0=FXH.cas;FXH.cas=function(u,m,out){if(typeof G!=='undefined'&&G&&u&&u.nat===G.viewer&&!isAI(u.nat)&&(out==='hw'||out==='kia'||out==='lw'))sndRadio('casualty');return cas0&&cas0.apply(this,arguments);};

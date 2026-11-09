@@ -19,70 +19,12 @@ function v3Prism(pts,w){const T=V3.T;const s=new T.Shape();pts.forEach(([x,y],i)
   const g=new T.ExtrudeGeometry(s,{depth:w,bevelEnabled:false});g.translate(0,0,-w/2);return g;}
 
 /* ---------- 병사 ----------
-   영화 Civil War(2024)처럼: 정규군(짝수 세력)은 같은 군복과 헬멧, 민병대(홀수 세력)는 청바지·후드·야구모자 위에
-   플레이트캐리어를 걸친 제각각 차림. 병사마다 머리·조끼·배낭·총이 조금씩 다르고, 분대장은 무전기 안테나를 단다.
-   다리 둘(걸음 흔들림)을 빼면 몸 전체를 정점 색을 쓴 형상 하나로 합쳐서, 인원이 많아도 그리기 부담이 작다. */
+   병사 모형·자세는 07m2-soldier.js. 아래 v3PartsGeo는 부품 여러 개를 정점 색 형상 하나로 합치는 도구. */
 Object.assign(SQUAD,{rifle:9,mg:6,at:4,sniper:2,eng:6,mortar:5,aa:3,ew:3,dteam:3,atgm:3});
-const SOL={
-  reg:{top:['#6f6a55','#726b55','#6a6650'],pants:['#69634e','#6d6651'],plate:['#7a6a50','#6c6248','#5c5a46'],head:['helm','helm','helm','helm','helm','boonie']},
-  mil:{top:['#4a4a46','#2f3a2e','#5a5040','#3a3f4a','#6f6a55','#55493b','#2c2c2b','#6b6b66'],pants:['#3c4656','#7a6e55','#2a2a2a','#69634e','#4d4a42'],
-       plate:['#2a2a28','#7a6a50','#4a5040','#3a3a36'],head:['cap','cap','cap','helm','helm','helm','beanie','boonie','bare']},
-};
-const SKIN=['#c9a184','#b08466','#8a6248','#d5b195','#6e4b36'];
 function v3PartsGeo(parts){const T=V3.T;const P=[],Nn=[],C=[];const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),v=new T.Vector3(),sc=new T.Vector3(),col=new T.Color();
   for(const p of parts){const g=p.g.index?p.g.toNonIndexed():p.g.clone();e.set(p.rx||0,p.ry||0,p.rz||0);q.setFromEuler(e);v.set(p.x||0,p.y||0,p.z||0);sc.set(p.sx||1,p.sy||1,p.sz||1);m4.compose(v,q,sc);g.applyMatrix4(m4);
     col.set(p.c);const pa=g.attributes.position.array,na=g.attributes.normal.array;for(let i=0;i<pa.length;i++){P.push(pa[i]);Nn.push(na[i]);}for(let i=0;i<pa.length/3;i++)C.push(col.r,col.g,col.b);g.dispose();}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('normal',new T.Float32BufferAttribute(Nn,3));geo.setAttribute('color',new T.Float32BufferAttribute(C,3));return geo;}
-function v3SoldierM(n,kind){const T=V3.T;
-  const B=(w,h,d)=>new T.BoxGeometry(w,h,d),pick=(a)=>a[Math.floor(Math.random()*a.length)];
-  const st=n%2?SOL.mil:SOL.reg;const top=pick(st.top),pants=pick(st.pants),plate=pick(st.plate),skin=pick(SKIN);
-  let head=pick(st.head);if(kind==='sniper')head=Math.random()<.6?'boonie':head;
-  const radio=kind!=='rifle'&&kind!=='sniper'?Math.random()<.5:Math.random()<.14;
-  const pack=kind==='eng'||kind==='mortar'?'big':kind==='sniper'?'none':pick(['small','small','big','none']);
-  const gunT=kind==='mg'?'mg':kind==='sniper'?'dmr':n%2&&Math.random()<.2?'ak':'m4';
-  const vkey=[n%2,kind,top,pants,plate,skin,head,radio,pack,gunT].join('|');
-  V3.solG=V3.solG||new Map();let G1=V3.solG.get(vkey);
-  if(!G1){const tape=TAPE[n]||'#ccc',dk='#262624',hc=head==='helm'?(n%2?pick(['#6c6550','#3c3d36','#7a6e55']):'#6a6550'):head==='cap'?pick(['#2a2a2a','#7a6e55','#4a4a40','#5a2a24']):head==='beanie'?pick(['#2c2c2c','#4a4a3e']):'#6f6a55';
-    const L=[
-      {g:B(.04,.056,.034),y:.092,c:top},                                   // 몸통
-      {g:B(.05,.048,.044),y:.096,x:.001,c:plate},                          // 플레이트캐리어 (어깨가 넓어 보이게)
-      {g:B(.012,.016,.034),y:.086,x:.027,c:plate},                         // 앞 탄창 주머니
-      {g:B(.016,.012,.03),y:.071,x:0,c:pants},                             // 허리·벨트
-      {g:B(.012,.008,.009),y:.107,z:-.027,c:tape},{g:B(.012,.008,.009),y:.107,z:.027,c:tape},  // 팔의 색 테이프
-      // 팔: 어깨에서 앞으로 뻗어 총을 잡는다
-      {g:B(.034,.012,.012),x:.016,y:.102,z:-.024,ry:-.35,rz:-.35,c:top},
-      {g:B(.034,.012,.012),x:.02,y:.1,z:.024,ry:.45,rz:-.25,c:top},
-      {g:new T.SphereGeometry(.0135,7,5),x:.002,y:.133,c:skin},            // 머리
-    ];
-    if(head==='helm'){L.push({g:new T.SphereGeometry(.0175,8,5,0,Math.PI*2,0,Math.PI*.45),y:.135,c:hc});if(!(n%2)||Math.random()<.4)L.push({g:B(.007,.009,.011),x:.016,y:.14,c:dk});}
-    else if(head==='boonie'){L.push({g:new T.CylinderGeometry(.013,.015,.011,8),y:.143,c:hc},{g:new T.CylinderGeometry(.026,.026,.002,10),y:.138,c:hc});}
-    else if(head==='cap'){L.push({g:new T.SphereGeometry(.0145,8,4,0,Math.PI*2,0,Math.PI*.5),y:.136,c:hc},{g:B(.014,.002,.016),x:.016,y:.137,c:hc},{g:B(.004,.008,.03),y:.133,c:dk});}// 모자 + 귀마개 헤드셋
-    else if(head==='beanie')L.push({g:new T.SphereGeometry(.015,8,4,0,Math.PI*2,0,Math.PI*.55),y:.135,c:hc});
-    else L.push({g:B(.004,.01,.032),y:.134,c:dk});                       // 맨머리 + 헤드셋
-    if(pack==='small')L.push({g:B(.018,.03,.026),x:-.032,y:.1,c:plate});
-    if(pack==='big')L.push({g:B(.026,.046,.032),x:-.036,y:.1,c:n%2?pick(['#3a3a34','#4a5040','#5a5040']):'#5d5644'});
-    if(radio)L.push({g:B(.012,.02,.014),x:-.03,y:.118,z:.01,c:dk},{g:B(.0015,.08,.0015),x:-.032,y:.165,z:.012,rz:.12,c:dk});
-    // 총: 몸 앞에 비스듬히 든 자세
-    const gx=.034,gy=.098,gz=.008,ry=.25;
-    if(gunT==='mg')L.push({g:B(.09,.016,.012),x:gx+.006,y:gy,z:gz,ry,c:dk},{g:B(.016,.02,.016),x:gx-.004,y:gy-.014,z:gz,ry,c:'#4a4a40'});
-    else if(gunT==='dmr')L.push({g:B(.11,.009,.008),x:gx+.012,y:gy,z:gz,ry,c:dk},{g:B(.024,.008,.007),x:gx,y:gy+.008,z:gz,ry,c:dk});
-    else L.push({g:B(.07,.009,.008),x:gx,y:gy,z:gz,ry,c:gunT==='ak'?'#4a3a2a':dk},{g:B(.016,.007,.006),x:gx-.002,y:gy+.008,z:gz,ry,c:dk},{g:B(.008,.016,.006),x:gx+.004,y:gy-.011,z:gz,ry,rz:gunT==='ak'?.4:0,c:dk});
-    if(kind==='at')L.push({g:new T.CylinderGeometry(.009,.009,.1,6),x:-.03,y:.122,z:-.012,rz:Math.PI/2-.35,c:n%2?'#4a5040':'#6b6650'});
-    if(kind==='aa')L.push({g:new T.CylinderGeometry(.008,.01,.13,6),x:.005,y:.135,z:-.016,rz:Math.PI/2-.25,c:'#5d6450'},{g:B(.014,.018,.01),x:.03,y:.125,z:-.016,c:dk});// 어깨에 멘 대공미사일 발사관
-    if(kind==='atgm')L.push({g:new T.CylinderGeometry(.011,.011,.12,6),x:.004,y:.13,z:-.017,rz:Math.PI/2-.12,c:'#5b6150'},{g:B(.022,.02,.02),x:.022,y:.13,z:-.03,c:'#3a3c36'});// 어깨의 유도미사일 발사관과 조준 장치
-    if(kind==='dteam')L.push({g:B(.014,.008,.026),x:.014,y:.135,c:'#1c1c1a'},{g:B(.03,.024,.036),x:-.036,y:.1,c:'#4b4d42'},{g:B(.0015,.06,.0015),x:-.038,y:.14,rz:.1,c:dk});// FPV 고글·드론 가방·안테나
-    if(kind==='ew')L.push({g:B(.024,.036,.03),x:-.034,y:.104,c:'#3c3f38'},{g:B(.0015,.07,.0015),x:-.036,y:.15,z:-.01,rz:.25,c:dk},{g:B(.0015,.07,.0015),x:-.036,y:.15,z:.01,rz:-.25,c:dk},{g:B(.03,.012,.02),x:.036,y:.104,z:.01,c:'#55584e'});// 재머 배낭·안테나·휴대 장비
-    if(kind==='mortar'&&Math.random()<.5)L.push({g:new T.CylinderGeometry(.007,.007,.07,6),x:-.034,y:.13,rz:.3,c:'#3d4246'});
-    G1=v3PartsGeo(L);V3.solG.set(vkey,G1);}
-  const bodyM=V3.solM||(V3.solM=new T.MeshStandardMaterial({vertexColors:true,roughness:.88,flatShading:true}));
-  const lg=V3.solLeg||(V3.solLeg=B(.016,.064,.019).translate(0,-.032,0));
-  const pid='pl'+pants;if(!V3.matc.has(pid))V3.matc.set(pid,new T.MeshStandardMaterial({color:pants,roughness:.9,flatShading:true}));const pm=V3.matc.get(pid);
-  const g=new T.Group();const body=new T.Mesh(G1,bodyM);body.castShadow=true;g.add(body);
-  const legL=new T.Mesh(lg,pm),legR=new T.Mesh(lg,pm);legL.position.set(0,.066,-.011);legR.position.set(0,.066,.011);legL.castShadow=legR.castShadow=true;g.add(legL,legR);
-  const sz=.96+Math.random()*.1;g.scale.setScalar(sz);
-  body.userData.keepGeo=1;legL.userData.keepGeo=1;legR.userData.keepGeo=1;
-  g.userData={legL,legR,tor:body};return g;}
-
 /* ---------- 차량 ---------- */
 /* 실제 군 장비 색(스타일 가이드): 양쪽 모두 바랜 올리브·황토. 세력은 발밑 표식과 팔의 색 테이프로 구분 */
 const TAPE=['#7fb4d9','#d9765f','#e0b050','#b39ad9'];
