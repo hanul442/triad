@@ -4,7 +4,7 @@ const SCN={
   assault:{n:'도심 돌파',d:'적이 모든 거점을 쥐고 있습니다. 8분 안에 거점 5곳을 동시에 확보하세요.'},
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
-const SCN_ASSAULT_ADD=['rifle','rifle','rifle','eng','mg','at','mortar','ifv','tank'];
+const SCN_ASSAULT_ADD=['rifle','rifle','rifle','rifle','eng','eng','mg','at','mortar','ifv','ifv','tank'];
 /* 도심 돌파: 수비는 거점을 다 쥐고 있어도 증원을 사지 않는다(정해진 수비대만) */
 {const _in=income;income=function(n){if(G&&G.scn==='assault'&&n!==0)return 0;return _in(n);};}
 function scnButtons(){return Object.keys(SCN).map(k=>`<button class="btn" data-act="scn:${k}" id="scn-${k}">${SCN[k].n}<small>${SCN[k].d}</small></button>`).join('');}
