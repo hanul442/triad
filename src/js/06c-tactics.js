@@ -57,7 +57,7 @@ function tacCtr(p){const M=tacMembers(p);if(!M.length)return null;return [M.redu
 /* 소대 목표: 우리 것이 아닌 거점 중 가깝고 다른 소대가 덜 노리는 곳. 위협받는 우리 거점은 지키러 간다 */
 function tacPickObj(p,K){const n=p.nat,t=G.time||0;const c=tacCtr(p);if(!c)return;
   if(p.mode==='defend'&&p.obj)return;
-  if(p.obj&&t-p.objT<30){const o=G.map[p.obj[0]][p.obj[1]];if(o.obj==null||o.owner!==n)return;}
+  if(p.obj&&t-p.objT<30){const o=G.map[p.obj[0]]&&G.map[p.obj[0]][p.obj[1]];if(o&&(o.obj==null||o.owner!==n))return;}
   let best=null,bs=-1e9;
   for(const o of G.objs){const x=G.map[o.r][o.c];const d=Math.hypot(o.c+.5-c[0],o.r+.5-c[1]);let s=-d;
     const others=tacPl().filter(q=>q!==p&&q.nat===n&&q.obj&&q.obj[0]===o.r&&q.obj[1]===o.c).length;s-=others*7;
