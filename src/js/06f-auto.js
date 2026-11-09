@@ -18,10 +18,13 @@ function autoSet(n,on){const N2=G.nats[n];if(!N2)return;N2.auto=!!on;if(N2.autoB
     for(const u of G.units)if(u.nat===n)u.man=null;}
   else{N2.aiT=0;}}
 /* 주공 목표: 거점 1.5칸 안을 누르면 그 거점에 맞춘다 */
-function autoIntent(n,k,x,z){const N2=G.nats[n];if(!N2)return null;if(!k){N2.intent=null;return null;}
-  let bx=x,bz=z,obj=null;for(const o of G.objs){const d=Math.hypot(o.c+.5-x,o.r+.5-z);if(d<1.5&&(!obj||d<obj.d)){obj={o,d};}}
+function autoMkIntent(k,x,z){let bx=x,bz=z,obj=null;for(const o of G.objs){const d=Math.hypot(o.c+.5-x,o.r+.5-z);if(d<1.5&&(!obj||d<obj.d)){obj={o,d};}}
   if(obj){bx=obj.o.c+.5;bz=obj.o.r+.5;}bx=Math.max(.5,Math.min(N-.5,bx));bz=Math.max(.5,Math.min(N-.5,bz));
-  N2.intent={k:k==='def'?'def':'atk',x:bx,z:bz,r:Math.floor(bz),c:Math.floor(bx),t:G.time||0,obj:obj?obj.o.name:null};N2.aiT=0;return N2.intent;}
+  return {k:k==='def'?'def':'atk',x:bx,z:bz,r:Math.floor(bz),c:Math.floor(bx),t:G.time||0,obj:obj?obj.o.name:null};}
+function autoIntent(n,k,x,z){const N2=G.nats[n];if(!N2)return null;if(typeof orgClearIntents==='function')orgClearIntents(n);   // 전체 주공을 정하면 중대·소대 목표는 지운다
+  if(!k){N2.intent=null;return null;}N2.intent=autoMkIntent(k,x,z);N2.aiT=0;return N2.intent;}
+/* 이 소대(편성 pq)가 따를 목표: 소대 목표 > 중대 목표 > 전체 주공 */
+function autoIOf(n,pq){const I=typeof orgIntent==='function'?orgIntent(n,pq):null;return I||G.nats[n].intent;}
 /* 직접 지휘 중인가: 움직이는 중·사수 중이면 계속, 아니면 마지막 명령 뒤 45초 */
 function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||u.path&&u.path.length||u.tgt!=null||u.cqb)return true;
   if(t-u.man<AUTO.hold)return true;u.man=null;return false;}
@@ -37,12 +40,12 @@ function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||
 {const _m=msnThink;msnThink=function(n){if(!autoOn(n))return _m(n);for(const p of tacPl())if(p.nat===n&&p.human)msnCas(p);for(const u of G.units)if(u.nat===n&&u.msn)msnFollow(u);};}
 {const _b=buy;buy=function(n){if(G._adj===n&&G.nats[n]&&G.nats[n].autoBuy===false)return null;return _b.apply(this,arguments);};}
 // 주공 목표: 소대가 아닌 부대(차량·곡사·저격·드론)는 aiGoal로, 바로 앞 적과 싸우는 중이면 그 적
-{const _g=aiGoal;aiGoal=function(n,u,vis){const g=_g(n,u,vis);const I=autoOn(n)&&G.nats[n].intent;if(!I)return g;
+{const _g=aiGoal;aiGoal=function(n,u,vis){const g=_g(n,u,vis);const I=autoOn(n)&&autoIOf(n,u.pq);if(!I)return g;
   if(vis&&vis.some(e=>e.r===g[0]&&e.c===g[1])&&dist(u.r,u.c,g[0],g[1])<AUTO.near)return g;
   if(I.k==='def'&&dist(u.r,u.c,I.r,I.c)<3)return g&&dist(g[0],g[1],I.r,I.c)<4?g:[I.r,I.c];
   return [I.r,I.c];};}
 // 주공 목표: 소대는 목표를 그쪽으로(수비대로 남긴 소대는 그대로)
-{const _tp=tacPickObj;tacPickObj=function(p,K){const N2=G.nats[p.nat];const I=autoOn(p.nat)&&!p.human?N2.intent:null;
+{const _tp=tacPickObj;tacPickObj=function(p,K){const N2=G.nats[p.nat];const I=autoOn(p.nat)&&!p.human?autoIOf(p.nat,p.pq):null;
   if(p.mode==='defend'&&!p._idef)return _tp(p,K);
   if(!I){if(p._idef){p._idef=0;p.mode='attack';p.obj=null;p.pt=null;}return _tp(p,K);}
   if(I.k==='def'){p.mode='defend';p._idef=1;}else if(p._idef){p._idef=0;p.mode='attack';}
