@@ -37,7 +37,7 @@ test('감독: 거점 주인이 바뀌면 거점 샷으로 컷하고 중계 자�
   const o = G.objs[0];
   G.map[o.r][o.c].owner = 1;
   tick(500);
-  tick(2600);   // 다른 곳을 보고 있었다면 2초는 보여 준 뒤 끊는다
+  tick(5200);   // 다른 곳을 보고 있었다면 5초는 보여 준 뒤 끊는다
   tick(500);
   assert.equal(DIR.shot.k, 'obj');
   assert.equal(DIR.shot.oi, 0);
@@ -55,7 +55,7 @@ test('감독: 한 교전을 오래 볼 때 샷을 바꿔 가며 최소 길이는
   a.tgt = b.id; b.tgt = a.id;
   const shots = [];
   let last = null;
-  for (let i = 0; i < 600; i++) {   // 60초
+  for (let i = 0; i < 1500; i++) {   // 150초
     G.time = 100 + i * .1; a.firedT = G.time; b.firedT = G.time;
     if (i % 3 === 0) { f('dirEv')(a.x, a.z, .35, 'fire', { u: a.id, t: b.id }); f('dirEv')(b.x, b.z, .35, 'fire', { u: b.id, t: a.id }); }
     tick(100);
@@ -124,4 +124,27 @@ test('감독: 공습이 오면 접근 방향 쪽에서 낮게 잡는다', () => 
   tick(16); tick(500);
   assert.notEqual(DIR.shot && DIR.shot.k, 'ext', '공습이 끝나면 감독이 다시 고른다');
   void clock;
+});
+
+test('감독: 화면이 빙빙 돌지 않는다(긴 교전 동안 초당 회전이 느리고, 헬기 선회는 드물다)', () => {
+  const { T, f, DIR, tick } = setup(5);
+  const G = T.G;
+  const a = G.units.find(u => u.nat === 0 && !T.UT[u.type].fly), b = G.units.find(u => u.nat === 1 && !T.UT[u.type].fly);
+  b.x = a.x + 2.5; b.z = a.z; b.r = a.r; b.c = Math.min(T.N - 1, a.c + 2);
+  a.tgt = b.id; b.tgt = a.id;
+  let last = null, prev = null, maxRate = 0, heli = 0, shots = 0;
+  for (let i = 0; i < 900; i++) {   // 90초, 0.1초마다
+    G.time = 100 + i * .1; a.firedT = G.time; b.firedT = G.time;
+    // 부대가 천천히 서로 주위를 돈다(구도가 계속 바뀌게)
+    b.x = a.x + 2.5 * Math.cos(i / 60); b.z = a.z + 2.5 * Math.sin(i / 60);
+    if (i % 3 === 0) { f('dirEv')(a.x, a.z, .35, 'fire', { u: a.id, t: b.id }); f('dirEv')(b.x, b.z, .35, 'fire', { u: b.id, t: a.id }); }
+    tick(100);
+    const y = T.__eval('V3.cs.yaw');
+    if (DIR.shot !== last) { last = DIR.shot; shots++; if (last.k === 'heli') heli++; prev = y; continue; }   // 컷은 회전이 아니다
+    if (prev != null) { let d = y - prev; d = Math.atan2(Math.sin(d), Math.cos(d)); maxRate = Math.max(maxRate, Math.abs(d) / .1); }
+    prev = y;
+  }
+  assert.ok(maxRate <= .31, `샷 안에서 초당 회전 ${maxRate.toFixed(3)} 라디안`);
+  assert.ok(heli <= Math.ceil(shots / 3), `헬기 선회 ${heli}/${shots}`);
+  assert.ok(shots <= 11, `90초에 컷 ${shots}번(8초에 한 번 꼴 이하)`);
 });

@@ -15042,9 +15042,9 @@ function specBegin(){$('#setup').hidden=true;for(const id of ['#brief','#debrief
    - 새 이야기·점령 때 화면 아래에 중계 자막을 띄운다.
    공습(07x-strike)과 세력 탈락(08v-spec)은 그쪽이 고른 자리를 쓰고, 각도만 감독이 정한다. */
 const DIR_SHOT={   // 최소·최대 길이(ms), 기본 기울기, 거리
-  est:{min:5000,max:8000,p:.92,d:24},heli:{min:6000,max:10000,p:.6,d:13},over:{min:5000,max:9000,p:.2},
-  follow:{min:6000,max:11000,p:.3,d:5.5},low:{min:4500,max:7000,p:.11},obj:{min:6000,max:9000,p:.5,d:10},
-  front:{min:6000,max:12000,p:.85},ext:{min:0,max:1e9,p:.45}};
+  est:{min:9000,max:16000,p:.92,d:24},heli:{min:10000,max:18000,p:.6,d:13},over:{min:8000,max:14000,p:.2},
+  follow:{min:10000,max:18000,p:.3,d:5.5},low:{min:8000,max:12000,p:.11},obj:{min:9000,max:14000,p:.5,d:10},
+  front:{min:10000,max:20000,p:.85},ext:{min:0,max:1e9,p:.45}};
 const DIR_W={fire:.35,fireV:1.2,duel:2,kill:2.5,killV:7,collapse:8,strike:4,boom:1.5,boomB:3.5,breach:3,land:3.5,ms:6,cap:9,assault:2.5};
 const DIR_R=4.5,DIR_BIG=7;
 const DIR={ev:[],shot:null,cam:null,story:null,hist:[],here:0,own:null,g:null,fol:null,skip:null,bak:null,prev:new Map(),cap:null,chk:0,on:false};
@@ -15134,27 +15134,29 @@ function dirMoving(u){const p=DIR.prev.get(u.id);return !!p&&Math.hypot(u.x-p.x,
 function dirPlan(st,u,t,fresh){if(st.k==='front')return 'front';
   const recent=DIR.hist.slice(-2);const pick=opts=>opts.find(k=>!recent.includes(k))||opts.find(k=>k!==DIR.hist[DIR.hist.length-1])||opts[0];
   if(st.k==='cap'||st.k==='assault'&&!u)return fresh||DIR.hist[DIR.hist.length-1]!=='obj'?'obj':pick(u&&!dirInB(u)?['low','heli','est']:['heli','est']);
-  if(fresh)return st.k==='collapse'||st.k==='land'||!u?'heli':pick(['est','heli']);
-  if(!u||dirInB(u))return pick(['heli','est','obj'].filter(k=>k!=='obj'||st.k==='assault'));
+  if(fresh)return st.k==='collapse'||st.k==='land'?'heli':'est';
+  if(!u||dirInB(u))return pick(['est','obj','heli'].filter(k=>k!=='obj'||st.k==='assault'));
   if(dirVeh(u))return pick(dirMoving(u)?['follow','low','over','heli']:t?['low','over','heli','est']:['low','heli','est']);
   if(st.k==='assault')return pick(t?['over','obj','low','heli']:['obj','low','heli']);
   return pick(t?['over','low','heli','est']:['low','heli','est']);}
+/* 어깨 너머·낮은 앵글은 처음 잡은 방향을 지킨다. 대상이 크게 돌아 1라디안 넘게 어긋나면 돌지 않고 새 샷으로 컷 */
+function dirLock(sh,a){if(sh.gy==null){sh.gy=a;return a;}let d=a-sh.gy;d=Math.atan2(Math.sin(d),Math.cos(d));if(Math.abs(d)>1)sh.recut=true;return sh.gy;}
 /* 샷의 지금 구도(이상적인 자리). 움직이는 샷은 매 프레임 다시 잰다 */
 function dirPose(sh,now){const D=DIR_SHOT[sh.k]||DIR_SHOT.est;const age=(now-sh.t0)/1000;
   const u=sh.uid!=null&&G.units.find(o=>o.id===sh.uid),t=sh.tid!=null&&G.units.find(o=>o.id===sh.tid);
   const U=u?dirPos(u):null,Tp=t?dirPos(t):null;const gy=(x,z)=>(typeof v3TY==='function'?v3TY(x,z):0)+.05;
   if(sh.k==='front'){const f=sh.f;const fu=f.u!=null&&G.units.find(o=>o.id===f.u);const x=fu?fu.x:f.x,z=fu?fu.z:f.z;const mg=Math.min(N/2,(f.d||18)*.3),cl=v=>Math.max(mg,Math.min(N-mg,v));
-    return {x:cl(x),z:cl(z),ly:0,yaw:sh.yaw+age*.02,pitch:D.p,d:f.d||18};}
-  if(sh.k==='obj'){const o=G.objs[sh.oi];const x=o?o.c+.5:sh.x,z=o?o.r+.5:sh.z;return {x,z,ly:gy(x,z),yaw:sh.yaw+age*.11,pitch:D.p,d:D.d};}
-  if(sh.k==='est'){const x=U?(sh.x+U.x)/2:sh.x,z=U?(sh.z+U.z)/2:sh.z;return {x,z,ly:gy(x,z),yaw:sh.yaw+age*.025,pitch:D.p,d:D.d};}
-  if(sh.k==='heli'){const x=U?(sh.x*.4+U.x*.6):sh.x,z=U?(sh.z*.4+U.z*.6):sh.z;return {x,z,ly:gy(x,z),yaw:sh.yaw+age*.09*sh.dir,pitch:D.p,d:D.d};}
+    return {x:cl(x),z:cl(z),ly:0,yaw:sh.yaw,pitch:D.p,d:f.d||18};}
+  if(sh.k==='obj'){const o=G.objs[sh.oi];const x=o?o.c+.5:sh.x,z=o?o.r+.5:sh.z;return {x,z,ly:gy(x,z),yaw:sh.yaw+age*.025*sh.dir,pitch:D.p,d:D.d};}
+  if(sh.k==='est'){const x=U?(sh.x+U.x)/2:sh.x,z=U?(sh.z+U.z)/2:sh.z;return {x,z,ly:gy(x,z),yaw:sh.yaw,pitch:D.p,d:D.d};}
+  if(sh.k==='heli'){const x=U?(sh.x*.4+U.x*.6):sh.x,z=U?(sh.z*.4+U.z*.6):sh.z;return {x,z,ly:gy(x,z),yaw:sh.yaw+age*.03*sh.dir,pitch:D.p,d:D.d};}
   if(!U)return null;
   if(sh.k==='follow'){const h=sh.h;const x=U.x+Math.sin(h)*1.1,z=U.z+Math.cos(h)*1.1;return {x,z,ly:U.y,yaw:h+Math.PI+.22*sh.dir,pitch:D.p,d:D.d};}
   if(sh.k==='over'&&Tp){const dx=Tp.x-U.x,dz=Tp.z-U.z,dd=Math.hypot(dx,dz)||1;const k=Math.min(.45,2.6/dd);const x=U.x+dx*k,z=U.z+dz*k;
-    const hd=dd*k+1.4;return {x,z,ly:(U.y+Tp.y)/2,yaw:Math.atan2(-dx,-dz)+.3*sh.dir,pitch:D.p,d:hd/Math.cos(D.p)};}
+    const hd=dd*k+1.4;return {x,z,ly:(U.y+Tp.y)/2,yaw:dirLock(sh,Math.atan2(-dx,-dz)+.3*sh.dir),pitch:D.p,d:hd/Math.cos(D.p)};}
   if(sh.k==='low'){let x=U.x,z=U.z,d=3.6,a=sh.yaw;
     if(Tp){const dx=Tp.x-U.x,dz=Tp.z-U.z,dd=Math.hypot(dx,dz);a=Math.atan2(dx,dz)+Math.PI/2*sh.dir;if(dd<6){x=(U.x+Tp.x)/2;z=(U.z+Tp.z)/2;d=Math.max(3.6,dd*.9+1.8);}else{x=U.x+dx/dd*1.2;z=U.z+dz/dd*1.2;}}
-    return {x,z,ly:Math.max(U.y-.04,gy(x,z)),yaw:a+age*.03*sh.dir,pitch:D.p,d};}
+    return {x,z,ly:Math.max(U.y-.04,gy(x,z)),yaw:dirLock(sh,a),pitch:D.p,d};}
   return {x:U.x,z:U.z,ly:U.y,yaw:sh.yaw,pitch:.6,d:12};}
 
 /* 새 샷 시작 */
@@ -15171,7 +15173,7 @@ function dirShot(st,now,cut){if(st.k==='front'&&DIR.shot&&DIR.shot.k==='front'){
   DIR.hist.push(k);if(DIR.hist.length>6)DIR.hist.shift();DIR.here=fresh?0:DIR.here+1;DIR.story=st;DIR.shot=sh;
   UI.follow=u?u.id:null;DIR.fol=UI.follow;UI.specFront=null;
   // 컷: 장소가 바뀌면 짧은 암전, 같은 장소면 바로 컷
-  if(cut!==false){const C={...Q};if(DIR.cam&&!fresh&&Math.hypot(C.x-DIR.cam.x,C.z-DIR.cam.z)<1.5&&Math.abs(C.d-DIR.cam.d)<3){/* 거의 같은 구도면 부드럽게 잇는다 */}else{DIR.cam=C;if(fresh)dirDip();}}
+  if(cut!==false){const C={...Q};if(DIR.cam&&!fresh&&Math.hypot(C.x-DIR.cam.x,C.z-DIR.cam.z)<1.5&&Math.abs(C.d-DIR.cam.d)<3&&Math.abs(Math.atan2(Math.sin(C.yaw-DIR.cam.yaw),Math.cos(C.yaw-DIR.cam.yaw)))<.3){/* 거의 같은 구도면 부드럽게 잇는다 */}else{DIR.cam=C;if(fresh)dirDip();}}
   if(fresh||st.k==='cap')dirCaption(st,u,t);
   return sh;}
 
@@ -15187,15 +15189,15 @@ function dirFrame(now){const s=V3.cs;if(!DIR.on){DIR.on=true;DIR.bak={pitch:s.pi
     const ss=dirStories(now);const best=ss[0]||null;
     const cur=sh&&DIR.story;const curS=cur?(ss.find(o=>Math.hypot(o.x-cur.x,o.z-cur.z)<DIR_R)||{s:0}).s:0;
     // 바로 끊을 큰 사건: 다른 곳의 격파·붕괴·점령(2초는 보여 주고)
-    const big=DIR.ev.find(e=>e.w>=DIR_BIG&&now-e.t<4000&&(!cur||Math.hypot(e.x-cur.x,e.z-cur.z)>DIR_R)&&!e.used&&dirSeeAt(e.x,e.z));
+    const big=DIR.ev.find(e=>e.w>=DIR_BIG&&now-e.t<7000&&(!cur||Math.hypot(e.x-cur.x,e.z-cur.z)>DIR_R)&&!e.used&&dirSeeAt(e.x,e.z));
     let next=null;
     if(!sh)next=best||dirQuiet();
-    else if(big&&age>2000){big.used=1;next=ss.find(o=>Math.hypot(o.x-big.x,o.z-big.z)<DIR_R)||{x:big.x,z:big.z,s:big.w,k:big.k,kw:{},src:big};}
-    else if(sh.k==='front'&&age>1500&&best&&best.s>1)next=best;   // 전선은 채우는 샷: 교전이 붙으면 바로 간다
-    else if(lost&&age>1200)next=best&&Math.hypot(best.x-sh.x,best.z-sh.z)<DIR_R?best:(best||dirQuiet());
+    else if(big&&age>5000){big.used=1;next=ss.find(o=>Math.hypot(o.x-big.x,o.z-big.z)<DIR_R)||{x:big.x,z:big.z,s:big.w,k:big.k,kw:{},src:big};}
+    else if(sh.k==='front'&&age>4000&&best&&best.s>1.5)next=best;   // 전선은 채우는 샷: 교전이 붙으면 바로 간다
+    else if(lost&&age>4000)next=best&&Math.hypot(best.x-sh.x,best.z-sh.z)<DIR_R?best:(best||dirQuiet());
     else if(age>=D.min){
       const stay=curS*Math.pow(.8,DIR.here)*1.25;
-      if(best&&Math.hypot(best.x-cur.x,best.z-cur.z)>DIR_R&&best.s>Math.max(1,stay*1.4))next=best;   // 더 뜨거운 곳
+      if(best&&Math.hypot(best.x-cur.x,best.z-cur.z)>DIR_R&&best.s>Math.max(1.5,stay*2))next=best;   // 더 뜨거운 곳
       else if(age>=D.max){const far=ss.find(o=>Math.hypot(o.x-cur.x,o.z-cur.z)>DIR_R);next=curS>0&&DIR.here<3?ss.find(o=>Math.hypot(o.x-cur.x,o.z-cur.z)<DIR_R)||best:(far||best||dirQuiet());}   // 같은 곳 다른 샷, 오래 머물렀으면 다른 곳
       else if(sh.k==='front'&&best&&best.s>1)next=best;}
     if(next&&next.k==='front'&&sh&&sh.k==='front'){sh.t0=now;sh.f=next.front;next=null;}
@@ -15203,16 +15205,17 @@ function dirFrame(now){const s=V3.cs;if(!DIR.on){DIR.on=true;DIR.bak={pitch:s.pi
   if(!sh)return;
   const P0=dirPose(sh,now);if(!P0){DIR.shot=null;return;}
   // 차량 추격은 진행 방향을 천천히 따라 돈다
-  if(sh.k==='follow'&&subj){const h=dirHead(subj);let dh=h-sh.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));sh.h+=dh*Math.min(1,rdt*1.2);}
+  if(sh.recut&&now-sh.t0>6000&&DIR.story){sh=dirShot(DIR.story,now);}
+  if(sh.k==='follow'&&subj){const h=dirHead(subj);let dh=h-sh.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));sh.h+=dh*Math.min(1,rdt*.5);}
   if(subj&&(!DIR.prev.has(subj.id)||now-(DIR.prev.get(subj.id).t||0)>400))DIR.prev.set(subj.id,{x:subj.x,z:subj.z,t:now});
   // 0.4초마다 가림을 다시 보고, 막히면 방향·높이를 고친다
   let P={...P0,yaw:P0.yaw+sh.yo,pitch:Math.min(1.3,P0.pitch+sh.po),d:P0.d*(sh.dk||1)};
-  if(now-(sh.ck||0)>400){sh.ck=now;if(dirBlock(P)>0){const Q=dirClear(P0);sh.yo=Q.yaw-P0.yaw;sh.po=Q.pitch-P0.pitch;sh.dk=Q.d/P0.d;P=Q;}
+  if(now-(sh.ck||0)>400){sh.ck=now;if(dirBlock(P)>0){const Q=dirClear(P0);let dq=Q.yaw-(DIR.cam?DIR.cam.yaw:P.yaw);dq=Math.atan2(Math.sin(dq),Math.cos(dq));sh.yo=Q.yaw-P0.yaw;sh.po=Q.pitch-P0.pitch;sh.dk=Q.d/P0.d;P=Q;if(Math.abs(dq)>.4&&DIR.cam)DIR.cam={...Q};}   // 크게 돌아야 하면 빙 돌지 않고 컷
     else if(sh.po>0||(sh.dk||1)<1){const Q={...P,pitch:P0.pitch+Math.max(0,sh.po-.13),d:P0.d*Math.min(1,(sh.dk||1)+.15)};if(dirBlock(Q)===0){sh.po=Q.pitch-P0.pitch;sh.dk=Q.d/P0.d;}}}
   // 부드럽게 따라간다(샷 안의 움직임). 컷은 dirShot에서 cam을 바로 바꿨다
-  const c=DIR.cam||(DIR.cam={...P});const kp=1-Math.exp(-rdt*(sh.k==='follow'?2.6:1.8)),ka=1-Math.exp(-rdt*1.6);
+  const c=DIR.cam||(DIR.cam={...P});const kp=1-Math.exp(-rdt*(sh.k==='follow'?2.6:1.8)),ka=1-Math.exp(-rdt*1.6),ky=1-Math.exp(-rdt*.9);
   c.x+=(P.x-c.x)*kp;c.z+=(P.z-c.z)*kp;c.ly+=(P.ly-c.ly)*kp;c.d+=(P.d-c.d)*ka;c.pitch+=(P.pitch-c.pitch)*ka;
-  let dy=P.yaw-c.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));c.yaw+=dy*ka;
+  let dy=P.yaw-c.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));const ym=.3*rdt;c.yaw+=Math.max(-ym,Math.min(ym,dy*ky));   // 화면이 빙빙 돌지 않게 초당 0.3라디안까지만
   dirApply(c);}
 /* 감독의 구도를 실제 카메라에 넣는다(v3Frame의 따라가기 보간은 그대로 두면 아무 일도 안 한다) */
 function dirApply(c){const s=V3.cs;
@@ -15234,7 +15237,7 @@ function dirExt(now){const s=V3.cs,S=UI.specStrike;if(!S&&!(UI.specOut&&now<UI.s
     DIR.shot={k:'ext',e:k,t0:now,yaw,x:s.gx,z:s.gz,yo:0,po:0,dir:1};DIR.story={x:s.gx,z:s.gz,k};DIR.cam={x:s.gx,z:s.gz,ly:0,yaw,pitch:S?.42:.7,d:s.gd};dirDip();
     if(S)dirCaption({k:'air',x:s.gx,z:s.gz},null,null);else if(UI.specOut)dirCaption({k:'out',x:s.gx,z:s.gz},null,null);}
   const sh=DIR.shot;const rdt=Math.min(.25,Math.max(0,(now-(DIR.lt||now))/1000));DIR.lt=now;
-  let P={x:s.gx,z:s.gz,ly:(typeof v3TY==='function'?v3TY(s.gx,s.gz):0),yaw:sh.yaw+(S?0:(now-sh.t0)/1000*.12),pitch:S?.42:.7,d:s.gd};
+  let P={x:s.gx,z:s.gz,ly:(typeof v3TY==='function'?v3TY(s.gx,s.gz):0),yaw:sh.yaw+(S?0:(now-sh.t0)/1000*.03),pitch:S?.42:.7,d:s.gd};
   if(now-(sh.ck||0)>400){sh.ck=now;const Q=dirBlock(P)?dirClear(P):P;sh.yo=Q.yaw-P.yaw;sh.po=Q.pitch-P.pitch;}P.yaw+=sh.yo;P.pitch+=sh.po;
   const c=DIR.cam,kk=1-Math.exp(-rdt*2.2);c.x+=(P.x-c.x)*kk;c.z+=(P.z-c.z)*kk;c.ly+=(P.ly-c.ly)*kk;c.d+=(P.d-c.d)*kk;c.pitch+=(P.pitch-c.pitch)*kk;let dy=P.yaw-c.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));c.yaw+=dy*kk;
   dirApply(c);}
