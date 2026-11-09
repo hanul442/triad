@@ -58,7 +58,7 @@ function aiArmsPos(u,r,c,goal,vis,n){const t=UT[u.type];if(t.fly)return 0;let s=
     if(gd<front-2)s-=(front-2-gd)*3;}
   else if(t.ind){
     // 보병 선두 뒤 3~6칸
-    const back=gd-front,want=u.type==='spg'?5:3;s-=Math.abs(back-want)*1.6;}
+    const back=gd-front,want=u.type==='spg'?14:t.ind?8:3;s-=Math.abs(back-want)*1.6;}
   return s;}
 
 /* 보병이 차량을 따라 붙는다: 진격하는 장갑차 곁 빈 보병을 끌어 온다 */
@@ -87,7 +87,7 @@ function aiArmsAdvance(n,u,E,goal){const t=UT[u.type];if(t.fly||t.dteam)return f
   if(t.cap&&gd<1.2)return false;
   // 곡사는 보병 선두 뒤에, 차량은 보병 선두보다 앞서지 않게
   const inf=G.units.filter(o=>o.nat===n&&o!==u&&UT[o.type].cls==='inf'&&!UT[o.type].ind);
-  let stop=t.cap?0:1.5;if(inf.length&&(t.ind||t.cls==='veh')){const front=Math.min(...inf.map(o=>Math.hypot(gx-o.x,gz-o.z)));stop=Math.max(stop,front+(t.ind?(u.type==='spg'?5:3):-1));}
+  let stop=t.cap?0:1.5;if(inf.length&&(t.ind||t.cls==='veh')){const front=Math.min(...inf.map(o=>Math.hypot(gx-o.x,gz-o.z)));stop=Math.max(stop,front+(t.ind?(u.type==='spg'?14:8):-1));}
   if(gd<=stop+1.5)return false;
   const P=pathPts(u,gx+(Math.random()-.5)*1.4,gz+(Math.random()-.5)*1.4);if(!P.length)return false;
   // 경로를 따라 최대 7칸, 목표에서 stop만큼 떨어진 곳까지만

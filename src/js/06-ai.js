@@ -16,7 +16,7 @@ function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
   if(t.cap&&x.obj!=null&&x.owner!==n)s+=70;
   if(x.obj!=null&&x.owner===n&&t.cls==='inf')s+=vis.some(e=>dist(e.r,e.c,r,c)<=5)?14:3;
   const gd=dist(r,c,goal[0],goal[1]);
-  if(t.ind||u.type==='sniper'){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-(u.type==='spg'?7:5))*2.2+(vis.length?0:gd*(t.ind?.6:2));}
+  if(t.ind||u.type==='sniper'){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-(u.type==='spg'?20:u.type==='mortar'?12:u.type==='mlrs'?26:5))*2.2+(vis.length?0:gd*(t.ind?.6:2));}
   else if(t.fly){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-4)*2+gd*.6;}
   else s-=gd*2.6;
   if(x.el&&(t.cls==='inf'||t.ind))s+=Math.min(3,x.el)*(u.type==='sniper'||u.type==='mg'?1.4:.8);   // 높은 곳 선호

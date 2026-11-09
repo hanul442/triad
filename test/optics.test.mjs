@@ -25,11 +25,11 @@ test('병종마다 시야가 다르고, 멈춘 박격포는 쌍안경으로 더 
 test('교전 중인 전차는 해치를 닫아 뒤쪽을 짧게 본다', () => {
   const T = loadGame(); const G = setup(T); const spots = F(T, 'spots');
   const tk = put(T, 0, 'tank', 8.5, 8.5); tk.face = 0; tk._movT = G.time;
-  const e = put(T, 1, 'rifle', 5.0, 8.5);   // 뒤쪽 3.5칸
+  const e = put(T, 1, 'rifle', 1.5, 8.5);   // 뒤쪽 7칸
   assert.ok(spots(tk, e), '평소엔 뒤도 본다');
   tk.firedT = G.time;
   assert.ok(!spots(tk, e), '해치 닫으면 뒤는 안 보인다');
-  const f = put(T, 1, 'rifle', 12.0, 8.5);   // 앞쪽 3.5칸
+  const f = put(T, 1, 'rifle', 15.5, 8.5);   // 앞쪽 7칸
   assert.ok(spots(tk, f), '앞은 그대로');
 });
 
