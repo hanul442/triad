@@ -64,7 +64,7 @@ test('승하차: 장갑차가 부서지면 탄 분대가 다친 채 뛰어내린
 });
 
 test('공병전차: 앞을 막은 적 방벽을 밀고 지뢰를 밟지 않고 걷는다', () => {
-  const T = loadGame(); seedRandom(T, 1); const G = setup(T);
+  const T = loadGame(); seedRandom(T, 1); const G = setup(T, false);   // 부관(AI)이 공병전차를 다른 일로 데려가지 않게
   const c = T.mkUnit(0, 'cev', 12, 4); c.hold = true;
   G.forts.push({ id: 900, k: 'jersey', nat: 1, x: 9.5, z: 12.5, ry: Math.PI / 2, hp: 70, prog: 1 });
   G.forts.push({ id: 901, k: 'mine', nat: 1, x: 7.5, z: 12.5, ry: 0, hp: 20, prog: 1 });
