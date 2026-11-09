@@ -4448,9 +4448,10 @@ function squadGL(a,d){if(a.type!=='rifle'||UT[d.type].cls!=='inf'||!G.units.incl
   if(typeof FXH.boom==='function')FXH.boom(x,z,0,false,{pw:.35,gl:1});
   harm(d,.5,a,{kind:'frag',x,z,rad:.32,pk:.5,gl:1});if(d.hp<=0&&G.units.includes(d))kill(d,a);tacN('gl');}
 /* ---------- 분대 대전차 로켓 ---------- */
+function rkSkip(u,e){return false;}   // 쏘지 않을 차량(05m2-geneva: 보호받는 구급차)
 function squadRocket(u){if((u.rk??CMB.rk)<=0||u.climb||(u.path&&u.path.length)||u.brk||(typeof pinned==='function'&&pinned(u)))return false;
   if(typeof casAble==='function'&&casAble(u).length<2)return false;
-  let best=null,bs=0;for(const e of G.units){if(e.nat===u.nat||UT[e.type].cls!=='veh')continue;const d=Math.hypot(e.x-u.x,e.z-u.z);if(d>CMB.rkR)continue;
+  let best=null,bs=0;for(const e of G.units){if(e.nat===u.nat||UT[e.type].cls!=='veh'||rkSkip(u,e))continue;const d=Math.hypot(e.x-u.x,e.z-u.z);if(d>CMB.rkR)continue;
     if(G.fog&&!selfSees(u,e))continue;if(!canHit(u,e))continue;const s=(UT[e.type].cost||4)/(1+d*.3);if(s>bs){bs=s;best=e;}}
   if(!best)return false;const d=best;const now=G.time||0;
   const P=Object.create(u);P.type='at';P.hp=hpMax(P)*u.hp/hpMax(u);
@@ -5323,6 +5324,8 @@ function genBreach(n,site,by){if(!genOn()||!site||!G.nats[n])return;const t=G.ti
 {const _p=rtPick;rtPick=function(u){if(!genKeeps(u.nat))return _p(u);
   const prot=G.units.filter(e=>e.nat!==u.nat&&genProtUnit(e)&&!(u.tgt===e.id&&!isAI(u.nat)));if(!prot.length)return _p(u);
   const all=G.units;G.units=all.filter(e=>!prot.includes(e));try{return _p(u);}finally{G.units=all;}};}
+// 분대 대전차 로켓도 보호 대상(구급차)은 고르지 않는다(사람이 직접 찍은 표적은 그대로)
+{const _k=rkSkip;rkSkip=function(u,e){if(genKeeps(u.nat)&&genProtUnit(e)&&!(u.tgt===e.id&&!isAI(u.nat)))return true;return _k(u,e);};}
 // AI가 보호 대상을 공격 명령 표적으로 고르지 않게
 {const _oa=orderAttack;orderAttack=function(u,e){if(aiRun(u.nat)&&!u.man&&genKeeps(u.nat)&&genProtUnit(e)&&e.nat!==u.nat)return;return _oa(u,e);};}
 /* 직접 사격: 보호 대상을 겨눈 사격은 위반 */
