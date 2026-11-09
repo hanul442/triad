@@ -5480,14 +5480,15 @@ const HE={tank:{rad:.85,pk:.85},gunship:{rad:.8,pk:.55},ifv:{rad:.28,pk:.45}};  
   return _harm(u,amt,by,o);};}
 /* 4) 차량 부무장 */
 // w: 무기(관통·모양), atk: 대보병 화력, k: 한 번에 쏘는 발수, cd: 다시 쏘기(초), rng: 사거리(칸), tur: 포탑과 같은 쪽만, open: 해치 열고 쏨
+// 트럭 링 마운트는 자위용: 가까이(3칸) 온 적에게만 쏜다(먼 적에게 쏘아 자리를 드러내지 않는다)
 const SEC={
   tank:[{id:'coax',n:'동축 기관총',w:'coax',fx:'mg',atk:6,k:6,cd:1.1,rng:6,tur:1},
         {id:'cmd',n:'차장 원격 기관총',w:'hmg',fx:'hmv',atk:6.5,k:4,cd:1.4,rng:6},
         {id:'ldr',n:'장전수 기관총',w:'lmg',fx:'mg',atk:4.5,k:5,cd:1.3,rng:5,open:1,west:1}],
   ifv:[{id:'coax',n:'동축 기관총',w:'coax',fx:'mg',atk:6,k:6,cd:1.1,rng:6,tur:1,east:1}],
   spg:[{id:'roof',n:'지붕 기관총',w:'hmg',fx:'hmv',atk:6,k:4,cd:1.5,rng:6,open:1}],
-  sup:[{id:'ring',n:'링 마운트 기관총',w:'hmg',fx:'hmv',atk:5,k:3,cd:1.6,rng:5,open:1}],
-  rec:[{id:'ring',n:'링 마운트 기관총',w:'hmg',fx:'hmv',atk:5,k:3,cd:1.6,rng:5,open:1}],
+  sup:[{id:'ring',n:'링 마운트 기관총',w:'hmg',fx:'hmv',atk:5,k:3,cd:1.6,rng:3,open:1,self:1}],
+  rec:[{id:'ring',n:'링 마운트 기관총',w:'hmg',fx:'hmv',atk:5,k:3,cd:1.6,rng:3,open:1,self:1}],
 };
 const secList=u=>{const L=SEC[u.type];if(!L)return null;const east=u.nat%2===1;return L.filter(s=>!(s.west&&east)&&!(s.east&&!east));};
 /* 이 총으로 노릴 만한가: 보병, 또는 이 총이 옆을 뚫는 차량 */
