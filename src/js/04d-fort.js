@@ -26,13 +26,13 @@ const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return
 const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15};   // 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
-  car:{inf:2,eng:2,veh:2,trk:1},carx:{inf:0,eng:0,veh:1,trk:0},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 전차·자주포는 주차된 차를 깔아뭉개고 지나간다(carx = 짓눌린 차: 바퀴 차량도 천천히 넘는다)barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
+  car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 헤치고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
   sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2},
   trench:{inf:0,eng:0,veh:2,trk:0},nest:{inf:0,eng:0,veh:2,trk:1}};
 /* 길을 막는 물체 목록 (방향 있는 상자) */
 function navObstacles(){const O=[];
   for(const p of G.props||[]){
-    if(p.k==='car'){const fl=p.flip?1.05:1;O.push({k:p.crush?'carx':'car',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2*fl,hw:CAR_KIND_W[p.kind]/2*fl,p});}
+    if(p.k==='car'){const fl=p.flip?1.05:1;O.push({k:'car',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2*fl,hw:CAR_KIND_W[p.kind]/2*fl,p});}
     else if(p.k==='hedge')O.push({k:'hedge',x:p.x,z:p.z,ry:p.ry,hl:.5,hw:.04});          // 공원 둘레 생울타리(길이 12m)
     else if(p.k==='wagon')O.push({k:'wagon',x:p.x,z:p.z,ry:p.ry,hl:.25,hw:.085});       // 철길 위 화차
     else if(p.k==='barrier')O.push({k:'barrier',x:p.x,z:p.z,ry:p.ry,hl:.135,hw:.026});

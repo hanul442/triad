@@ -29,16 +29,14 @@ test('바퀴 차량은 길 가운데 선 주차 차를 차체로 피해 돌아�
   assert.ok(!G.props.some(p => p.crush), '바퀴 차량은 길이 있으면 차를 밀지 않는다');
 });
 
-test('전차는 주차 차를 깔아뭉개고 지나가고, 깔린 차는 엄폐가 낮아진다', () => {
+test('전차는 앞을 막은 주차 차를 깔아뭉개고 곧장 지나간다', () => {
   const T = loadGame(); const G = setup(T);
-  const p = car(G, 8.5, 5.5, 0); F(T, 'propCovers'); G.covers.push({ x: p.x, z: p.z, r: .2, kind: 'car', h: .13 });
+  const p = car(G, 8.5, 5.5, 0);
   const tk = T.mkUnit(0, 'tank', 5, 3); tk.x = 3.5; tk.z = 5.5; tk.face = 0;
   tk.path = [[13.5, 5.5]];   // 곧장 차를 향해
   for (let i = 0; i < 200 && tk.path.length; i++) T.rtTick(0.1);
   assert.ok(p.crush, '차가 깔림');
   assert.ok(Math.hypot(tk.x - 13.5, tk.z - 5.5) < 0.3, '전차는 그대로 지나감');
-  assert.ok(G.covers.find(c => c.x === p.x && c.z === p.z).h < .1, '깔린 차는 낮은 엄폐');
-  assert.ok((G.crushed || []).length === 1, '깔린 차는 기록돼 다시 깔아도(propCovers) 그대로');
 });
 
 test('주차 차에 사방이 막힌 바퀴 차량은 뚫고 지나가지 않고, 후진·밀어붙이기로 빠져나온다', () => {

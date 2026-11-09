@@ -1833,13 +1833,13 @@ const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return
 const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15};   // 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
-  car:{inf:2,eng:2,veh:2,trk:1},carx:{inf:0,eng:0,veh:1,trk:0},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 전차·자주포는 주차된 차를 깔아뭉개고 지나간다(carx = 짓눌린 차: 바퀴 차량도 천천히 넘는다)barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
+  car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 헤치고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
   sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2},
   trench:{inf:0,eng:0,veh:2,trk:0},nest:{inf:0,eng:0,veh:2,trk:1}};
 /* 길을 막는 물체 목록 (방향 있는 상자) */
 function navObstacles(){const O=[];
   for(const p of G.props||[]){
-    if(p.k==='car'){const fl=p.flip?1.05:1;O.push({k:p.crush?'carx':'car',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2*fl,hw:CAR_KIND_W[p.kind]/2*fl,p});}
+    if(p.k==='car'){const fl=p.flip?1.05:1;O.push({k:'car',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2*fl,hw:CAR_KIND_W[p.kind]/2*fl,p});}
     else if(p.k==='hedge')O.push({k:'hedge',x:p.x,z:p.z,ry:p.ry,hl:.5,hw:.04});          // 공원 둘레 생울타리(길이 12m)
     else if(p.k==='wagon')O.push({k:'wagon',x:p.x,z:p.z,ry:p.ry,hl:.25,hw:.085});       // 철길 위 화차
     else if(p.k==='barrier')O.push({k:'barrier',x:p.x,z:p.z,ry:p.ry,hl:.135,hw:.026});
@@ -2453,7 +2453,7 @@ function vVehPen(u,x,z,h){const s=vSpec(u),a=h*Math.PI/180,c=Math.cos(a),n=Math.
       const q=r1+r2-Math.abs(dx*vx+dz*vz);if(q<d)d=q;if(d<=0)break;}
     if(d>0)k+=d;}
   return k;}
-/* 전차·자주포는 주차된 차를 깔아뭉갠다: 차체가 차에 3cm 넘게 걸치면 그 차는 짓눌린 차(carx)가 된다 */
+/* 전차·자주포는 주차된 차를 깔아뭉갠다: 차체가 차에 3cm 넘게 걸치면 밟힌 차가 된다(05o-wreck은 차체 중심만 봐서, 차체 앞이 먼저 닿는 것까지 본다) */
 function vCrush(u){const cls=typeof navCls==='function'?navCls(u):null;if(cls!=='trk')return;const s=vSpec(u),a=u.hd*Math.PI/180,c=Math.cos(a),n=Math.sin(a);
   const ex=Math.abs(c)*s.hl+Math.abs(n)*s.hw,ez=Math.abs(n)*s.hl+Math.abs(c)*s.hw;let hit=null;
   vObsEach(cls,u.x,u.z,c,n,s,ex,ez,(o,d)=>{if(o.k==='car'&&o.p&&!o.p.crush&&d>.03)(hit||(hit=[])).push(o.p);});
@@ -2463,11 +2463,8 @@ function vRam(u){const cls=typeof navCls==='function'?navCls(u):null;if(!cls)ret
   const ex=Math.abs(c)*s.hl+Math.abs(n)*s.hw,ez=Math.abs(n)*s.hl+Math.abs(c)*s.hw;const hit=[];
   vObsEach(cls,u.x,u.z,c,n,s,ex,ez,(o,d)=>{if(o.k==='car'&&o.p&&!o.p.crush)hit.push(o.p);});
   for(const p of hit)propCrush(p,u);return hit.length>0;}
-function propCrush(p,u){if(p.crush)return;p.crush=1;const i=G.props.indexOf(p);if(i>=0)(G.crushed||(G.crushed=[])).push(i);
-  for(const cv of G.covers||[])if(cv.kind!=='wreck'&&!cv.fort&&Math.abs(cv.x-p.x)<1e-6&&Math.abs(cv.z-p.z)<1e-6){cv.h=.04;cv.r=.16;}   // 납작해져 엄폐가 낮아진다
-  G.navV=(G.navV||0)+1;G.ver=(G.ver||0)+1;if(FXH.carCrush)try{FXH.carCrush(p,u);}catch(e){}}
-/* 지도를 다시 깔면(propCovers) 짓눌린 차를 되살리지 않는다 */
-if(typeof propCovers==='function'){const _pc=propCovers;propCovers=function(){const r=_pc.apply(this,arguments);if(G&&G.crushed&&G.props)for(const i of G.crushed){const p=G.props[i];if(p&&p.k==='car'&&!p.crush){p.crush=1;for(const cv of G.covers||[])if(cv.kind!=='wreck'&&!cv.fort&&Math.abs(cv.x-p.x)<1e-6&&Math.abs(cv.z-p.z)<1e-6){cv.h=.04;cv.r=.16;}}}return r;};}
+/* 주차 차를 깔았다: 05o-wreck의 '밟힌 차'(엄폐 낮아짐·3D 납작·이동 격자 carX)로 바꾼다 */
+function propCrush(p,u){if(p.crush)return;if(typeof wrkPropSet==='function'){if(wrkPropSet(p,'crush'))G.navV=(G.navV||0)+1;}else{p.crush=1;G.navV=(G.navV||0)+1;}}
 /* 차체를 (x,z,h)로 옮겨도 되나: 중심은 이동 격자로, 차체는 지금보다 더 파고들지 않을 때만 */
 function hullOk(u,x,z,h,p0){if(!tileAt(x,z))return false;const p=hullPen(u,x,z,h);if(p<=p0+1e-6)return true;
   if(u._gh>(G.time||0))return p<=VM.squeeze;   // 비비고 빠져나오는 중: 걸침 합이 squeeze칸(약 70cm)까지는 움직인다(벽·차를 통째로 뚫지는 않는다)
@@ -9406,30 +9403,6 @@ function v3BuildShops(g){const T=V3.T,pm=v3PropMats(),m=MU,IN=.08,y0=.06;const g
       for(const o of [-.22,.22]){gpost.push({x:cx+o,y:y0+.15,z:cz,ry:0,sx:.035,sy:.3,sz:.035,col:'#9a9890'});gpost.push({x:cx+o,y:y0+.03,z:cz,ry:0,sx:.06,sy:.06,sz:.28,col:'#bdbab2'});gpost.push({x:cx+o,y:y0+.075,z:cz+.06,ry:0,sx:.04,sy:.07,sz:.035,col:'#a83a30'});}}}
   if(gas.length)v3Inst(g,box,pm.awn,gas);if(gpost.length)v3Inst(g,box,pm.awn,gpost);
   v3Inst(g,box,pm.shop,glass,{noShadow:1});v3Inst(g,box,pm.awn,awn);v3Inst(g,box,pm.sign,sign,{noShadow:1});}
-
-/* ---- 07p2-crush.js ---- */
-/* ===================== 3D: 전차에 깔린 주차 차 =====================
-   05b2-motion이 전차·자주포가 깔고 지나간(또는 끼인 차량이 밀고 나간) 주차 차를 p.crush로 표시하면,
-   그 차의 차체·유리칸·지붕·바퀴 인스턴스를 찾아 납작하게 누른다. 인스턴스 메시는 07z-perf가 지도 조각별로 나눠도
-   형상(geometry)은 같이 쓰므로 형상과 자리로 찾는다. */
-const CRUSH={body:.32,top:.18,dark:'#5a5650'};
-function v3CrushCar(p){if(typeof V3==='undefined'||!V3.on||!V3.G||!V3.G.world||!V3.carG)return;const T=V3.T,cg=V3.carG[p.kind];if(!cg)return;
-  const m4=new T.Matrix4(),pos=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3(),c=new T.Color(CRUSH.dark);
-  // 바퀴 자리(07p-props와 같은 계산)
-  const wh=[];if(!p.burnt&&!p.lot){const m=MU,L=CAR_KINDS[p.kind].body[1][0]*.62*m,W=CAR_KINDS[p.kind].w*.5*m,cs=Math.cos(p.ry),sn=Math.sin(p.ry);
-    for(const [fx,fz] of [[1,1],[1,-1],[-1,1],[-1,-1]]){const lx=fx*L,lz=fz*W;wh.push([p.x+lx*cs+lz*sn,p.z-lx*sn+lz*cs]);}}
-  const parts=new Map([[cg.body,CRUSH.body],[cg.cab,CRUSH.top],[cg.roof,CRUSH.top],[V3.carG.wheel,.5]]);
-  V3.G.world.traverse(o=>{if(!o.isInstancedMesh)return;const k=parts.get(o.geometry);if(k==null)return;let hit=false;
-    for(let i=0;i<o.count;i++){o.getMatrixAt(i,m4);m4.decompose(pos,q,sc);
-      const at=o.geometry===V3.carG.wheel?wh.some(([x,z])=>Math.abs(pos.x-x)<.004&&Math.abs(pos.z-z)<.004):Math.abs(pos.x-p.x)<.002&&Math.abs(pos.z-p.z)<.002;
-      if(!at)continue;
-      // 바닥(지금 높이) 기준으로 위아래만 누르고, 조금 옆으로 퍼지게
-      const y0=o.geometry===V3.carG.wheel?0:pos.y;const S=new T.Matrix4().makeScale(1.04,k,1.04),A=new T.Matrix4().makeTranslation(-pos.x,-y0,-pos.z),B=new T.Matrix4().makeTranslation(pos.x,y0,pos.z);
-      m4.premultiply(A).premultiply(S).premultiply(B);o.setMatrixAt(i,m4);if(o.instanceColor&&o.geometry===cg.body){o.getColorAt(i,c);c.multiplyScalar(.6);o.setColorAt(i,c);o.instanceColor.needsUpdate=true;}hit=true;}
-    if(hit){o.instanceMatrix.needsUpdate=true;o.computeBoundingSphere();}});}
-FXH.carCrush=function(p){try{v3CrushCar(p);if(typeof sfx==='function')sfx('crumble',.5,p.x,p.z);}catch(e){}};
-/* 새로 그린 지도(불러오기 등)에도 이미 깔린 차를 누른 채로 */
-if(typeof v3BuildWorld==='function'){const f=v3BuildWorld;v3BuildWorld=function(){const r=f.apply(this,arguments);try{for(const p of G.props||[])if(p.crush)v3CrushCar(p);}catch(e){}return r;};}
 
 /* ---- 07q-pfx.js ---- */
 /* ===================== 입자 연출: 연기·불·폭발 =====================

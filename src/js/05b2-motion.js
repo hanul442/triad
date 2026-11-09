@@ -73,7 +73,7 @@ function vVehPen(u,x,z,h){const s=vSpec(u),a=h*Math.PI/180,c=Math.cos(a),n=Math.
       const q=r1+r2-Math.abs(dx*vx+dz*vz);if(q<d)d=q;if(d<=0)break;}
     if(d>0)k+=d;}
   return k;}
-/* 전차·자주포는 주차된 차를 깔아뭉갠다: 차체가 차에 3cm 넘게 걸치면 그 차는 짓눌린 차(carx)가 된다 */
+/* 전차·자주포는 주차된 차를 깔아뭉갠다: 차체가 차에 3cm 넘게 걸치면 밟힌 차가 된다(05o-wreck은 차체 중심만 봐서, 차체 앞이 먼저 닿는 것까지 본다) */
 function vCrush(u){const cls=typeof navCls==='function'?navCls(u):null;if(cls!=='trk')return;const s=vSpec(u),a=u.hd*Math.PI/180,c=Math.cos(a),n=Math.sin(a);
   const ex=Math.abs(c)*s.hl+Math.abs(n)*s.hw,ez=Math.abs(n)*s.hl+Math.abs(c)*s.hw;let hit=null;
   vObsEach(cls,u.x,u.z,c,n,s,ex,ez,(o,d)=>{if(o.k==='car'&&o.p&&!o.p.crush&&d>.03)(hit||(hit=[])).push(o.p);});
@@ -83,11 +83,8 @@ function vRam(u){const cls=typeof navCls==='function'?navCls(u):null;if(!cls)ret
   const ex=Math.abs(c)*s.hl+Math.abs(n)*s.hw,ez=Math.abs(n)*s.hl+Math.abs(c)*s.hw;const hit=[];
   vObsEach(cls,u.x,u.z,c,n,s,ex,ez,(o,d)=>{if(o.k==='car'&&o.p&&!o.p.crush)hit.push(o.p);});
   for(const p of hit)propCrush(p,u);return hit.length>0;}
-function propCrush(p,u){if(p.crush)return;p.crush=1;const i=G.props.indexOf(p);if(i>=0)(G.crushed||(G.crushed=[])).push(i);
-  for(const cv of G.covers||[])if(cv.kind!=='wreck'&&!cv.fort&&Math.abs(cv.x-p.x)<1e-6&&Math.abs(cv.z-p.z)<1e-6){cv.h=.04;cv.r=.16;}   // 납작해져 엄폐가 낮아진다
-  G.navV=(G.navV||0)+1;G.ver=(G.ver||0)+1;if(FXH.carCrush)try{FXH.carCrush(p,u);}catch(e){}}
-/* 지도를 다시 깔면(propCovers) 짓눌린 차를 되살리지 않는다 */
-if(typeof propCovers==='function'){const _pc=propCovers;propCovers=function(){const r=_pc.apply(this,arguments);if(G&&G.crushed&&G.props)for(const i of G.crushed){const p=G.props[i];if(p&&p.k==='car'&&!p.crush){p.crush=1;for(const cv of G.covers||[])if(cv.kind!=='wreck'&&!cv.fort&&Math.abs(cv.x-p.x)<1e-6&&Math.abs(cv.z-p.z)<1e-6){cv.h=.04;cv.r=.16;}}}return r;};}
+/* 주차 차를 깔았다: 05o-wreck의 '밟힌 차'(엄폐 낮아짐·3D 납작·이동 격자 carX)로 바꾼다 */
+function propCrush(p,u){if(p.crush)return;if(typeof wrkPropSet==='function'){if(wrkPropSet(p,'crush'))G.navV=(G.navV||0)+1;}else{p.crush=1;G.navV=(G.navV||0)+1;}}
 /* 차체를 (x,z,h)로 옮겨도 되나: 중심은 이동 격자로, 차체는 지금보다 더 파고들지 않을 때만 */
 function hullOk(u,x,z,h,p0){if(!tileAt(x,z))return false;const p=hullPen(u,x,z,h);if(p<=p0+1e-6)return true;
   if(u._gh>(G.time||0))return p<=VM.squeeze;   // 비비고 빠져나오는 중: 걸침 합이 squeeze칸(약 70cm)까지는 움직인다(벽·차를 통째로 뚫지는 않는다)
