@@ -432,6 +432,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <label class="sp-r"><span>전투</span><input type="range" min="0" max="100" step="1" data-snd="fx"></label>
     <label class="sp-r"><span>무전</span><input type="range" min="0" max="100" step="1" data-snd="radio"></label>
     <label class="sp-r"><span>환경음</span><input type="range" min="0" max="100" step="1" data-snd="amb"></label>
+    <label class="sp-r"><span>음악</span><input type="range" min="0" max="100" step="1" data-snd="mus"></label>
   </div>
   <div class="selbox" id="selbox" hidden></div>
   <div class="press" id="press" hidden>
@@ -617,17 +618,18 @@ const FXH={fire(){},kill(){},collapse(){},strike(){},smoke(){},land(){}};
    - 소리는 음속(343m/s, 1칸=12m)만큼 늦게 닿는다. 먼 폭발은 섬광이 먼저 보이고 소리가 뒤따른다.
    - 좌우로 나뉘어 들린다(카메라 회전을 따른다).
    - 가까운 건물 벽에서 메아리가 되돌아오고, 건물이 빽빽한 곳일수록 잔향이 길다. 건물 안에서 쏜 총은 둔탁하게 울린다.
-   무전(radio)·환경음(amb)·전투음(fx)은 따로 음량을 조절한다. */
+   무전(radio)·환경음(amb)·전투음(fx)·배경음악(mus)은 따로 음량을 조절한다.
+   늘 깔리는 전자 잡음은 없다: 무전 잡음은 실제 교신이 있을 때만 짧게 "치익"·"지직" 한다. */
 const SND_M=12,SND_C=343;
-const SFX={ctx:null,on:true,last:{},vol:{master:.8,fx:.9,radio:.7,amb:.5},n:0,loops:new Map(),track:[],radioEnd:0,radioP:0};
+const SFX={ctx:null,on:true,last:{},vol:{master:.8,fx:.9,radio:.7,amb:.5,mus:.5},n:0,loops:new Map(),track:[],radioEnd:0,radioP:0};
 try{if(typeof localStorage!=='undefined'){SFX.on=localStorage.getItem('triad-sound')!=='0';const v=JSON.parse(localStorage.getItem('triad-snd-vol')||'null');if(v)for(const k in SFX.vol)if(typeof v[k]==='number')SFX.vol[k]=Math.min(1,Math.max(0,v[k]));}}catch(e){}
 function sndSave(){try{localStorage.setItem('triad-sound',SFX.on?'1':'0');localStorage.setItem('triad-snd-vol',JSON.stringify(SFX.vol));}catch(e){}}
 function sndApplyVol(){const a=SFX.ctx;if(!a)return;const t=a.currentTime;SFX.master.gain.setTargetAtTime(SFX.on?SFX.vol.master:0,t,.03);
-  for(const k of ['fx','radio','amb'])SFX.bus[k].gain.setTargetAtTime(SFX.vol[k]*(k==='fx'?1:k==='radio'?1.1:.9),t,.03);}
+  for(const k of ['fx','radio','amb','mus'])SFX.bus[k].gain.setTargetAtTime(SFX.vol[k]*(k==='fx'?1:k==='radio'?1.1:.9),t,.03);}
 function audio(){if(typeof window==='undefined'||!SFX.on)return null;try{if(!SFX.ctx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;const a=new AC();SFX.ctx=a;
-    // 마스터 → 리미터 → 스피커. 버스: 전투(fx)·무전(radio)·환경(amb)·조작음(ui)
+    // 마스터 → 리미터 → 스피커. 버스: 전투(fx)·무전(radio)·환경(amb)·배경음악(mus)·조작음(ui)
     const comp=a.createDynamicsCompressor();comp.threshold.value=-16;comp.knee.value=10;comp.ratio.value=5;comp.attack.value=.002;comp.release.value=.25;comp.connect(a.destination);
-    SFX.master=a.createGain();SFX.master.connect(comp);SFX.bus={};for(const k of ['fx','radio','amb','ui']){const g=a.createGain();g.connect(SFX.master);SFX.bus[k]=g;}SFX.bus.ui.gain.value=.7;
+    SFX.master=a.createGain();SFX.master.connect(comp);SFX.bus={};for(const k of ['fx','radio','amb','mus','ui']){const g=a.createGain();g.connect(SFX.master);SFX.bus[k]=g;}SFX.bus.ui.gain.value=.7;
     SFX.noise=noiseBuf(a,2);SFX.crk=crackleBuf(a);
     // 도시 잔향: 합성한 임펄스 응답(초반 반사 몇 개 + 1.8초 꼬리)
     SFX.rev=a.createConvolver();SFX.rev.buffer=urbanIR(a);const rg=a.createGain();rg.gain.value=.55;SFX.rev.connect(rg);rg.connect(SFX.bus.fx);
@@ -703,7 +705,7 @@ const WPN={
 function sndRound(V,t,W){if(W.crack)sndNz(V,t,.018,'highpass',3200,.7,W.crack*.9,.001);const b=W.body;sndNz(V,t,b[2],'bandpass',b[0],b[1],b[3],.002,b[0]*.55);
   if(W.low)sndTn(V,t,W.low[2],W.low[0],W.low[1],W.low[3],'sine',.003);}
 // 부대 하나의 사격 한 번: 쏘는 병사 수만큼 엇갈려 쏜다
-function sndShot(a,tx,tz){const W=WPN[a.type];if(!W||W.ms||!audio())return;const x=a.x??a.c+.5,z=a.z??a.r+.5;if(a.type==='at'){sndLaunch(x,z,'rocket');}else{const V=sndVoice(x,z,{vol:W.vol,dur:2});if(V){
+function sndShot(a,tx,tz){const W=WPN[a.type];if(!W||W.ms||!audio())return;const x=a.x??a.c+.5,z=a.z??a.r+.5;sndHeat(.008+.07*sndPlace(x,z).gain);if(a.type==='at'){sndLaunch(x,z,'rocket');}else{const V=sndVoice(x,z,{vol:W.vol,dur:2});if(V){
   const men=UT[a.type]&&UT[a.type].cls==='inf'?Math.max(1,(a._sh||[]).length):1;let t=V.t;
   for(let m=0;m<men;m++){let tt=t+(m?Math.random()*.35:0);const n=W.rd[0]+Math.floor(Math.random()*(W.rd[1]-W.rd[0]+1));for(let i=0;i<n;i++){sndRound(V,tt,W);tt+=W.gap*(.85+Math.random()*.3);}}}}
   if(typeof G!=='undefined'&&G&&a.nat===G.viewer&&!isAI(a.nat)){const wm=SFX.ct||(SFX.ct=new WeakMap());const lt=wm.get(a);if(lt==null||(G.time||0)-lt>20)sndRadio('contact');wm.set(a,G.time||0);}}
@@ -712,7 +714,7 @@ function sndImpact(x,z){const V=sndVoice(x,z,{vol:.35,dur:.6,wet:.3});if(!V)retu
 
 /* ---------- 폭발 ---------- */
 // size: .5 작은 탄(RPG·기관포탄) / 1 포탄 / 1.6 항공폭탄·유폭. 앞의 "쾅" + 낮은 울림 + 떨어지는 파편 소리
-function sndBoom(x,z,size=1,o={}){const V=sndVoice(x,z,{vol:(o.vol??1)*(.7+size*.6),dur:3+size,wet:1.3,y:o.y});if(!V)return;const t=V.t;
+function sndBoom(x,z,size=1,o={}){sndHeat(size*(.03+.25*sndPlace(x,z).gain));const V=sndVoice(x,z,{vol:(o.vol??1)*(.7+size*.6),dur:3+size,wet:1.3,y:o.y});if(!V)return;const t=V.t;
   sndNz(V,t,.06,'highpass',1400,.6,.9,.001);sndNz(V,t,.5+size*.9,'lowpass',1100,.6,1,.004,140);sndTn(V,t,.5+size*.6,70,24,1,'sine',.006);
   if(size>.8)sndNz(V,t+.05,1.4+size*1.2,'lowpass',220,.5,.5,.08,60);
   const deb=Math.round(4+size*8);for(let i=0;i<deb;i++)sndNz(V,t+.25+Math.random()*(.6+size*.9),.03,'bandpass',1800+Math.random()*2600,1.5,.05+Math.random()*.07,.001);}
@@ -738,7 +740,7 @@ function sndLoopMake(kind){const a=SFX.ctx;const out=a.createGain();out.gain.val
   let base=1;
   if(kind==='rotor'){const g=nz('lowpass',360,.8,1.4);g.gain.value=.7;lfo(5.4,g.gain,.7);const w=nz('bandpass',1700,6,.12);lfo(5.4,w.gain,.08);osc('sawtooth',58,.12);base=1.3;}
   else if(kind==='drone'||kind==='fpv'){const f=kind==='fpv'?310:205;const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=kind==='fpv'?1500:1100;bp.Q.value=.8;bp.connect(out);
-    for(const k of [1,1.034,.973,1.061]){const o=osc('sawtooth',f*k,.12,bp);lfo(.3+Math.random()*.6,o.frequency,f*.03);}nz('bandpass',3000,.7,.08);base=kind==='fpv'?.55:.38;}
+    for(const k of [1,1.034,.973,1.061]){const o=osc('sawtooth',f*k,.07,bp);lfo(.3+Math.random()*.6,o.frequency,f*.03);}nz('bandpass',900,.6,.14);nz('bandpass',3000,.7,.05);base=kind==='fpv'?.45:.26;}
   else if(kind==='jet'){nz('lowpass',1300,.5,1);nz('bandpass',3800,1.2,.25);osc('sawtooth',95,.1);base=2.2;}
   else if(kind==='tracks'||kind==='wheels'){const f=kind==='tracks'?36:52;const o=osc('sawtooth',f,.5);lfo(.2,o.frequency,3);nz('lowpass',200,.6,.5);
     if(kind==='tracks'){const c=nz('bandpass',2400,3,.0);lfo(8.5,c.gain,.18);}base=kind==='tracks'?.7:.45;out.gain.value=0;}
@@ -764,14 +766,54 @@ function sndTrack(o,kind){if(!SFX.ctx||!o)return;SFX.track.push({o,kind,k:'t'+(S
 /* ---------- 환경음: 바람, 비, 멀리서 들리는 전투 ---------- */
 function sndAmb(t){const a=SFX.ctx;let A=SFX.amb;const live=SFX.on&&typeof G!=='undefined'&&G&&!G.over;
   if(!A){A=SFX.amb={};const mk=(type,f,q)=>{const s=a.createBufferSource();s.buffer=SFX.noise;s.loop=true;const fl=a.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const g=a.createGain();g.gain.value=0;s.connect(fl);fl.connect(g);g.connect(SFX.bus.amb);s.start();return {g,fl};};
-    A.wind=mk('lowpass',420,.9);A.rain=mk('highpass',2200,.5);A.hum=mk('bandpass',140,.8);A.next=0;}
+    A.wind=mk('lowpass',420,.9);A.rain=mk('highpass',2200,.5);A.next=0;}
   const wx=live?G.wx:'clear';const rain=wx==='storm'?1:wx==='rain'?.55:0;const night=live&&typeof isNight==='function'&&isNight();
   A.wind.g.gain.setTargetAtTime(live?.16+.08*Math.sin(t*.13)+(wx==='storm'?.15:0):0,t,.8);A.wind.fl.frequency.setTargetAtTime(330+160*Math.sin(t*.21),t,.8);
-  A.rain.g.gain.setTargetAtTime(live?rain*.22:0,t,1);A.hum.g.gain.setTargetAtTime(live?(night?.04:.08):0,t,1);
+  A.rain.g.gain.setTargetAtTime(live?rain*.22:0,t,1);sndMusic(t,live,night);
   // 멀리서 들리는 다른 구역의 교전: 귀에서 먼 곳에 가끔 짧은 연사나 둔한 폭음
   if(live&&!G.paused&&!G.boot&&t>A.next){A.next=t+4+Math.random()*9;const e=sndEar(),ang=Math.random()*6.28,d=22+Math.random()*18;const x=e.x+Math.cos(ang)*d,z=e.z+Math.sin(ang)*d;
     if(Math.random()<.65){const V=sndVoice(x,z,{vol:.9,dur:3,bus:'amb',dry:1});if(V){const W=Math.random()<.5?WPN.mg:WPN.rifle;let tt=V.t;for(let i=0;i<3+Math.random()*6;i++){sndRound(V,tt,W);tt+=W.gap*(1+Math.random());}}}
     else{const V=sndVoice(x,z,{vol:1.4,dur:3,bus:'amb',dry:1});if(V){sndNz(V,V.t,1.4,'lowpass',500,.5,1,.01,90);sndTn(V,V.t,1,55,24,.8);}}}}
+
+/* ---------- 무전 잡음 한 토막 ---------- */
+// 교신 중에만 드문드문 "지직": 딱딱 튀는 잡음 토막(crackleBuf)을 무전기 대역으로 짧게
+function sndCrackle(V,t,dur,peak){const a=V.a;const s=a.createBufferSource();s.buffer=SFX.crk;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=1500+Math.random()*1500;f.Q.value=.8;
+  const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+.004);g.gain.setValueAtTime(Math.max(.0002,peak),t+dur*.6);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  s.connect(f);f.connect(g);g.connect(V.mix);s.start(t,Math.random()*1.8);s.stop(t+dur+.05);}
+
+/* ---------- 배경음악: 전투가 거셀수록 빨라지고 짙어지는 긴장 음악 ---------- */
+// 악기는 모두 합성한 관현악 소리(전자음 없음): 낮은 현의 D 지속음, 심장 박동처럼 치는 팀파니,
+// 반음으로 부딪치는 낮은 현 스타카토, 높은 현의 반음 불협화음(D–E♭)이 천천히 부풀었다 사라진다.
+// 전투 열기(SFX.heat): 들리는 총성·폭발마다 오르고(가까울수록 많이) 25초에 걸쳐 식는다.
+//  조용함: 느린 심장 박동 + 지속음 / 교전: 팀파니가 잦아지고 스타카토가 들어온다 / 격전: 빨라지고(최대 110bpm) 지속음 위로 E♭이 비벼진다.
+function sndHeat(v){SFX.heat=Math.min(1.3,(SFX.heat||0)+v);}
+const MUS={root:73.42,stac:[0,0,1,0,0,0,3,1, 0,0,1,0,5,3,1,0]};
+function musVoices(a,M){const mkV=(f,g)=>{const vg=a.createGain();vg.gain.value=g;vg.connect(M.lp);for(const c of [-7,0,7]){const o=a.createOscillator();o.type='sawtooth';o.frequency.value=f*Math.pow(2,c/1200);const og=a.createGain();og.gain.value=.33;o.connect(og);og.connect(vg);o.start();}return vg;};
+  M.lp=a.createBiquadFilter();M.lp.type='lowpass';M.lp.frequency.value=380;M.lp.Q.value=.6;M.dg=a.createGain();M.dg.gain.value=0;M.lp.connect(M.dg);M.dg.connect(M.out);
+  // 활을 긋는 듯 천천히 흔들리는 음색
+  const lfo=a.createOscillator();lfo.frequency.value=.11;const ld=a.createGain();ld.gain.value=70;lfo.connect(ld);ld.connect(M.lp.frequency);lfo.start();
+  mkV(MUS.root,1);mkV(MUS.root*2,.4);M.eb=mkV(MUS.root*2*Math.pow(2,1/12),0);}
+function sndMusic(t,live,night){const a=SFX.ctx;let M=SFX.mus;
+  if(!M){M=SFX.mus={nx:0,step:0,bar:0,lt:t,h:0};M.out=a.createGain();M.out.gain.value=0;M.out.connect(SFX.bus.mus);musVoices(a,M);}
+  const dt=Math.max(0,Math.min(1,t-M.lt));M.lt=t;SFX.heat=(SFX.heat||0)*Math.exp(-dt/25);M.h+=(Math.min(1,SFX.heat)-M.h)*Math.min(1,dt/3);const h=M.h;
+  const on=live&&!G.paused&&!G.boot;
+  M.out.gain.setTargetAtTime(live&&!G.boot?(G.paused?.3:1):0,t,live?1.2:2);
+  M.dg.gain.setTargetAtTime(.09+.06*h,t,1.5);M.lp.frequency.setTargetAtTime((night?260:330)+520*h,t,1.5);M.eb.gain.setTargetAtTime(h>.45?(h-.45)*.9:0,t,2.5);
+  if(!on){M.nx=0;return;}
+  if(M.nx<t)M.nx=t+.05;const sd=60/(70+40*h)/4;
+  while(M.nx<t+.3){musStep(a,M,M.nx,M.step,h,sd,night);M.nx+=sd;M.step=(M.step+1)%16;if(!M.step)M.bar++;}}
+function musStep(a,M,t,s,h,sd,night){const V={a,mix:M.out};
+  // 팀파니: 조용할 땐 심장 박동(쿵-쿵), 열기가 오를수록 박자가 촘촘해진다
+  const P=h<.3?{0:1,3:.55}:h<.65?{0:1,3:.55,8:.85,11:.5}:{0:1,3:.6,6:.7,8:.95,10:.5,11:.6,14:.8};
+  const v=P[s];if(v){const g=v*(.32+.4*h);sndTn(V,t,.6,62,38,g,'sine',.006);sndTn(V,t,.35,124,80,g*.18,'triangle',.004);sndNz(V,t,.14,'lowpass',200,.7,g*.5,.003);}
+  // 낮은 현 스타카토(8분음): D D E♭ D … 반음으로 조여 온다
+  if(h>.28&&s%2===0){const n=MUS.stac[(s+(M.bar%2)*8)%16];const f=MUS.root*2*Math.pow(2,n/12);const acc=s===0||s===6?1.3:1;const g=(h-.28)*.22*acc;
+    const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=900+600*h;lp.Q.value=1.2;const eg=a.createGain();eg.gain.setValueAtTime(.0001,t);eg.gain.exponentialRampToValueAtTime(g,t+.012);eg.gain.exponentialRampToValueAtTime(.0001,t+sd*1.7);
+    lp.connect(eg);eg.connect(M.out);for(const k of [1,1.005]){const o=a.createOscillator();o.type='sawtooth';o.frequency.value=f*k;o.connect(lp);o.start(t);o.stop(t+sd*1.8+.05);}}
+  // 높은 현의 불협화음: 네 마디마다 D5와 E♭5가 떨면서 천천히 부풀었다 사라진다
+  if(s===0&&M.bar%4===0&&h>.08){const L=sd*16*3,g=.018+.03*h;for(const f of [587.3,622.3]){const o=a.createOscillator();o.type='triangle';o.frequency.value=f;
+      const vb=a.createOscillator();vb.frequency.value=5+Math.random();const vd=a.createGain();vd.gain.value=f*.006;vb.connect(vd);vd.connect(o.frequency);
+      const eg=a.createGain();eg.gain.setValueAtTime(.0001,t);eg.gain.exponentialRampToValueAtTime(g,t+L*.45);eg.gain.exponentialRampToValueAtTime(.0001,t+L);o.connect(eg);eg.connect(M.out);o.start(t);vb.start(t);o.stop(t+L+.05);vb.stop(t+L+.05);}}}
 
 /* ---------- 무전 ---------- */
 // 알아들을 수 없는 합성 음성: 성대 톱니파 → 모음 포먼트 두 개 → 무전기 대역(400–2800Hz) → 찌그러짐. 앞뒤로 스켈치 "치익"
@@ -789,7 +831,7 @@ function sndRadio(kind){const R=RVOX[kind];const a=audio();if(!R||!a)return fals
     for(const [f,q,g] of [[f1,6,1],[f2,9,.6]]){const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f;bp.Q.value=q;const gg=a.createGain();gg.gain.value=g*2.2;o.connect(bp);bp.connect(gg);gg.connect(sg);}
     sg.connect(out);o.start(t);o.stop(t+d+.02);if(Math.random()<.5)sndNz(V,t,.035,'bandpass',3800,1.5,.25,.002);
     t+=d+(i%3===2?.07+Math.random()*.08:.012);}
-  sndNz(V,t0,t-t0,'bandpass',1900,.6,.06,.04);sndNz(V,t+.02,.16,'bandpass',2400,.5,.55,.004);
+  for(let k=t0+.15+Math.random()*.3;k<t-.05;k+=.45+Math.random()*1.1)sndCrackle(V,k,.03+Math.random()*.08,.3);sndNz(V,t+.02,.16,'bandpass',2400,.5,.55,.004);sndCrackle(V,t+.03,.07,.3);
   SFX.radioEnd=t+.2;SFX.radioP=R.p;return true;}
 
 /* ---------- 조작음과 옛 호출 ---------- */
@@ -10763,7 +10805,7 @@ if(typeof v3HomeCam==='function'){const _hc=v3HomeCam;v3HomeCam=function(now){co
 /* ---- 07z-sound.js ---- */
 /* ===================== 소리: 게임 사건 연결과 소리 설정 창 =====================
    - 내 편 무전: 병사가 다치면 위생병 호출, 거점 확보·상실, 증원 도착.
-   - 소리 버튼은 작은 설정 창을 연다: 켜기/끄기와 전체·전투·무전·환경음 음량. M 키로 음소거. */
+   - 소리 버튼은 작은 설정 창을 연다: 켜기/끄기와 전체·전투·무전·환경음·음악 음량. M 키로 음소거. */
 (function(){
   // 다친 병사: 내 편이면 다급한 무전
   const cas0=FXH.cas;FXH.cas=function(u,m,out){if(typeof G!=='undefined'&&G&&u&&u.nat===G.viewer&&!isAI(u.nat)&&(out==='hw'||out==='kia'||out==='lw'))sndRadio('casualty');return cas0&&cas0.apply(this,arguments);};
@@ -10790,7 +10832,7 @@ function sndPop(){const p=document.getElementById('sndpop'),b=document.getElemen
 /* ===================== 무전 음성: 부대들이 주고받는 무전을 귀로 듣는다 =====================
    - 본부의 명령, 부대의 수신 응답, 적 발견, 사상자, 격파, 거점 확보·상실, 화력 지원 요청, 재밍 두절·전령을 영어 군 무전 말투로 만든다
      (한국어 번역 문장도 함께 만들어 자막으로 고를 수 있다).
-   - 기기의 영어 남자 목소리로 읽는다(남자 목소리가 없으면 영어 목소리를 낮게). 세력마다 다른 목소리·높이. 앞뒤로 무전기 "치익"과 잡음.
+   - 기기의 영어 남자 목소리로 읽는다(남자 목소리가 없으면 영어 목소리를 낮게). 세력마다 다른 목소리·높이. 앞뒤로 무전기 "치익", 말하는 중엔 드문드문 "지직".
      없거나 설정이 '잡음'이면 알아들을 수 없는 무전 소리(02b sndRadio)에 자막만 붙인다.
    - 무전망은 한 번에 한 교신만 싣는다. 급한 교신(부상자, 적 발견)이 먼저고, 오래 기다린 교신은 버린다.
    - 들리는 세력: 내 편. 관전 중 전 세력 시야면 모든 세력(세력마다 목소리 높이가 다르다), 한 세력 시야면 그 세력.
@@ -10922,10 +10964,12 @@ function voxVoice(n){const vs=voxVoices();if(!vs.length)return null;return vs[(n
 const voxSpeaks=()=>VOX.mode==='voice'&&!!voxVoice(0);
 /* 무전기 "치익"(누를 때·뗄 때)과 말하는 동안 깔리는 잡음 */
 function voxSquelch(end,jam){const a=SFX.ctx;if(!a||!SFX.on)return;const t=a.currentTime+.01;const V={a,mix:SFX.bus.radio};
-  sndNz(V,t,end?.18:.08,'bandpass',end?2400:2600,.5,end?.5:.45,.003);if(!end)sndTn(V,t+.02,.05,1250,0,.15,'square');if(jam&&!end)sndNz(V,t,.5,'bandpass',1500,.4,.5,.01);}
-function voxBed(on,jam){const a=SFX.ctx;if(!a)return;if(!VOX.bed){const s=a.createBufferSource();s.buffer=SFX.noise;s.loop=true;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=1900;f.Q.value=.7;
-    const g=a.createGain();g.gain.value=0;s.connect(f);f.connect(g);g.connect(SFX.bus.radio);s.start();VOX.bed=g;}
-  VOX.bed.gain.setTargetAtTime(on&&SFX.on?(jam?.32:.05):0,a.currentTime,.04);}
+  sndNz(V,t,end?.18:.08,'bandpass',end?2400:2600,.5,end?.5:.45,.003);sndCrackle(V,t+(end?.02:.06),end?.08:.05,.28);if(!end)sndTn(V,t+.02,.05,1250,0,.15,'square');if(jam&&!end)sndNz(V,t,.5,'bandpass',1500,.4,.5,.01);}
+// 말하는 동안 깔리는 잡음은 없다. 실제 무전처럼 드문드문 "지직"(재밍 중이면 자주, 길게 끊긴다)
+function voxBed(on,jam){clearTimeout(VOX.bedT);const a=SFX.ctx;if(!on||!a||!SFX.on)return;
+  const tick=()=>{if(!VOX.busy||!SFX.on)return;sndCrackle({a,mix:SFX.bus.radio},a.currentTime+.01,jam?.12+Math.random()*.35:.03+Math.random()*.08,jam?.45:.2);
+    VOX.bedT=setTimeout(tick,(jam?.2+Math.random()*.5:.7+Math.random()*1.8)*1000);};
+  VOX.bedT=setTimeout(tick,(jam?.1:.3+Math.random()*.6)*1000);}
 function voxSub(it){if(VOX.sub==='off'||typeof document==='undefined')return;let el=document.getElementById('rvox');
   if(!el){el=document.createElement('div');el.id='rvox';el.className='rvox';el.setAttribute('aria-hidden','true');(document.getElementById('app')||document.body).appendChild(el);}
   VOX.lines.push({it,t:Date.now()});if(VOX.lines.length>3)VOX.lines.shift();voxSubDraw();}
