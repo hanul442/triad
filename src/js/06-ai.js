@@ -19,8 +19,10 @@ function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
   if(t.ind||u.type==='sniper'){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-(u.type==='spg'?20:u.type==='mortar'?12:u.type==='mlrs'?26:5))*2.2+(vis.length?0:gd*(t.ind?.6:2));}
   else if(t.fly){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-4)*2+gd*.6;}
   else s-=gd*2.6;
-  if(x.el&&(t.cls==='inf'||t.ind))s+=Math.min(3,x.el)*(u.type==='sniper'||u.type==='mg'?1.4:.8);   // 높은 곳 선호
-  if(t.cls==='inf'){if(x.t==='bldg')s+=5+Math.min(4,x.f)*.6;else if(x.t==='rubble')s+=3;else if(x.t==='park')s+=1.2;}
+  // 높은 곳(감제고지): 언덕·높은 건물은 멀리 보고 내려다 쏜다. 적이 가까울수록(12칸 안) 더 노린다. 기관총·저격수는 더
+  {const hi=(x.el||0)+(x.t==='bldg'&&t.cls==='inf'?Math.min(x.f,(typeof CQB==='object'?CQB.autoFl:4)+1)*.8:0);
+   if(hi>0&&(t.cls==='inf'||t.ind)){const k=u.type==='sniper'||u.type==='mg'?1.6:t.ind?.6:1;const near=vis.some(e=>dist(e.r,e.c,r,c)<=12)?1.5:1;s+=Math.min(4.5,hi)*k*near;}}
+  if(t.cls==='inf'){if(x.t==='bldg')s+=5;else if(x.t==='rubble')s+=3;else if(x.t==='park')s+=1.2;}
   let threat=0;const sv=u.r,sc=u.c;u.r=r;u.c=c;
   for(const e of vis){const de=dist(e.r,e.c,r,c);if(de>UT[e.type].rng[1]+2)continue;if(canHit(e,u)){threat+=calcDmg(e,u,false);}
     if(t.cls==='veh'&&UT[e.type].cls==='inf'&&de<=2)s-=e.type==='at'||e.type==='eng'?9:3;}
