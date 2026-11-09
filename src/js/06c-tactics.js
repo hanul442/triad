@@ -94,7 +94,7 @@ function tacPlatoon(p,K0,objs){const M=tacMembers(p);if(!M.length)return;const t
 function tacMove(p,M,objs){const t=G.time||0;const n=p.nat;if(!p.obj)return;const [or,oc]=p.obj;const gx=p.pt?p.pt[0]:oc+.5,gz=p.pt?p.pt[1]:or+.5;const c=tacCtr(p);
   const d=Math.hypot(gx-c[0],gz-c[1]);const X=G.map[or][oc];
   if(d<1.8||p.mode==='defend'&&d<3){// 도착: 점령할 수 있는 분대 하나는 거점 칸으로, 나머지는 둘레 엄폐
-    const cap=X.obj!=null&&X.owner!==n?M.find(u=>UT[u.type].cap):null;
+    const cap=X.obj!=null&&X.owner!==n?M.filter(u=>UT[u.type].cap).sort((a,b)=>UT[b.type].cap-UT[a.type].cap)[0]||null:null;   // 점령 힘이 가장 큰 분대가 들어간다
     if(cap&&tacIdle(cap)&&(cap.r!==or||cap.c!==oc))tacGo(cap,gx,gz,'cap');
     for(const u of M){if(u===cap||!tacIdle(u)||t-(u.tk.at||0)<8||u.tk.role==='hold'&&Math.hypot(u.x-gx,u.z-gz)<2.6)continue;const i=M.indexOf(u);const ang=i/M.length*6.283;
       const s=tacSpot(u,gx+Math.cos(ang)*1.2,gz+Math.sin(ang)*1.2,[0,.4,.8],(x,z)=>coverAt(x,z,'inf',objs)-Math.hypot(x-u.x,z-u.z)*.05);if(s)tacGo(u,s[0],s[1],'hold');}
