@@ -101,7 +101,7 @@ function bmBuildWorld(g){const T=V3.T,pm=v3PropMats(),M3=bmMats(),G3=bmGeos(),cl
     o.material.color.set(cl==='winter'?'#c4c9cd':cl==='desert'?'#a08a66':L==='forest'?'#2f3526':L==='country'?'#4f5636':'#3a3936');}
   const pines=[],leafs=[],sea=[],edge=[],deck=[];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c],k=key(r,c),cx=c+.5,cz=r+.5;
-    if(x.t==='park'&&x.wild&&!x.orch){const n=3+(v3Hash(k,801)<.4?1:0);for(let i=0;i<n;i++){const px=cx+(v3Hash(k,810+i)-.5)*.84,pz=cz+(v3Hash(k,815+i)-.5)*.84,s=.75+v3Hash(k,820+i)*.6;
+    if(x.t==='park'&&x.wild&&!x.orch&&typeof natWildTrees!=='function'){const n=3+(v3Hash(k,801)<.4?1:0);for(let i=0;i<n;i++){const px=cx+(v3Hash(k,810+i)-.5)*.84,pz=cz+(v3Hash(k,815+i)-.5)*.84,s=.75+v3Hash(k,820+i)*.6;
         if(v3Hash(k,830+i)<(cl==='autumn'?.35:.15))leafs.push({x:px,y:0,z:pz,s:s*.9,ry:v3Hash(k,840+i)*6.28,col:pal(LF||['#6e6a4c','#7a7353','#5f5d43'],k,850+i),k});
         else pines.push({x:px,y:0,z:pz,s,ry:v3Hash(k,860+i)*6.28,col:pal(BM_PINE[cl]||BM_PINE.temp,k,870+i),k});}}
     if(x.orch)for(const [a,b] of [[-.25,-.25],[-.25,.25],[.25,-.25],[.25,.25]])leafs.push({x:cx+a,y:0,z:cz+b,s:.45+v3Hash(k,880+a*4+b*8+9)*.15,ry:v3Hash(k,890)*6.28,col:pal(LF||['#5f6b3c','#6e7a44','#56603a'],k,895+a*4+b*8+9),k});
