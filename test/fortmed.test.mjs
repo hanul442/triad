@@ -169,7 +169,7 @@ test('제네바 협약: AI는 구호소 둘레에 포격을 부르지 않고, �
   G.forts.push({ id: 900, k: 'aid', nat: 0, x: 15.5, z: 15.5, ry: 0, hp: 10, prog: 1 });
   G.nats[1].ctrl = 'ai'; G.nats[1].cp = 99;
   const can = T.canSupport;
-  T.mkUnit(1, 'rifle', 15, 19); T.bump();
+  T.mkUnit(1, 'rifle', 15, 27); T.bump();   // 자기 부대는 포병 위험 거리(100m ≈ 8칸) 밖
   G.geneva = 'off'; assert.equal(can(1, 'arty', 15, 15), true, '협약을 끄면 부름');
   G.geneva = 'all'; assert.equal(can(1, 'arty', 15, 15), false, '구호소 자리엔 안 부름');
   const g = T.mkUnit(0, 'rifle', 15, 16); g.x = 16; g.z = 15.6; g.firedT = G.time; run(T, .2);
