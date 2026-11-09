@@ -34,7 +34,7 @@ test('엎드린 병사는 덜 맞는다(총탄)', () => {
   const a = unit(T, 1, 'rifle', 14.5, 10.5), d = unit(T, 0, 'rifle', 10.5, 10.5); run(T, .5, u => u === a || u === d);
   for (const m of d._men) { m.pr = 0; m.lay = 0; } const up = hitP(T, a, d);
   for (const m of d._men) m.lay = 1; const down = hitP(T, a, d);
-  assert.ok(down < up * .8, `엎드림 ${down.toFixed(3)} < 서 있음 ${up.toFixed(3)}`);
+  assert.ok(down < up * .87, `엎드림 ${down.toFixed(3)} < 서 있음 ${up.toFixed(3)}`);
 });
 
 test('맨땅에서 총격을 받고 멈춘 병사는 엎드린 상태(m.lay)가 된다', () => {

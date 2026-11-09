@@ -12,7 +12,7 @@
    6) 은폐: 엎드리거나 엄폐 뒤에 숨은 채 쏘지 않는 보병, 숲·잔해 속에 멈춘 차량은 더 가까이 와야 보인다.
    7) 연막: 연막 구름 안의 부대는 바깥에서 보이지 않는다(바로 옆 제외). 열상 장비(전차·장갑차·대전차 미사일·드론)는
       보병 연막 수류탄(가시광만 가림) 너머를 짧게 보지만, 차량 연막탄·포병 연막(적외선도 가림)은 못 본다. */
-const CV={lay:.25,layLow:.12,seek:[.35,.7,1.05,1.4],seekCd:7,gain:.18,minCov:.25,duck:{spg:1.3,mlrs:1.3,mortar:.8},duckR:1.9,
+const CV={lay:.2,layLow:.1,seek:[.35,.7,1.05,1.4],seekCd:7,gain:.18,minCov:.25,duck:{spg:1.3,mlrs:1.3,mortar:.8},duckR:1.9,
   artR:1.8,artT:8,dodge:[2.2,2.8,3.5],dodgeCd:16,hide:.6,therm:{tank:1,ifv:1,atgm:1,drone:1},thermK:.6,q:.5};
 const cvAct=m=>!m.dead&&!m.down&&!m.gone&&!m.task;
 const cvNow=()=>G.time||0;
@@ -21,12 +21,12 @@ const cvLay=m=>m.lay||m.pr>0;
 function cvMan(u,m,ax,az,low,objs){const t=tileAt(m.x,m.z);if(!t)return 0;if(t.t==='bldg')return COVK.bldg.v;
   let c=TT[t.t].cov||0;if(typeof trenchAt==='function'&&trenchAt(m.x,m.z))c=Math.max(c,COVK.trench.v);
   const d=Math.hypot(ax-m.x,az-m.z);if(d>.02){const k=dirCoverAt(m.x,m.z,(ax-m.x)/d,(az-m.z)/d,'inf',u,objs);c=Math.max(c,k.cov*(low?.5:1));}
-  if(cvLay(m))c+=(c>=.2?CV.layLow:CV.lay)*(low?.5:1);   // 엎드리면 몸이 작아진다(위에서 내려다보면 덜)
+  if(cvLay(m)&&!G._cvNoLay)c+=(c>=.2?CV.layLow:CV.lay)*(low?.5:1);   // 엎드리면 몸이 작아진다(위에서 내려다보면 덜)
   return Math.min(.85,c);}
 /* 분대가 a의 직사에 대해 받는 엄폐(병사 평균). 0.5초·쏘는 쪽마다 기억 */
 function cvSquad(d,a){const M=d._men;if(!M)return null;const L=M.filter(cvAct);if(!L.length)return null;
   const q=Math.floor(cvNow()/CV.q);let C=G._cvc;if(!C||C.q!==q){C={q,m:new Map()};Object.defineProperty(G,'_cvc',{value:C,writable:true,configurable:true,enumerable:false});}
-  const k=d.id+':'+a.id;if(C.m.has(k))return C.m.get(k);
+  const k=d.id+':'+a.id+(G._cvNoLay?'n':'');if(C.m.has(k))return C.m.get(k);
   const [ax,az]=posOf(a);const low=eye(a)+elU(a)>=eye(d)+elU(d)+2;const objs=coverObjs(d);let s=0,lay=0;
   for(const m of L){s+=cvMan(d,m,ax,az,low,objs);if(cvLay(m))lay++;}
   const r={cov:s/L.length,lay:lay/L.length};C.m.set(k,r);return r;}
@@ -46,6 +46,8 @@ const cvTherm=u=>!!CV.therm[u.type];
 // 보병 연막 수류탄(가시광만 가림)으로 친 칸: x.hcT(끝나는 때). 차량 연막탄·포병 연막은 적외선도 가린다.
 {const _ps=popSmoke;popSmoke=function(x,z,s){const ok=_ps(x,z,s);if(ok){const t=tileAt(x,z);if(t){if(G._hc){t.hcT=cvNow()+(s||REAL.smkS);(G._hcL=G._hcL||[]).push(t);}else t.hcT=0;}}return ok;};}
 {const _ss=squadSmoke;squadSmoke=function(u){G._hc=1;try{return _ss(u);}finally{G._hc=0;}};}
+// 유탄은 엄폐물 뒤 적에게 쓴다: 맨땅에 엎드린 것만으로는 쏘지 않는다
+{const _gl=squadGL;squadGL=function(a,d){G._cvNoLay=1;try{return _gl(a,d);}finally{G._cvNoLay=0;}};}
 {const _tl=tacSmokeLeg;tacSmokeLeg=function(u,K){G._hc=1;try{return _tl(u,K);}finally{G._hc=0;}};}
 {const _su=support;support=function(n,k,r,c){const ok=_su(n,k,r,c);if(ok&&k==='smoke'&&typeof supArea==='function')for(const [a,b] of supArea(r,c,1))G.map[a][b].hcT=0;return ok;};}
 const cvHC=x=>x&&x.smoke>0&&(x.hcT||0)>cvNow();
