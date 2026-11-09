@@ -31,6 +31,7 @@ if(typeof document!=='undefined'&&!document.getElementById('read-css')){const st
 #v3d-lab.far .v3u .ty{font-size:8px;padding:1px 2px}
 #v3d-lab.spec-clean .v3u>.ty{display:inline-block}`;
   document.head.appendChild(st);}
-/* 처음 화면: 우리 집결지가 화면 아래 끝에 걸리지 않게 조금 더 우리 쪽으로 */
-if(typeof v3HomeCam==='function'){const _hc=v3HomeCam;v3HomeCam=function(now){const r=_hc.apply(this,arguments);if(!G||!V3.cs)return r;const sp=zoneSpots(G.viewer);if(!sp.length)return r;
-  const s=V3.cs;const [x,z]=v3x(sp[0][0],sp[0][1]);s.gx=s.gx+(x-s.gx)*.55;s.gz=s.gz+(z-s.gz)*.55;if(now){s.x=s.gx;s.z=s.gz;}return r;};}
+/* 처음 화면: 우리 부대가 화면 가운데쯤 오게(예전엔 집결지가 화면 아래 끝에 걸렸다) */
+if(typeof v3HomeCam==='function'){const _hc=v3HomeCam;v3HomeCam=function(now){const r=_hc.apply(this,arguments);if(!G||!V3.cs||G.spec)return r;
+  const us=G.units.filter(u=>u.nat===G.viewer&&!UT[u.type].fly);if(!us.length)return r;const s=V3.cs;const m=N/2;
+  const ux=us.reduce((a,u)=>a+u.x,0)/us.length,uz=us.reduce((a,u)=>a+u.z,0)/us.length;s.gx=ux+(m-ux)*.12;s.gz=uz+(m-uz)*.12;if(now){s.x=s.gx;s.z=s.gz;}return r;};}
