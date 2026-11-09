@@ -7,9 +7,12 @@
 if(typeof document!=='undefined'&&!document.getElementById('adj-css')){const st=document.createElement('style');st.id='adj-css';
   st.textContent=`.adj-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%;padding:2px 0 6px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:6px;font-size:12.5px}
 .adj-row b{color:#ffd27a;font-size:13px}.adj-row .adj-i{color:#c9d1d6}.adj-row .btn{min-height:32px}
-.v3u u.man{border-color:#ffd27a;color:#ffd27a}`;
+.v3u u.man{border-color:#ffd27a;color:#ffd27a}
+.adj-row .adj-s{display:none}
+@media (max-width:760px){.adj-row{gap:4px}.adj-row .adj-l{display:none}.adj-row .adj-s{display:inline}.adj-row .btn{padding:0 9px;min-height:30px;font-size:12px}.adj-row .adj-i{flex:1 1 100%;font-size:11.5px}}`;
   document.head.appendChild(st);}
 const ADJ_K={atk:'공격',def:'방어'};
+const adjL=(l,sh)=>`<span class="adj-l">${l}</span><span class="adj-s">${sh}</span>`;
 function adjDesc(I){if(!I)return '부관 재량 (가까운 거점부터)';if(I.obj)return `${ADJ_K[I.k]} · ${I.obj}`;
   let o=null,bd=7;for(const q of G.objs){const d=Math.hypot(q.c+.5-I.x,q.r+.5-I.z);if(d<bd){bd=d;o=q;}}return `${ADJ_K[I.k]} · ${o?o.name+' 근처':'지정 지점'}`;}
 const adjCan=()=>G&&!G.over&&!G.boot&&!isAI(G.viewer)&&!(typeof specOn==='function'&&specOn())&&!(G.scn==='tut');
@@ -33,11 +36,11 @@ if(typeof document!=='undefined'){if(document.readyState==='loading')document.ad
   const div=document.createElement('div');div.className='adj-row';
   if(N2.auto){const I=N2.intent;
     div.innerHTML=`<b>부관 지휘 중</b><span class="adj-i">주공: ${adjDesc(I)}</span>`+
-      `<button class="btn sm${I&&I.k==='atk'?' primary':''}" data-act="adj:atk" id="ab-adj-atk" title="모든 부대가 그쪽으로 공격합니다">공격 목표</button>`+
-      `<button class="btn sm${I&&I.k==='def'?' primary':''}" data-act="adj:def" id="ab-adj-def" title="그 둘레 엄폐에서 지킵니다">방어 지점</button>`+
-      `<button class="btn sm${I?'':' primary'}" data-act="adj:free-all" id="ab-adj-any" title="부관이 가까운 거점부터 알아서 잡습니다">부관 재량</button>`+
-      `<button class="btn sm" data-act="adj:buy" id="ab-adj-buy" aria-pressed="${N2.autoBuy!==false}" title="부관이 지휘점수로 부대를 사서 보냅니다">자동 증원: ${N2.autoBuy!==false?'켬':'끔'}</button>`+
-      `<button class="btn sm" data-act="adj:off" id="ab-adj-off" title="모든 부대를 직접 지휘합니다">직접 지휘로</button>`;}
+      `<button class="btn sm${I&&I.k==='atk'?' primary':''}" data-act="adj:atk" id="ab-adj-atk" title="모든 부대가 그쪽으로 공격합니다">${adjL('공격 목표','공격')}</button>`+
+      `<button class="btn sm${I&&I.k==='def'?' primary':''}" data-act="adj:def" id="ab-adj-def" title="그 둘레 엄폐에서 지킵니다">${adjL('방어 지점','방어')}</button>`+
+      `<button class="btn sm${I?'':' primary'}" data-act="adj:free-all" id="ab-adj-any" title="부관이 가까운 거점부터 알아서 잡습니다">${adjL('부관 재량','재량')}</button>`+
+      `<button class="btn sm" data-act="adj:buy" id="ab-adj-buy" aria-pressed="${N2.autoBuy!==false}" title="부관이 지휘점수로 부대를 사서 보냅니다">${adjL('자동 증원: ','증원 ')}${N2.autoBuy!==false?'켬':'끔'}</button>`+
+      `<button class="btn sm" data-act="adj:off" id="ab-adj-off" title="모든 부대를 직접 지휘합니다">${adjL('직접 지휘로','직접')}</button>`;}
   else div.innerHTML=`<span class="adj-i">어렵다면 부관에게 맡기세요: 목표만 정하면 이동·엄폐·지원·증원을 AI가 합니다</span><button class="btn sm primary" data-act="adj:on" id="ab-adj-on">부관에게 맡기기</button>`;
   el.prepend(div);
   if(N2.auto){const sp=el.querySelector(':scope>span');if(sp)sp.textContent=sp.textContent.replace('아군을 탭해 지휘','부대를 골라 직접 명령도 가능');}};}
