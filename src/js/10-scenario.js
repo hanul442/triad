@@ -1,6 +1,6 @@
 /* ===================== SCENARIOS ===================== */
 const SCN={
-  tut:{n:'기초 훈련',d:'이동·건물 엄폐·사격·점령·증원, 부관에게 맡기기를 차례로 익힙니다.'},
+  tut:{n:'기초 훈련',d:'이동·건물 엄폐·사격·점령·증원, 부관에게 맡기기와 중대 목표를 차례로 익힙니다.'},
   assault:{n:'도심 돌파',d:'적이 모든 거점을 쥐고 있습니다. 8분 안에 거점 5곳을 동시에 확보하세요.'},
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
@@ -28,8 +28,8 @@ function scnObjective(){if(!G||!G.scn)return null;const n=0;if(G.camp&&typeof ca
       ['4/8 점령','깃발과 빛기둥이 있는 거점에 소총분대를 들여보내 점령하세요. 거점마다 30초마다 승점과 지휘점수가 들어옵니다.'],
       ['5/8 증원','하단 바의 "증원·지원"에서 부대를 골라 집결지(초록 칸)에 배치해 보세요. 보급 트럭·구급차·구난차는 배치만 하면 탄약 보급·부상자 후송·견인을 알아서 합니다.'],
       ['6/8 부관','부대마다 명령하기 번거로우면 부관(AI)에게 맡기세요. 아무 부대도 고르지 않은 상태에서 하단의 [부관에게 맡기기]를 누르세요.'],
-      ['7/8 주공 목표','[공격 목표]를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요. 이동·엄폐·화력 지원·증원은 부관이 합니다. 지킬 곳은 [방어 지점]으로 정합니다.'],
-      ['8/8 직접 명령','부관이 지휘하는 중에도 부대를 골라 명령하면 그 부대만 직접 움직입니다(\'직접\' 표시). 일을 마치고 45초 뒤, 또는 [부관에게 돌려주기]로 다시 부관이 맡습니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
+      ['7/8 목표','부대는 저절로 소대·중대로 묶입니다. [공격 목표]를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요(전체). 하단 [1중대]를 누르면 그 중대·소대에만 따로 목표를 줄 수 있습니다. 이동·엄폐·화력 지원은 부관이 합니다.'],
+      ['8/8 직접 명령','부관이 지휘하는 중에도 부대를 골라 명령하면 그 부대만 직접 움직입니다(\'직접\' 표시). 일을 마치고 45초 뒤, 또는 [부관에게 돌려주기]로 다시 부관이 맡습니다. 중대를 골라 [증원 받기]를 누르면 새로 오는 부대가 그 중대로 갑니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
     const i=Math.min(G.tut||0,7);return {t:S[i][0],m:S[i][1]};}
   if(G.scn==='assault')return {t:'도심 돌파',m:`거점 ${objCount(n)}/5 동시 확보 · 남은 시간 ${fmtT(16*ROUND_S-G.time)}`};
   if(G.scn==='hold')return {t:'최후 방어',m:`거점 ${objCount(n)}곳 유지 중 (3곳 이상) · 남은 시간 ${fmtT(14*ROUND_S-G.time)}`};
@@ -41,7 +41,7 @@ function scnAfterAct(){if(!G||G.scn!=='tut')return;const n=0;G.tut=G.tut||0;
   else if(G.tut===3&&objCount(n)>0)G.tut=4;
   else if(G.tut===4&&G.nats[n].bought)G.tut=5;
   else if(G.tut===5&&G.nats[n].auto)G.tut=6;
-  else if(G.tut===6&&G.nats[n].auto&&G.nats[n].intent)G.tut=7;
+  else if(G.tut===6&&G.nats[n].auto&&(G.nats[n].intent||G.org&&G.org[n]&&[...G.org[n].co,...G.org[n].pq].some(o=>o.intent)))G.tut=7;
   if(typeof document!=='undefined')renderObj();}
 function scnCheck(){if(!G||!G.scn||G.over)return;const n=0;
   if(G.scn==='tut'){scnAfterAct();if(!G.units.some(u=>u.nat===1)&&objCount(n)===G.objs.length)G.over={win:0,why:'훈련 완료'};}
