@@ -96,7 +96,7 @@ test('저격: 한 발에 한 명, 분대장을 먼저 노리고, 쏜 자리가 �
 test('폭파: 적 보병이 폭약 건물에 들어오고 아군이 보고 있으면 터져 건물이 무너진다', () => {
   const T = loadGame(); const G = setup(T); bldg(G, 5, 5, 3); G.nats[0].cp = 10;
   const e = unit(T, 0, 'eng', 5.5, 5.5);
-  let plantFl = null; assert.equal(g(T, 'demoOrder')(e, 5, 5), null); run(T, 7, () => { if (plantFl == null && G.demo?.length) plantFl = e.fl || 0; });
+  let plantFl = null; assert.equal(g(T, 'demoOrder')(e, 5, 5), null); run(T, 12, () => { if (plantFl == null && G.demo?.length) plantFl = e.fl || 0; });   // 공병 설치 6초 + 자리 잡는 시간
   assert.ok(plantFl != null && plantFl < .01, '폭약은 1층에서 설치한다(위층에 있었으면 내려온다)');
   assert.equal(G.demo.length, 1, '폭약 설치');
   T.orderMoveTo(e, 9.5, 5.5); run(T, 8);
