@@ -164,15 +164,15 @@ function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
   // 막힘 시간: 막히면 쌓이고, 나아가면 천천히 준다(앞뒤로 들썩이며 제자리인 것도 막힘으로 센다)
   if(done){u._blk=Math.max(0,(u._blk||0)-dt*.5);if(!u._blk&&Math.abs(st)>.002&&okPos)u._nd=0;}else u._blk=(u._blk||0)+dt;
   u.face=u.hd;
-  if(fin&&!done&&d<.35){u.path=[];u.vs=0;u._blk=0;u._rb=0;u.face=u.hd;return;}   // 목적지 바로 앞에서 막히면 거기 선다
+  if(fin&&!done&&d<.35){u.path=[];u.vs=0;u._blk=0;u._rb=0;u.face=u.hd;rtCell(u);return;}   // 목적지 바로 앞에서 막히면 거기 선다
   // 오래 막히면: 길을 다시 찾고(0.6초·2초) → 3초가 넘으면 뒤로 빼서 돌 자리를 만든 뒤 다시 찾고(두 번)
   // → 그래도 막히면 조금 걸친 채 비비고 빠져나오고(두 번) → 끝내 안 되면 멈추고 알린다
-  if(u._blk>.6&&!u._rb||u._blk>2&&u._rb===1){u._rb=(u._rb||0)+1;const end=u.path[u.path.length-1];u.path=pathPts(u,end[0],end[1]);if(!u.path.length){if(Math.hypot(end[0]-u.x,end[1]-u.z)>1)vGiveUp(u);return;}}
+  if(u._blk>.6&&!u._rb||u._blk>2&&u._rb===1){u._rb=(u._rb||0)+1;const end=u.path[u.path.length-1];u.path=pathPts(u,end[0],end[1]);if(!u.path.length){if(Math.hypot(end[0]-u.x,end[1]-u.z)>1)vGiveUp(u);rtCell(u);return;}}
   if(u._blk>3){u._blk=0;u._rb=0;u._ghN=(u._ghN||0)+1;if(u._ghN===1||!u._ghP)u._ghP=[u.x,u.z];
     if(u._ghN<=2){u.rev=now+VM.backT;u.revF=u.hd;u._rpAt=now+VM.backT+.05;}
     else if(u._ghN<=4){u._gh=now+2.5;if(vRam(u)){const end=u.path[u.path.length-1];if(end)u.path=pathPts(u,end[0],end[1]);}}
-    else{u.path=[];u._ghN=0;u._ghP=null;vGiveUp(u);return;}}
-  if(u._rpAt&&now>=u._rpAt){u._rpAt=0;const end=u.path[u.path.length-1];if(end){u.path=pathPts(u,end[0],end[1]);if(!u.path.length){if(Math.hypot(end[0]-u.x,end[1]-u.z)>1)vGiveUp(u);return;}}}
+    else{u.path=[];u._ghN=0;u._ghP=null;vGiveUp(u);rtCell(u);return;}}
+  if(u._rpAt&&now>=u._rpAt){u._rpAt=0;const end=u.path[u.path.length-1];if(end){u.path=pathPts(u,end[0],end[1]);if(!u.path.length){if(Math.hypot(end[0]-u.x,end[1]-u.z)>1)vGiveUp(u);rtCell(u);return;}}}
   if(u._ghN&&u._ghP&&Math.hypot(u.x-u._ghP[0],u.z-u._ghP[1])>.8){u._ghN=0;u._ghP=null;}   // 막힌 곳을 벗어났다
   if(!u._blk)u._rb=0;
   u._rp=0;
