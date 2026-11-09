@@ -11,7 +11,7 @@ function formRelease(p,M){for(const u of M)if(u.fol&&u.fol.by==='tac')u.fol=null
   if(v&&v.fesc===p.id){v.fesc=null;v.fol=null;}p._fv=null;p._fl=null;}
 /* 소대에 붙일 차량: 4칸 안, 놀고 있거나 혼자 진격 중, 다른 소대에 안 붙은 것 */
 function formPickVeh(p,c){const n=p.nat,t=G.time||0;let best=null,bd=4;
-  for(const v of G.units){if(v.nat!==n||!FORM_VEH[v.type]||v.man||v.post||v.cqb||v.hold||v.msn||v.hp<hpMax(v)*.4)continue;
+  for(const v of G.units){if(v.nat!==n||!FORM_VEH[v.type]||v._pj||v.man||v.post||v.cqb||v.hold||v.msn||v.hp<hpMax(v)*.4)continue;
     if(v.fesc!=null&&v.fesc!==p.id&&t-(v.fescT||-99)<5)continue;if(v.fol&&v.fol.by!=='tac')continue;
     const d=Math.hypot(v.x-c[0],v.z-c[1]);if(d<bd){bd=d;best=v;}}
   return best;}
@@ -20,7 +20,7 @@ function formCut(u,P,len){const out=[];let px=u.x,pz=u.z,left=len;
   for(const p of P){const s=Math.hypot(p[0]-px,p[1]-pz);if(s>=left){const f=left/(s||1);out.push([px+(p[0]-px)*f,pz+(p[1]-pz)*f]);return out;}out.push(p);left-=s;px=p[0];pz=p[1];}
   return out;}
 function formMarch(p,M,gx,gz,d){const t=G.time||0;const c=tacCtr(p);
-  let v=p._fv!=null?formUnit(p._fv):null;if(v&&(v.nat!==p.nat||v.man||v.hold||Math.hypot(v.x-c[0],v.z-c[1])>7))v=null;
+  let v=p._fv!=null?formUnit(p._fv):null;if(v&&(v.nat!==p.nat||v._pj||v.man||v.hold||Math.hypot(v.x-c[0],v.z-c[1])>7))v=null;
   if(!v&&aiRun(p.nat))v=formPickVeh(p,c);
   if(v){v.fesc=p.id;v.fescT=t;p._fv=v.id;if(v.fol)v.fol=null;}else p._fv=null;
   let L=v;if(!L){L=p._fl!=null?M.find(u=>u.id===p._fl):null;if(!L)L=formPickLead(M,gx,gz);}

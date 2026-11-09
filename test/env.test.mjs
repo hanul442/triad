@@ -30,32 +30,33 @@ test('시간 흐름 모드: 고정이면 멈추고, 느리게는 한 판에 3시
   delete G.tflow; assert.equal(Math.round(dayH()), 17, '옛 저장(모드 없음)은 예전처럼 30초에 1시간');
 });
 
-test('밤 시야: 야간투시경 정규군은 −1, 민병대 맨눈은 −2, 열상 드론은 그대로', () => {
+test('밤 시야: 야간투시경 정규군은 약 110~150m, 민병대 맨눈은 40~100m, 열상 드론은 그대로', () => {
   const T = loadGame(); const vr = F(T, 'visRange');
   let G = setup(T, { hour: 'day' });
   const a0 = T.mkUnit(0, 'rifle', 5, 5), m0 = T.mkUnit(1, 'rifle', 9, 9), d0 = T.mkUnit(0, 'drone', 12, 12);
   const day = [vr(a0), vr(m0), vr(d0)];
   G = setup(T, { hour: 'night' });
   const a = T.mkUnit(0, 'rifle', 5, 5), m = T.mkUnit(1, 'rifle', 9, 9), d = T.mkUnit(0, 'drone', 12, 12);
-  assert.equal(vr(a), day[0] - 2);   // 시야 보정은 06y-range에서 두 배(1칸 ≈ 12m)
-  assert.equal(vr(m), day[1] - 4);
+  assert.ok(vr(a) >= 9 && vr(a) <= 12.5, `야간투시경 ${vr(a)}칸`);   // 06y2-sight 밤 시야 상한(1칸 ≈ 12m)
+  assert.ok(vr(m) >= 3.5 && vr(m) <= 8, `맨눈 ${vr(m)}칸`);
+  assert.ok(vr(m) < vr(a) && vr(a) < day[0]);
   assert.equal(vr(d), day[2]);
 });
 
 test('조명탄: 밤에 안 보이던 적이 조명 아래 들어오면 보이고, 꺼지면 다시 숨는다', () => {
   const T = loadGame(); const G = setup(T, { hour: 'night', wx: 'clear' });
   const a = T.mkUnit(0, 'rifle', 5, 4), e = T.mkUnit(1, 'rifle', 5, 17);
-  a.x = 4.5; a.z = 5.5; e.x = 17.1; e.z = 5.5; T.bump();
-  assert.equal(T.seen(e, 0), false, '밤에는 12.6칸 거리 적이 안 보임');
+  a.x = 4.5; a.z = 5.5; e.x = 15.6; e.z = 5.5; T.bump();
+  assert.equal(T.seen(e, 0), false, '밤에는 11칸(약 130m) 거리 적이 야간투시경으로도 안 보임');
   G.nats[0].cp = 20;
   assert.ok(T.canSupport(0, 'flare', 5, 17), '보이지 않는 곳에도 조명탄을 쏠 수 있음');
   assert.ok(T.support(0, 'flare', 5, 17));
   assert.equal(G.nats[0].supT || 0, 0, '조명탄은 포격 대기시간을 쓰지 않음');
-  for (let i = 0; i < 50; i++) { T.rtTick(0.1); a.x = 4.5; a.z = 5.5; e.x = 17.1; e.z = 5.5; a.path = []; e.path = []; a.tgt = e.tgt = null; a.cd = e.cd = 99; }
+  for (let i = 0; i < 50; i++) { T.rtTick(0.1); a.x = 4.5; a.z = 5.5; e.x = 15.6; e.z = 5.5; a.path = []; e.path = []; a.tgt = e.tgt = null; a.cd = e.cd = 99; }
   T.bump();
   assert.equal(T.seen(e, 0), true, '조명탄이 비추면 보임');
   const fine = T.visSet(0).fine, M = T.N * 3;
-  assert.equal(fine[Math.floor(5.5 * 3) * M + Math.floor(17.1 * 3)], 1, '안개 지도에서도 밝은 곳이 드러남');
+  assert.equal(fine[Math.floor(5.5 * 3) * M + Math.floor(15.6 * 3)], 1, '안개 지도에서도 밝은 곳이 드러남');
   G.time += 60; G.flares = G.flares.filter(f => G.time - f.t0 < 46); T.bump();
   assert.equal(T.seen(e, 0), false, '조명탄이 꺼지면 다시 안 보임');
 });

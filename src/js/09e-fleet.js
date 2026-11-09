@@ -71,7 +71,7 @@ const paxOf=v=>v&&v.pax||[];
 const paxMen=u=>(typeof menN==='function'?menN(u.type):4);
 const canRide=u=>{const t=UT[u.type];return !!t&&t.cls==='inf'&&!t.ind&&!t.fly&&u.type!=='mortar';};
 const carryRoom=(v,u)=>{const C=CARRY[v.type];if(!C)return false;return paxOf(v).reduce((a,p)=>a+paxMen(p),0)+paxMen(u)<=C.cap;};
-function pathLeft(u){const P=u.path;if(!P||!P.length)return 0;let x=u.x,z=u.z,s=0;for(const p of P){s+=Math.hypot(p[0]-x,p[1]-z);x=p[0];z=p[1];}return s;}
+function fleetPathLeft(u){const P=u.path;if(!P||!P.length)return 0;let x=u.x,z=u.z,s=0;for(const p of P){s+=Math.hypot(p[0]-x,p[1]-z);x=p[0];z=p[1];}return s;}
 /* 이 세력이 아는 지상 적이 (x,z) R칸 안에 있나 */
 function fleetFoe(n,x,z,R){for(const e of G.units){if(!hostile(e.nat,n)||UT[e.type].fly)continue;if(Math.abs(e.x-x)>R||Math.abs(e.z-z)>R)continue;if(Math.hypot(e.x-x,e.z-z)>R)continue;if(G.fog&&!seen(e,n))continue;return e;}return null;}
 /* 내릴 자리: 뒤 램프 쪽부터 */
@@ -138,7 +138,7 @@ function fleetTick(dt){if(!G||!G.units)return;const now=G.time||0;
   for(const u of G.units.slice()){if(!canRide(u)||u.board||u.hold||u.cqb||u.climb||u.job||u.post||!u.path||!u.path.length)continue;
     if(inside(u)&&cell(u.r,u.c).t==='bldg'&&(u.flT||0)>0)continue;
     if(u.man!=null&&typeof autoManual==='function'&&autoManual(u))continue;   // 부관 지휘 중 사람이 콕 집어 걸어가라 한 부대는 그대로([탑승] 버튼은 됨)
-    if(pathLeft(u)<FLEET.ride)continue;const end=u.path[u.path.length-1];
+    if(fleetPathLeft(u)<FLEET.ride)continue;const end=u.path[u.path.length-1];
     if(fleetFoe(u.nat,u.x,u.z,9)||fleetFoe(u.nat,end[0],end[1],4))continue;
     const v=fleetCarrier(u,FLEET.near);if(!v||fleetFoe(v.nat,v.x,v.z,9))continue;
     if(v.ferry&&v.ferry.dest&&Math.hypot(v.ferry.dest[0]-end[0],v.ferry.dest[1]-end[1])>3)continue;

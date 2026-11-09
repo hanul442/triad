@@ -88,7 +88,7 @@ test('방송국 탈환: 중계소를 쥐면 적 화력 지원이 끊기고, 방�
   const [s, y] = G.objs; G.map[y.r][y.c].owner = 0; T.rtRun(1);
   assert.equal(G.camp.st.relay, 1); G.nats[1].cp = 50;
   assert.ok(!T.canSupport(1, 'smoke', 5, 5), '적 지원 불가');
-  G.nats[1].ctrl = 'human'; G.map[s.r][s.c].owner = 0; T.rtRun(30);   // 적 증원이 끼지 않게: 둘레 판정만 본다
+  G.nats[1].ctrl = 'human'; G.units = G.units.filter(u => u.nat === 0); G.map[s.r][s.c].owner = 0; T.rtRun(30);   // 첫 1초에 AI가 산 증원도 치운다   // 적 증원이 끼지 않게: 둘레 판정만 본다
   const e = T.mkUnit(1, 'rifle', s.r, s.c + 1); e.hold = true; e.post = 1; e.cd = 999; T.rtRun(5);
   assert.ok(G.camp.st.near === 1 && G.camp.st.hold < 31, '적이 둘레에 있으면 멈춤');
   G.units = G.units.filter(u => u !== e); T.rtRun(31);
