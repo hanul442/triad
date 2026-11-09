@@ -141,5 +141,5 @@ function ugAI(n){const t=G.time||0;const N2=G.nats[n];
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;try{const t=G.time||0;
   for(const u of G.units.slice()){if(UT[u.type].cls!=='inf')continue;if(u.mh)mhTick(u,dt);if(u.bsm||u.bsmGo)bsmTick(u,dt);if(u.tun)tunTravel(u);}
   tunWatch(dt);
-  if(t>=(G._ugAI||0)){G._ugAI=t+2;for(const n of G.order||[])if(G.nats[n].alive&&isAI(n))ugAI(n);}}
+  if(t>=(G._ugAI||0)){G._ugAI=t+2;for(const n of G.order||[])if(G.nats[n].alive&&aiRun(n))ugAI(n);}}
   catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}

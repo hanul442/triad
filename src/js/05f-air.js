@@ -145,7 +145,7 @@ function airTick(dt){if(!G)return;
     if(t.heli){gunshipTick(u,dt);continue;}droneTick(u,dt);}
   for(const u of G.units.slice())if(UT[u.type].dteam&&G.units.includes(u))dteamTick(u,dt);
   // AI: 적이 가까이 보이면 험비·장갑차가 드론팀을 내려놓는다
-  for(const v of G.units.slice()){if(!canDismount(v)||!isAI(v.nat)||G.units.filter(o=>o.nat===v.nat).length>=unitCap())continue;if(Math.random()>dt*.15)continue;
+  for(const v of G.units.slice()){if(!canDismount(v)||!aiRun(v.nat)||G.units.filter(o=>o.nat===v.nat).length>=unitCap())continue;if(Math.random()>dt*.15)continue;
     if(G.units.some(e=>e.nat!==v.nat&&!UT[e.type].fly&&Math.hypot(e.x-v.x,e.z-v.z)<8&&(!G.fog||seen(e,v.nat))))(typeof aiDismount==='function'?aiDismount:dismount)(v);}}
 
 /* ---------- AI ---------- */

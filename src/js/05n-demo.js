@@ -70,7 +70,7 @@ function vbDet(u){if(u&&u.type==='vbied'){u.det=1;return true;}return false;}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;try{const t=G.time||0;
   for(const u of G.units.slice()){if(u.demo)demoPlantTick(u,dt);if(u.type==='vbied'&&G.units.includes(u))vbTick(u);}
   demoTick(dt);
-  if(t>=(G._dmAI||0)){G._dmAI=t+1.5;for(const n of G.order||[])if(G.nats[n].alive&&isAI(n)){vbAI(n);demoAI(n);}}}
+  if(t>=(G._dmAI||0)){G._dmAI=t+1.5;for(const n of G.order||[])if(G.nats[n].alive&&aiRun(n)){vbAI(n);demoAI(n);}}}
   catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 /* AI: 지키는 거점 둘레 건물에 폭약을 심어 둔다(나라당 셋까지) */
 function demoAI(n){const N2=G.nats[n];if(N2.cp<DEMO.cost||(G.demo||[]).filter(d=>!d.gone&&d.nat===n).length>=3||Math.random()>.3)return;

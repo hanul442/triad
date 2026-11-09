@@ -56,7 +56,7 @@ function civEscort(dt){for(const u of G.units){if(UT[u.type].cls!=='inf'||u.tun|
 const civIn=(r,c,rad)=>{let s=0;for(let a=r-rad;a<=r+rad;a++)for(let b=c-rad;b<=c+rad;b++)if(inb(a,b))s+=G.map[a][b].civ||0;
   for(const g of G.civF||[])if(Math.abs(g.x-(c+.5))<=rad+.5&&Math.abs(g.z-(r+.5))<=rad+.5)s+=g.n;return s;};
 {const _c=canSupport;canSupport=function(n,kind,r,c){if(!_c(n,kind,r,c))return false;
-  if(civOn()&&isAI(n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&civIn(r,c,(SUP[kind].rad||1))>=CIV.aiMax)return false;return true;};}
+  if(civOn()&&(isAI(n)||G._adj===n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&civIn(r,c,(SUP[kind].rad||1))>=CIV.aiMax)return false;return true;};}
 {const _n=newGame;newGame=function(cfg){const g=_n(cfg);G.civOn=!(cfg&&cfg.civ===false);G.civF=[];G.civDead=0;G.civOut=0;
   if(G.civOn)for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t!=='bldg'||x.civ!=null)continue;const k=key(r,c);
     x.civ=dHash(k,51)<CIV.occ?Math.min(CIV.cap,Math.max(1,Math.round((x.f||1)*(1+dHash(k,52)*1.5)))):0;}

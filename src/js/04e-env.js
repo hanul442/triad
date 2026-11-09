@@ -122,7 +122,7 @@ function aiFlare(n){const N2=G.nats[n];if(nightK()<.6||!canSupport(n,'flare',0,0
 /* ---------- 매 틱 ---------- */
 function envTick(dt){flareTick(dt);
   // AI는 2초마다, 그리고 수입이 막 들어온 직후(지휘점수를 다 쓰기 전)에 조명탄을 따져 본다
-  const fresh=G._envR!==G.turn;G._envR=G.turn;G._envT=(G._envT||0)-dt;if(G._envT<=0||fresh){G._envT=2;for(const n of G.order){if(!isAI(n)||!G.nats[n].alive)continue;if(fresh||Math.random()<.35)try{aiFlare(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}}
+  const fresh=G._envR!==G.turn;G._envR=G.turn;G._envT=(G._envT||0)-dt;if(G._envT<=0||fresh){G._envT=2;for(const n of G.order){if(!aiRun(n)||!G.nats[n].alive)continue;if(fresh||Math.random()<.35)try{aiFlare(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}}
 {const _tk=rtTick;rtTick=function(dt){if(G&&!G.over)envTick(dt);return _tk(dt);};}
 
 /* HUD 글: 날씨와 그 효과 */

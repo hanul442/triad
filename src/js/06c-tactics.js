@@ -46,7 +46,7 @@ const tacIdle=u=>!(u.path&&u.path.length);
 function tacOrganize(n){const P=tacPl();const t=G.time||0;
   for(const p of P)if(p.nat===n)p.mem=p.mem.filter(id=>G.units.some(u=>u.id===id&&u.nat===n));
   for(let i=P.length-1;i>=0;i--)if(P[i].nat===n&&!P[i].mem.length)P.splice(i,1);
-  if(!isAI(n))return;
+  if(!aiRun(n))return;
   for(const u of G.units){if(u.nat!==n||!tacUnit(u))continue;if(u.pl&&P.some(p=>p.id===u.pl&&p.mem.includes(u.id)))continue;
     if(!u.tk)u.tk={role:'move',at:t};
     let best=null,bd=7;for(const p of P){if(p.nat!==n||p.mode==='defend'||p.mem.length>=TAC.size+1)continue;const c=tacCtr(p);if(!c)continue;const d=Math.hypot(c[0]-u.x,c[1]-u.z);if(d<bd){bd=d;best=p;}}
@@ -72,7 +72,7 @@ function tacPickObj(p,K){const n=p.nat,t=G.time||0;const c=tacCtr(p);if(!c)retur
 function tacThink(n){tacOrganize(n);const K=tacKnown(n);const objs=coverObjs();
   for(const p of tacPl()){if(p.nat!==n)continue;try{tacPlatoon(p,K,objs);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}}
 function tacPlatoon(p,K0,objs){const M=tacMembers(p);if(!M.length)return;const t=G.time||0;const c=tacCtr(p);
-  if(p.auto!==false&&isAI(p.nat))tacPickObj(p,K0);
+  if(p.auto!==false&&aiRun(p.nat))tacPickObj(p,K0);
   const K=K0.filter(k=>M.some(u=>Math.hypot(k.x-u.x,k.z-u.z)<TAC.near));
   for(const u of M)if(!u.tk)u.tk={role:'move',at:t};
   // 전력 비교: 우리(체력·사기 반영) 대 가까운 적
