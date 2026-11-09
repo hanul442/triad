@@ -24,3 +24,20 @@ test('도어거너: 착륙장 둘레의 밖에 있는 적을 쏴서 제압하고
   assert.equal(G.units.includes(inn) ? inn.hp : i0, i0);
   assert.equal(G.dg.length, 0, '이륙 뒤에는 그친다');
 });
+
+test('헬기는 세워 둔 차·가로등·나무 선 공원 위에는 내리지 않는다', () => {
+  const T = loadGame();
+  T.newGame({ slots: ['human', 'human', 'none', 'none'], size: 's', fog: false, speed: 0, seed: 11 });
+  const G = T.G, N = T.N, n = G.order[0], can = T.__eval('heliCanLand');
+  let free = null;
+  for (let r = 0; r < N && !free; r++) for (let c = 0; c < N; c++) if (can(n, r, c)) { free = [r, c]; break; }
+  assert.ok(free, '내릴 자리가 하나는 있다');
+  const [r, c] = free;
+  G.covers.push({ x: c + .55, z: r + .45, r: .2, kind: 'car', h: .13 });
+  assert.equal(can(n, r, c), false, '차가 서 있으면 못 내린다');
+  G.covers.pop();
+  assert.equal(can(n, r, c), true);
+  let tree = null;
+  for (let a = 0; a < N && !tree; a++) for (let b = 0; b < N; b++) if (G.map[a][b].t === 'park' && !G.map[a][b].mead) { tree = [a, b]; break; }
+  if (tree) assert.equal(can(n, tree[0], tree[1]), false, '나무 선 공원');
+});
