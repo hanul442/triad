@@ -81,17 +81,18 @@ function hurtMen(u,amt,by,o){const M=menOf(u);const kind=o.kind||'bullet';
 function vdOf(u){return u.vd||(u.vd={mob:0,gun:0,crew:Array.from({length:VCREW[u.type]||3},()=>'ok'),fire:0});}
 function hurtVeh(u,amt,by,o){const V=vdOf(u);const ta=by?UT[by.type]:null;const kind=o.kind||'bullet';
   u.hp=Math.round((u.hp-amt)*10)/10;u._hitT=G.time||0;
-  const heavy=kind==='blast'||kind==='crush'||(ta&&ta.atk.veh>=5);const S=casStats(u.nat);const nm=`${natName(u.nat)} ${UT[u.type].n}`;
+  const pv=o.pv;   // 관통 판정(05na-pen): 뚫은 탄만 안쪽 부품·승무원을 다치게 한다
+  const heavy=pv?!!pv.pen&&(pv.P>=60||kind==='blast'||kind==='crush'):kind==='blast'||kind==='crush'||(ta&&ta.atk.veh>=5);const S=casStats(u.nat);const nm=`${natName(u.nat)} ${UT[u.type].n}`;
   const rolls=Math.min(3,Math.max(1,o.hits||1));const crewHit=()=>{const i=V.crew.findIndex(c=>c==='ok');if(i<0)return;V.crew[i]=Math.random()<.4?'kia':'hw';if(V.crew[i]==='kia')S.kia++;else S.wia++;};
   for(let k=0;k<rolls;k++){
-    if(heavy){let pen=UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(o.arm||1))*Math.min(1,amt/2.5);if(Math.random()>pen)continue;   // 파편 몇 점(피해 1~2)은 부품까지 잘 안 뚫는다
+    if(heavy){let pen=pv?Math.min(.95,.55+.15*Math.log2(Math.max(1,pv.r))):UT[u.type].armor?(by&&(by.type==='at'||by.type==='eng')?.75:by&&by.type==='tank'?.6:.35):u.type==='hmv'?.95:.85;pen=Math.min(.97,pen*(pv?1:o.arm||1))*Math.min(1,amt/2.5);if(Math.random()>pen)continue;   // 파편 몇 점(피해 1~2)은 부품까지 잘 안 뚫는다
       const r=Math.random();
       if(r<.28){if(!V.mob){V.mob=1;L(`${nm} 기동 불능`);}}
       else if(r<.5){if(!V.gun){V.gun=1;L(`${nm} 무장 파손`);}}
       else if(r<.78){crewHit();if(Math.random()<.4)crewHit();}
       else{V.fire=1;}
       FXH.vhit(u,r);}
-    else if(u.type==='hmv'&&Math.random()<.18)crewHit();}       // 험비는 장갑이 얇아 소총탄에도 승무원이 다친다
+    else if(pv?pv.pen:u.type==='hmv'){if(Math.random()<.18)crewHit();if(pv&&Math.random()<.04&&!V.mob){V.mob=1;L(`${nm} 기동 불능`);}}}   // 얇은 차는 소총탄·12.7mm가 안까지 들어온다       // 험비는 장갑이 얇아 소총탄에도 승무원이 다친다
   if(!G.units.includes(u))return;
   const crewDown=V.crew.filter(c=>c!=='ok').length;
   if(u.hp<=0){S.veh++;casCook(u,.5);kill(u,by);return;}
