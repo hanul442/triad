@@ -4,17 +4,17 @@
      보병은 밟아도 터지지 않는다. 적 공병이 가까이(반 칸) 오면 찾아내 걷어 낸다. 아군 차량은 안전한 통로를 알아 터뜨리지 않는다.
    - 콘크리트 벙커(공병): 지붕 덮인 토치카. 안의 보병은 사방 엄폐 60%, 포격에도 버틴다. 모든 차량을 막는다.
    - 건물 요새화(보병): 지금 있는 건물 칸의 창을 모래주머니로 막고 벽에 사격 구멍을 낸다.
-     그 칸 안 보병 엄폐 40% → 55%(옥상 25% → 45%), 건물이 받는 피해 −30%. 건물이 무너지면 사라진다.
+     그 칸 안 보병 엄폐 55% → 70%(옥상 25% → 45%), 건물이 받는 피해 −30%. 건물이 무너지면 사라진다.
    - 구호소(보병): 앞쪽에 세우는 천막 응급소. 후송조가 출발 지역까지 가지 않고 가까운 구호소로 간다(05m-med).
    방어물은 G.forts에 같은 모양 {id,k,nat,x,z,ry,hp,prog}로 들어간다. 건물 요새화는 칸 가운데에 놓이고 칸에 x.fb = 세력을 남긴다. */
 Object.assign(FORT,{
   mine:{n:'대전차 지뢰',len:.16,w:.16,cov:0,h:0,hp:20,bt:6,cost:2,desc:'적에게 보이지 않는 지뢰. 적 차량이 밟으면 궤도가 끊기고 크게 다침. 보병은 안 터짐. 적 공병이 걷어 냄',hidden:1},
   bunker:{n:'벙커',len:.3,w:.3,cov:.6,h:.13,hp:160,bt:20,cost:4,desc:'지붕 덮인 콘크리트 토치카. 안의 보병은 사방 엄폐 60%(포격에도). 모든 차량을 막음',inside:1},
-  fortb:{n:'건물 요새화',len:.9,w:.9,cov:0,h:0,hp:400,bt:16,cost:2,desc:'지금 있는 건물 칸의 창을 모래주머니로 막음. 안 보병 엄폐 55%, 건물 피해 −30%',inside:1,bldg:1},
+  fortb:{n:'건물 요새화',len:.9,w:.9,cov:0,h:0,hp:400,bt:16,cost:2,desc:'지금 있는 건물 칸의 창을 모래주머니로 막음. 안 보병 엄폐 70%(사격 구멍), 건물 피해 −30%',inside:1,bldg:1},
   aid:{n:'구호소',len:.3,w:.22,cov:0,h:.1,hp:25,bt:10,cost:2,desc:'앞쪽 응급 천막. 부상자를 가까운 여기로 후송하고, 둘레 경상자를 치료함',med:1},
 });
 FORT_KS.push('mine','bunker','fortb','aid');
-Object.assign(COVK,{bunker:{n:'벙커',v:.6},fortb:{n:'요새화 건물',v:.55}});
+Object.assign(COVK,{bunker:{n:'벙커',v:.6},fortb:{n:'요새화 건물',v:.7}});
 Object.assign(NAV_RULE,{mine:{inf:0,eng:0,veh:0,trk:0},bunker:{inf:2,eng:2,veh:2,trk:2},fortb:{inf:0,eng:0,veh:0,trk:0},aid:{inf:0,eng:0,veh:2,trk:2}});
 // 벙커는 안으로 들어가 앉아야 하므로 보병은 막지 않는다(사격 구멍 뒤에 선다)
 NAV_RULE.bunker.inf=0;NAV_RULE.bunker.eng=0;
@@ -48,7 +48,7 @@ function bunkerAt(x,z){for(const f of G.forts||[])if(f.k==='bunker'&&f.prog>=1&&
 {const _co=coverOf;coverOf=function(d,a){const c=_co(d,a);const td=UT[d.type];if(td.cls!=='inf')return c;
    const x=cell(d.r,d.c);
    if(x.t==='bldg'&&x.fb!=null&&c.kind==='roof'&&c.cov<.45)return {cov:.45+(c.cov-COVK.roof.v),kind:'fortb'};   // 옥상 난간 모래주머니
-   if(x.t==='bldg'&&x.fb!=null&&c.kind==='bldg'){const v=a&&UT[a.type].ex?.42:COVK.fortb.v;if(c.cov<v)return {cov:v+(c.cov-COVK.bldg.v),kind:'fortb'};}
+   if(x.t==='bldg'&&x.fb!=null&&c.kind==='bldg'){const v=a&&UT[a.type].ex?.5:COVK.fortb.v;if(c.cov<v)return {cov:v+(c.cov-COVK.bldg.v),kind:'fortb'};}
    if(x.t!=='bldg'){const [px,pz]=posOf(d);if(bunkerAt(px,pz)&&c.cov<COVK.bunker.v)return {cov:COVK.bunker.v+(x.smoke>0?.15:0),kind:'bunker'};}
    return c;};
  const _ca=coverAt;coverAt=function(px,pz,cls,objs){const v=_ca(px,pz,cls,objs);if(cls!=='inf')return v;const t=tileAt(px,pz);

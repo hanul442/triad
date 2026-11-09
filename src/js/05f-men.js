@@ -80,9 +80,12 @@ function menMoveSpot(u,m,k){const wide=cell(u.r,u.c).t!=='bldg';let gap=wide?MEN
 function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menThreatDir(u);const ux=Math.cos(th),uz=Math.sin(th);const here=cell(u.r,u.c);
   u._plan=1;u._planT=G.time||0;u._planF=th;
   if(here.t==='bldg'){// 건물 안: 쏘는 쪽 벽(창가)을 따라 늘어선다
-    const ax=Math.abs(ux)>Math.abs(uz);const cx=u.c+.5,cz=u.r+.5;const n=L.length;
+    let ax=Math.abs(ux)>Math.abs(uz);const cx=u.c+.5,cz=u.r+.5;const n=L.length;
+    // 위협 쪽 벽이 같은 건물 옆 칸과 붙은 안벽이면 창이 없다: 위협에 가장 가까운 바깥 외벽(창) 쪽에 선다
+    let wsx=0;if(typeof bldgBox==='function'){const b=bldgBox(u.r,u.c),e=1e-6;let bd=-9;
+      for(const [isx,sg,ext] of [[1,-1,b[0]>u.c+e],[1,1,b[1]<u.c+1-e],[0,-1,b[2]>u.r+e],[0,1,b[3]<u.r+1-e]]){if(!ext)continue;const dt=(isx?ux:uz)*sg;if(dt>bd){bd=dt;ax=!!isx;wsx=sg;}}}
     // 앞벽에 최대 5명을 고르게 펼치고, 나머지는 양옆 벽 앞쪽 절반에 번갈아 선다(한 줄로 몰려 서지 않게)
-    const nf=Math.min(n,5),sx=Math.sign(ax?ux:uz)||1;
+    const nf=Math.min(n,5),sx=wsx||Math.sign(ax?ux:uz)||1;
     L.forEach((m,k)=>{let x,z,sec=th;
       if(k<nf){const lat=nf>1?(k-(nf-1)/2)/(nf-1)*.6:0;if(ax){x=cx+sx*.31;z=cz+lat;}else{z=cz+sx*.31;x=cx+lat;}sec=th+(k-(nf-1)/2)*.18;}
       else{const j=k-nf,side=j%2?1:-1,d=.22-Math.floor(j/2)*.16;const a=Math.max(-.2,Math.min(.2,sx*d));if(ax){x=cx+a;z=cz+side*.31;}else{z=cz+a;x=cx+side*.31;}

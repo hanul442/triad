@@ -22,6 +22,8 @@ function flWant(u,x){if(u.cqb)return u.cqb.fl!=null?u.cqb.fl:Math.floor((u.fl||0
   const taken=new Set(),me=u._inT||0;
   for(const v of G.units){if(v===u||v.nat!==u.nat||v.r!==u.r||v.c!==u.c||UT[v.type].cls!=='inf'||v._inK!==k)continue;if(v.path&&v.path.length)continue;
     const f=v.cqb?flOf(v):v._flC;if(f==null)continue;const vt=v._inT||0;if(v.cqb||vt<me||(vt===me&&v.id<u.id))taken.add(f);}
+  // 교전 중(방금 쐈다)이면 지금 층에서 계속 쏜다: 계단을 오르는 동안은 못 쏘니 싸움이 끝난 뒤 오른다(사람이 층을 시킨 때는 따른다)
+  if(u.flT==null&&!u.climb&&u.fl!=null&&u.flK===k&&(G.time||0)-(u.firedT??-99)<4){const cur=Math.round(u.fl);if(Math.abs(u.fl-cur)<1e-6&&cur<=top&&!taken.has(cur)){u._flC=cur;return cur;}}
   let f=want;if(taken.has(f)){f=null;for(let d=1;d<=top;d++){if(want-d>=0&&!taken.has(want-d)){f=want-d;break;}if(want+d<=top&&!taken.has(want+d)){f=want+d;break;}}if(f==null)f=want;}
   u._flC=f;return f;}
 if(typeof COVK==='object'){COVK.room=COVK.room||{n:'실내 근접',v:CQB.roomCov};COVK.stair=COVK.stair||{n:'계단',v:0};}

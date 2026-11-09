@@ -25,7 +25,9 @@ function tacKnown(n){const M=typeof memOf==='function'?memOf(n):{};const t=G.tim
 function tacCov(x,z,fx,fz,objs){const t=tileAt(x,z);if(!t)return 0;if(t.t==='bldg')return COVK.bldg.v;let b=TT[t.t].cov||0;
   if(typeof trenchAt==='function'&&trenchAt(x,z))b=Math.max(b,.45);const d=Math.hypot(fx-x,fz-z)||1;
   return Math.max(b,dirCoverAt(x,z,(fx-x)/d,(fz-z)/d,'inf',null,objs).cov);}
-const tacEye=(x,z)=>{const t=tileAt(x,z);return t&&t.t==='bldg'?Math.max(.5,Math.min(t.f,3)-.5):.5;};
+const tacEye=(x,z)=>{const t=tileAt(x,z);return t&&t.t==='bldg'?Math.max(.5,Math.min(t.f,(typeof CQB==='object'?CQB.autoFl:4)+1)-.5):.5;};   // 건물 안이면 분대가 오를 층(05k-cqb CQB.autoFl)
+/* 내려다보는 이점(층): 높은 층·언덕에서는 멀리 보고 낮은 엄폐 너머를 쏜다 */
+const tacHigh=(x,z,h)=>Math.max(0,Math.min(4,tacEye(x,z)+(typeof gndAt==='function'?gndAt(x,z):0)-h));
 /* 노출: 아는 적 중 이 점을 쏠 수 있는 쪽(사거리 + 시야선)의 위협 합 */
 function tacExpo(x,z,K,objs,skip){let s=0;const h=tacEye(x,z);for(const k of K){if(k===skip)continue;const t=UT[k.ty];const d=Math.hypot(k.x-x,k.z-z);if(d>(t.rng[1]||4)+.8)continue;
     if(t.ind){s+=tacCost(k.ty)*.3;continue;}if(!losPt(k.x,k.z,k.h,x,z,h))continue;s+=tacCost(k.ty)*(1-Math.min(.85,tacCov(x,z,k.x,k.z,objs)))*(t.cls==='veh'?1.4:1);}
@@ -132,7 +134,7 @@ function tacContact(p,M,K,objs,str,est){const t=G.time||0;
     const see=d0>=Math.min(2,R*.5)&&d0<=R*.95&&losPt(u.x,u.z,eye(u),fx,fz,F.h);const ok=see&&tacCov(u.x,u.z,fx,fz,objs)>=.25;
     if(ok||(!tacIdle(u)&&t-(u.tk.at||0)<8)||see&&u.tk.role==='bof'&&t-(u.tk.at||0)<15){u.tk.role='bof';continue;}
     const s=tacSpot(u,u.x,u.z,[0,.5,1,1.5,2.2],(x,z)=>{const d=Math.hypot(x-fx,z-fz);if(d<1.6||d>R*.95)return -1e9;if(p.pt&&p.mode==='defend'&&Math.hypot(x-p.pt[0],z-p.pt[1])>3.2)return -1e9;if(!losPt(x,z,tacEye(x,z),fx,fz,F.h))return -1e8;
-      return tacCov(x,z,fx,fz,objs)*12-tacExpo(x,z,K,objs,F)*.8-Math.abs(d-R*.72)*.8-Math.hypot(x-u.x,z-u.z)*.9;});
+      return tacCov(x,z,fx,fz,objs)*12+tacHigh(x,z,F.h+(typeof gndAt==='function'?gndAt(fx,fz):0))*1.6-tacExpo(x,z,K,objs,F)*.8-Math.abs(d-R*.72)*.8-Math.hypot(x-u.x,z-u.z)*.9;});
     if(s&&s[0]>-1e7)tacGo(u,s[0],s[1],'bof');}
   if(!man.length)return;
   const bx=bof.length?bof.reduce((a,u)=>a+u.x,0)/bof.length:c[0],bz=bof.length?bof.reduce((a,u)=>a+u.z,0)/bof.length:c[1];const axis=Math.atan2(bz-fz,bx-fx);
@@ -183,10 +185,14 @@ function tacStall(u){const t=G.time||0;if(tacIdle(u)||u.climb){u._tst=null;retur
 /* ---------- 엔진에 끼우기 ---------- */
 {const _ai=aiThink;aiThink=function(n){let hid=[];try{tacThink(n);hid=G.units.filter(u=>u.nat===n&&u.tk&&tacUnit(u)&&u.pl&&!u.job);for(const u of hid)u.job=TAC_HIDE;}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}
   try{_ai(n);}finally{for(const u of hid)if(u.job===TAC_HIDE)u.job=null;}};}
-/* 사격 군기: 움직이는 중에는 쏘지 않고(바로 앞 1.2칸 적에게만 응사), 멈춰서 쏜다. 엄호는 멈춰 있는 쪽이 한다 */
+/* 사격 군기: 움직이는 중에는 함부로 쏘지 않고 멈춰서 쏜다. 엄호는 멈춰 있는 쪽이 한다.
+   다만 접촉하면(교범의 '접촉 시 행동') 바로 응사한다: 방금 총에 맞았거나 눌렸고, 보이는 적이 사거리 안에 있을 때,
+   또는 보이는 적이 4칸(약 50m) 안에 있을 때. 돌격조는 쏘며 나아간다(사격과 기동). */
+function tacHot(u){const t=G.time||0;const hot=(u.supp||0)>0||t-(u._hitT??-99)<3;const R=hot?(UT[u.type].rng[1]||4):u.tk&&u.tk.role==='assault'?6:4;
+  return G.units.some(e=>e.nat!==u.nat&&!UT[e.type].fly&&Math.hypot(e.x-u.x,e.z-u.z)<R&&(!G.fog||seen(e,u.nat)));}
 const TAC_QUIET={flank:1,ret:1,move:1,bound:1,bof:1,hold:1,cap:1,assault:1};
 {const _f=rtFight;rtFight=function(u){if(u.tk&&u.pl&&TAC_QUIET[u.tk.role]&&u.path&&u.path.length&&!u.climb){
-    if(!G.units.some(e=>e.nat!==u.nat&&!UT[e.type].fly&&Math.hypot(e.x-u.x,e.z-u.z)<1.2))return;}
+    if(!tacHot(u))return;}
   return _f(u);};}
 {const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||G.over||!G.units)return;
   for(const u of G.units)if(u.tk&&u.pl)try{tacReact(u);tacStall(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}

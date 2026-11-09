@@ -1578,10 +1578,11 @@ function segBox(x1,z1,x2,z2,b){let t0=0,t1=1;const dx=x2-x1,dz=z2-z1;
     let a=(lo-p)/d,c=(hi-p)/d;if(a>c)[a,c]=[c,a];t0=Math.max(t0,a);t1=Math.min(t1,c);if(t0>t1)return null;}
   return [t0,t1];}
 /* 시야선: 실제 좌표 사이. 지나는 칸을 DDA로 차례로 밟는다.
-   건물 안(눈높이가 건물 높이보다 낮음)에 있는 끝점은 창가에서만 밖이 보인다:
-   광선이 자기 칸 상자를 바깥쪽 외벽(같은 블록과 붙지 않은 면)으로, WIN칸 안에서 빠져나가야 한다.
+   건물 안(눈높이가 건물 높이보다 낮음)에 있는 끝점은 창으로만 밖이 보인다:
+   광선이 자기 칸 상자를 바깥쪽 외벽(같은 블록과 붙지 않은 면)으로 빠져나가야 한다. 한 칸(약 12m)은 방 하나라
+   분대는 그 방 어디에 있든 그쪽 창가로 붙어 쏜다(병사 자리는 05f-men). 붙은 칸 쪽 안벽에는 창이 없다.
    옥상(눈높이가 건물 높이 이상)이면 자기 칸은 가리지 않는다. 같은 블록의 다른 칸도 보통 건물처럼 가린다. */
-const WIN=.4;
+const WIN=.9;                   // 칸 안 어디서든 바깥 외벽(창)으로 나가는 시야선이면 된다: 병사들이 그쪽 창가로 붙는다(05f-men menPlan·menToLos)
 const TREE_H=2;                // 공원 나무 높이(층). 이보다 낮게 지나는 시야선만 숲에 가린다
 const WOOD_L=1.6;              // 숲을 이 길이(칸)보다 오래 지나면 안 보인다(약 20m)
 /* 선 자리의 지면 높이(층): 건물 칸은 다진 칸 높이, 나머지는 꼭짓점 높이를 보간한 실제 비탈 높이 */
@@ -1726,13 +1727,13 @@ function canHitTile(a,r2,c2,fromR,fromC,moved){const t=UT[a.type];if(!t.ex||!t.r
 /* ---- 04c-cover.js ---- */
 /* ===================== COVER: 칸 없는 엄폐와 명중률 =====================
    엄폐는 서 있는 칸 종류가 아니라 실제 위치와 쏘는 방향으로 정한다.
-   - 건물 안: 40% (폭발물은 절반만)
+   - 건물 안: 55% (창틀·벽 뒤로 머리와 어깨만 내민다. 소총탄은 벽돌 벽을 못 뚫으니 창으로만 맞는다. 폭발물은 절반만)
    - 쏘는 쪽으로 반 칸 안에 건물 외벽이 있으면 벽 엄폐 35% (차량은 20%)
    - 쏘는 쪽으로 차량·잔해 차량·소품(G.covers)이 붙어 있으면 그 물체의 엄폐 (보병만)
    - 잔해 위 25%, 공원(나무) 15%. 연막 +15%, 제압당해 엎드린 보병 +10%
    옆이나 뒤에서 쏘면 벽·차량 엄폐는 없다. 2층 이상 높은 곳에서 내려 쏘면 낮은 엄폐는 절반.
    엄폐는 명중률을 깎는다. 피해 기댓값(calcDmg) = 기본 화력 × 명중률. */
-const COVK={bldg:{n:'건물 안',v:.4},roof:{n:'옥상 난간',v:.25},wall:{n:'벽',v:.35},veh:{n:'차량',v:.3},wreck:{n:'잔해 차량',v:.3},prop:{n:'엄폐물',v:.25},car:{n:'차량',v:.3},barrier:{n:'방호벽',v:.35},hedge:{n:'덤불',v:.15},rubble:{n:'잔해',v:.25},park:{n:'나무',v:.15}};
+const COVK={bldg:{n:'건물 안(창가)',v:.55},roof:{n:'옥상 난간',v:.25},wall:{n:'벽',v:.35},veh:{n:'차량',v:.3},wreck:{n:'잔해 차량',v:.3},prop:{n:'엄폐물',v:.25},car:{n:'차량',v:.3},barrier:{n:'방호벽',v:.35},hedge:{n:'덤불',v:.15},rubble:{n:'잔해',v:.25},park:{n:'나무',v:.15}};
 const VOLLEY={rifle:4,mg:6,at:1,sniper:1,eng:2,mortar:1,ifv:3,tank:1,drone:1};
 /* 엄폐물 목록: 지상 차량(서 있는 것) + 도시 소품·잔해 차량(G.covers: {x,z,r,cov,kind}) */
 // 큰 도시는 소품이 수천 개라 칸별 묶음(G._cg)으로 가까운 것만 본다. 목록이 바뀌면 다시 묶는다.
@@ -3033,9 +3034,12 @@ function menMoveSpot(u,m,k){const wide=cell(u.r,u.c).t!=='bldg';let gap=wide?MEN
 function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menThreatDir(u);const ux=Math.cos(th),uz=Math.sin(th);const here=cell(u.r,u.c);
   u._plan=1;u._planT=G.time||0;u._planF=th;
   if(here.t==='bldg'){// 건물 안: 쏘는 쪽 벽(창가)을 따라 늘어선다
-    const ax=Math.abs(ux)>Math.abs(uz);const cx=u.c+.5,cz=u.r+.5;const n=L.length;
+    let ax=Math.abs(ux)>Math.abs(uz);const cx=u.c+.5,cz=u.r+.5;const n=L.length;
+    // 위협 쪽 벽이 같은 건물 옆 칸과 붙은 안벽이면 창이 없다: 위협에 가장 가까운 바깥 외벽(창) 쪽에 선다
+    let wsx=0;if(typeof bldgBox==='function'){const b=bldgBox(u.r,u.c),e=1e-6;let bd=-9;
+      for(const [isx,sg,ext] of [[1,-1,b[0]>u.c+e],[1,1,b[1]<u.c+1-e],[0,-1,b[2]>u.r+e],[0,1,b[3]<u.r+1-e]]){if(!ext)continue;const dt=(isx?ux:uz)*sg;if(dt>bd){bd=dt;ax=!!isx;wsx=sg;}}}
     // 앞벽에 최대 5명을 고르게 펼치고, 나머지는 양옆 벽 앞쪽 절반에 번갈아 선다(한 줄로 몰려 서지 않게)
-    const nf=Math.min(n,5),sx=Math.sign(ax?ux:uz)||1;
+    const nf=Math.min(n,5),sx=wsx||Math.sign(ax?ux:uz)||1;
     L.forEach((m,k)=>{let x,z,sec=th;
       if(k<nf){const lat=nf>1?(k-(nf-1)/2)/(nf-1)*.6:0;if(ax){x=cx+sx*.31;z=cz+lat;}else{z=cz+sx*.31;x=cx+lat;}sec=th+(k-(nf-1)/2)*.18;}
       else{const j=k-nf,side=j%2?1:-1,d=.22-Math.floor(j/2)*.16;const a=Math.max(-.2,Math.min(.2,sx*d));if(ax){x=cx+a;z=cz+side*.31;}else{z=cz+a;x=cx+side*.31;}
@@ -4288,6 +4292,8 @@ function flWant(u,x){if(u.cqb)return u.cqb.fl!=null?u.cqb.fl:Math.floor((u.fl||0
   const taken=new Set(),me=u._inT||0;
   for(const v of G.units){if(v===u||v.nat!==u.nat||v.r!==u.r||v.c!==u.c||UT[v.type].cls!=='inf'||v._inK!==k)continue;if(v.path&&v.path.length)continue;
     const f=v.cqb?flOf(v):v._flC;if(f==null)continue;const vt=v._inT||0;if(v.cqb||vt<me||(vt===me&&v.id<u.id))taken.add(f);}
+  // 교전 중(방금 쐈다)이면 지금 층에서 계속 쏜다: 계단을 오르는 동안은 못 쏘니 싸움이 끝난 뒤 오른다(사람이 층을 시킨 때는 따른다)
+  if(u.flT==null&&!u.climb&&u.fl!=null&&u.flK===k&&(G.time||0)-(u.firedT??-99)<4){const cur=Math.round(u.fl);if(Math.abs(u.fl-cur)<1e-6&&cur<=top&&!taken.has(cur)){u._flC=cur;return cur;}}
   let f=want;if(taken.has(f)){f=null;for(let d=1;d<=top;d++){if(want-d>=0&&!taken.has(want-d)){f=want-d;break;}if(want+d<=top&&!taken.has(want+d)){f=want+d;break;}}if(f==null)f=want;}
   u._flC=f;return f;}
 if(typeof COVK==='object'){COVK.room=COVK.room||{n:'실내 근접',v:CQB.roomCov};COVK.stair=COVK.stair||{n:'계단',v:0};}
@@ -4426,17 +4432,17 @@ rtMove=function(u,dt){_cqbMove0(u,dt);if(!G.units.includes(u))return;const p=u.p
      보병은 밟아도 터지지 않는다. 적 공병이 가까이(반 칸) 오면 찾아내 걷어 낸다. 아군 차량은 안전한 통로를 알아 터뜨리지 않는다.
    - 콘크리트 벙커(공병): 지붕 덮인 토치카. 안의 보병은 사방 엄폐 60%, 포격에도 버틴다. 모든 차량을 막는다.
    - 건물 요새화(보병): 지금 있는 건물 칸의 창을 모래주머니로 막고 벽에 사격 구멍을 낸다.
-     그 칸 안 보병 엄폐 40% → 55%(옥상 25% → 45%), 건물이 받는 피해 −30%. 건물이 무너지면 사라진다.
+     그 칸 안 보병 엄폐 55% → 70%(옥상 25% → 45%), 건물이 받는 피해 −30%. 건물이 무너지면 사라진다.
    - 구호소(보병): 앞쪽에 세우는 천막 응급소. 후송조가 출발 지역까지 가지 않고 가까운 구호소로 간다(05m-med).
    방어물은 G.forts에 같은 모양 {id,k,nat,x,z,ry,hp,prog}로 들어간다. 건물 요새화는 칸 가운데에 놓이고 칸에 x.fb = 세력을 남긴다. */
 Object.assign(FORT,{
   mine:{n:'대전차 지뢰',len:.16,w:.16,cov:0,h:0,hp:20,bt:6,cost:2,desc:'적에게 보이지 않는 지뢰. 적 차량이 밟으면 궤도가 끊기고 크게 다침. 보병은 안 터짐. 적 공병이 걷어 냄',hidden:1},
   bunker:{n:'벙커',len:.3,w:.3,cov:.6,h:.13,hp:160,bt:20,cost:4,desc:'지붕 덮인 콘크리트 토치카. 안의 보병은 사방 엄폐 60%(포격에도). 모든 차량을 막음',inside:1},
-  fortb:{n:'건물 요새화',len:.9,w:.9,cov:0,h:0,hp:400,bt:16,cost:2,desc:'지금 있는 건물 칸의 창을 모래주머니로 막음. 안 보병 엄폐 55%, 건물 피해 −30%',inside:1,bldg:1},
+  fortb:{n:'건물 요새화',len:.9,w:.9,cov:0,h:0,hp:400,bt:16,cost:2,desc:'지금 있는 건물 칸의 창을 모래주머니로 막음. 안 보병 엄폐 70%(사격 구멍), 건물 피해 −30%',inside:1,bldg:1},
   aid:{n:'구호소',len:.3,w:.22,cov:0,h:.1,hp:25,bt:10,cost:2,desc:'앞쪽 응급 천막. 부상자를 가까운 여기로 후송하고, 둘레 경상자를 치료함',med:1},
 });
 FORT_KS.push('mine','bunker','fortb','aid');
-Object.assign(COVK,{bunker:{n:'벙커',v:.6},fortb:{n:'요새화 건물',v:.55}});
+Object.assign(COVK,{bunker:{n:'벙커',v:.6},fortb:{n:'요새화 건물',v:.7}});
 Object.assign(NAV_RULE,{mine:{inf:0,eng:0,veh:0,trk:0},bunker:{inf:2,eng:2,veh:2,trk:2},fortb:{inf:0,eng:0,veh:0,trk:0},aid:{inf:0,eng:0,veh:2,trk:2}});
 // 벙커는 안으로 들어가 앉아야 하므로 보병은 막지 않는다(사격 구멍 뒤에 선다)
 NAV_RULE.bunker.inf=0;NAV_RULE.bunker.eng=0;
@@ -4470,7 +4476,7 @@ function bunkerAt(x,z){for(const f of G.forts||[])if(f.k==='bunker'&&f.prog>=1&&
 {const _co=coverOf;coverOf=function(d,a){const c=_co(d,a);const td=UT[d.type];if(td.cls!=='inf')return c;
    const x=cell(d.r,d.c);
    if(x.t==='bldg'&&x.fb!=null&&c.kind==='roof'&&c.cov<.45)return {cov:.45+(c.cov-COVK.roof.v),kind:'fortb'};   // 옥상 난간 모래주머니
-   if(x.t==='bldg'&&x.fb!=null&&c.kind==='bldg'){const v=a&&UT[a.type].ex?.42:COVK.fortb.v;if(c.cov<v)return {cov:v+(c.cov-COVK.bldg.v),kind:'fortb'};}
+   if(x.t==='bldg'&&x.fb!=null&&c.kind==='bldg'){const v=a&&UT[a.type].ex?.5:COVK.fortb.v;if(c.cov<v)return {cov:v+(c.cov-COVK.bldg.v),kind:'fortb'};}
    if(x.t!=='bldg'){const [px,pz]=posOf(d);if(bunkerAt(px,pz)&&c.cov<COVK.bunker.v)return {cov:COVK.bunker.v+(x.smoke>0?.15:0),kind:'bunker'};}
    return c;};
  const _ca=coverAt;coverAt=function(px,pz,cls,objs){const v=_ca(px,pz,cls,objs);if(cls!=='inf')return v;const t=tileAt(px,pz);
@@ -6149,8 +6155,10 @@ function aiPosScore(u,r,c,goal,vis,n){const t=UT[u.type],x=G.map[r][c];let s=0;
   if(t.ind||u.type==='sniper'){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-(u.type==='spg'?20:u.type==='mortar'?12:u.type==='mlrs'?26:5))*2.2+(vis.length?0:gd*(t.ind?.6:2));}
   else if(t.fly){const near=vis.length?Math.min(...vis.map(e=>dist(e.r,e.c,r,c))):gd;s-=Math.abs(near-4)*2+gd*.6;}
   else s-=gd*2.6;
-  if(x.el&&(t.cls==='inf'||t.ind))s+=Math.min(3,x.el)*(u.type==='sniper'||u.type==='mg'?1.4:.8);   // 높은 곳 선호
-  if(t.cls==='inf'){if(x.t==='bldg')s+=5+Math.min(4,x.f)*.6;else if(x.t==='rubble')s+=3;else if(x.t==='park')s+=1.2;}
+  // 높은 곳(감제고지): 언덕·높은 건물은 멀리 보고 내려다 쏜다. 적이 가까울수록(12칸 안) 더 노린다. 기관총·저격수는 더
+  {const hi=(x.el||0)+(x.t==='bldg'&&t.cls==='inf'?Math.min(x.f,(typeof CQB==='object'?CQB.autoFl:4)+1)*.8:0);
+   if(hi>0&&(t.cls==='inf'||t.ind)){const k=u.type==='sniper'||u.type==='mg'?1.6:t.ind?.6:1;const near=vis.some(e=>dist(e.r,e.c,r,c)<=12)?1.5:1;s+=Math.min(4.5,hi)*k*near;}}
+  if(t.cls==='inf'){if(x.t==='bldg')s+=5;else if(x.t==='rubble')s+=3;else if(x.t==='park')s+=1.2;}
   let threat=0;const sv=u.r,sc=u.c;u.r=r;u.c=c;
   for(const e of vis){const de=dist(e.r,e.c,r,c);if(de>UT[e.type].rng[1]+2)continue;if(canHit(e,u)){threat+=calcDmg(e,u,false);}
     if(t.cls==='veh'&&UT[e.type].cls==='inf'&&de<=2)s-=e.type==='at'||e.type==='eng'?9:3;}
@@ -6324,7 +6332,9 @@ function tacKnown(n){const M=typeof memOf==='function'?memOf(n):{};const t=G.tim
 function tacCov(x,z,fx,fz,objs){const t=tileAt(x,z);if(!t)return 0;if(t.t==='bldg')return COVK.bldg.v;let b=TT[t.t].cov||0;
   if(typeof trenchAt==='function'&&trenchAt(x,z))b=Math.max(b,.45);const d=Math.hypot(fx-x,fz-z)||1;
   return Math.max(b,dirCoverAt(x,z,(fx-x)/d,(fz-z)/d,'inf',null,objs).cov);}
-const tacEye=(x,z)=>{const t=tileAt(x,z);return t&&t.t==='bldg'?Math.max(.5,Math.min(t.f,3)-.5):.5;};
+const tacEye=(x,z)=>{const t=tileAt(x,z);return t&&t.t==='bldg'?Math.max(.5,Math.min(t.f,(typeof CQB==='object'?CQB.autoFl:4)+1)-.5):.5;};   // 건물 안이면 분대가 오를 층(05k-cqb CQB.autoFl)
+/* 내려다보는 이점(층): 높은 층·언덕에서는 멀리 보고 낮은 엄폐 너머를 쏜다 */
+const tacHigh=(x,z,h)=>Math.max(0,Math.min(4,tacEye(x,z)+(typeof gndAt==='function'?gndAt(x,z):0)-h));
 /* 노출: 아는 적 중 이 점을 쏠 수 있는 쪽(사거리 + 시야선)의 위협 합 */
 function tacExpo(x,z,K,objs,skip){let s=0;const h=tacEye(x,z);for(const k of K){if(k===skip)continue;const t=UT[k.ty];const d=Math.hypot(k.x-x,k.z-z);if(d>(t.rng[1]||4)+.8)continue;
     if(t.ind){s+=tacCost(k.ty)*.3;continue;}if(!losPt(k.x,k.z,k.h,x,z,h))continue;s+=tacCost(k.ty)*(1-Math.min(.85,tacCov(x,z,k.x,k.z,objs)))*(t.cls==='veh'?1.4:1);}
@@ -6431,7 +6441,7 @@ function tacContact(p,M,K,objs,str,est){const t=G.time||0;
     const see=d0>=Math.min(2,R*.5)&&d0<=R*.95&&losPt(u.x,u.z,eye(u),fx,fz,F.h);const ok=see&&tacCov(u.x,u.z,fx,fz,objs)>=.25;
     if(ok||(!tacIdle(u)&&t-(u.tk.at||0)<8)||see&&u.tk.role==='bof'&&t-(u.tk.at||0)<15){u.tk.role='bof';continue;}
     const s=tacSpot(u,u.x,u.z,[0,.5,1,1.5,2.2],(x,z)=>{const d=Math.hypot(x-fx,z-fz);if(d<1.6||d>R*.95)return -1e9;if(p.pt&&p.mode==='defend'&&Math.hypot(x-p.pt[0],z-p.pt[1])>3.2)return -1e9;if(!losPt(x,z,tacEye(x,z),fx,fz,F.h))return -1e8;
-      return tacCov(x,z,fx,fz,objs)*12-tacExpo(x,z,K,objs,F)*.8-Math.abs(d-R*.72)*.8-Math.hypot(x-u.x,z-u.z)*.9;});
+      return tacCov(x,z,fx,fz,objs)*12+tacHigh(x,z,F.h+(typeof gndAt==='function'?gndAt(fx,fz):0))*1.6-tacExpo(x,z,K,objs,F)*.8-Math.abs(d-R*.72)*.8-Math.hypot(x-u.x,z-u.z)*.9;});
     if(s&&s[0]>-1e7)tacGo(u,s[0],s[1],'bof');}
   if(!man.length)return;
   const bx=bof.length?bof.reduce((a,u)=>a+u.x,0)/bof.length:c[0],bz=bof.length?bof.reduce((a,u)=>a+u.z,0)/bof.length:c[1];const axis=Math.atan2(bz-fz,bx-fx);
@@ -6482,10 +6492,14 @@ function tacStall(u){const t=G.time||0;if(tacIdle(u)||u.climb){u._tst=null;retur
 /* ---------- 엔진에 끼우기 ---------- */
 {const _ai=aiThink;aiThink=function(n){let hid=[];try{tacThink(n);hid=G.units.filter(u=>u.nat===n&&u.tk&&tacUnit(u)&&u.pl&&!u.job);for(const u of hid)u.job=TAC_HIDE;}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}
   try{_ai(n);}finally{for(const u of hid)if(u.job===TAC_HIDE)u.job=null;}};}
-/* 사격 군기: 움직이는 중에는 쏘지 않고(바로 앞 1.2칸 적에게만 응사), 멈춰서 쏜다. 엄호는 멈춰 있는 쪽이 한다 */
+/* 사격 군기: 움직이는 중에는 함부로 쏘지 않고 멈춰서 쏜다. 엄호는 멈춰 있는 쪽이 한다.
+   다만 접촉하면(교범의 '접촉 시 행동') 바로 응사한다: 방금 총에 맞았거나 눌렸고, 보이는 적이 사거리 안에 있을 때,
+   또는 보이는 적이 4칸(약 50m) 안에 있을 때. 돌격조는 쏘며 나아간다(사격과 기동). */
+function tacHot(u){const t=G.time||0;const hot=(u.supp||0)>0||t-(u._hitT??-99)<3;const R=hot?(UT[u.type].rng[1]||4):u.tk&&u.tk.role==='assault'?6:4;
+  return G.units.some(e=>e.nat!==u.nat&&!UT[e.type].fly&&Math.hypot(e.x-u.x,e.z-u.z)<R&&(!G.fog||seen(e,u.nat)));}
 const TAC_QUIET={flank:1,ret:1,move:1,bound:1,bof:1,hold:1,cap:1,assault:1};
 {const _f=rtFight;rtFight=function(u){if(u.tk&&u.pl&&TAC_QUIET[u.tk.role]&&u.path&&u.path.length&&!u.climb){
-    if(!G.units.some(e=>e.nat!==u.nat&&!UT[e.type].fly&&Math.hypot(e.x-u.x,e.z-u.z)<1.2))return;}
+    if(!tacHot(u))return;}
   return _f(u);};}
 {const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||G.over||!G.units)return;
   for(const u of G.units)if(u.tk&&u.pl)try{tacReact(u);tacStall(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
@@ -13590,7 +13604,7 @@ function renderActbar(){const el=$('#actbar');if(!el)return;const n=G.viewer;el.
     h=`<b style="color:${mapCol(n)}">${t.n}</b><span>${uInfo(s)} · ${tip}</span><div class="ab">${(s.type==='hmv'||s.type==='ifv')&&!s.dis?`<button class="btn sm" data-act="dismount" id="ab-dis" ${G.nats[n].cp>=DISMOUNT_CP?'':'disabled'}>드론팀 하차 · ${DISMOUNT_CP}</button>`:''}${t.ex?`<button class="btn sm${UI.phase==='demo'?' primary':''}" data-act="demo" id="ab-demo">건물 사격</button>`:''}${typeof canClear==='function'&&canClear(s)?`<button class="btn sm${UI.phase==='clear'||s.cqb?' primary':''}" data-act="clear" id="ab-clear">돌입</button>`:''}${t.cls==='inf'&&x0.t==='bldg'?`<button class="btn sm" data-act="floor" id="ab-floor">${s.flT===0?'옥상으로':'1층으로'}</button>`:''}${typeof fortBar==='function'?fortBar(s):''}<button class="btn sm${s.hold?' primary':''}" data-act="hold" id="ab-hold">고수</button><button class="btn sm" data-act="stop" id="ab-stop">정지</button><button class="btn sm" data-act="cancel" id="ab-cancel">해제</button></div>`;}
   else if(UI.pane){const {r,c}=UI.pane;const x=cell(r,c);const u=unitAt(r,c);const vis=!G.fog||visSet(n).has(key(r,c));
     const nm=x.obj!=null?G.objs[x.obj].name+' · ':'';const own=x.obj!=null?` · ${natName(x.owner)} 거점`:'';
-    const what=x.t==='bldg'?`${x.f}층 건물 · 내구 ${Math.ceil(x.bhp)}/${x.bmax} · 엄폐 40%`:`${TT[x.t].n}${TT[x.t].cov?` · 엄폐 ${Math.round(TT[x.t].cov*100)}%`:''}`;
+    const what=x.t==='bldg'?`${x.f}층 건물 · 내구 ${Math.ceil(x.bhp)}/${x.bmax} · 창가 엄폐 ${Math.round(COVK.bldg.v*100)}%`:`${TT[x.t].n}${TT[x.t].cov?` · 엄폐 ${Math.round(TT[x.t].cov*100)}%`:''}`;
     const uo=u&&(!G.fog||seen(u,n))?` · ${natName(u.nat)} ${UT[u.type].n} ${uInfo(u)}`:'';
     const fn=x.obj!=null&&typeof objFnText==='function'?objFnText(G.objs[x.obj]):'';const fb=x.fb!=null?` · ${natName(x.fb)} 요새화(엄폐 55%)`:'';
     h=`<b>${nm}${x.t==='bldg'?'건물':TT[x.t].n}</b><span>${what}${fb}${own}${fn?` · ${fn}`:''}${x.smoke?' · 연막':''}${vis?'':' · 시야 밖'}${uo}</span><div class="ab"><button class="btn sm" data-act="close" id="ab-close">닫기</button>${pz}</div>`;}

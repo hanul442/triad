@@ -64,7 +64,9 @@ test('건물은 시야를 막고, 더 높은 곳에서는 넘겨 본다', () => 
   assert.equal(T.los(3, 2, .5, 3, 8, .5), true, '옆 줄은 트임');
   bldg(G, 5, 2, 6); T.bump();
   assert.equal(T.los(5, 2, 6.3, 5, 8, .5), true, '6층 건물 옥상에서는 3층 건물 너머가 보임');
-  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), false, '건물 한가운데(창에서 먼 곳)에서는 밖이 안 보임');
+  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), true, '건물 안에서도 바깥 벽 창으로 내다본다(병사들이 창가로 붙는다)');
+  bldg(G, 5, 1, 6); bldg(G, 5, 3, 6); for (const c of [1, 2, 3]) G.map[5][c].blk = 9; T.bump();
+  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), false, '양옆이 같은 건물에 붙은 안쪽 칸에서는 그쪽 창이 없어 안 보임');
 });
 
 test('엄폐: 건물 안 보병은 피해를 덜 받고, 폭발물은 엄폐를 절반만 받는다', () => {
@@ -73,7 +75,7 @@ test('엄폐: 건물 안 보병은 피해를 덜 받고, 폭발물은 엄폐를 
   const open = T.calcDmg(a, d, false);
   bldg(G, 5, 4, 2); T.bump();
   const cov = T.calcDmg(a, d, false);
-  assert.ok(Math.abs(cov - open * 0.6) < 1e-9, `건물 엄폐 40% (${open} → ${cov})`);
+  assert.ok(Math.abs(cov - open * 0.45) < 1e-9, `건물(창가) 엄폐 55% (${open} → ${cov})`);
   const at = T.mkUnit(0, 'tank', 6, 2);
   assert.ok(T.calcDmg(at, d, false) > T.UT.tank.atk.inf * 0.6 * 0.99 * (0.4 + 0.6), '전차는 건물 엄폐 절반');
 });
@@ -172,7 +174,7 @@ test('1층에 막 들어온 보병은 낮게 보고, 위층에 오르면 건물 
   assert.ok(T.canHit(u, e), '4층 창가에서는 넘겨 쏜다');
 });
 
-test('벽 너머로는 못 쏜다: 건물 안에서는 바깥 벽 창가에서만 쏜다', () => {
+test('벽 너머로는 못 쏜다: 건물 안에서는 바깥 벽 창으로만 쏜다', () => {
   const T = loadGame(); const G = setup(T);
   for (const c of [4, 5, 6]) { bldg(G, 5, c, 2); G.map[5][c].blk = 1; } T.bump();
   const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
@@ -180,10 +182,9 @@ test('벽 너머로는 못 쏜다: 건물 안에서는 바깥 벽 창가에서�
   assert.ok(!T.canHit(u, e), '같은 블록의 다른 칸 벽 너머는 못 쏜다');
   u.x = 4.5; u.z = 5.2; assert.ok(!T.canHit(u, e), '건물 안쪽 칸에서는 동쪽 적을 못 본다');
   const v = T.mkUnit(0, 'rifle', 5, 6); v.fl = 0; v.flK = T.key(5, 6); v.x = 6.5; v.z = 5.5; T.bump();
-  assert.ok(!T.canHit(v, e), '방 한가운데에서는 못 쏜다');
-  v.x = 6.8; T.bump(); assert.ok(T.canHit(v, e), '바깥 벽 창가에서는 쏜다');
-  assert.ok(T.canHit(e, v), '창가의 적은 맞출 수 있다');
-  v.x = 6.5; T.bump(); assert.ok(!T.canHit(e, v), '방 안쪽 적은 밖에서 못 맞춘다');
+  assert.ok(T.canHit(v, e), '바깥 벽 쪽 방이면 병사들이 그 창가로 붙어 쏜다');
+  assert.ok(T.canHit(e, v), '창으로 쏘는 적은 밖에서도 맞출 수 있다');
+  v.x = 6.2; v.z = 5.5; T.bump(); assert.ok(T.canHit(v, e), '방 어디에 있든 바깥 벽 창으로 쏜다');
 });
 
 test('거점 점령과 지휘점수 수입', () => {
