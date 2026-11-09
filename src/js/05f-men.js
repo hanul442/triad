@@ -19,7 +19,9 @@ const MEN={gapW:.2,gapN:.12,spread:.11,bound:3.4,threatT:5,mag:{rifle:5,mg:3,at:
 const menN=ty=>(typeof SQUAD==='object'&&SQUAD[ty])||MEN_N[ty]||4;
 const menWX=(u,x1,z1,x2,z2)=>typeof wallCross==='function'&&wallCross(u,x1,z1,x2,z2);
 /* 두 점 사이를 병사가 곧게 갈 수 있는가(벽·물·건물 경계) */
-function menClear(u,x1,z1,x2,z2){if(!walkable(u,x2,z2))return false;const a=tileAt(x1,z1),b=tileAt(x2,z2);
+function menClear(u,x1,z1,x2,z2){if(!walkable(u,x2,z2))return false;
+  // 이동 격자 칸(약 2.4m)보다 촘촘하게: 주차 차 같은 막는 물체 모양 안으로는 들어가지 않는다(격자 칸 가운데만 비어 있으면 차 안에 서던 것)
+  if(typeof vObsAt==='function'){const L=vObsAt('inf',x2,z2);if(L)for(const o of L){const rl=NAV_RULE[o.k];if(rl&&rl.inf===2&&inBox(o,x2,z2,.012)&&!inBox(o,x1,z1,.012))return false;}}const a=tileAt(x1,z1),b=tileAt(x2,z2);
   if(a&&b&&(a.t==='bldg')!==(b.t==='bldg')&&typeof wallCross!=='function')return false;return !menWX(u,x1,z1,x2,z2);}
 function menHash(id,i){const s=Math.sin(id*127.1+i*311.7)*43758.5453;return s-Math.floor(s);}
 function menInit(u){const n=menN(u.type);const M=[];
