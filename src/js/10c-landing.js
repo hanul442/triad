@@ -44,7 +44,7 @@ function landAfter(){if(landCmdAuto()&&typeof autoSet==='function')autoSet(0,tru
 function landSecOpen(i){const C=G.camp,s=C&&C.secs&&C.secs[i];if(!s)return false;if(s.tide&&C.st.low)return false;
   if(s.need!=null){const o=G.objs[s.need];if(G.map[o.r][o.c].owner!==0)return false;}return true;}
 function landSec(){const C=G.camp;if(landSecOpen(C.sec))return C.sec;return C.secs.findIndex((s,j)=>landSecOpen(j));}
-function landPick(i){if(!landOn()||!landSecOpen(i))return false;G.camp.sec=i;if(typeof toast==='function')toast(`다음 상륙 지점: ${G.camp.secs[i].n}`);if(typeof render==='function')render();return true;}
+function landPick(i,ai){if(!landOn()||!landSecOpen(i))return false;if(!ai)G.camp.secMan=1;else if(G.camp.sec===i)return true;G.camp.sec=i;if(ai){campMsg(`다음 상륙 지점: ${G.camp.secs[i].n}`);return true;}if(typeof toast==='function')toast(`다음 상륙 지점: ${G.camp.secs[i].n}`);if(typeof render==='function')render();return true;}
 function landBusy(){const s=new Set(G.units.map(u=>key(u.r,u.c)));for(const b of G.camp.boats||[])if(b.st==='in'||b.st==='un')s.add(key(b.r,b.c));return s;}
 function landSpots(type){const i=landSec();if(i<0)return [];const busy=landBusy();
   return G.camp.secs[i].tl.filter(([r,c])=>!busy.has(key(r,c))&&mcost(type,G.map[r][c])<Infinity).map(([r,c])=>key(r,c));}
@@ -107,7 +107,25 @@ function landNaval(C,M,S){const nv=M.naval;if(!nv||G.time<nv.t0||G.time<(S.navT|
   for(let i=0;i<nv.n;i++){const s=shellLaunch({x0:-5,z0:tz+(i-nv.n/2)*.9,h0:3,tx:tx+(Math.random()-.5)*.6,tz:tz+(Math.random()-.5)*.6,n:0,src:null,type:'spg',pw:1.6,spread:.45,delay:.5+i*.7,T:2.6,ap:6});s.off=1;}
   if(typeof FXH.naval==='function')FXH.naval(tx,tz,nv.n);
   if(!S.navMsg){S.navMsg=1;campMsg(nv.msg||'구축함이 해안 가까이 들어와 함포 사격을 시작합니다');}}
+/* AI가 상륙 지점을 고른다(관전, 또는 부관 지휘에서 플레이어가 아직 직접 고르지 않았을 때).
+   적 화기가 적고, 아군이 이미 연 출구·거점 옆이고, 남은 목표에 가까운 해변을 고른다 */
+function landAiPick(C){const n0=G.nats[0];if(!(isAI(0)||(n0.auto&&!C.secMan)))return;
+  const O=G.objs,foes=G.units.filter(e=>e.nat!==0&&!UT[e.type].fly),mine=G.units.filter(u=>u.nat===0&&!UT[u.type].fly);
+  let pm=null;try{pm=typeof planMainOf==='function'?planMainOf(0):null;}catch(e){}
+  const todo=O.filter((o,i)=>!ownObj(i));let best=-1,bs=-1e9;
+  C.secs.forEach((s,i)=>{if(!landSecOpen(i)||!s.tl.length)return;const [r,c]=s.tl[Math.floor(s.tl.length/2)];const x=c+2.5,z=(s.r0+s.r1)/2+.5;const half=(s.r1-s.r0)/2+2;
+    const near=(px,pz,R)=>Math.abs(pz-z)<=half&&px-x<=R&&px-x>=-2;
+    let sc=-foes.filter(e=>near(e.x,e.z,7)).length*1.2-(G.forts||[]).filter(f=>f.nat!==0&&f.k==='bunker'&&near(f.x,f.z,7)).length*1.5;
+    sc+=Math.min(6,mine.filter(u=>near(u.x,u.z,8)).length)*.35;
+    O.forEach((o,j)=>{if(Math.abs(o.r+.5-z)<=half&&o.c-x<9){sc+=ownObj(j)?3:1;}});
+    if(todo.length)sc-=Math.min(...todo.map(o=>Math.hypot(o.c-x,o.r-z)))*.12;
+    if(pm&&pm.x!=null)sc-=Math.hypot(pm.x-x,pm.z-z)*.15;   // 06i-plan의 주공 목표 쪽 해변
+    if(s.need!=null)sc+=4;   // 부두는 안벽보다 빨리 내린다
+    if(i===C.sec)sc+=1;      // 자주 바꾸지 않게
+    if(sc>bs){bs=sc;best=i;}});
+  if(best>=0)landPick(best,true);}
 function landTick(C,dt){const M=CAMP[C.id],S=C.st;C.boats=C.boats||[];
+  C._apT=(C._apT||0)+dt;if(C._apT>=15||(G.time||0)<.2){C._apT=0;landAiPick(C);}
   if(M.tide)M.tide(C,S);
   S.lw=S.lw||{};for(const w of M.lw||[]){if(S.lw[w.t]||G.time<w.t)continue;if(landWave(w))S.lw[w.t]=1;}
   C._ht=(C._ht||0)+dt;const shoot=C._ht>=.5;if(shoot)C._ht=0;let foes=null;
@@ -185,9 +203,16 @@ CAMP.omaha.units=function(){const {SAND,BL}=OMAHA;const D=omahaDraws();const m=c
   const t=G.objs[3];campPut(1,'rifle',t.r,t.c,{bldg:true,post:1});campPut(1,'sniper',t.r-2,t.c,{bldg:true,post:1});campPut(1,'mg',t.r+1,t.c-1,{bldg:false,post:1});
   campPut(1,'rifle',t.r-3,t.c+2,{bldg:false});campPut(1,'at',t.r+3,t.c+1,{bldg:false});campPut(1,'tank',t.r,t.c+4,{bldg:false});campPut(1,'rifle',m-12,BL+8,{bldg:false});campPut(1,'rifle',m+12,BL+8,{bldg:false});
   G.nats[0].cp=8;G.nats[1].cp=0;};
-CAMP_TICK.omaha=function(C,S){const O=G.objs;let ex=0;
-  for(let i=0;i<3;i++)if(ownObj(i)){ex++;if(!S.exo[i]){S.exo[i]=1;campMsg(`${O[i].name} 확보: 이 길로 차량이 해변을 벗어날 수 있습니다${G.forts.some(f=>f.k==='jersey'&&f.nat===1&&Math.abs(f.z-O[i].r-.5)<.6&&Math.abs(f.x-O[i].c)<2)?' (길막이는 공병이 치웁니다)':''}`);}}
+/* 출구의 길막이(콘크리트 방벽): 출구를 점령하고 10초 지나면 공병·불도저가 치운다 */
+const omahaBlocks=i=>{const o=G.objs[i];return (G.forts||[]).filter(f=>f.k==='jersey'&&f.nat!==0&&Math.abs(f.z-o.r-.5)<.6&&Math.abs(f.x-o.c)<2.2);};
+CAMP_TICK.omaha=function(C,S,dt){const O=G.objs;let ex=0;S.exT=S.exT||{};
+  for(let i=0;i<3;i++)if(ownObj(i)){ex++;if(!S.exo[i]){S.exo[i]=1;campMsg(`${O[i].name} 확보${omahaBlocks(i).length?': 10초 뒤 길막이를 치우면 차량이 이 길로 해변을 벗어납니다':': 이 길로 차량이 해변을 벗어날 수 있습니다'}`);}
+    S.exT[i]=(S.exT[i]||0)+dt;const bl=omahaBlocks(i);if(bl.length&&S.exT[i]>=10){for(const f of bl)fortRemove(f,'clear');campMsg(`${O[i].name} 길막이를 치웠습니다: 차량이 해변을 벗어납니다`);}}
   S.exits=ex;if(ex===3)S.allEx=1;
+  // 해변에 멈춘 차량은 열린 출구 중 가까운 곳으로 올라간다(갈 데가 없으면 해변에서 기다린다)
+  S.vT=(S.vT||0)+dt;if(S.vT>=3){S.vT=0;const open=[0,1,2].filter(i=>ownObj(i)&&!omahaBlocks(i).length);
+    if(open.length)for(const u of G.units){if(u.nat!==0||UT[u.type].fly||UT[u.type].cls!=='veh'||u.hold||(u.path&&u.path.length))continue;if(u.x>=OMAHA.BL)continue;
+      const i=open.reduce((a,b)=>Math.abs(O[b].r-u.z)<Math.abs(O[a].r-u.z)?b:a);try{orderMoveTo(u,OMAHA.TOWN+1.5,O[i].r+.5);}catch(e){}}}
   if(ownObj(3)&&ex>=2)G.over={win:0,why:'교두보 확보'};};
 CAMP.omaha.stars2=(C,S,win,t)=>[win,win&&!!S.allEx,win&&t<=720];
 CAMP.omaha.obj=function(C,S,li){const ex=S.exits||0;

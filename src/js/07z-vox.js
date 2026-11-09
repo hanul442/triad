@@ -1,7 +1,7 @@
 /* ===================== 무전 음성: 부대들이 주고받는 무전을 귀로 듣는다 =====================
    - 본부의 명령, 부대의 수신 응답, 적 발견, 사상자, 격파, 거점 확보·상실, 화력 지원 요청, 재밍 두절·전령을 영어 군 무전 말투로 만든다
      (한국어 번역 문장도 함께 만들어 자막으로 고를 수 있다).
-   - 기기의 영어 남자 목소리로 읽는다(남자 목소리가 없으면 영어 목소리를 낮게). 세력마다 다른 목소리·높이. 앞뒤로 무전기 "치익"과 잡음.
+   - 기기의 영어 남자 목소리로 읽는다(남자 목소리가 없으면 영어 목소리를 낮게). 세력마다 다른 목소리·높이. 앞뒤로 무전기 "치익", 말하는 중엔 드문드문 "지직".
      없거나 설정이 '잡음'이면 알아들을 수 없는 무전 소리(02b sndRadio)에 자막만 붙인다.
    - 무전망은 한 번에 한 교신만 싣는다. 급한 교신(부상자, 적 발견)이 먼저고, 오래 기다린 교신은 버린다.
    - 들리는 세력: 내 편. 관전 중 전 세력 시야면 모든 세력(세력마다 목소리 높이가 다르다), 한 세력 시야면 그 세력.
@@ -133,10 +133,12 @@ function voxVoice(n){const vs=voxVoices();if(!vs.length)return null;return vs[(n
 const voxSpeaks=()=>VOX.mode==='voice'&&!!voxVoice(0);
 /* 무전기 "치익"(누를 때·뗄 때)과 말하는 동안 깔리는 잡음 */
 function voxSquelch(end,jam){const a=SFX.ctx;if(!a||!SFX.on)return;const t=a.currentTime+.01;const V={a,mix:SFX.bus.radio};
-  sndNz(V,t,end?.18:.08,'bandpass',end?2400:2600,.5,end?.5:.45,.003);if(!end)sndTn(V,t+.02,.05,1250,0,.15,'square');if(jam&&!end)sndNz(V,t,.5,'bandpass',1500,.4,.5,.01);}
-function voxBed(on,jam){const a=SFX.ctx;if(!a)return;if(!VOX.bed){const s=a.createBufferSource();s.buffer=SFX.noise;s.loop=true;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=1900;f.Q.value=.7;
-    const g=a.createGain();g.gain.value=0;s.connect(f);f.connect(g);g.connect(SFX.bus.radio);s.start();VOX.bed=g;}
-  VOX.bed.gain.setTargetAtTime(on&&SFX.on?(jam?.32:.05):0,a.currentTime,.04);}
+  sndNz(V,t,end?.18:.08,'bandpass',end?2400:2600,.5,end?.5:.45,.003);sndCrackle(V,t+(end?.02:.06),end?.08:.05,.28);if(!end)sndTn(V,t+.02,.05,1250,0,.15,'square');if(jam&&!end)sndNz(V,t,.5,'bandpass',1500,.4,.5,.01);}
+// 말하는 동안 깔리는 잡음은 없다. 실제 무전처럼 드문드문 "지직"(재밍 중이면 자주, 길게 끊긴다)
+function voxBed(on,jam){clearTimeout(VOX.bedT);const a=SFX.ctx;if(!on||!a||!SFX.on)return;
+  const tick=()=>{if(!VOX.busy||!SFX.on)return;sndCrackle({a,mix:SFX.bus.radio},a.currentTime+.01,jam?.12+Math.random()*.35:.03+Math.random()*.08,jam?.45:.2);
+    VOX.bedT=setTimeout(tick,(jam?.2+Math.random()*.5:.7+Math.random()*1.8)*1000);};
+  VOX.bedT=setTimeout(tick,(jam?.1:.3+Math.random()*.6)*1000);}
 function voxSub(it){if(VOX.sub==='off'||typeof document==='undefined')return;let el=document.getElementById('rvox');
   if(!el){el=document.createElement('div');el.id='rvox';el.className='rvox';el.setAttribute('aria-hidden','true');(document.getElementById('app')||document.body).appendChild(el);}
   VOX.lines.push({it,t:Date.now()});if(VOX.lines.length>3)VOX.lines.shift();voxSubDraw();}
