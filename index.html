@@ -586,7 +586,7 @@ const aiRun=n=>G.nats[n].ctrl==='ai'||!!G.nats[n].auto;
    저격수: 높은 곳·적과 5칸 거리 / 정찰드론: 적과 거점 쪽을 살핌 / 드론팀·FPV: 자리 잡고 자폭드론 운용 / 대공·대공포·전자전: 아군 곁을 따라감.
    플레이어가 직접 명령하면 그 일을 마칠 때까지(그 뒤 45초, 사수 명령이면 풀 때까지)는 손대지 않는다(u.man). */
 const SELF_RUN={sup:1,rec:1,amb:1,mortar:1,spg:1,mlrs:1,sniper:1,drone:1,dteam:1,fpv:1,aa:1,zu:1,ew:1};
-const selfRun=u=>aiRun(u.nat)||(!!SELF_RUN[u.type]&&!(u.man!=null&&typeof autoManual==='function'&&autoManual(u)));
+const selfRun=u=>aiRun(u.nat)||(!!SELF_RUN[u.type]&&!u.hold&&!(u.man!=null&&typeof autoManual==='function'&&autoManual(u)));
 const hostile=(a,b)=>a!==b;
 const hpMax=u=>UT[u.type].hpMax||10;
 const hourOf=()=>Math.floor(typeof dayH==='function'?dayH():(7+(G.turn-1))%24);
@@ -5631,10 +5631,13 @@ function autoSet(n,on){const N2=G.nats[n];if(!N2)return;N2.auto=!!on;if(N2.autoB
     for(const u of G.units)if(u.nat===n)u.man=null;}
   else{N2.aiT=0;}}
 /* 주공 목표: 거점 1.5칸 안을 누르면 그 거점에 맞춘다 */
-function autoIntent(n,k,x,z){const N2=G.nats[n];if(!N2)return null;if(!k){N2.intent=null;return null;}
-  let bx=x,bz=z,obj=null;for(const o of G.objs){const d=Math.hypot(o.c+.5-x,o.r+.5-z);if(d<1.5&&(!obj||d<obj.d)){obj={o,d};}}
+function autoMkIntent(k,x,z){let bx=x,bz=z,obj=null;for(const o of G.objs){const d=Math.hypot(o.c+.5-x,o.r+.5-z);if(d<1.5&&(!obj||d<obj.d)){obj={o,d};}}
   if(obj){bx=obj.o.c+.5;bz=obj.o.r+.5;}bx=Math.max(.5,Math.min(N-.5,bx));bz=Math.max(.5,Math.min(N-.5,bz));
-  N2.intent={k:k==='def'?'def':'atk',x:bx,z:bz,r:Math.floor(bz),c:Math.floor(bx),t:G.time||0,obj:obj?obj.o.name:null};N2.aiT=0;return N2.intent;}
+  return {k:k==='def'?'def':'atk',x:bx,z:bz,r:Math.floor(bz),c:Math.floor(bx),t:G.time||0,obj:obj?obj.o.name:null};}
+function autoIntent(n,k,x,z){const N2=G.nats[n];if(!N2)return null;if(typeof orgClearIntents==='function')orgClearIntents(n);   // 전체 주공을 정하면 중대·소대 목표는 지운다
+  if(!k){N2.intent=null;return null;}N2.intent=autoMkIntent(k,x,z);N2.aiT=0;return N2.intent;}
+/* 이 소대(편성 pq)가 따를 목표: 소대 목표 > 중대 목표 > 전체 주공 */
+function autoIOf(n,pq){const I=typeof orgIntent==='function'?orgIntent(n,pq):null;return I||G.nats[n].intent;}
 /* 직접 지휘 중인가: 움직이는 중·사수 중이면 계속, 아니면 마지막 명령 뒤 45초 */
 function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||u.path&&u.path.length||u.tgt!=null||u.cqb)return true;
   if(t-u.man<AUTO.hold)return true;u.man=null;return false;}
@@ -5650,12 +5653,12 @@ function autoManual(u){if(u.man==null)return false;const t=G.time||0;if(u.hold||
 {const _m=msnThink;msnThink=function(n){if(!autoOn(n))return _m(n);for(const p of tacPl())if(p.nat===n&&p.human)msnCas(p);for(const u of G.units)if(u.nat===n&&u.msn)msnFollow(u);};}
 {const _b=buy;buy=function(n){if(G._adj===n&&G.nats[n]&&G.nats[n].autoBuy===false)return null;return _b.apply(this,arguments);};}
 // 주공 목표: 소대가 아닌 부대(차량·곡사·저격·드론)는 aiGoal로, 바로 앞 적과 싸우는 중이면 그 적
-{const _g=aiGoal;aiGoal=function(n,u,vis){const g=_g(n,u,vis);const I=autoOn(n)&&G.nats[n].intent;if(!I)return g;
+{const _g=aiGoal;aiGoal=function(n,u,vis){const g=_g(n,u,vis);const I=autoOn(n)&&autoIOf(n,u.pq);if(!I)return g;
   if(vis&&vis.some(e=>e.r===g[0]&&e.c===g[1])&&dist(u.r,u.c,g[0],g[1])<AUTO.near)return g;
   if(I.k==='def'&&dist(u.r,u.c,I.r,I.c)<3)return g&&dist(g[0],g[1],I.r,I.c)<4?g:[I.r,I.c];
   return [I.r,I.c];};}
 // 주공 목표: 소대는 목표를 그쪽으로(수비대로 남긴 소대는 그대로)
-{const _tp=tacPickObj;tacPickObj=function(p,K){const N2=G.nats[p.nat];const I=autoOn(p.nat)&&!p.human?N2.intent:null;
+{const _tp=tacPickObj;tacPickObj=function(p,K){const N2=G.nats[p.nat];const I=autoOn(p.nat)&&!p.human?autoIOf(p.nat,p.pq):null;
   if(p.mode==='defend'&&!p._idef)return _tp(p,K);
   if(!I){if(p._idef){p._idef=0;p.mode='attack';p.obj=null;p.pt=null;}return _tp(p,K);}
   if(I.k==='def'){p.mode='defend';p._idef=1;}else if(p._idef){p._idef=0;p.mode='attack';}
@@ -5710,6 +5713,89 @@ if(typeof supTick==='function'){const _st=supTick;supTick=function(u,dt){
   let bad=logiDanger(u.nat,u.x,u.z);
   if(!bad&&u.lj&&u.lj.k==='serve'){const e=uById(u.lj.id);if(e&&logiDanger(u.nat,e.x,e.z))bad=true;}
   if(bad){if(u.lj&&u.lj.id!=null)(u.nog=u.nog||{})[u.lj.id]=t+POL.truckFlee;supHome(u);u._idleT=null;if(typeof tacN==='function')tacN('truckFlee');}};}
+
+/* ---- 06h-org.js ---- */
+/* ===================== ORG: 중대·소대 자동 편성 =====================
+   "중대 소대 만드는 건 자동으로", "내가 목표를 주고 증원해 주는 형식으로".
+   - 사람 세력의 전투 부대(보병·차량)는 저절로 소대(4개 부대까지)로, 소대는 중대(3개 소대까지)로 묶인다.
+     지원 부대(보급·구급·구난·박격포·포병·저격·드론·대공·전자전)는 '본부'에 남아 알아서 일한다(02-helpers SELF_RUN).
+   - 새로 온 증원은 '증원 받는 중대'(N2.reinfCo)로, 정하지 않았으면 가장 작은 중대의 빈 소대로 들어간다. 다 차면 새 중대.
+   - 목표: 소대 목표 > 중대 목표 > 전체 주공(N2.intent) 순으로 따른다(06f autoIOf).
+     부관 지휘 중이면 부관이 그 목표로 움직이고, 직접 지휘면 그 부대들에게 공격·방어 임무(06d)를 준다.
+   - 손으로 다시 묶을 수도 있다(새 소대로·새 중대로).
+   G.org[n] = {co:[{id,no,name,intent}], pq:[{id,co,no,name,intent}]}, 부대는 u.pq(소대 id). */
+const ORG={pl:4,co:3,coMax:4,tick:1};
+const orgHQ=u=>!!SELF_RUN[u.type]||!!(UT[u.type]&&UT[u.type].fly);
+const orgOn=n=>!!(G&&G.org&&G.org[n]&&G.nats[n]&&!isAI(n));
+function orgOf(n){G.org=G.org||{};return G.org[n]||(G.org[n]={co:[],pq:[]});}
+const orgCo=(n,id)=>id==null?null:orgOf(n).co.find(c=>c.id===id)||null;
+const orgPq=(n,id)=>id==null?null:orgOf(n).pq.find(p=>p.id===id)||null;
+const orgPqUnits=(n,p)=>G.units.filter(u=>u.nat===n&&u.pq===p.id);
+const orgCoPqs=(n,c)=>orgOf(n).pq.filter(p=>p.co===c.id);
+const orgCoUnits=(n,c)=>{const ids=new Set(orgCoPqs(n,c).map(p=>p.id));return G.units.filter(u=>u.nat===n&&ids.has(u.pq));};
+const orgHQUnits=n=>G.units.filter(u=>u.nat===n&&orgHQ(u));
+function orgNewCo(n){const O=orgOf(n);let k=1;while(O.co.some(c=>c.no===k))k++;const c={id:(G.orgId=(G.orgId||0)+1),no:k,name:`${k}중대`,intent:null};O.co.push(c);O.co.sort((a,b)=>a.no-b.no);return c;}
+function orgNewPq(n,c){const O=orgOf(n);let k=1;while(O.pq.some(p=>p.co===c.id&&p.no===k))k++;
+  const p={id:(G.orgId=(G.orgId||0)+1),co:c.id,no:k,name:`${c.no}중대 ${k}소대`,sh:`${c.no}-${k}`,intent:null};O.pq.push(p);O.pq.sort((a,b)=>(orgCo(n,a.co)?.no||0)-(orgCo(n,b.co)?.no||0)||a.no-b.no);return p;}
+/* 죽어서 빈 소대·중대는 지운다 */
+function orgClean(n){const O=orgOf(n);const live=new Set();for(const u of G.units)if(u.nat===n&&u.pq!=null)live.add(u.pq);
+  O.pq=O.pq.filter(p=>live.has(p.id)&&O.co.some(c=>c.id===p.co));O.co=O.co.filter(c=>O.pq.some(p=>p.co===c.id));
+  const ok=new Set(O.pq.map(p=>p.id));for(const u of G.units)if(u.nat===n&&u.pq!=null&&(!ok.has(u.pq)||orgHQ(u)))u.pq=null;
+  const N2=G.nats[n];if(N2.reinfCo!=null&&!orgCo(n,N2.reinfCo))N2.reinfCo=null;}
+/* 판 처음: 아군 전투 부대를 좌우로 늘어놓고 고르게 소대로 나눈다 */
+function orgInit(n,us){if(!us.length)return;const d=typeof depotOf==='function'?depotOf(n):{x:N/2,z:N/2};
+  const fx=N/2-d.x,fz=N/2-d.z,L=Math.hypot(fx,fz)||1;const sx=-fz/L,sz=fx/L;   // 앞쪽에 직각인 축
+  us=us.slice().sort((a,b)=>(a.x*sx+a.z*sz)-(b.x*sx+b.z*sz)||a.id-b.id);
+  const k=Math.ceil(us.length/ORG.pl);let c=null,pq=null,cur=-1;
+  for(let i=0;i<us.length;i++){const j=Math.floor(i*k/us.length);if(j!==cur){cur=j;if(!c||orgCoPqs(n,c).length>=ORG.co)c=orgNewCo(n);pq=orgNewPq(n,c);}us[i].pq=pq.id;}}
+/* 새 부대 하나를 넣을 소대 */
+function orgPlace(n,u){const O=orgOf(n),N2=G.nats[n];let c=orgCo(n,N2.reinfCo);const pick=!!c;
+  if(!c){let bs=1e9;for(const q of O.co){const P=orgCoPqs(n,q);const full=P.length>=ORG.co&&P.every(p=>orgPqUnits(n,p).length>=ORG.pl);if(full)continue;const m=orgCoUnits(n,q).length;if(m<bs){bs=m;c=q;}}}
+  if(!c)c=orgNewCo(n);
+  let pq=null,bm=99;for(const p of orgCoPqs(n,c)){const m=orgPqUnits(n,p).length;if(m<ORG.pl&&m<bm){bm=m;pq=p;}}
+  if(!pq){if(pick&&orgCoPqs(n,c).length>=ORG.coMax)c=orgNewCo(n);pq=orgNewPq(n,c);}
+  u.pq=pq.id;return pq;}
+function orgTick(n){orgClean(n);const O=orgOf(n);const us=G.units.filter(u=>u.nat===n&&!orgHQ(u)&&u.pq==null);if(!us.length)return;
+  if(!O.co.length)orgInit(n,us);else for(const u of us){const p=orgPlace(n,u);if(n===G.viewer&&(G.time||0)>3)L(`${UT[u.type].n} → ${p.name} 배속`);}}
+/* 목표 */
+function orgIntent(n,pqId){if(!G.org||!G.org[n])return null;const p=orgPq(n,pqId);if(p){if(p.intent)return p.intent;const c=orgCo(n,p.co);if(c&&c.intent)return c.intent;return null;}
+  if(pqId==null){const c=orgCo(n,G.nats[n].reinfCo);if(c&&c.intent)return c.intent;}return null;}
+function orgClearIntents(n){if(!G.org||!G.org[n])return;for(const c of G.org[n].co)c.intent=null;for(const p of G.org[n].pq)p.intent=null;}
+function orgRefUnits(n,ref){if(!ref)return [];if(ref.k==='hq')return orgHQUnits(n);if(ref.k==='co'){const c=orgCo(n,ref.id);return c?orgCoUnits(n,c):[];}const p=orgPq(n,ref.id);return p?orgPqUnits(n,p):[];}
+function orgRefName(n,ref){if(!ref)return '';if(ref.k==='hq')return '본부';const o=ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);return o?o.name:'';}
+/* 중대·소대에 목표 주기. k=null이면 목표를 지운다(부관 재량·임무 해제) */
+function orgAim(n,ref,k,x,z){const O=orgOf(n);const o=ref.k==='co'?orgCo(n,ref.id):ref.k==='pq'?orgPq(n,ref.id):null;if(!o)return null;
+  const I=k?autoMkIntent(k,x,z):null;o.intent=I;if(ref.k==='co')for(const p of O.pq)if(p.co===o.id)p.intent=null;
+  G.nats[n].aiT=0;
+  if(!autoOn(n)){const us=orgRefUnits(n,ref);if(us.length)radioSend(n,us,'mis',I?[I.k==='def'?'defend':'attack',I.x,I.z,'full']:['off']);}
+  return I;}
+/* 손으로 다시 묶기: 고른 전투 부대를 새 소대로(같은 중대) 또는 새 중대로 */
+function orgRegroup(n,us,kind){us=us.filter(u=>u&&u.nat===n&&!orgHQ(u)&&G.units.includes(u));if(!us.length)return null;orgClean(n);
+  let c=null;if(kind==='pq'){const p0=orgPq(n,us[0].pq);c=p0?orgCo(n,p0.co):null;if(c&&orgCoPqs(n,c).filter(p=>orgPqUnits(n,p).some(u=>!us.includes(u))).length>=ORG.coMax)c=null;}
+  if(!c)c=orgNewCo(n);const made=[];
+  for(let i=0;i<us.length;i+=ORG.pl){const p=orgNewPq(n,c);made.push(p);for(const u of us.slice(i,i+ORG.pl))u.pq=p.id;}
+  orgClean(n);return {c,made};}
+/* ---------- 엔진에 끼우기 ---------- */
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;const t=G.time||0;if((G.orgT||0)>t)return;G.orgT=t+ORG.tick;
+  for(const n of G.order){if(isAI(n)||!G.nats[n].alive)continue;try{orgTick(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}};}
+// 산 부대는 바로 소대에 넣는다
+{const _b=buy;buy=function(n){const u=_b.apply(this,arguments);if(u&&G.org&&G.org[n]&&!isAI(n)&&!orgHQ(u)&&u.pq==null){const p=orgPlace(n,u);if(n===G.viewer)L(`${UT[u.type].n} → ${p.name} 배속`);}return u;};}
+// 부관 지휘: 전술 소대(06c)는 편성 소대 안에서만 짠다
+{const _to=tacOrganize;tacOrganize=function(n){if(!autoOn(n)||!orgOn(n))return _to(n);const P=tacPl();const t=G.time||0;
+  for(const p of P)if(p.nat===n)p.mem=p.mem.filter(id=>G.units.some(u=>u.id===id&&u.nat===n));
+  for(let i=P.length-1;i>=0;i--)if(P[i].nat===n&&!P[i].mem.length)P.splice(i,1);
+  for(const u of G.units){if(u.nat!==n||!tacUnit(u))continue;const cur=u.pl!=null?P.find(p=>p.id===u.pl&&p.mem.includes(u.id)):null;
+    if(cur&&(cur.human||cur.mode==='defend'&&!cur._idef||cur.pq===u.pq))continue;
+    if(cur)cur.mem=cur.mem.filter(i=>i!==u.id);if(!u.tk)u.tk={role:'move',at:t};
+    let best=null,bd=7;for(const p of P){if(p.nat!==n||p.human||p.pq!==u.pq||p.mode==='defend'&&!p._idef||p.mem.length>=TAC.size+1)continue;const c=tacCtr(p);if(!c)continue;const d=Math.hypot(c[0]-u.x,c[1]-u.z);if(d<bd){bd=d;best=p;}}
+    if(!best){best={id:TACID++,nat:n,mem:[],mode:'attack',st:'move',stT:t,ph:0,phT:t,obj:null,objT:-99,pq:u.pq};P.push(best);}
+    best.mem.push(u.id);u.pl=best.id;}
+  for(let i=P.length-1;i>=0;i--)if(P[i].nat===n&&!P[i].mem.length)P.splice(i,1);};}
+// 직접 지휘의 임무: 편성 소대마다 따로 임무 소대가 되고 이름도 편성을 따른다
+{const _ma=msnAssign;msnAssign=function(n,us,mode,x,z,aut){if(!orgOn(n))return _ma.apply(this,arguments);
+  const by=new Map();for(const u of us||[]){const k=u&&u.pq!=null?u.pq:'x';if(!by.has(k))by.set(k,[]);by.get(k).push(u);}
+  if(by.size<2&&!by.has('x')){const P=_ma.apply(this,arguments);const p=orgPq(n,[...by.keys()][0]);if(p&&P)P.forEach((q,i)=>{q.pq=p.id;q.name=P.length>1?`${p.name}-${i+1}`:p.name;});return P;}
+  let all=[];for(const [k,g] of by){const P=_ma(n,g,mode,x,z,aut)||[];const p=orgPq(n,k);if(p)P.forEach((q,i)=>{q.pq=p.id;q.name=P.length>1?`${p.name}-${i+1}`:p.name;});all=all.concat(P);}return all;};}
 
 /* ---- 06z-radio-ai.js ---- */
 /* ===================== AI 명령도 무전으로 =====================
@@ -9639,6 +9725,128 @@ if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){cons
 /* 지원 부대 정보: 자동 임무 중인지 */
 {const _ui=uInfo;uInfo=function(u){let s=_ui(u);if(G&&u.nat===G.viewer&&!isAI(u.nat)&&SELF_RUN[u.type])s+=selfRun(u)?' · 자동 임무':' · 직접 명령 중';return s;};}
 
+/* ---- 08p-org.js ---- */
+/* ===================== ORG UI: 중대·소대 지휘 화면 (06h-org) =====================
+   - 아무 부대도 고르지 않은 하단 바에 편성 줄: [1중대] [2중대] … [본부]. 누르면 그 중대 전체를 고른다.
+   - 중대·소대를 고르면: 공격 목표·방어 지점·목표 지우기, 증원 받기(새 부대가 이 중대로), 소대 고르기.
+     부관 지휘면 부관이 그 목표로 움직이고, 직접 지휘면 공격·방어 임무를 준다.
+   - 부대 하나를 고르면 선택 줄: 같은 병종 모두·소대·중대·추가 선택(켜면 탭으로 넣고 빼기, PC는 Shift)·새 소대로·새 중대로.
+   - 아래 부대 목록은 중대 → 소대 → 부대 순으로, 머리 칩을 누르면 그 소대(중대)를 고른다.
+   - 지도·작은 지도에 중대·소대 목표 표시. */
+if(typeof document!=='undefined'&&!document.getElementById('org-css')){const st=document.createElement('style');st.id='org-css';
+  st.textContent=`.org-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%;padding:2px 0 6px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:6px;font-size:12.5px}
+.org-row b{color:#9fd3ff;font-size:13px}.org-row .adj-i{color:#c9d1d6}.org-row .btn{min-height:32px}
+.org-row .oc{display:inline-flex;gap:5px;align-items:baseline}.org-row .oc small{color:#c9d1d6;font-weight:400}.org-row .oc em{font-style:normal;color:#9fd3ff}
+.org-row .btn[aria-pressed="true"]{border-color:#9fd3ff;color:#9fd3ff}
+#roster .rh{flex:0 0 auto;min-height:34px;padding:0 8px;border-radius:8px;border:1px solid rgba(159,211,255,.45);background:rgba(20,40,60,.75);color:#9fd3ff;font:600 12px/1 inherit;cursor:pointer}
+#roster .rh.co{background:rgba(159,211,255,.18);color:#d9efff}#roster .rh[aria-pressed="true"]{background:#9fd3ff;color:#0d1a26}
+.v3u u.pq{border-color:#9fd3ff;color:#9fd3ff}
+.org-row .adj-s{display:none}
+@media (max-width:760px){.org-row{gap:4px}.org-row .adj-l{display:none}.org-row .adj-s{display:inline}.org-row .btn{padding:0 9px;min-height:30px;font-size:12px}.org-row .adj-i{flex:1 1 100%;font-size:11.5px}.org-row .oc small{display:none}}`;
+  document.head.appendChild(st);}
+const orgCan=()=>adjCan()&&orgOn(G.viewer);
+const orgGrp=()=>{const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;return s?[s,...(UI.group||[])].filter(u=>u&&G.units.includes(u)):[];};
+function orgIDesc(n,I,o){if(I)return adjDesc(I);const c=o&&o.co!=null?orgCo(n,o.co):null;if(c&&c.intent)return `중대 목표 · ${adjDesc(c.intent)}`;return autoOn(n)?(G.nats[n].intent?`전체 주공 · ${adjDesc(G.nats[n].intent)}`:'부관 재량'):'목표 없음';}
+/* 중대·소대·본부 고르기 */
+function orgSelect(ref){const n=G.viewer;const us=orgRefUnits(n,ref);if(!us.length){toast('남은 부대가 없습니다');return;}
+  clearSel();select(us[0]);UI.group=us.slice(1);UI.org=ref;render();}
+function orgSetSel(us,msg){us=us.filter(u=>u&&G.units.includes(u));if(!us.length){clearSel();render();return;}const add=UI.addSel;select(us[0]);UI.group=us.slice(1);UI.addSel=add;if(msg)toast(msg);render();}
+function orgToggle(u){const g=orgGrp();const on=g.includes(u);orgSetSel(on?g.filter(x=>x!==u):g.concat([u]),`${on?'뺌':'넣음'} · ${on?g.length-1:g.length+1}개 부대 선택`);}
+{const _s=select;select=function(u){UI.org=null;return _s.apply(this,arguments);};}
+{const _c=clearSel;clearSel=function(){UI.org=null;UI.addSel=false;return _c.apply(this,arguments);};}
+/* 하단 바 */
+function orgChip(n,c){const us=orgCoUnits(n,c);const I=c.intent;const rc=G.nats[n].reinfCo===c.id;
+  const pr=UI.org&&UI.org.k==='co'&&UI.org.id===c.id;
+  return `<button class="btn sm oc" data-act="org:co:${c.id}" id="ab-org-co-${c.no}" aria-pressed="${pr}" title="${c.name} 전체 고르기"><b>${c.name}</b><small>${I?`${ADJ_K[I.k]}${I.obj?' '+I.obj:''}`:''}</small><em>${us.length}</em>${rc?' ★':''}</button>`;}
+{const _ra=renderActbar;renderActbar=function(){_ra();const el=$('#actbar');if(!el||!orgCan())return;const n=G.viewer,O=orgOf(n),N2=G.nats[n];
+  if(UI.phase==='aim:atk'||UI.phase==='aim:def'){if(UI.aimOrg){const b=el.querySelector(':scope>b');if(b)b.textContent=`${orgRefName(n,UI.aimOrg)} ${b.textContent}`;}return;}
+  const g=orgGrp();const div=document.createElement('div');div.className='org-row';
+  if(g.length){
+    if(UI.phase&&UI.phase!=='select')return;
+    const ref=UI.org&&orgRefUnits(n,UI.org).length?UI.org:null;
+    if(ref&&ref.k==='hq'){const T={};for(const u of g)T[UT[u.type].n]=(T[UT[u.type].n]||0)+1;
+      div.innerHTML=`<b>본부</b><span class="adj-i">지원 부대 ${g.length}개 · 알아서 일합니다 (${Object.entries(T).map(([k,v])=>`${k} ${v}`).join(', ')})</span>`;}
+    else if(ref){const o=ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);const c=ref.k==='co'?o:orgCo(n,o.co);const P=c?orgCoPqs(n,c):[];
+      let h=`<b>${o.name}</b><span class="adj-i">${ref.k==='co'?`${P.length}개 소대 · `:''}${g.length}개 부대 · ${orgIDesc(n,o.intent,ref.k==='pq'?o:null)}</span>`;
+      h+=`<button class="btn sm${o.intent&&o.intent.k==='atk'?' primary':''}" data-act="org:atk" id="ab-org-atk" title="${o.name}이 그쪽을 공격합니다">${adjL('공격 목표','공격')}</button>`;
+      h+=`<button class="btn sm${o.intent&&o.intent.k==='def'?' primary':''}" data-act="org:def" id="ab-org-def" title="${o.name}이 그 둘레를 지킵니다">${adjL('방어 지점','방어')}</button>`;
+      if(o.intent)h+=`<button class="btn sm" data-act="org:clr" id="ab-org-clr" title="${autoOn(n)?'위 단위(중대·전체 주공) 목표를 따릅니다':'임무를 풉니다'}">${adjL('목표 지우기','지우기')}</button>`;
+      if(c)h+=`<button class="btn sm" data-act="org:reinf" id="ab-org-reinf" aria-pressed="${N2.reinfCo===c.id}" title="새로 오는 증원 부대가 ${c.name}으로 갑니다">${N2.reinfCo===c.id?'★ 증원 받는 중':adjL(`증원은 ${c.name}로`,'증원 받기')}</button>`;
+      if(ref.k==='co'&&P.length>1)for(const p of P)h+=`<button class="btn sm" data-act="org:pq:${p.id}" id="ab-org-pq-${p.sh}">${p.no}소대</button>`;
+      if(ref.k==='pq'&&c)h+=`<button class="btn sm" data-act="org:co:${c.id}" id="ab-org-up">${adjL(`${c.name} 전체`,c.name)}</button>`;
+      div.innerHTML=h;}
+    else{const s=g[0];const p=orgPq(n,s.pq);const same=G.units.filter(u=>u.nat===n&&u.type===s.type).length;const cb=g.some(u=>!orgHQ(u));
+      let h=`<span class="adj-i">${g.length>1?`${g.length}개 부대`:p?p.name:orgHQ(s)?'본부':''}</span>`;
+      if(same>1)h+=`<button class="btn sm" data-act="org:same" id="ab-org-same" title="같은 병종 모두 고르기">${adjL(`${UT[s.type].n} 모두`,'같은 병종')} ${same}</button>`;
+      if(p)h+=`<button class="btn sm" data-act="org:pq:${p.id}" id="ab-org-mypq">${adjL(p.name,'소대')}</button><button class="btn sm" data-act="org:co:${p.co}" id="ab-org-myco">${adjL(`${orgCo(n,p.co)?.name||''} 전체`,'중대')}</button>`;
+      else if(orgHQ(s))h+=`<button class="btn sm" data-act="org:hq" id="ab-org-hq">본부 전체</button>`;
+      h+=`<button class="btn sm" data-act="org:add" id="ab-org-add" aria-pressed="${!!UI.addSel}" title="켜면 아군을 탭할 때마다 선택에 넣고 뺍니다 (PC는 Shift+클릭)">${adjL('추가 선택: ','추가 ')}${UI.addSel?'켬':'끔'}</button>`;
+      if(cb)h+=`<button class="btn sm" data-act="org:newpq" id="ab-org-newpq" title="고른 부대로 새 소대를 만듭니다">${adjL('새 소대로 묶기','새 소대')}</button><button class="btn sm" data-act="org:newco" id="ab-org-newco" title="고른 부대로 새 중대를 만듭니다">${adjL('새 중대로 묶기','새 중대')}</button>`;
+      div.innerHTML=h;}
+    el.prepend(div);return;}
+  if(UI.pane||UI.phase==='buy'||UI.phase==='sup'||!O.co.length&&!orgHQUnits(n).length)return;
+  const hq=orgHQUnits(n).length;
+  div.innerHTML=`<span class="adj-i adj-l">편성</span>`+O.co.map(c=>orgChip(n,c)).join('')+(hq?`<button class="btn sm oc" data-act="org:hq" id="ab-org-hq" title="지원 부대(알아서 일함)"><b>본부</b><em>${hq}</em></button>`:'');
+  const a=el.querySelector('.adj-row');if(a)a.after(div);else el.prepend(div);};}
+if(typeof document!=='undefined'){
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled||!G||!orgCan())return;const act=b.dataset.act;const n=G.viewer;
+    if(act==='adj:cancel'&&UI.aimOrg){const r=UI.aimOrg;UI.aimOrg=null;orgSelect(r);return;}
+    if(!act.startsWith('org:'))return;const a=act.slice(4);
+    if(a.startsWith('co:')){orgSelect({k:'co',id:+a.slice(3)});return;}
+    if(a.startsWith('pq:')){orgSelect({k:'pq',id:+a.slice(3)});return;}
+    if(a==='hq'){orgSelect({k:'hq'});return;}
+    const g=orgGrp();
+    if(a==='atk'||a==='def'){if(!UI.org)return;UI.aimOrg=UI.org;UI.phase='aim:'+a;render();return;}
+    if(a==='clr'){if(!UI.org)return;orgAim(n,UI.org,null);toast(`${orgRefName(n,UI.org)} 목표 지움`);render();return;}
+    if(a==='reinf'){const o=UI.org&&(UI.org.k==='co'?orgCo(n,UI.org.id):orgCo(n,orgPq(n,UI.org.id)?.co));if(!o)return;const N2=G.nats[n];
+      N2.reinfCo=N2.reinfCo===o.id?null:o.id;toast(N2.reinfCo!=null?`새 증원 부대는 ${o.name}로 갑니다`:'증원은 가장 작은 중대부터 채웁니다');
+      if(N2.reinfCo!=null&&!autoOn(n)){UI.sheet=true;UI.tab='cmd';}render();return;}
+    if(!g.length)return;
+    if(a==='same'){const t=g[0].type;orgSetSel(G.units.filter(u=>u.nat===n&&u.type===t),`${UT[t].n} ${G.units.filter(u=>u.nat===n&&u.type===t).length}개 선택`);return;}
+    if(a==='add'){UI.addSel=!UI.addSel;toast(UI.addSel?'아군을 탭하면 선택에 넣고 뺍니다':'추가 선택 끔');render();return;}
+    if(a==='newpq'||a==='newco'){const r=orgRegroup(n,g,a==='newpq'?'pq':'co');if(!r)return;toast(`${r.made.map(p=>p.name).join(', ')} 편성`);L(`편성: ${r.made.map(p=>p.name).join(', ')}`);
+      orgSelect(a==='newco'?{k:'co',id:r.c.id}:{k:'pq',id:r.made[0].id});return;}});
+  window.addEventListener('keydown',e=>{if(e.key==='Shift')UI.shift=true;});
+  window.addEventListener('keyup',e=>{if(e.key==='Shift')UI.shift=false;});
+  window.addEventListener('blur',()=>{UI.shift=false;});}
+/* 지도에서 목표를 찍으면 고른 중대·소대의 목표로 */
+{const _aa=adjAim;adjAim=function(x,z){const ref=UI.aimOrg;if(!ref)return _aa(x,z);const n=G.viewer;const k=UI.phase==='aim:def'?'def':'atk';UI.aimOrg=null;UI.phase=null;
+  const I=orgAim(n,ref,k,x,z);if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#9fd3ff');if(typeof sndRadio==='function')sndRadio('ack');const m=`${orgRefName(n,ref)}: ${adjDesc(I)}`;toast(m);L(m);if(typeof scnAfterAct==='function')scnAfterAct();}
+  orgSelect(ref);};}
+/* 추가 선택: 아군을 탭하면 넣고 빼기 */
+const orgAdding=()=>(UI.addSel||UI.shift)&&UI.sel&&G.units.includes(UI.sel)&&(!UI.phase||UI.phase==='select');
+{const _tap=tap;tap=function(k){if(G&&!G.over&&orgAdding()){const pid=typeof V3!=='undefined'?V3.pickId:null;const u=pid!=null?G.units.find(z=>z.id===pid&&z.nat===G.viewer):null;if(u){orgToggle(u);return;}}return _tap(k);};}
+if(typeof rosterPick==='function'){const _rp=rosterPick;rosterPick=function(id){if(G&&orgAdding()){const u=G.units.find(x=>x.id===id&&x.nat===G.viewer);if(u){orgToggle(u);return;}}return _rp(id);};}
+/* 부대 목록: 중대 → 소대 → 부대, 마지막에 본부 */
+if(typeof renderRoster==='function'){const _rr=renderRoster;let sig0='';renderRoster=function(){const el=$('#roster');if(!el||!G)return _rr();const n=G.viewer;if(!orgOn(n))return _rr();
+  const show=canCmd()&&!UI.phase?.match?.(/^(buy|sup)$/);const all=show?G.units.filter(u=>u.nat===n):[];
+  const sel=new Set([UI.sel,...(UI.group||[])].filter(Boolean).map(u=>u.id));
+  const hp=u=>{const c=typeof casSummary==='function'?casSummary(u):null;return c?(c.ok+c.lw)/Math.max(1,u.ws.length):u.hp/hpMax(u);};
+  const O=orgOf(n);const R=UI.org?`${UI.org.k}${UI.org.id||''}`:'';const groups=[];const used=new Set();
+  for(const c of O.co){const P=orgCoPqs(n,c);let first=true;for(const p of P){const us=all.filter(u=>u.pq===p.id);if(!us.length)continue;us.forEach(u=>used.add(u.id));groups.push({c:first?c:null,p,us});first=false;}}
+  const hq=all.filter(u=>!used.has(u.id));if(hq.length)groups.push({hq:1,us:hq});
+  const sig=R+'|'+groups.map(g=>(g.c?'C'+g.c.id:'')+(g.p?'P'+g.p.id:'H')+':'+g.us.map(u=>`${u.id}${sel.has(u.id)?'*':''}${Math.round(hp(u)*8)}${u.path&&u.path.length?'m':''}${u.tgt!=null?'t':''}${u.brk?'b':''}`).join(',')).join(';');
+  if(sig===sig0)return;sig0=sig;el.hidden=!all.length;
+  const chip=u=>{const f=Math.max(0,Math.min(1,hp(u)));const st=u.brk?'공황':u.path&&u.path.length?'이동':u.tgt!=null?'교전':'';
+    return `<button class="rc" data-act="pick:${u.id}" id="rc-${u.id}" aria-pressed="${sel.has(u.id)}"><b>${UT[u.type].n}</b>${st?`<small>${st}</small>`:''}<i style="--f:${f};--c:${f>.6?'#5cd18a':f>.3?'#f0c45a':'#ff6a3d'}"></i></button>`;};
+  el.innerHTML=groups.map(g=>{let h='';
+    if(g.c)h+=`<button class="rh co" data-act="org:co:${g.c.id}" aria-pressed="${!!(UI.org&&UI.org.k==='co'&&UI.org.id===g.c.id)}">${g.c.name}</button>`;
+    if(g.p)h+=`<button class="rh" data-act="org:pq:${g.p.id}" aria-pressed="${!!(UI.org&&UI.org.k==='pq'&&UI.org.id===g.p.id)}" title="${g.p.name}">${g.p.no}소대</button>`;
+    else h+=`<button class="rh" data-act="org:hq" aria-pressed="${!!(UI.org&&UI.org.k==='hq')}">본부</button>`;
+    return h+g.us.map(chip).join('');}).join('');
+  const sid=UI.sel?UI.sel.id:null;if(sid!==rosterSel){rosterSel=sid;const on=$('#rc-'+sid);if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center'});}};}
+/* 작은 지도·3D 지도에 중대·소대 목표 */
+function orgMarks(n){if(!orgOn(n))return [];const O=orgOf(n);const M=new Map();
+  for(const o of [...O.co,...O.pq]){const I=o.intent;if(!I)continue;const k=`${I.k}${I.x.toFixed(1)},${I.z.toFixed(1)}`;const m=M.get(k)||{I,names:[]};m.names.push(o.sh||o.name);M.set(k,m);}
+  return [...M.values()];}
+{const _mo=mmOverlay;mmOverlay=function(g){_mo(g);if(!G||typeof mmTo!=='function')return;
+  for(const m of orgMarks(G.viewer)){const [x,y]=mmTo(m.I.x,m.I.z);g.strokeStyle='#9fd3ff';g.lineWidth=1.6;g.beginPath();g.arc(x,y,5,0,6.283);g.stroke();
+    if(m.I.k==='def'){g.fillStyle='rgba(159,211,255,.25)';g.fill();}g.fillStyle='#9fd3ff';g.font='bold 9px sans-serif';g.fillText(m.names.join(' ').replace(/중대/g,''),x+7,y-5);}};}
+if(typeof occLabels==='function'){const _ol=occLabels;occLabels=function(want,vs,vn){_ol.apply(this,arguments);if(!G)return;let i=0;
+  for(const m of orgMarks(vn)){const y=(typeof v3TopAt==='function'?v3TopAt(m.I.x,m.I.z):0)+.7;want.set('org-int-'+(i++),{html:`<span>${m.names.join('·')} · ${ADJ_K[m.I.k]}</span>`,cls:'v3c',col:'#9fd3ff',p:[m.I.x,y,m.I.z]});}};}
+if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){const h=_ut(u);if(!G||u.nat!==G.viewer||u.pq==null||!(u===UI.sel||(UI.group||[]).includes(u)))return h;const p=orgPq(u.nat,u.pq);return p?h+`<u class="pq">${p.sh}</u>`:h;};}
+{const _ui=uInfo;uInfo=function(u){let s=_ui(u);if(G&&u.nat===G.viewer&&!isAI(u.nat)){const p=orgPq(u.nat,u.pq);if(p)s+=` · ${p.name}`;}return s;};}
+
 /* ---- 08p-sitrep.js ---- */
 /* ===================== 전황 보고: 부하 부대가 지휘관에게 올리는 보고와 요청 =====================
    목표만 정하고 맡겨 두면 어디서 무슨 일이 생기는지 알기 어렵다. 그래서 부대들이 중요한 일을 보고하고,
@@ -9705,6 +9913,8 @@ function sitScan(){const n=G.viewer,N2=G.nats[n],S=G.sit,t=G.time||0;
   // 조건이 사라진 보고 정리
   for(const [k,r] of S.r){if(live.has(k))continue;if(r.ttl!=null){if(t-r.t0>r.ttl)S.r.delete(k);}else if(t-r.t>(r.hold||0))S.r.delete(k);}}
 
+/* 가장 가까운 중대(06h-org): 그 자리를 맡길 중대, 증원을 받을 중대 */
+function sitCo(n,x,z){if(typeof orgOf!=='function')return null;let b=null,bd=1e9;for(const c of orgOf(n).co){const us=orgCoUnits(n,c);if(!us.length)continue;const [mx,mz]=sitMid(us);const d=Math.hypot(mx-x,mz-z);if(d<bd){bd=d;b=c;}}return b;}
 /* 보여 줄 순서: 급한 것, 새 것 먼저 */
 function sitList(){if(!G||!G.sit)return [];return [...G.sit.r.values()].sort((a,b)=>(b.pri||1)-(a.pri||1)||b.seq-a.seq);}
 
@@ -9714,12 +9924,14 @@ function sitDo(k,j){if(!sitOn())return false;const n=G.viewer,r=G.sit.r.get(k);i
   const a=r.acts[j];if(!a)return false;const op=a[0];
   if(op==='buy'){const ty=a[1];if(!sitCanBuy(n,ty)){toast(`지휘점수가 모자랍니다 (${UT[ty].n} ${UT[ty].cost})`);return false;}
     const sp=sitSpot(n,ty,a[2],a[3]);if(!sp){toast('증원을 내릴 자리가 없습니다');return false;}
-    const u=buy(n,ty,sp[0],sp[1]);if(!u)return false;toast(`${UT[ty].n} 증원: ${sitPlace(u.x,u.z)||'배치'}`);if(typeof sndRadio==='function')sndRadio('ack');
+    const N2=G.nats[n],co=SELF_RUN[ty]?null:sitCo(n,a[2],a[3]),keep=N2.reinfCo;if(co)N2.reinfCo=co.id;let u;try{u=buy(n,ty,sp[0],sp[1]);}finally{N2.reinfCo=keep;}if(!u)return false;toast(`${UT[ty].n} 증원: ${sitPlace(u.x,u.z)||'배치'}${co?' · '+co.name:''}`);if(typeof sndRadio==='function')sndRadio('ack');
     if(typeof v3Ping==='function')v3Ping(u.x,u.z,'#7fd1ff');return true;}
   if(op==='sup'){const kd=a[1];const at=sitSupAt(n,kd,a[2],a[3]);if(!at){toast(`${SUP[kd].n}: ${G.nats[n].cp<SUP[kd].cost?'지휘점수가 모자랍니다':'지금은 부를 수 없습니다(쿨타임이거나 보이지 않는 곳)'}`);return false;}
     const ok=support(n,kd,at[0],at[1]);if(ok)toast(`${SUP[kd].n} 요청: ${sitPlace(at[1]+.5,at[0]+.5)}`);return ok;}
-  if(op==='def'||op==='retake'){const o=G.objs[a[1]];if(typeof autoIntent!=='function'||!autoOn(n))return false;
-    autoIntent(n,op==='def'?'def':'atk',o.c+.5,o.r+.5);toast(`부관: ${op==='def'?'방어':'탈환'} · ${o.name}`);if(typeof sndRadio==='function')sndRadio('ack');return true;}
+  if(op==='def'||op==='retake'){const o=G.objs[a[1]],k=op==='def'?'def':'atk',w=op==='def'?'방어':'탈환';const co=sitCo(n,o.c+.5,o.r+.5);
+    if(co&&typeof orgAim==='function'){orgAim(n,{k:'co',id:co.id},k,o.c+.5,o.r+.5);toast(`${co.name}: ${w} · ${o.name}`);}
+    else if(typeof autoIntent==='function'&&autoOn(n)){autoIntent(n,k,o.c+.5,o.r+.5);toast(`부관: ${w} · ${o.name}`);}else return false;
+    if(typeof sndRadio==='function')sndRadio('ack');return true;}
   if(op==='shop'){UI.pane=null;if(typeof clearSel==='function')clearSel();const b=document.querySelector('[data-act="reinf"]');if(b)b.click();return true;}
   return false;}
 function sitLook(r){if(typeof V3!=='undefined'&&V3.on&&typeof v3Focus==='function'){UI.follow=null;v3Focus(r.z-.5,r.x-.5);}
@@ -9728,8 +9940,10 @@ function sitLook(r){if(typeof V3!=='undefined'&&V3.on&&typeof v3Focus==='functio
 function sitBtn(r,j){const a=r.acts[j],n=G.viewer,N2=G.nats[n];const op=a[0];
   if(op==='buy'){const t=UT[a[1]];return {l:`${t.n} 증원 ${t.cost}`,s:`${t.n.replace(/분대|팀$|트럭$/,'').trim()} ${t.cost}`,ok:sitCanBuy(n,a[1]),tip:`보고한 곳 가까이 ${t.n}을 바로 보냅니다`};}
   if(op==='sup'){const S2=SUP[a[1]];return {l:`${S2.n} ${S2.cost}`,s:a[1]==='smoke'?'연막':'포격',ok:!!sitSupAt(n,a[1],a[2],a[3]),tip:S2.desc};}
-  if(op==='def'){const on=autoOn(n);const o=G.objs[a[1]];const I=N2.intent;return on?{l:'여기를 방어',s:'방어',ok:!(I&&I.k==='def'&&I.obj===o.name),tip:'부관이 이 거점을 지킵니다'}:null;}
-  if(op==='retake'){const on=autoOn(n);return on?{l:'탈환 목표로',s:'탈환',ok:true,tip:'부관이 이 거점을 되찾으러 갑니다'}:null;}
+  if(op==='def'||op==='retake'){const o=G.objs[a[1]];const co=sitCo(n,o.c+.5,o.r+.5);const def=op==='def';
+    if(co&&typeof orgAim==='function'){const I=co.intent;const on=I&&I.k===(def?'def':'atk')&&Math.hypot(I.x-o.c-.5,I.z-o.r-.5)<1;
+      return {l:`${co.name} ${def?'방어':'탈환'}`,s:def?'방어':'탈환',ok:!on,tip:`가장 가까운 ${co.name}에 ${o.name} ${def?'방어':'탈환'}를 맡깁니다`};}
+    if(!autoOn(n))return null;const I=N2.intent;return def?{l:'여기를 방어',s:'방어',ok:!(I&&I.k==='def'&&I.obj===o.name),tip:'부관이 이 거점을 지킵니다'}:{l:'탈환 목표로',s:'탈환',ok:true,tip:'부관이 이 거점을 되찾으러 갑니다'};}
   if(op==='shop')return {l:'증원·지원 열기',s:'증원',ok:true,tip:''};
   return null;}
 
@@ -10129,7 +10343,7 @@ function closeMore(){const m=$('#mapctl');if(m&&m.classList.contains('open')){m.
 /* ---- 10-scenario.js ---- */
 /* ===================== SCENARIOS ===================== */
 const SCN={
-  tut:{n:'기초 훈련',d:'이동·건물 엄폐·사격·점령·증원, 부관에게 맡기기를 차례로 익힙니다.'},
+  tut:{n:'기초 훈련',d:'이동·건물 엄폐·사격·점령·증원, 부관에게 맡기기와 중대 목표를 차례로 익힙니다.'},
   assault:{n:'도심 돌파',d:'적이 모든 거점을 쥐고 있습니다. 8분 안에 거점 5곳을 동시에 확보하세요.'},
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
@@ -10157,8 +10371,8 @@ function scnObjective(){if(!G||!G.scn)return null;const n=0;if(G.camp&&typeof ca
       ['4/8 점령','깃발과 빛기둥이 있는 거점에 소총분대를 들여보내 점령하세요. 거점마다 30초마다 승점과 지휘점수가 들어옵니다.'],
       ['5/8 증원','하단 바의 "증원·지원"에서 부대를 골라 집결지(초록 칸)에 배치해 보세요. 보급 트럭·구급차·구난차는 배치만 하면 탄약 보급·부상자 후송·견인을 알아서 합니다.'],
       ['6/8 부관','부대마다 명령하기 번거로우면 부관(AI)에게 맡기세요. 아무 부대도 고르지 않은 상태에서 하단의 [부관에게 맡기기]를 누르세요.'],
-      ['7/8 주공 목표','[공격 목표]를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요. 이동·엄폐·화력 지원·증원은 부관이 합니다. 지킬 곳은 [방어 지점]으로 정합니다.'],
-      ['8/8 직접 명령','부관이 지휘하는 중에도 부대를 골라 명령하면 그 부대만 직접 움직입니다(\'직접\' 표시). 일을 마치고 45초 뒤, 또는 [부관에게 돌려주기]로 다시 부관이 맡습니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
+      ['7/8 목표','부대는 저절로 소대·중대로 묶입니다. [공격 목표]를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요(전체). 하단 [1중대]를 누르면 그 중대·소대에만 따로 목표를 줄 수 있습니다. 이동·엄폐·화력 지원은 부관이 합니다.'],
+      ['8/8 직접 명령','부관이 지휘하는 중에도 부대를 골라 명령하면 그 부대만 직접 움직입니다(\'직접\' 표시). 일을 마치고 45초 뒤, 또는 [부관에게 돌려주기]로 다시 부관이 맡습니다. 중대를 골라 [증원 받기]를 누르면 새로 오는 부대가 그 중대로 갑니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
     const i=Math.min(G.tut||0,7);return {t:S[i][0],m:S[i][1]};}
   if(G.scn==='assault')return {t:'도심 돌파',m:`거점 ${objCount(n)}/5 동시 확보 · 남은 시간 ${fmtT(16*ROUND_S-G.time)}`};
   if(G.scn==='hold')return {t:'최후 방어',m:`거점 ${objCount(n)}곳 유지 중 (3곳 이상) · 남은 시간 ${fmtT(14*ROUND_S-G.time)}`};
@@ -10170,7 +10384,7 @@ function scnAfterAct(){if(!G||G.scn!=='tut')return;const n=0;G.tut=G.tut||0;
   else if(G.tut===3&&objCount(n)>0)G.tut=4;
   else if(G.tut===4&&G.nats[n].bought)G.tut=5;
   else if(G.tut===5&&G.nats[n].auto)G.tut=6;
-  else if(G.tut===6&&G.nats[n].auto&&G.nats[n].intent)G.tut=7;
+  else if(G.tut===6&&G.nats[n].auto&&(G.nats[n].intent||G.org&&G.org[n]&&[...G.org[n].co,...G.org[n].pq].some(o=>o.intent)))G.tut=7;
   if(typeof document!=='undefined')renderObj();}
 function scnCheck(){if(!G||!G.scn||G.over)return;const n=0;
   if(G.scn==='tut'){scnAfterAct();if(!G.units.some(u=>u.nat===1)&&objCount(n)===G.objs.length)G.over={win:0,why:'훈련 완료'};}

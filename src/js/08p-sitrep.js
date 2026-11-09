@@ -63,6 +63,8 @@ function sitScan(){const n=G.viewer,N2=G.nats[n],S=G.sit,t=G.time||0;
   // 조건이 사라진 보고 정리
   for(const [k,r] of S.r){if(live.has(k))continue;if(r.ttl!=null){if(t-r.t0>r.ttl)S.r.delete(k);}else if(t-r.t>(r.hold||0))S.r.delete(k);}}
 
+/* 가장 가까운 중대(06h-org): 그 자리를 맡길 중대, 증원을 받을 중대 */
+function sitCo(n,x,z){if(typeof orgOf!=='function')return null;let b=null,bd=1e9;for(const c of orgOf(n).co){const us=orgCoUnits(n,c);if(!us.length)continue;const [mx,mz]=sitMid(us);const d=Math.hypot(mx-x,mz-z);if(d<bd){bd=d;b=c;}}return b;}
 /* 보여 줄 순서: 급한 것, 새 것 먼저 */
 function sitList(){if(!G||!G.sit)return [];return [...G.sit.r.values()].sort((a,b)=>(b.pri||1)-(a.pri||1)||b.seq-a.seq);}
 
@@ -72,12 +74,14 @@ function sitDo(k,j){if(!sitOn())return false;const n=G.viewer,r=G.sit.r.get(k);i
   const a=r.acts[j];if(!a)return false;const op=a[0];
   if(op==='buy'){const ty=a[1];if(!sitCanBuy(n,ty)){toast(`지휘점수가 모자랍니다 (${UT[ty].n} ${UT[ty].cost})`);return false;}
     const sp=sitSpot(n,ty,a[2],a[3]);if(!sp){toast('증원을 내릴 자리가 없습니다');return false;}
-    const u=buy(n,ty,sp[0],sp[1]);if(!u)return false;toast(`${UT[ty].n} 증원: ${sitPlace(u.x,u.z)||'배치'}`);if(typeof sndRadio==='function')sndRadio('ack');
+    const N2=G.nats[n],co=SELF_RUN[ty]?null:sitCo(n,a[2],a[3]),keep=N2.reinfCo;if(co)N2.reinfCo=co.id;let u;try{u=buy(n,ty,sp[0],sp[1]);}finally{N2.reinfCo=keep;}if(!u)return false;toast(`${UT[ty].n} 증원: ${sitPlace(u.x,u.z)||'배치'}${co?' · '+co.name:''}`);if(typeof sndRadio==='function')sndRadio('ack');
     if(typeof v3Ping==='function')v3Ping(u.x,u.z,'#7fd1ff');return true;}
   if(op==='sup'){const kd=a[1];const at=sitSupAt(n,kd,a[2],a[3]);if(!at){toast(`${SUP[kd].n}: ${G.nats[n].cp<SUP[kd].cost?'지휘점수가 모자랍니다':'지금은 부를 수 없습니다(쿨타임이거나 보이지 않는 곳)'}`);return false;}
     const ok=support(n,kd,at[0],at[1]);if(ok)toast(`${SUP[kd].n} 요청: ${sitPlace(at[1]+.5,at[0]+.5)}`);return ok;}
-  if(op==='def'||op==='retake'){const o=G.objs[a[1]];if(typeof autoIntent!=='function'||!autoOn(n))return false;
-    autoIntent(n,op==='def'?'def':'atk',o.c+.5,o.r+.5);toast(`부관: ${op==='def'?'방어':'탈환'} · ${o.name}`);if(typeof sndRadio==='function')sndRadio('ack');return true;}
+  if(op==='def'||op==='retake'){const o=G.objs[a[1]],k=op==='def'?'def':'atk',w=op==='def'?'방어':'탈환';const co=sitCo(n,o.c+.5,o.r+.5);
+    if(co&&typeof orgAim==='function'){orgAim(n,{k:'co',id:co.id},k,o.c+.5,o.r+.5);toast(`${co.name}: ${w} · ${o.name}`);}
+    else if(typeof autoIntent==='function'&&autoOn(n)){autoIntent(n,k,o.c+.5,o.r+.5);toast(`부관: ${w} · ${o.name}`);}else return false;
+    if(typeof sndRadio==='function')sndRadio('ack');return true;}
   if(op==='shop'){UI.pane=null;if(typeof clearSel==='function')clearSel();const b=document.querySelector('[data-act="reinf"]');if(b)b.click();return true;}
   return false;}
 function sitLook(r){if(typeof V3!=='undefined'&&V3.on&&typeof v3Focus==='function'){UI.follow=null;v3Focus(r.z-.5,r.x-.5);}
@@ -86,8 +90,10 @@ function sitLook(r){if(typeof V3!=='undefined'&&V3.on&&typeof v3Focus==='functio
 function sitBtn(r,j){const a=r.acts[j],n=G.viewer,N2=G.nats[n];const op=a[0];
   if(op==='buy'){const t=UT[a[1]];return {l:`${t.n} 증원 ${t.cost}`,s:`${t.n.replace(/분대|팀$|트럭$/,'').trim()} ${t.cost}`,ok:sitCanBuy(n,a[1]),tip:`보고한 곳 가까이 ${t.n}을 바로 보냅니다`};}
   if(op==='sup'){const S2=SUP[a[1]];return {l:`${S2.n} ${S2.cost}`,s:a[1]==='smoke'?'연막':'포격',ok:!!sitSupAt(n,a[1],a[2],a[3]),tip:S2.desc};}
-  if(op==='def'){const on=autoOn(n);const o=G.objs[a[1]];const I=N2.intent;return on?{l:'여기를 방어',s:'방어',ok:!(I&&I.k==='def'&&I.obj===o.name),tip:'부관이 이 거점을 지킵니다'}:null;}
-  if(op==='retake'){const on=autoOn(n);return on?{l:'탈환 목표로',s:'탈환',ok:true,tip:'부관이 이 거점을 되찾으러 갑니다'}:null;}
+  if(op==='def'||op==='retake'){const o=G.objs[a[1]];const co=sitCo(n,o.c+.5,o.r+.5);const def=op==='def';
+    if(co&&typeof orgAim==='function'){const I=co.intent;const on=I&&I.k===(def?'def':'atk')&&Math.hypot(I.x-o.c-.5,I.z-o.r-.5)<1;
+      return {l:`${co.name} ${def?'방어':'탈환'}`,s:def?'방어':'탈환',ok:!on,tip:`가장 가까운 ${co.name}에 ${o.name} ${def?'방어':'탈환'}를 맡깁니다`};}
+    if(!autoOn(n))return null;const I=N2.intent;return def?{l:'여기를 방어',s:'방어',ok:!(I&&I.k==='def'&&I.obj===o.name),tip:'부관이 이 거점을 지킵니다'}:{l:'탈환 목표로',s:'탈환',ok:true,tip:'부관이 이 거점을 되찾으러 갑니다'};}
   if(op==='shop')return {l:'증원·지원 열기',s:'증원',ok:true,tip:''};
   return null;}
 

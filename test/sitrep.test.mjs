@@ -64,3 +64,23 @@ test('전황 보고: 관전(AI끼리)에서는 아무것도 하지 않는다', (
   T.rtRun(30);
   assert.equal(T.G.sit.r.size, 0);
 });
+
+test('전황 보고: 방어 버튼은 가장 가까운 중대에 그 거점 방어를 맡기고, 증원은 그 중대로 간다', () => {
+  const T = loadGame();
+  start(T, true);
+  const G = T.G;
+  for (let i = 0; i < 30; i++) T.rtTick(0.1);
+  const O = T.__get('orgOf')(0);
+  assert.ok(O.co.length >= 1, '중대가 편성됨');
+  const o = G.objs[0];
+  G.sit.r.set('d', { k: 'd', pri: 3, x: o.c + .5, z: o.r + .5, txt: '시험', sub: '', acts: [['def', 0], ['buy', 'rifle', o.c + .5, o.r + .5]], t: G.time, t0: G.time, seq: 1, hold: 99 });
+  assert.equal(T.__get('sitDo')('d', 0), true);
+  const co = O.co.find(c => c.intent);
+  assert.ok(co, '중대에 목표');
+  assert.equal(co.intent.k, 'def');
+  G.nats[0].cp = 50;
+  assert.equal(T.__get('sitDo')('d', 1), true);
+  const u = G.units[G.units.length - 1];
+  const pq = O.pq.find(p => p.id === u.pq);
+  assert.ok(pq && pq.co === co.id, '증원은 가까운 중대로');
+});
