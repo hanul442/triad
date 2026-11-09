@@ -31,7 +31,7 @@ void main(){vec3 c=texture2D(tCol,vUv).rgb;float d=texture2D(tDep,vUv).x;
   if(grade>0.){float l=dot(c,vec3(.299,.587,.114));
     vec3 g=mix(vec3(l),c,mix(.6,.8,night));                              // 채도 빼기
     g*=mix(vec3(.92,.98,1.02),vec3(.99,1.01,.91),smoothstep(.15,.75,l));   // 그늘은 청회색, 빛은 바랜 올리브
-    g=g*.92+.035;g=mix(g,g*g*(3.-2.*g),.25);                            // 검은색을 살짝 띄우고 대비는 부드럽게
+    g=g*mix(1.04,.92,night)+mix(.05,.035,night);g=mix(g,g*g*(3.-2.*g),.25);                            // 검은색을 살짝 띄우고 대비는 부드럽게
     float L=28.;g=floor(g*L+bayer(gl_FragCoord.xy)+.5)/L;               // 4×4 디더링, 색 단계 줄이기
     vec2 v=vUv-.5;g*=1.-dot(v,v)*.35;c=g;}
   gl_FragColor=vec4(clamp(c,0.,1.),1.);}`});
