@@ -26,13 +26,15 @@ const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return
 const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15};   // 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
-  car:{inf:2,eng:2,veh:2,trk:2},barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
+  car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 헤치고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
   sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2},
   trench:{inf:0,eng:0,veh:2,trk:0},nest:{inf:0,eng:0,veh:2,trk:1}};
 /* 길을 막는 물체 목록 (방향 있는 상자) */
 function navObstacles(){const O=[];
   for(const p of G.props||[]){
-    if(p.k==='car'){const fl=p.flip?1.05:1;O.push({k:'car',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2*fl,hw:CAR_KIND_W[p.kind]/2*fl});}
+    if(p.k==='car'){const fl=p.flip?1.05:1;O.push({k:'car',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2*fl,hw:CAR_KIND_W[p.kind]/2*fl,p});}
+    else if(p.k==='hedge')O.push({k:'hedge',x:p.x,z:p.z,ry:p.ry,hl:.5,hw:.04});          // 공원 둘레 생울타리(길이 12m)
+    else if(p.k==='wagon')O.push({k:'wagon',x:p.x,z:p.z,ry:p.ry,hl:.25,hw:.085});       // 철길 위 화차
     else if(p.k==='barrier')O.push({k:'barrier',x:p.x,z:p.z,ry:p.ry,hl:.135,hw:.026});
     else if(p.k==='bin')O.push({k:'bin',x:p.x,z:p.z,ry:p.ry+Math.PI/2,hl:.08,hw:.045});}
   // 싸움 중에 생긴 잔해 차량(3D 화면이 G.covers에 넣는다)
@@ -92,7 +94,15 @@ function navGrid(cls){const q=NAV.grids[cls];
   NAV.cl=G.covers?G.covers.length:0;
   if(NAV.grids[cls])return NAV.grids[cls];
   NAV.obs=navObstacles();const b=navBase(cls);const cost=b.cost.slice();navStamp(cost,b.W,NAV.obs.filter(o=>o.fort),cls);
+  if(cls==='veh'||cls==='trk')navOpen(cost,b.W);
   return NAV.grids[cls]={W:b.W,cost};}
+/* 차량 격자 다듬기(열림 연산): 3×3 작은 칸(약 7m 네모)이 통째로 비어 있는 곳에 속한 칸만 남긴다.
+   주차 차 사이 틈처럼 차 중심은 들어가도 차체(길이 7~8m)가 돌 수 없는 좁은 틈·외딴 칸으로 길을 내지 않게 한다 */
+function navOpen(cost,W){const ok=new Uint8Array(W*W);
+  for(let i=1;i<W-1;i++)for(let j=1;j<W-1;j++){let f=1;for(let a=-1;a<=1&&f;a++)for(let b=-1;b<=1;b++)if(!cost[(i+a)*W+j+b]){f=0;break;}if(f)ok[i*W+j]=1;}
+  for(let i=0;i<W;i++)for(let j=0;j<W;j++){const k=i*W+j;if(!cost[k])continue;let keep=0;
+    for(let a=-1;a<=1&&!keep;a++)for(let b=-1;b<=1;b++){const ii=i+a,jj=j+b;if(ii>=0&&jj>=0&&ii<W&&jj<W&&ok[ii*W+jj]){keep=1;break;}}
+    if(!keep)cost[k]=0;}}
 function navCost(cls,x,z){const g=navGrid(cls);const j=Math.floor(x*NAV_R),i=Math.floor(z*NAV_R);if(i<0||j<0||i>=g.W||j>=g.W)return 0;return g.cost[i*g.W+j];}
 /* walkable()가 부른다: 이 점에 서 있을 수 있나 */
 function navOk(u,x,z){const c=navCls(u);return !c||navCost(c,x,z)>0;}
