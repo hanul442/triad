@@ -18,7 +18,7 @@ jetRun=function(n,r,c){G.airq=G.airq||[];const t0=G.time||0;const x=c+.5,z=r+.5;
   return j;};
 // 투하 순간: 대공이 먼저 쏘고, 살아남으면 폭탄이 떨어지기 시작한다
 jetDrop=function(j){const {n,r,c}=j;
-  for(const e of G.units){if(e.nat===n||(e.type!=='aa'&&e.type!=='zu'))continue;if(Math.hypot(e.x-(c+.5),e.z-(r+.5))>7)continue;if(e.supp>.5)continue;
+  for(const e of G.units){if(e.nat===n||!AA_T[e.type])continue;if(Math.hypot(e.x-(c+.5),e.z-(r+.5))>7)continue;if(e.supp>.5)continue;
     e.firedT=G.time;e.face=Math.atan2(r+.5-e.z,c+.5-e.x)*180/Math.PI;const p=e.type==='aa'?.3:.12;if(FXH.aaShot)FXH.aaShot(e,j);
     if(Math.random()<p){const a=Math.random()*6.283,d=1.5+Math.random()*2;const x=Math.min(N-.5,Math.max(.5,c+.5+Math.cos(a)*d)),z=Math.min(N-.5,Math.max(.5,r+.5+Math.sin(a)*d));
       L(`${natName(e.nat)} ${UT[e.type].n} 전투기 격추! 폭격 실패`);G.nats[e.nat].kills++;e.kills=(e.kills||0)+1;

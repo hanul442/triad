@@ -27,7 +27,7 @@ function armsCluster(n,x,z,R,E){let s=0;for(const o of E){if(UT[o.type].fly)cont
   for(const o of G.units){if(o.nat!==n||UT[o.type].fly)continue;const d=Math.hypot(o.x-x,o.z-z);if(d<=R+.6)s-=UT[o.type].cost*1.5;}
   return s;}
 function aiSupport(n,E){const N2=G.nats[n];if(!E.length||(N2.supT||0)>G.time)return false;
-  const noAir=WX[G.wx].noAir,eAA=E.filter(e=>e.type==='aa'||e.type==='zu').length;const C=[];
+  const noAir=WX[G.wx].noAir,eAA=E.filter(e=>AA_T[e.type]).length;const C=[];
   const add=(kind,r,c,v)=>{if(!SUP[kind]||N2.cp<SUP[kind].cost+1||v<=0)return;if(N2.lastSup===kind)v*=.6;C.push({kind,r,c,v:v/SUP[kind].cost});};
   for(const e of E){if(UT[e.type].fly)continue;
     // 포병: 3×3 안 적 무더기
@@ -68,11 +68,8 @@ function aiArmsEscort(n){for(const v of G.units){if(v.nat!==n||UT[v.type].cls!==
     const d=Math.hypot(o.x-v.x,o.z-v.z);if(d<bd){bd=d;bi=o;}}
   if(bi){const a=Math.random()*6.283;orderMoveTo(bi,end[0]+Math.cos(a)*1.1,end[1]+Math.sin(a)*1.1);bi.dest=null;}}}
 
-/* 차량 하차: 장갑차는 소총분대를(보병 수송), 험비는 가끔 드론팀을 내린다 */
-function aiDismount(v){if(v.type==='ifv'){if(v.dis||G.nats[v.nat].cp<DISMOUNT_CP)return null;let spot=null;
-    for(let i=0;i<16&&!spot;i++){const a=i/16*6.283;for(const R of [.6,.9]){const x=v.x+Math.cos(a)*R,z=v.z+Math.sin(a)*R;const t=tileAt(x,z);if(t&&t.t!=='bldg'&&t.t!=='water'){spot=[x,z];break;}}}
-    if(!spot)return null;G.nats[v.nat].cp-=DISMOUNT_CP;v.dis=1;const u=mkUnit(v.nat,'rifle',Math.floor(spot[1]),Math.floor(spot[0]));u.x=spot[0];u.z=spot[1];u.face=v.face;
-    L(`${natName(v.nat)} ${UT[v.type].n}에서 보병 하차`);if(FXH.land)FXH.land(u);bump();return u;}
+/* 차량 하차: 장갑차·보병전투차는 태운 분대를(09e-fleet), 험비는 가끔 드론팀을 내린다 */
+function aiDismount(v){if(CARRY[v.type]){if(typeof fleetUnload==='function'&&v.pax&&v.pax.length)return fleetUnload(v,'contact');return null;}
   if(Math.random()<.5)return null;return dismount(v);}
 
 /* 화력 지원용으로 모아 둘 지휘점수: 적이 보이면 공격헬기 한 번 값, 아니면 포격 한 번 값 */
