@@ -66,31 +66,12 @@ test('관전 판도 AI끼리 끝까지 진행된다', () => {
   assert.equal(T.G.errs.length, 0, T.G.errs.join('\n'));
 });
 
-test('AI 명령도 무전을 탄다: 생각한 직후엔 아직 안 바뀌고, 교신이 닿으면 바뀐다', () => {
+test('무전 지연 없음: AI 명령도 생각하는 즉시 실행된다', () => {
   const T = loadGame();
   fn(T, 'specStart')({ n: 2, size: 's', seed: 21 });
-  const G = T.G;
   T.rtRun(20);
-  // 멈춰 선 부대를 하나 만들고 AI가 생각하게 한다
-  const before = new Map(G.units.map(u => [u, u.path]));
   for (let i = 0; i < 6; i++) T.aiThink(0);
-  const ai = G.rq.filter(e => e.ai && e.nat === 0);
-  assert.ok(ai.length > 0, 'AI 명령이 대기열에 들어갔다');
-  const e = ai[0], u = G.units.find(o => o.id === e.us[0]);
-  assert.ok(e.at > G.time, '바로 닿지 않는다');
-  assert.equal(u.path, before.get(u), '닿기 전엔 하던 일을 계속한다');
-  const ack = u._ack;
-  for (let i = 0; i < 40 && G.rq.some(x => x.id === e.id); i++) T.rtTick(0.1);
-  assert.ok(!G.rq.some(x => x.id === e.id) || e.jam, '몇 초 안에 닿는다(재밍이 아니면)');
-  if (!e.jam) assert.notEqual(u._ack, ack, '수신');
-});
-
-test('무전을 끄면 AI 명령은 바로 실행된다', () => {
-  const T = loadGame();
-  T.newGame({ slots: ['ai', 'ai', 'none', 'none'], size: 's', seed: 21, speed: 0, radio: false });
-  T.rtRun(20);
-  for (let i = 0; i < 4; i++) T.aiThink(0);
-  assert.equal(T.G.rq.length, 0);
+  assert.equal((T.G.rq || []).length, 0);
 });
 
 test('관전: 같은 지도 번호면 같은 도시, 시나리오·캠페인도 모든 자리를 AI가 맡는다', () => {

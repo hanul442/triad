@@ -1,14 +1,10 @@
-/* ===================== 무전·지휘 지연 =====================
-   플레이어 명령은 무전으로 내려간다.
-   - 지휘소(자기 출발 지역 가운데)에서 부대까지 멀수록 조금 늦게 닿는다(가까우면 1초 남짓, 멀어도 3초 안팎).
-   - 한 세력의 무전망은 한 번에 한 교신만 싣는다. 명령을 몰아 내리면 줄을 서서 차례로 나간다.
-     여러 부대를 함께 골라 내린 명령은 교신 한 번이다.
-   - 적 전자전팀 재밍 반경 안의 지상 부대는 교신이 끊긴다. 재송신을 몇 번 하다가 끝내 전령이 뛰어가 전한다.
-   - 드론은 조종기로 바로 움직이므로 거의 늦지 않는다(재밍은 05f-air가 따로 다룬다).
-   - 명령을 기다리는 동안 부대는 하던 일을 계속하고, 적이 보이면 알아서 쏜다.
-   AI 명령도 같은 대기열을 탄다(06z-radio-ai). */
+/* ===================== 무전 명령 =====================
+   명령은 무전으로 내려가지만 늦지 않는다: 내리는 순간 부대가 받는다(한서 요청, 2026-11-09).
+   재밍도 명령을 늦추지 않는다(재밍은 드론 조종 신호만 끊는다, 05f-air).
+   무전 소리와 영어 교신(07z-vox)은 그대로 나고, 부대는 받자마자 "수신" 답을 한다.
+   아래 교신 대기열(G.rq) 장치는 radioOn()이 늘 false라 쓰이지 않는다. 되살리려면 radioOn만 바꾸면 된다. */
 const RADIO={base:.6,per:.035,max:1.4,talk:.35,fly:.25,jamOk:.35,retry:1.8,tries:3,runner:2.5};
-const radioOn=()=>!!G&&G.radio!==false&&G.scn!=='tut';
+const radioOn=()=>false;
 /* 지휘소: 출발 지역 칸들의 가운데 */
 function hqOf(n){G.hq=G.hq||{};if(G.hq[n])return G.hq[n];const sp=zoneSpots(n);let x=N/2,z=N/2;
   if(sp.length){x=sp.reduce((a,p)=>a+p[1]+.5,0)/sp.length;z=sp.reduce((a,p)=>a+p[0]+.5,0)/sp.length;}return G.hq[n]={x,z};}
@@ -50,8 +46,6 @@ function radioTick(){if(!G.rq||!G.rq.length)return;const now=G.time||0;const kee
     bump();}
   G.rq=keep;}
 /* 원래 함수 감싸기: 새 판 설정, 매 틱 교신 */
-{const _n=newGame;newGame=function(cfg){const r=_n(cfg);let on=cfg&&cfg.radio;
-   if(on==null){try{const el=typeof document!=='undefined'&&document.getElementById('opt-radio');on=el?el.value!=='0':true;}catch(e){on=true;}}
-   G.radio=!!on;G.rq=[];G.rnet={};G.hq={};return r;};}
+{const _n=newGame;newGame=function(cfg){const r=_n(cfg);G.radio=false;G.rq=[];G.rnet={};G.hq={};return r;};}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(G&&!G.over)radioTick();};}
 /* AI 명령의 무전(재밍 포함)은 06z-radio-ai가 같은 대기열로 다룬다. */

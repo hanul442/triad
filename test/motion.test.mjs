@@ -18,7 +18,7 @@ test('포탑: 차체는 그대로 두고 포탑만 표적 쪽으로 돌린 뒤�
   const T = loadGame(); const G = setup(T);
   const tk = T.mkUnit(0, 'tank', 8, 8); tk.x = 8.5; tk.z = 8.5; tk.face = 0; tk.cd = 0; tk.hold = true;
   tk._sc = { coax: 1e9, cmd: 1e9, ldr: 1e9 };   // 주포만 본다(차장 원격 기관총은 포탑과 따로 돈다)
-  const e = T.mkUnit(1, 'rifle', 8, 4); e.x = 4.5; e.z = 8.5; e.hold = true; e.cd = 99; e.hp = 99;
+  const e = T.mkUnit(1, 'rifle', 8, 4); e.x = 4.5; e.z = 8.5; e.hold = true; e.cd = 99; e.hp = 99; e.ssm = 0; // 연막을 던져 숨지 않게(포탑만 본다)
   T.rtTick(0.1);
   assert.equal(tk.firedT, undefined, '포탑이 뒤를 보기 전에는 쏘지 않음');
   let firedAt = null, want = null;
