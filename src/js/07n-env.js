@@ -9,7 +9,7 @@ const ENVP={
 const ENV3={wr:0,wf:0,ws:0,bolt:0,boltT:8,flares:new Map(),pool:[],mist:[],init:false};
 
 /* v3Light 대신: 목표값만 정하고 실제 반영은 v3EnvFrame이 부드럽게 한다 */
-function v3EnvLight(){const wx=G.wx||'clear';V3.rain=wx==='rain'?1:wx==='storm'?1.6:0;}
+function v3EnvLight(){const wx=G.wx||'clear';const k=typeof wxKind==='function'?wxKind():wx;V3.rain=k==='snow'?.09:k==='blizzard'?.22:k==='sand'||k==='dust'?0:wx==='rain'?1:wx==='storm'?1.6:0;}
 
 function v3EnvInit(){const T=V3.T;ENV3.init=true;ENV3.g=new T.Group();V3.scene.add(ENV3.g);
   // 조명탄 빛: 개수가 바뀌면 셰이더를 다시 만들어야 하므로 처음부터 3개를 꺼 둔 채 둔다
@@ -24,9 +24,9 @@ function v3EnvInit(){const T=V3.T;ENV3.init=true;ENV3.g=new T.Group();V3.scene.a
 
 const _ec=[];function envCol(i,h){if(!_ec[i])_ec[i]=new V3.T.Color();return _ec[i].set(h);}
 function v3EnvFrame(now,dt){if(!G||!V3.on)return;if(!ENV3.init)v3EnvInit();const T=V3.T,s=V3.cs;
-  const nk=nightK(),dk=duskK()*(1-nk*.6);const wx=G.wx||'clear';
+  const nk=nightK(),dk=duskK()*(1-nk*.6);const wx=G.wx||'clear';const wk=typeof wxKind==='function'?wxKind():wx;const snowy=wk==='snow'||wk==='blizzard',sandy=wk==='sand'||wk==='dust';
   // 날씨는 몇 초에 걸쳐 바뀐다
-  const ek=ENV3.seed!==G.seed?1:1-Math.exp(-dt/3.5);ENV3.seed=G.seed;ENV3.wr+=((wx==='rain'?1:wx==='storm'?1:0)-ENV3.wr)*ek;ENV3.wf+=((wx==='fog'?1:0)-ENV3.wf)*ek;ENV3.ws+=((wx==='storm'?1:0)-ENV3.ws)*ek;
+  const ek=ENV3.seed!==G.seed?1:1-Math.exp(-dt/3.5);ENV3.seed=G.seed;ENV3.wr+=((snowy||sandy?0:wx==='rain'?1:wx==='storm'?1:0)-ENV3.wr)*ek;ENV3.wf+=((wk==='fog'||wk==='blizzard'||wk==='sand'?1:wk==='dust'?.7:wk==='snow'?.35:0)-ENV3.wf)*ek;ENV3.ws+=((wx==='storm'&&!snowy&&!sandy?1:0)-ENV3.ws)*ek;
   const wr=ENV3.wr,wf=ENV3.wf,ws=ENV3.ws;
   const D=ENVP.day,K=ENVP.dusk,Nn=ENVP.night;
   const mix=(k,i)=>envCol(i,D[k]).lerp(envCol(i+1,K[k]),dk).lerp(envCol(i+2,Nn[k]),nk);
@@ -37,16 +37,17 @@ function v3EnvFrame(now,dt){if(!G||!V3.on)return;if(!ENV3.init)v3EnvInit();const
   V3.sun.color.copy(mix('sun',0));V3.sun.intensity=num('si')*(1-.45*Math.max(wr,wf*.8));
   V3.hemi.color.copy(mix('sky',3));V3.hemi.groundColor.copy(mix('gr',6));V3.hemi.intensity=num('hi')*(1-.15*wr)+bolt*2.2;
   V3.M.wall.emissiveIntensity=nk*.75+dk*.2;
-  const fc=mix('fog',9);if(wr>0)fc.lerp(envCol(12,nk>.5?'#151a20':'#4a525a'),.5*wr);if(wf>0)fc.lerp(envCol(13,nk>.5?'#1c2026':'#a7a59d'),.55*wf);if(bolt)fc.lerp(envCol(14,'#9aa6b8'),bolt*.6);
+  const fc=mix('fog',9);if(wr>0)fc.lerp(envCol(12,nk>.5?'#151a20':'#4a525a'),.5*wr);if(wf>0)fc.lerp(envCol(13,nk>.5?'#1c2026':sandy?(wk==='sand'?'#b08a58':'#bfa784'):snowy?'#d3d8dd':'#a7a59d'),(sandy?.75:.55)*wf);if(bolt)fc.lerp(envCol(14,'#9aa6b8'),bolt*.6);
   V3.scene.fog.color.copy(fc);if(!V3.scene.background||!V3.scene.background.isColor)V3.scene.background=new T.Color();V3.scene.background.copy(fc);
   V3.fogK=(1-.55*wf)*(1-.3*ws)*(1-.25*nk);const fk=Math.max(wf,ws*.6);V3.scene.fog.near=s.d*.75*V3.fogK*(1-fk)+s.d*.25*fk;V3.scene.fog.far=(s.d*2.8*V3.fogK+10)*(1-fk)+s.d*1.45*fk;
   const h=dayH();V3.sunAng=nk>.85?.4:Math.max(-.95,Math.min(.95,(h-12)/6.5));
   // 젖은 땅: 더 어둡고 덜 거칠다(빛을 번들거리게 받는다)
   V3.M.terr.roughness=ENV3.terrR-.38*wr;V3.M.roof.roughness=ENV3.roofR-.3*wr;const wet=1-.28*wr;V3.M.terr.color.setRGB(wet,wet,wet);
-  if(V3.rainObj){V3.rainObj.material.opacity=.38*wr*(nk>.5?.6:1);V3.rainObj.material.color.set(nk>.5?'#6f8090':'#9fb0bf');}
+  if(V3.rainObj){if(snowy){V3.rainObj.material.opacity=(wk==='blizzard'?.8:.6)*(nk>.5?.5:1);V3.rainObj.material.color.set(nk>.5?'#8a929a':'#f4f6f8');V3.rainObj.scale.set(1,.25,1);}   // 눈송이: 짧고 하얗게, 천천히
+    else{V3.rainObj.material.opacity=.38*wr*(nk>.5?.6:1);V3.rainObj.material.color.set(nk>.5?'#6f8090':'#9fb0bf');V3.rainObj.scale.set(1,1,1);}}
   // 안개 덩어리
   const fo=.45*wf+.1*wr*(1-nk);for(const m of ENV3.mist){const u=m.userData;m.visible=fo>.01;if(!m.visible)continue;const R=s.d*.9;const a=u.a+now/1000*.01;
-    const x=s.x+Math.cos(a)*R*u.r+Math.sin(now/9000+u.ph)*1.5,z=s.z+Math.sin(a)*R*u.r;m.position.set(x,u.y,z);m.scale.setScalar(u.sz*(1+s.d*.03));m.material.opacity=fo*(.6+.4*Math.sin(now/3000+u.ph));m.material.color.set(nk>.5?'#2a3038':'#c3c1ba');}
+    const x=s.x+Math.cos(a)*R*u.r+Math.sin(now/9000+u.ph)*1.5,z=s.z+Math.sin(a)*R*u.r;m.position.set(x,u.y,z);m.scale.setScalar(u.sz*(1+s.d*.03));m.material.opacity=fo*(.6+.4*Math.sin(now/3000+u.ph));m.material.color.set(nk>.5?'#2a3038':sandy?'#c29a66':snowy?'#e2e6ea':'#c3c1ba');}
   // 야간투시경: 별빛을 증폭하듯 그늘 없이 고르게 밝힌다(색은 CSS 필터가 녹색 단색으로 바꾼다)
   const q=UI.nvg?Math.min(1,nk*1.4):0;if(q>0){V3.hemi.color.lerp(envCol(15,'#d8dde0'),q);V3.hemi.groundColor.lerp(envCol(16,'#5a5c58'),q);V3.hemi.intensity+=(1.5-V3.hemi.intensity)*q;
     V3.sun.color.lerp(envCol(17,'#c8d0d8'),q);V3.sun.intensity+=(.9-V3.sun.intensity)*q;V3.M.wall.emissiveIntensity*=1-.5*q;fc.lerp(envCol(18,'#3a3f40'),q);V3.scene.fog.color.copy(fc);V3.scene.background.copy(fc);}
