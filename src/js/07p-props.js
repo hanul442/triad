@@ -101,7 +101,7 @@ function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
     const nb=yard?[]:[[0,1],[1,0]].filter(([a,b])=>park(r+a,c+b));
     if(!yard&&(nb.length||v3Hash(k,400)<.5)){paths.push({x:cx,y:.004,z:cz,sx:1,sz:1,ry:0,k,disc:1});
       for(const [a,b] of nb)paths.push({x:cx+b*.5,y:.003,z:cz+a*.5,ry:b?0:Math.PI/2,k});}
-    for(let i=0;i<2;i++)if(v3Hash(k,410+i)<.3){const a=v3Hash(k,420+i)*6.28,rr=.26+v3Hash(k,430+i)*.16;const x=cx+Math.cos(a)*rr,z=cz+Math.sin(a)*rr,s=.8+v3Hash(k,440+i)*.5;
+    for(let i=0;i<2;i++)if(v3Hash(k,410+i)<(G.map[r][c].wild&&typeof natWildTrees==='function'?.08:.3)){const a=v3Hash(k,420+i)*6.28,rr=.26+v3Hash(k,430+i)*.16;const x=cx+Math.cos(a)*rr,z=cz+Math.sin(a)*rr,s=.8+v3Hash(k,440+i)*.5;
       trees.push({x,y:0,z,s,ry:v3Hash(k,450+i)*6.28,col:LEAF[Math.floor(v3Hash(k,460+i)*LEAF.length)],k});trunks.push({x,y:3.5*m*s,z,s});}
     if(yard)continue;
     if(v3Hash(k,470)<.45){const side=v3Hash(k,471)<.5;bench.push({x:cx+(side?.12:0),y:.25*m,z:cz+(side?0:.12),ry:side?Math.PI/2:0});}

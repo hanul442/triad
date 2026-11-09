@@ -6053,10 +6053,12 @@ function orgTick(n){orgClean(n);const O=orgOf(n);const us=G.units.filter(u=>u.na
 function orgIntent(n,pqId){if(!G.org||!G.org[n])return null;const p=orgPq(n,pqId);if(p){if(p.intent)return p.intent;const c=orgCo(n,p.co);if(c&&c.intent)return c.intent;return null;}
   if(pqId==null){const c=orgCo(n,G.nats[n].reinfCo);if(c&&c.intent)return c.intent;}return null;}
 function orgClearIntents(n){if(!G.org||!G.org[n])return;for(const c of G.org[n].co)c.intent=null;for(const p of G.org[n].pq)p.intent=null;}
-function orgRefUnits(n,ref){if(!ref)return [];if(ref.k==='hq')return orgHQUnits(n);if(ref.k==='co'){const c=orgCo(n,ref.id);return c?orgCoUnits(n,c):[];}const p=orgPq(n,ref.id);return p?orgPqUnits(n,p):[];}
-function orgRefName(n,ref){if(!ref)return '';if(ref.k==='hq')return '본부';const o=ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);return o?o.name:'';}
+function orgRefUnits(n,ref){if(!ref)return [];if(ref.k==='hq')return orgHQUnits(n);if(ref.k==='all')return G.units.filter(u=>u.nat===n&&u.pq!=null);if(ref.k==='co'){const c=orgCo(n,ref.id);return c?orgCoUnits(n,c):[];}const p=orgPq(n,ref.id);return p?orgPqUnits(n,p):[];}
+function orgRefName(n,ref){if(!ref)return '';if(ref.k==='hq')return '본부';if(ref.k==='all')return '전체';const o=ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);return o?o.name:'';}
 /* 중대·소대에 목표 주기. k=null이면 목표를 지운다(부관 재량·임무 해제) */
-function orgAim(n,ref,k,x,z){const O=orgOf(n);const o=ref.k==='co'?orgCo(n,ref.id):ref.k==='pq'?orgPq(n,ref.id):null;if(!o)return null;
+function orgAim(n,ref,k,x,z){const O=orgOf(n);
+  if(ref.k==='all'){// 전체: 부관이면 전체 주공, 직접 지휘면 중대마다 임무
+    if(autoOn(n))return autoIntent(n,k,x,z);let I=null;for(const c of O.co.slice())I=orgAim(n,{k:'co',id:c.id},k,x,z)||I;return I;}const o=ref.k==='co'?orgCo(n,ref.id):ref.k==='pq'?orgPq(n,ref.id):null;if(!o)return null;
   const I=k?autoMkIntent(k,x,z):null;o.intent=I;if(ref.k==='co')for(const p of O.pq)if(p.co===o.id)p.intent=null;
   G.nats[n].aiT=0;
   if(!autoOn(n)){const us=orgRefUnits(n,ref);if(us.length)radioSend(n,us,'mis',I?[I.k==='def'?'defend':'attack',I.x,I.z,'full']:['off']);}
@@ -7461,7 +7463,7 @@ function bmBuildWorld(g){const T=V3.T,pm=v3PropMats(),M3=bmMats(),G3=bmGeos(),cl
     o.material.color.set(cl==='winter'?'#c4c9cd':cl==='desert'?'#a08a66':L==='forest'?'#2f3526':L==='country'?'#4f5636':'#3a3936');}
   const pines=[],leafs=[],sea=[],edge=[],deck=[];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c],k=key(r,c),cx=c+.5,cz=r+.5;
-    if(x.t==='park'&&x.wild&&!x.orch){const n=3+(v3Hash(k,801)<.4?1:0);for(let i=0;i<n;i++){const px=cx+(v3Hash(k,810+i)-.5)*.84,pz=cz+(v3Hash(k,815+i)-.5)*.84,s=.75+v3Hash(k,820+i)*.6;
+    if(x.t==='park'&&x.wild&&!x.orch&&typeof natWildTrees!=='function'){const n=3+(v3Hash(k,801)<.4?1:0);for(let i=0;i<n;i++){const px=cx+(v3Hash(k,810+i)-.5)*.84,pz=cz+(v3Hash(k,815+i)-.5)*.84,s=.75+v3Hash(k,820+i)*.6;
         if(v3Hash(k,830+i)<(cl==='autumn'?.35:.15))leafs.push({x:px,y:0,z:pz,s:s*.9,ry:v3Hash(k,840+i)*6.28,col:pal(LF||['#6e6a4c','#7a7353','#5f5d43'],k,850+i),k});
         else pines.push({x:px,y:0,z:pz,s,ry:v3Hash(k,860+i)*6.28,col:pal(BM_PINE[cl]||BM_PINE.temp,k,870+i),k});}}
     if(x.orch)for(const [a,b] of [[-.25,-.25],[-.25,.25],[.25,-.25],[.25,.25]])leafs.push({x:cx+a,y:0,z:cz+b,s:.45+v3Hash(k,880+a*4+b*8+9)*.15,ry:v3Hash(k,890)*6.28,col:pal(LF||['#5f6b3c','#6e7a44','#56603a'],k,895+a*4+b*8+9),k});
@@ -7502,6 +7504,211 @@ function bmCityTint(){const W=V3.M.walls||[V3.M.wall];for(const m of W){if(m.use
   for(let i=0;i<a.count;i++){a.setXYZ(i,a.getX(i)+(.9-a.getX(i))*.8,a.getY(i)+(.92-a.getY(i))*.8,a.getZ(i)+(.94-a.getZ(i))*.8);}a.needsUpdate=true;}
 /* 겨울 비 → 눈 */
 {const _ef=v3EnvFrame;v3EnvFrame=function(now,dt){_ef(now,dt);if(bmClime()==='winter'&&V3.rainObj){V3.rainObj.material.color.set('#f2f4f6');V3.rainObj.material.opacity=Math.min(.75,V3.rainObj.material.opacity*1.8);}};}
+
+/* ---- 07g3-nature.js ---- */
+/* ===================== 지형과 자연: 화면 =====================
+   땅과 숲, 물, 하늘을 실제 풍경에 가깝게 다듬는다. 모두 보이는 것만 바꾸고 판정(시야·엄폐·이동)은 그대로다.
+   - 땅 질감: 지면 셰이더에 월드 좌표 잡음 세 겹(큰 얼룩·중간 결·잔 알갱이)을 곱해 칸마다 같은 색으로 보이는 격자 느낌을 없앤다.
+     풀밭이 가파르면 흙·돌이 드러난다(비탈 색).
+   - 칸 경계: 풀밭·밭·숲 바닥처럼 무른 땅끼리 맞닿은 곳은 이웃 색을 불규칙하게 번지게 해 칼로 자른 듯한 경계를 지운다. 풀 포기·흙 자국도 흩뿌린다.
+   - 숲: 칸마다 7~9그루, 키와 굵기가 제각각인 가문비(층층 원뿔)와 소나무(긴 줄기·위쪽 수관)를 섞고, 색을 한 그루씩 조금씩 다르게 한다. 숲 바닥엔 덤불.
+   - 덤불: 목초지·숲 가장자리·공원에 낮은 관목을 흩는다.
+   - 물: 강·연못·바다 수면에 바람결 잔물결(법선 흔들기), 바다는 해안에서 멀수록 짙어지고 안벽·모래 쪽엔 흰 물거품.
+   - 궤도·바퀴 자국: 차량이 흙·풀밭을 지나가면 자국이 남는다(보이는 차량만, 오래된 자국부터 지운다).
+   - 하늘: 지평선은 안개색, 위로 갈수록 하늘색인 둥근 하늘. 지도 밖에도 숲·들판을 이어 가장자리가 허공처럼 보이지 않게.
+   캠페인 지도(G.camp)는 07c-camp가 따로 그리므로 땅 무늬와 숲만 건너뛴다. */
+const NAT={tr:null,trN:0,trI:0,trSeed:null,last:new Map(),t:0};
+const NAT_LO=typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches;   // 휴대폰: 나무를 조금 덜
+const natCl=()=>typeof bmClime==='function'?bmClime():'temp';
+const natLay=()=>G&&G.feat&&G.feat.layout||'sym';
+// 무른 땅(경계를 번지게 하고 자국이 남는 땅)
+const natSoft=x=>!!x&&!x.sea&&!x.rv&&!x.lot&&!x.field&&!x.gas&&!x.quay&&!x.pier&&!x.cy&&(x.t==='park'||x.t==='rubble'||x.crop||x.mead||x.wild||x.fy||x.t==='road'&&x.dirt);
+
+/* ---------- 잡음 텍스처 (이어 붙여도 이음매 없는 값 잡음, 세 채널 서로 다른 결) ---------- */
+function natNoiseTex(){if(NAT.noise)return NAT.noise;const T=V3.T,S=256,d=new Uint8Array(S*S*4);const R=mulberry(0x6e61);
+  const oct=(cells,amp,arr)=>{const g=[];for(let i=0;i<cells*cells;i++)g.push(R());const at=(i,j)=>g[((j%cells+cells)%cells)*cells+((i%cells+cells)%cells)];
+    for(let y=0;y<S;y++)for(let x=0;x<S;x++){const fx=x/S*cells,fy=y/S*cells,i=Math.floor(fx),j=Math.floor(fy);let u=fx-i,v=fy-j;u=u*u*(3-2*u);v=v*v*(3-2*v);
+      const a=at(i,j)+(at(i+1,j)-at(i,j))*u,b=at(i,j+1)+(at(i+1,j+1)-at(i,j+1))*u;arr[y*S+x]+=(a+(b-a)*v)*amp;}};
+  const ch=[[4,8,16,32],[8,16,32,64],[32,64,128,256]].map(cs=>{const a=new Float32Array(S*S);let tot=0;cs.forEach((c,i)=>{const amp=1/(1+i*.9);tot+=amp;oct(c,amp,a);});for(let i=0;i<a.length;i++)a[i]/=tot;return a;});
+  for(let i=0;i<S*S;i++){for(let k=0;k<3;k++){const v=ch[k][i];d[i*4+k]=Math.max(0,Math.min(255,Math.round((v-.5)*1.9*255+128)));}d[i*4+3]=255;}
+  const tx=new T.DataTexture(d,S,S);tx.wrapS=tx.wrapT=T.RepeatWrapping;tx.magFilter=T.LinearFilter;tx.minFilter=T.LinearMipmapLinearFilter;tx.generateMipmaps=true;tx.needsUpdate=true;NAT.noise=tx;return tx;}
+
+/* ---------- 지면 셰이더: 잡음 얼룩 + 비탈 흙 ---------- */
+function natTerrMat(){const m=V3.M&&V3.M.terr;if(!m||m.userData.nat)return;m.userData.nat=1;const ob=m.onBeforeCompile;const nt={value:natNoiseTex()};
+  m.onBeforeCompile=function(sh,ren){ob.call(this,sh,ren);sh.uniforms.natN=nt;
+    let vs=sh.vertexShader;
+    if(vs.includes('float terrH(')){vs=vs.replace('#include <begin_vertex>','#include <begin_vertex>\n{vec2 sp=(modelMatrix*vec4(position,1.)).xz;float hx=terrH(sp+vec2(.25,0.))-terrH(sp-vec2(.25,0.)),hz=terrH(sp+vec2(0.,.25))-terrH(sp-vec2(0.,.25));vNatSl=length(vec2(hx,hz))/.5;}');
+      sh.vertexShader='varying float vNatSl;\n'+vs;}else sh.vertexShader='varying float vNatSl;\n'+vs.replace('#include <begin_vertex>','#include <begin_vertex>\nvNatSl=0.;');
+    sh.fragmentShader='uniform sampler2D natN;varying float vNatSl;\n'+sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+{vec2 wp=vFowW;float n1=texture2D(natN,wp*.045).r,n2=texture2D(natN,wp*.23).g,n3=texture2D(natN,wp*2.1).b,n4=texture2D(natN,wp*.71+.37).b;
+ vec3 c=diffuseColor.rgb;float gr=clamp((c.g-max(c.r,c.b))*14.,0.,1.);   // 풀빛일수록 얼룩을 세게
+ float k=(1.+(n1-.5)*(.16+.14*gr))*(1.+(n2-.5)*(.10+.12*gr))*(1.+(n3-.5)*.16)*(1.+(n4-.5)*.08);
+ c*=k;c=mix(c,c*vec3(1.06,1.03,.86),gr*clamp((n1-.45)*3.,0.,1.)*.5);   // 마른 풀 얼룩
+ float sl=clamp((vNatSl-.32)*2.4,0.,1.)*gr;c=mix(c,vec3(.36,.33,.28)*(.85+.3*n3),sl*.7);   // 가파른 풀밭: 흙·돌
+ diffuseColor.rgb=c;}`);};
+  m.customProgramCacheKey=()=>'fowNnat';m.needsUpdate=true;}
+
+/* ---------- 땅 그림: 무른 땅 경계 번지기, 풀 포기, 바다 깊이·물거품 ---------- */
+{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||G.camp)return;try{natGround(g,P);}catch(e){console.error(e);}};}
+function natGround(g,P){const M=G.map,R=mulberry(((G.seed|0)^0x7a11)>>>0),cl=natCl();const at=(r,c)=>inb(r,c)?M[r][c]:null;
+  // 칸마다 평균색: 작은 캔버스로 줄여 읽는다
+  const sm=document.createElement('canvas');sm.width=sm.height=N;const sg=sm.getContext('2d');sg.imageSmoothingEnabled=true;sg.imageSmoothingQuality='high';sg.drawImage(g.canvas,0,0,N,N);
+  const avg=sg.getImageData(0,0,N,N).data;const colOf=(r,c)=>{const i=(r*N+c)*4;return [avg[i],avg[i+1],avg[i+2]];};
+  // 1) 경계 번지기: 이웃 색 덩어리를 경계 안쪽으로 흩뿌린다(양쪽 칸이 서로 하므로 들쭉날쭉한 띠가 된다)
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];if(!natSoft(x)||x.t==='road')continue;const X=c*P,Y=r*P;
+    for(const [a,b] of [[-1,0],[1,0],[0,-1],[0,1]]){const y=at(r+a,c+b);if(!natSoft(y)||y.t==='road')continue;const q=colOf(r+a,c+b),p=colOf(r,c);
+      if(Math.abs(q[0]-p[0])+Math.abs(q[1]-p[1])+Math.abs(q[2]-p[2])<14)continue;
+      const n=Math.round(P*.55);for(let i=0;i<n;i++){const t=R()*P,dep=Math.pow(R(),1.6)*P*.32,rr=1.5+R()*4.5*(1-dep/(P*.4));
+        const px=a?X+t:(b<0?X+dep:X+P-dep),py=b?Y+t:(a<0?Y+dep:Y+P-dep);
+        g.fillStyle=`rgba(${q[0]},${q[1]},${q[2]},${(.35+R()*.45).toFixed(2)})`;g.beginPath();g.arc(px,py,rr,0,7);g.fill();}}}
+  // 2) 풀 포기·흙 자국 (겨울엔 눈 사이로 마른 풀, 사막엔 자갈)
+  const TUFT=cl==='winter'?['rgba(120,118,98,.35)','rgba(250,252,255,.4)']:cl==='desert'?['rgba(120,100,70,.35)','rgba(230,210,170,.3)']:cl==='autumn'?['rgba(95,80,45,.4)','rgba(150,120,60,.3)','rgba(40,38,25,.3)']:['rgba(40,48,25,.4)','rgba(120,130,75,.3)','rgba(70,80,40,.35)'];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];if(!(x.t==='park'||x.mead)||x.crop||x.yard&&R()<.5)continue;const X=c*P,Y=r*P;const n=x.wild?14:26;
+    for(let i=0;i<n;i++){const px=X+R()*P,py=Y+R()*P;g.strokeStyle=TUFT[Math.floor(R()*TUFT.length)];g.lineWidth=1;g.beginPath();for(let s=0;s<3;s++){g.moveTo(px,py);g.lineTo(px+(R()-.5)*3,py-1.5-R()*2.5);}g.stroke();}
+    if(x.wild){for(let i=0;i<6;i++){g.fillStyle=R()<.5?'rgba(70,55,38,.3)':'rgba(25,22,16,.35)';g.beginPath();g.ellipse(X+R()*P,Y+R()*P,2+R()*4,1+R()*2,R()*3,0,7);g.fill();}}}   // 솔잎 깔린 흙
+  // 3) 밭: 줄마다 생육이 조금씩 달라 진하고 옅은 띠, 가장자리 풀 둑
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];if(!x.crop||x.site)continue;const X=c*P,Y=r*P,h=x.cd==='h';
+    for(let i=0;i<P;i+=6){if(R()<.35){g.fillStyle=R()<.5?'rgba(0,0,0,.07)':'rgba(255,245,210,.06)';h?g.fillRect(X,Y+i,P,6):g.fillRect(X+i,Y,6,P);}}
+    for(const [a,b] of [[-1,0],[1,0],[0,-1],[0,1]]){const y=at(r+a,c+b);if(y&&y.crop)continue;g.fillStyle=cl==='winter'?'rgba(200,205,205,.5)':'rgba(70,82,45,.55)';
+      for(let i=0;i<14;i++){const t=R()*P,o=R()*4;g.beginPath();g.arc(a?X+t:(b<0?X+o:X+P-o),b?Y+t:(a<0?Y+o:Y+P-o),1.5+R()*2.5,0,7);g.fill();}}}
+  // 4) 바다: 해안에서 멀수록 짙게(칸 거리), 물에 닿은 모래·바위에 물거품
+  const sea=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(M[r][c].sea)sea.push([r,c]);
+  if(sea.length){const D=new Map();const q=[];for(const [r,c] of sea)for(const [a,b] of BM_NB){const y=at(r+a,c+b);if(y&&!y.sea){D.set(key(r,c),0);q.push([r,c]);break;}}
+    for(let i=0;i<q.length;i++){const [r,c]=q[i],d=D.get(key(r,c));for(const [a,b] of BM_NB){const y=at(r+a,c+b);if(!y||!y.sea||D.has(key(r+a,c+b)))continue;D.set(key(r+a,c+b),d+1);q.push([r+a,c+b]);}}
+    for(const [r,c] of sea){const d=Math.min(6,D.get(key(r,c))??6),k=d/6;const X=c*P,Y=r*P;g.fillStyle=`rgb(${Math.round(42-26*k)},${Math.round(70-38*k)},${Math.round(74-32*k)})`;g.fillRect(X,Y,P,P);
+      for(let i=0;i<6;i++){g.fillStyle='rgba(150,180,185,.05)';g.fillRect(X+R()*P,Y+R()*P,4+R()*10,1);}
+      for(const [a,b] of BM_NB){const y=at(r+a,c+b);if(!y||y.sea)continue;const hard=y.quay||y.pier||y.t==='bldg';   // 안벽엔 얇은 거품, 물가엔 넓은 거품
+        for(let i=0;i<(hard?10:26);i++){const t=R()*P,o=Math.pow(R(),2)*(hard?4:12);g.fillStyle=`rgba(225,232,230,${(.25+R()*.45).toFixed(2)})`;g.beginPath();g.arc(a?X+t:(b<0?X+o:X+P-o),b?Y+t:(a<0?Y+o:Y+P-o),.8+R()*2.2,0,7);g.fill();}}}}
+  // 5) 연못·강가: 물가 쪽 젖은 흙 띠
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];if(!natSoft(x)||x.t==='road')continue;const X=c*P,Y=r*P;
+    for(const [a,b] of BM_NB){const y=at(r+a,c+b);if(!y||!(y.t==='water'&&!y.sea&&!y.rv))continue;g.fillStyle=cl==='winter'?'rgba(150,160,165,.5)':'rgba(48,42,32,.45)';
+      for(let i=0;i<16;i++){const t=R()*P,o=Math.pow(R(),1.5)*7;g.beginPath();g.arc(a?X+t:(b<0?X+o:X+P-o),b?Y+t:(a<0?Y+o:Y+P-o),1.5+R()*3,0,7);g.fill();}}}}
+
+/* ---------- 나무 형상 ---------- */
+function natMerge(parts){const T=V3.T;let n=0;const ps=parts.map(g=>g.index?g.toNonIndexed():g);for(const g of ps)n+=g.attributes.position.count;const P=new Float32Array(n*3);let o=0;
+  for(const g of ps){P.set(g.attributes.position.array,o);o+=g.attributes.position.array.length;g.dispose();}
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.BufferAttribute(P,3));geo.computeVertexNormals();
+  // 아래는 그늘져 어둡고 꼭대기는 볕을 받아 밝게(정점 색 × 그루마다 색)
+  let top=0;for(let i=1;i<P.length;i+=3)top=Math.max(top,P[i]);const C=new Float32Array(P.length);for(let i=0;i<P.length;i+=3){const v=.62+.55*Math.pow(P[i+1]/(top||1),1.3);C[i]=v;C[i+1]=v;C[i+2]=v*.96;}
+  geo.setAttribute('color',new T.BufferAttribute(C,3));return geo;}
+function natGeos(){if(NAT.geo)return NAT.geo;const T=V3.T;const G3={};
+  // 가문비: 높이 1(=12m 기준 크기 s), 층층이 좁아지는 원뿔 네 겹. 바닥이 안 보이는 시점이 대부분이라 원뿔 밑면은 뺀다
+  {const p=[new T.CylinderGeometry(.012,.018,.22,4,1,true).translate(0,.11,0)];const tiers=[[.15,.12,.34],[.36,.105,.3],[.56,.08,.26],[.74,.05,.26]];
+    for(const [y,rad,h] of tiers)p.push(new T.ConeGeometry(rad,h,6,1,true).translate(0,y+h/2,0));G3.spruce=natMerge(p);}
+  // 소나무: 곧고 긴 줄기, 위쪽에 납작한 수관 두세 덩어리 (참고 사진의 산 숲)
+  {const p=[new T.CylinderGeometry(.01,.017,.62,4,1,true).translate(0,.31,0)];
+    p.push(new T.OctahedronGeometry(.1,0).scale(1,.75,1).translate(0,.66,0),new T.OctahedronGeometry(.08,0).scale(1,.8,1).translate(.05,.78,.02),new T.OctahedronGeometry(.065,0).scale(1,.9,1).translate(-.03,.86,-.03),
+      new T.ConeGeometry(.085,.3,6,1,true).translate(0,.52,0));G3.pine=natMerge(p);}
+  // 덤불: 납작한 팔면체 두 개
+  G3.bush=natMerge([new T.OctahedronGeometry(.05,0).scale(1.2,.6,1).translate(0,.025,0),new T.OctahedronGeometry(.035,0).scale(1,.7,1.1).translate(.035,.02,.015)]);
+  // 지도 밖 먼 나무: 아주 단순한 원뿔
+  G3.far=new T.ConeGeometry(.16,.85,5,1,true).translate(0,.425,0);
+  NAT.geo=G3;return G3;}
+function natMats(){if(NAT.mat)return NAT.mat;const T=V3.T;
+  const M={tree:new T.MeshStandardMaterial({color:'#ffffff',roughness:1,flatShading:true,vertexColors:true}),bush:new T.MeshStandardMaterial({color:'#ffffff',roughness:1,flatShading:true,vertexColors:true}),
+    far:new T.MeshStandardMaterial({color:'#ffffff',roughness:1,flatShading:true}),out:new T.MeshStandardMaterial({color:'#ffffff',roughness:1})};
+  for(const k of ['tree','bush'])v3FowMat(M[k]);NAT.mat=M;return M;}
+// 기후별 잎 색: [가문비, 소나무, 덤불, 먼 숲]
+const NAT_PAL={
+  temp:{sp:['#475a37','#4f623c','#3e5034','#58683f','#4a5d3a','#647043'],pi:['#5c6b3e','#677442','#737848','#556338','#6c7a45'],bu:['#4a5833','#566238','#646a44','#405034'],far:'#3e4c36',dead:'#6b5a40'},
+  autumn:{sp:['#3e4e34','#465638','#4f5c3a','#3a4a31'],pi:['#56603a','#6a6538','#5a5833'],bu:['#7a5a2a','#8a4a24','#6e5a30','#5a4a2a'],far:'#3e4030',dead:'#7a5a36'},
+  winter:{sp:['#dfe3e6','#cfd6d9','#5a6455','#e8ebed','#bfc8c8','#48524a'],pi:['#d6dbdd','#6a7260','#c4ccce'],bu:['#c9cfd2','#a9b0b0','#d6dadc'],far:'#c8ced1',dead:'#8a8478'},
+  desert:{sp:['#56593a','#4f5536','#5e6040'],pi:['#6a6a44','#5f6240','#75714a'],bu:['#7a7450','#6e6a44','#8a8058','#62603e'],far:'#7a6e52',dead:'#8a7656'}};
+
+/* 숲 칸의 나무들 — 07g2 bmBuildWorld가 숲 칸(x.wild)에 원래 놓던 큰 원뿔 대신 */
+function natWildTrees(r,c,x,out){const k=key(r,c),cl=natCl(),pal=NAT_PAL[cl]||NAT_PAL.temp;const H=(s)=>v3Hash(k,s);
+  // 3×3 칸 격자에서 흔들어 놓고 몇 개는 뺀다 → 칸 경계에서도 숲이 이어져 보인다
+  const keep=NAT_LO?.62:.86;let i=0;
+  for(let a=0;a<3;a++)for(let b=0;b<3;b++){i++;if(H(1100+i)>keep)continue;
+    const px=c+(b+.5)/3+(H(1120+i)-.5)*.3,pz=r+(a+.5)/3+(H(1140+i)-.5)*.3;
+    const big=H(1160+i),s=.62+big*big*.75;   // 대부분 중간, 가끔 큰 나무
+    const pine=H(1180+i)<(cl==='desert'?.7:.32),dead=H(1200+i)<.025;
+    const pl=pine?pal.pi:pal.sp;const col=dead?pal.dead:pl[Math.floor(H(1220+i)*pl.length)];
+    (pine?out.pine:out.spruce).push({x:px,y:0,z:pz,s,sy:s*(.85+H(1240+i)*.45),ry:H(1260+i)*6.28,rx:(H(1280+i)-.5)*.08,rz:(H(1300+i)-.5)*.08,col,k});}
+  // 숲 바닥 덤불
+  const nb=NAT_LO?1:2+Math.floor(H(1320)*2);for(let j=0;j<nb;j++)out.bush.push({x:c+.1+H(1330+j)*.8,y:0,z:r+.1+H(1340+j)*.8,s:.8+H(1350+j)*.8,ry:H(1360+j)*6,col:pal.bu[Math.floor(H(1370+j)*pal.bu.length)],k});}
+
+/* ---------- 지면 그룹: 숲·덤불·지도 밖 풍경 ---------- */
+{const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();try{natTerrMat();natWorld(V3.G.world);}catch(e){console.error(e);}};}
+function natWorld(g){const T=V3.T,M=G.map,cl=natCl(),pal=NAT_PAL[cl]||NAT_PAL.temp,G3=natGeos(),MT=natMats();
+  if(!G.camp){const out={spruce:[],pine:[],bush:[]};
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c],k=key(r,c),H=s=>v3Hash(k,s);
+      if(x.t==='park'&&x.wild&&!x.orch)natWildTrees(r,c,x,out);
+      // 목초지·공원·밭 가장자리 덤불(숲과 맞닿은 곳에 더)
+      else if(x.mead||x.t==='park'&&!x.yard&&!x.sq||x.crop){let edge=0;for(const [a,b] of [[-1,0],[1,0],[0,-1],[0,1]]){const y=inb(r+a,c+b)?M[r+a][c+b]:null;if(y&&y.wild)edge++;}
+        const n=x.crop?(edge?2:0):(edge?3:x.mead?(H(1400)<.45?1:0):(H(1400)<.3?1:0));
+        for(let j=0;j<n;j++){let px=c+.08+H(1410+j)*.84,pz=r+.08+H(1420+j)*.84;
+          if(x.crop){const e=H(1430+j)<.5?.06:.94;if(H(1440+j)<.5)px=c+e;else pz=r+e;}   // 밭은 둑에만
+          out.bush.push({x:px,y:0,z:pz,s:.7+H(1450+j)*.9,ry:H(1460+j)*6,col:pal.bu[Math.floor(H(1470+j)*pal.bu.length)],k});}
+        if(edge>=2&&x.mead&&H(1480)<.5)out.spruce.push({x:c+.2+H(1490)*.6,y:0,z:r+.2+H(1491)*.6,s:.5+H(1492)*.3,ry:H(1493)*6,col:pal.sp[Math.floor(H(1494)*pal.sp.length)],k});}}   // 숲 가장자리 어린 나무
+    v3Inst(g,G3.spruce,MT.tree,out.spruce,{keys:1});v3Inst(g,G3.pine,MT.tree,out.pine,{keys:1});v3Inst(g,G3.bush,MT.bush,out.bush,{noShadow:1});}
+  natOuter(g);}
+/* 지도 밖: 바깥 땅에 잡음 얼룩을 입히고, 지도 종류에 따라 숲·들판 나무를 띠 모양으로 */
+function natOuter(g){const T=V3.T,cl=natCl(),L=natLay(),pal=NAT_PAL[cl]||NAT_PAL.temp,G3=natGeos(),MT=natMats();
+  for(const o of g.children)if(o.isMesh&&o.geometry.parameters&&o.geometry.parameters.width===N+120){const m=o.material;
+    if(!m.userData.nat){m.userData.nat=1;const nt={value:natNoiseTex()};m.onBeforeCompile=sh=>{sh.uniforms.natN=nt;
+        sh.vertexShader='varying vec2 vNatW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvNatW=(modelMatrix*vec4(transformed,1.)).xz;');
+        sh.fragmentShader='uniform sampler2D natN;varying vec2 vNatW;\n'+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n{float a=texture2D(natN,vNatW*.04).r,b=texture2D(natN,vNatW*.19).g,c=texture2D(natN,vNatW*1.7).b;diffuseColor.rgb*=(.78+.44*a)*(.9+.2*b)*(.9+.2*c);}');};
+      m.customProgramCacheKey=()=>'natOut';m.needsUpdate=true;}}
+  if(G.camp)return;
+  const dens={forest:2.4,country:.5,port:.12,river:.25,sym:.18}[L]??.2;const n=NAT_LO?dens*.6:dens;const far=[];const R=mulberry(((G.seed|0)^0x0a7e)>>>0);
+  const band=10,A=-band,B=N+band;const area=(B-A)*(B-A)-N*N;const cnt=Math.min(9000,Math.round(area*n));
+  for(let i=0;i<cnt;i++){let x=A+R()*(B-A),z=A+R()*(B-A);if(x>-.3&&x<N+.3&&z>-.3&&z<N+.3)continue;
+    // 들판 지도는 띠 모양 수림(밭 사이 방풍림)이 되도록 줄무늬 잡음으로 거른다
+    if(L==='country'&&Math.sin(x*.55+Math.sin(z*.21)*2)*Math.sin(z*.47+x*.13)<.2)continue;
+    const s=.7+R()*.7;const tone=R();far.push({x,y:0,z,s,sy:s*(.9+R()*.5),ry:R()*6,col:'#'+new T.Color(pal.far).offsetHSL((R()-.5)*.03,0,(tone-.5)*.08).getHexString()});}
+  v3Inst(g,G3.far,MT.far,far,{noShadow:1});}
+
+/* ---------- 물결: 강·연못·바다 수면 ---------- */
+NAT.wT={value:0};
+function natWaterMat(m,sea){if(!m||m.userData.natW)return;m.userData.natW=1;const ob=m.onBeforeCompile;
+  m.onBeforeCompile=function(sh,ren){if(ob)ob.call(this,sh,ren);sh.uniforms.natT=NAT.wT;
+    if(!sh.vertexShader.includes('vFowW')){sh.vertexShader='varying vec2 vFowW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvFowW=(modelMatrix*vec4(transformed,1.)).xz;');sh.fragmentShader='varying vec2 vFowW;\n'+sh.fragmentShader;}
+    sh.fragmentShader='uniform float natT;\n'+sh.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+{vec2 p=vFowW*${sea?'7.':'8.'};float t=natT;
+ vec2 gw=vec2(cos(p.x*1.31+p.y*.42+t*1.1)*.9+cos(p.x*2.73-p.y*1.91+t*1.7)*.5+cos(p.x*5.1+p.y*3.7-t*2.3)*.3,
+              cos(p.y*1.13-p.x*.37+t*.9)*.9+cos(p.y*2.31+p.x*1.73-t*1.3)*.5+cos(p.y*4.7-p.x*3.3+t*2.1)*.3)*${sea?'.035':'.03'};
+ normal=normalize(normal+(viewMatrix*vec4(gw.x,0.,gw.y,0.)).xyz);}`);};
+  const ck=m.customProgramCacheKey;m.customProgramCacheKey=()=>(ck?ck.call(m):'')+'natW'+(sea?1:0);m.needsUpdate=true;}
+{const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();try{
+  if(V3.terrM)natWaterMat(V3.terrM.water,0);if(V3.pm)natWaterMat(V3.pm.water,0);
+  if(V3.bmM){natWaterMat(V3.bmM.sea,1);const s=V3.bmM.sea;if(!s.userData.natA){s.userData.natA=1;s.transparent=true;s.opacity=.8;s.color.set('#5d7c86');s.roughness=.32;s.needsUpdate=true;}}   // 바다: 비치게 해 땅 그림의 깊이·물거품이 보인다
+  }catch(e){console.error(e);}};}
+
+/* ---------- 궤도·바퀴 자국 ---------- */
+function natTrackInit(){if(NAT.tr)return;const T=V3.T;const CAP=NAT_LO?1500:3500;
+  const tex=v3Tex(32,32,(g,w,h)=>{g.clearRect(0,0,w,h);for(const x0 of [3,21]){g.fillStyle='rgba(255,255,255,.75)';g.fillRect(x0,0,8,h);g.fillStyle='rgba(255,255,255,1)';for(let y=0;y<h;y+=4)g.fillRect(x0,y,8,2);}});
+  tex.colorSpace=T.NoColorSpace;
+  const mat=new T.MeshStandardMaterial({color:'#2e271e',roughness:1,transparent:true,opacity:.62,alphaMap:tex,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});v3FowMat(mat);
+  const geo=new T.PlaneGeometry(1,1).rotateX(-Math.PI/2);const im=new T.InstancedMesh(geo,mat,CAP);im.count=0;im.frustumCulled=false;im.receiveShadow=true;im.renderOrder=1;
+  const col=new Float32Array(CAP*3).fill(1);im.instanceColor=new T.InstancedBufferAttribute(col,3);
+  NAT.tr=im;NAT.cap=CAP;NAT.m4=new T.Matrix4();NAT.q=new T.Quaternion();NAT.v=new T.Vector3();NAT.sv=new T.Vector3();NAT.e=new T.Euler();NAT.c=new T.Color();V3.scene.add(im);}
+function natTracks(dt){if(!G||G.camp&&!G.feat)return;natTrackInit();const T=V3.T,im=NAT.tr;
+  if(NAT.trSeed!==V3.seed){NAT.trSeed=V3.seed;NAT.trN=0;NAT.trI=0;im.count=0;NAT.last.clear();}
+  const cl=natCl(),tc=cl==='winter'?'#5a5550':cl==='desert'?'#6e5a40':'#2e271e';let add=false;
+  for(const u of G.units){const t=UT[u.type];if(!t||t.cls!=='veh'||t.fly||u.dead)continue;const o=V3.uo.get(u.id);if(!o||!o.visible)continue;
+    const x=o.position.x,z=o.position.z;const L=NAT.last.get(u.id);if(!L){NAT.last.set(u.id,[x,z]);continue;}
+    const dx=x-L[0],dz=z-L[1],d=Math.hypot(dx,dz);if(d<.07)continue;NAT.last.set(u.id,[x,z]);if(d>.6)continue;   // 순간 이동(배치·재생성)은 건너뛴다
+    const r=Math.floor(z),c=Math.floor(x);if(!inb(r,c))continue;const tile=G.map[r][c];if(!natSoft(tile)&&!(tile.t==='road'&&tile.rural&&cl==='winter'))continue;
+    const V=typeof VEH==='object'&&VEH[u.type]||{hw:.12,trk:0};const w=V.hw*2*(V.trk?1.05:.95);
+    const i=NAT.trI;NAT.v.set(x-dx/2,0.006,z-dz/2);NAT.e.set(0,-Math.atan2(dz,dx)+Math.PI/2,0);NAT.q.setFromEuler(NAT.e);NAT.sv.set(w,1,d*1.05);NAT.m4.compose(NAT.v,NAT.q,NAT.sv);
+    im.setMatrixAt(i,NAT.m4);NAT.c.set(tc).multiplyScalar(V.trk?1:1.25);im.setColorAt(i,NAT.c);NAT.trI=(i+1)%NAT.cap;NAT.trN=Math.min(NAT.cap,NAT.trN+1);add=true;}
+  if(add){im.count=NAT.trN;im.instanceMatrix.needsUpdate=true;im.instanceColor.needsUpdate=true;}}
+
+/* ---------- 하늘: 지평선 안개색 → 위로 하늘색 ---------- */
+function natSkyInit(){if(NAT.sky)return;const T=V3.T;
+  const mat=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,depthTest:false,fog:false,uniforms:{hz:{value:new T.Color()},top:{value:new T.Color()},sunD:{value:new T.Vector3(0,1,0)},sunC:{value:new T.Color()}},
+    vertexShader:'varying vec3 vD;void main(){vD=normalize(position);vec4 p=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*p;gl_Position.z=gl_Position.w*.9999;}',
+    fragmentShader:'uniform vec3 hz,top,sunC;uniform vec3 sunD;varying vec3 vD;void main(){float h=clamp(vD.y,0.,1.);vec3 c=mix(hz,top,pow(h,.55));float s=max(0.,dot(normalize(vD),normalize(sunD)));c+=sunC*(pow(s,40.)*.35+pow(s,6.)*.08);gl_FragColor=vec4(c,1.);}'});
+  const m=new T.Mesh(new T.SphereGeometry(200,24,12),mat);m.renderOrder=-10;m.frustumCulled=false;NAT.sky=m;V3.scene.add(m);}
+function natSky(){natSkyInit();const T=V3.T,u=NAT.sky.material.uniforms,s=V3.cs;const fc=V3.scene.fog.color;
+  const nk=typeof nightK==='function'?nightK():0;const cl=natCl();
+  u.hz.value.copy(fc);NAT.c2=NAT.c2||new T.Color();NAT.c2.set(nk>.5?'#0d1626':cl==='desert'?'#9fb6c8':cl==='winter'?'#a9b8c6':'#7e98b2');
+  u.top.value.copy(fc).lerp(NAT.c2,.62*(1-.4*(ENV3.wr||0))*(1-.7*(ENV3.wf||0)));
+  u.sunD.value.copy(V3.sun.position).sub(V3.sun.target.position);u.sunC.value.copy(V3.sun.color).multiplyScalar((1-nk)*(1-(ENV3.wr||0)*.8));
+  NAT.sky.position.copy(V3.cam.position);}
+
+{const _ef=v3EnvFrame;v3EnvFrame=function(now,dt){_ef(now,dt);if(!G||!V3.on)return;try{NAT.wT.value=now/1000%1000;natSky();natTracks(dt);}catch(e){console.error(e);}};}
 
 /* ---- 07h-heli.js ---- */
 /* ===================== 수송 헬기 연출 =====================
@@ -8126,7 +8333,7 @@ function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
     const nb=yard?[]:[[0,1],[1,0]].filter(([a,b])=>park(r+a,c+b));
     if(!yard&&(nb.length||v3Hash(k,400)<.5)){paths.push({x:cx,y:.004,z:cz,sx:1,sz:1,ry:0,k,disc:1});
       for(const [a,b] of nb)paths.push({x:cx+b*.5,y:.003,z:cz+a*.5,ry:b?0:Math.PI/2,k});}
-    for(let i=0;i<2;i++)if(v3Hash(k,410+i)<.3){const a=v3Hash(k,420+i)*6.28,rr=.26+v3Hash(k,430+i)*.16;const x=cx+Math.cos(a)*rr,z=cz+Math.sin(a)*rr,s=.8+v3Hash(k,440+i)*.5;
+    for(let i=0;i<2;i++)if(v3Hash(k,410+i)<(G.map[r][c].wild&&typeof natWildTrees==='function'?.08:.3)){const a=v3Hash(k,420+i)*6.28,rr=.26+v3Hash(k,430+i)*.16;const x=cx+Math.cos(a)*rr,z=cz+Math.sin(a)*rr,s=.8+v3Hash(k,440+i)*.5;
       trees.push({x,y:0,z,s,ry:v3Hash(k,450+i)*6.28,col:LEAF[Math.floor(v3Hash(k,460+i)*LEAF.length)],k});trunks.push({x,y:3.5*m*s,z,s});}
     if(yard)continue;
     if(v3Hash(k,470)<.45){const side=v3Hash(k,471)<.5;bench.push({x:cx+(side?.12:0),y:.25*m,z:cz+(side?0:.12),ry:side?Math.PI/2:0});}
@@ -9657,6 +9864,222 @@ function specStrikeHit(x,z){if(typeof UI==='undefined'||typeof specOn!=='functio
     ud.bx=(ud.bx??0)+((.3*Math.max(-1,Math.min(1,lat)))-(ud.bx??0))*Math.min(1,dt*3);
     b.rotation.z=ud.pz;b.rotation.x=ud.bx;}};}
 
+/* ---- 07x3-aircraft.js ---- */
+/* ===================== 실제 비율 항공기 모형 =====================
+   수송헬기는 UH-1 휴이처럼: 올리브색 동체, 두 날 메인 로터와 흐릿한 회전면, 왼쪽 꼬리 로터, 스키드,
+   활짝 열린 화물칸 문과 기관총을 든 도어거너. 공격헬기는 앞뒤로 앉는 조종석·기수 센서·기관포·날개 무장.
+   정찰드론·FPV 자폭드론·전투기도 실제 생김새대로. 1m = MU(1/12 타일).
+   형상은 종류마다 한 번 만들어 두고 복제한다(형상·재질 공유).
+
+   수송헬기 비행도 실제처럼: 나무·지붕 위를 낮게 날아와 감속하며 기수를 들고(플레어), 잠깐 떠 있다가
+   천천히 내려앉는다. 분대가 내리면 떠올라 기수를 숙이고 앞으로 가속하며 몸을 기울여 선회해 빠진다.
+   낮게 뜰수록 로터 바람이 바닥 먼지를 둥글게 밀어낸다. */
+const ACM={};
+function acMats(){if(ACM.od)return ACM;const T=V3.T;const S=(c,r,m,o)=>new T.MeshStandardMaterial(Object.assign({color:c,roughness:r??.8,metalness:m??.15,flatShading:true,side:T.DoubleSide},o||{}));
+  Object.assign(ACM,{
+    od:S('#5b6142',.8,.1),        // 올리브 드랩 (휴이)
+    ah:S('#474d39',.78,.15),       // 공격헬기 짙은 올리브
+    gray:S('#7b8189',.6,.3),       // 전투기 회색
+    dg:S('#3a3d40',.7,.3),         // 드론 짙은 회색
+    blk:S('#1b1c1d',.85,.2),       // 바퀴·고무·포신
+    metal:S('#5a5d5c',.5,.6),
+    inside:S('#121310',.95,0),     // 열린 문 안쪽 어둠
+    glass:S('#22323a',.15,.7,{opacity:.92,transparent:true}),
+    nozzle:S('#2c2a28',.6,.6),
+    war:S('#5f6247',.75,.2),       // 탄두·폭탄
+    blade:new T.MeshStandardMaterial({color:'#1e1f1d',roughness:.7,transparent:true,opacity:.55,depthWrite:false,side:T.DoubleSide}),
+    disc:new T.MeshBasicMaterial({map:acDiscTex(),transparent:true,depthWrite:false,side:T.DoubleSide}),
+    pdisc:new T.MeshBasicMaterial({color:'#1a1a19',transparent:true,opacity:.32,depthWrite:false,side:T.DoubleSide}),
+  });return ACM;}
+// 회전면: 안쪽은 거의 투명, 날 끝 쪽으로 갈수록 살짝 어둡고 끝에 가는 고리
+function acDiscTex(){return v3Tex(128,128,(g,w,h)=>{const c=w/2;const gr=g.createRadialGradient(c,c,4,c,c,c);
+  gr.addColorStop(0,'rgba(20,20,18,0)');gr.addColorStop(.25,'rgba(20,20,18,.05)');gr.addColorStop(.8,'rgba(20,20,18,.13)');gr.addColorStop(.93,'rgba(20,20,18,.22)');gr.addColorStop(.97,'rgba(20,20,18,.08)');gr.addColorStop(1,'rgba(20,20,18,0)');
+  g.fillStyle=gr;g.fillRect(0,0,w,h);});}
+
+/* 단면을 이어 붙인 동체. st = [x, 중심높이, 반높이, 반폭, 각진 정도(2=타원, 클수록 상자)] (앞이 +x, 오른쪽이 +z).
+   a0~a1: 단면 각도 범위(0=오른쪽, π/2=위). 범위를 좁히고 조금 키우면 유리창·문 같은 덧판이 된다. */
+function acStAt(st,x){if(x>=st[0][0])return st[0];for(let i=1;i<st.length;i++)if(x>=st[i][0]){const a=st[i-1],b=st[i],k=(x-b[0])/(a[0]-b[0]||1);return b.map((v,j)=>v+(a[j]-v)*k);}return st[st.length-1];}
+function acLoft(st,o){o=o||{};const T=V3.T;const seg=o.seg||14,a0=o.a0??0,a1=o.a1??Math.PI*2,sc=o.sc||1,full=a1-a0>=6.28;
+  let S=st;if(o.x0!=null){const xs=new Set([o.x0,o.x1]);for(const s of st)if(s[0]<o.x0&&s[0]>o.x1)xs.add(s[0]);S=[...xs].sort((a,b)=>b-a).map(x=>{const s=acStAt(st,x);return [x,s[1],s[2],s[3],s[4]];});}
+  const P=[],I=[];const n=full?seg:seg+1;const pw=(v,p)=>Math.sign(v)*Math.pow(Math.abs(v),2/p);
+  for(const [x,y,hh,hw,p] of S)for(let j=0;j<n;j++){const a=a0+(a1-a0)*j/seg;P.push(x,y+hh*sc*pw(Math.sin(a),p),hw*sc*pw(Math.cos(a),p));}
+  for(let i=0;i<S.length-1;i++)for(let j=0;j<(full?seg:seg);j++){const j2=full?(j+1)%n:j+1;const a=i*n+j,b=i*n+j2,c=(i+1)*n+j,d=(i+1)*n+j2;I.push(a,c,b,b,c,d);}
+  if(full&&!o.open)for(const [i,s] of [[0,S[0]],[S.length-1,S[S.length-1]]]){const ci=P.length/3;P.push(s[0],s[1],0);for(let j=0;j<n;j++)I.push(ci,i*n+j,i*n+(j+1)%n);}
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setIndex(I);g.computeVertexNormals();return g;}
+// 옆모습(x,y) 판을 두께 d로 (꼬리날개 등). plan=true면 위에서 본 (x,z) 판(주날개 등)
+function acPlate(pts,d,plan){const T=V3.T;const s=new T.Shape();pts.forEach(([a,b],i)=>i?s.lineTo(a,b):s.moveTo(a,b));s.closePath();
+  const g=new T.ExtrudeGeometry(s,{depth:d,bevelEnabled:false});if(plan){g.rotateX(Math.PI/2);g.translate(0,d/2,0);}else g.translate(0,0,-d/2);return g;}
+// 두 점을 잇는 원기둥(관·포신·지지대)
+function acRod(par,mat,a,b,r,seg){const T=V3.T;const va=new T.Vector3(...a),vb=new T.Vector3(...b);const L=va.distanceTo(vb);
+  const m=new T.Mesh(new T.CylinderGeometry(r,r,L,seg||6),mat);m.position.copy(va).add(vb).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),vb.clone().sub(va).normalize());m.castShadow=true;par.add(m);return m;}
+// 닫힌 판(꼬리날개 등)은 앞면만 그려야 뒷면 그늘이 새까맣게 비치지 않는다
+function acFront(mat){if(!mat.userData.front){mat.userData.front=mat.clone();mat.userData.front.side=V3.T.FrontSide;}return mat.userData.front;}
+function acMesh(par,geo,mat,x,y,z,shadow){if(geo.type==='ExtrudeGeometry'||geo.type==='CylinderGeometry'||geo.type==='BoxGeometry')mat=acFront(mat);const m=new V3.T.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);if(shadow!==false)m.castShadow=true;par.add(m);return m;}
+// 메인 로터: 날(blades)과 흐릿한 회전면. 허브 그룹이 rotor 표시를 달고 돈다
+function acRotor(par,x,y,R,nb,chord){const T=V3.T,M=acMats();const hub=new T.Group();hub.position.set(x,y,0);hub.userData.rotor=1;par.add(hub);
+  for(let i=0;i<nb;i++){const b=new T.Mesh(new T.BoxGeometry(R,.07,chord),M.blade);b.geometry.translate(R/2,0,0);b.rotation.y=i*Math.PI*2/nb;b.rotation.x=.04;hub.add(b);}
+  acMesh(hub,new T.CylinderGeometry(.28,.28,.25,8),M.metal,0,0,0);
+  const d=new T.Mesh(new T.CircleGeometry(R,40),M.disc);d.rotation.x=-Math.PI/2;d.position.set(x,y+.02,0);d.renderOrder=3;par.add(d);return hub;}
+// 꼬리 로터: 동체 옆에 세워진 회전면. trot 표시 그룹이 z축으로 돈다
+function acTail(par,x,y,z,R,nb){const T=V3.T,M=acMats();const g=new T.Group();g.position.set(x,y,z);g.userData.trot=1;par.add(g);
+  for(let i=0;i<nb;i++){const b=new T.Mesh(new T.BoxGeometry(.2,R*2,.04),M.blade);b.rotation.z=i*Math.PI/nb+(nb===4&&i%2?.35:0);g.add(b);}
+  const d=new T.Mesh(new T.CircleGeometry(R,24),M.disc);d.position.set(x,y,z+(z<0?-.02:.02));par.add(d);return g;}
+
+/* ---------- UH-1 휴이 (수송헬기) ---------- */
+const HUEY_ST=[[3.95,1.2,.1,.1,2],[3.65,1.22,.5,.62,2.2],[3.15,1.35,.8,1.0,2.6],[2.4,1.45,.9,1.2,3.4],[1.2,1.48,.93,1.25,4.6],[-1.6,1.5,.93,1.25,5],[-2.5,1.7,.72,1.0,3.5],[-3.3,1.97,.42,.5,2.6],[-6,2.1,.27,.3,2.2],[-8.9,2.2,.15,.16,2]];
+function acHueyTpl(){if(ACM.huey)return ACM.huey;const T=V3.T,M=acMats();const g=new T.Group();
+  acMesh(g,acLoft(HUEY_ST,{seg:20}),M.od);
+  // 앞유리(위·앞), 턱 아래 창, 조종석 문 창
+  acMesh(g,acLoft(HUEY_ST,{x0:3.72,x1:2.3,a0:.42,a1:2.72,seg:10,sc:1.025}),M.glass,0,0,0,false);
+  for(const [a0,a1] of [[-2.55,-2.0],[-1.14,-.6]])acMesh(g,acLoft(HUEY_ST,{x0:3.6,x1:2.95,a0,a1,seg:3,sc:1.03}),M.glass,0,0,0,false);
+  for(const [a0,a1] of [[.18,.95],[2.19,2.96]])acMesh(g,acLoft(HUEY_ST,{x0:2.3,x1:1.25,a0,a1,seg:4,sc:1.02}),M.glass,0,0,0,false);
+  // 활짝 연 화물칸 문: 안쪽 어둠, 뒤로 밀린 문짝(작은 창 두 개)
+  for(const [a0,a1] of [[-.62,.98],[2.16,3.76]])acMesh(g,acLoft(HUEY_ST,{x0:1.0,x1:-1.25,a0,a1,seg:6,sc:1.015}),M.inside,0,0,0,false);
+  for(const s of [-1,1]){acMesh(g,new T.BoxGeometry(1.25,1.45,.06),M.od,-1.75,1.5,s*1.3);acMesh(g,new T.BoxGeometry(.4,.42,.07),M.glass,-1.95,1.85,s*1.3,false);}
+  // 엔진·변속기 덮개, 공기 흡입구, 위로 꺾인 배기구
+  acMesh(g,acLoft([[1.35,2.42,.05,.45,3],[1.0,2.72,.33,.62,4],[-2.0,2.74,.33,.66,4],[-2.7,2.62,.2,.42,3]],{seg:12}),M.od);
+  acMesh(g,new T.BoxGeometry(.12,.3,.9),M.inside,1.06,2.82,0,false);
+  acRod(g,M.blk,[-2.6,2.7,0],[-3.25,3.0,0],.27,8);
+  // 마스트, 두 날 로터와 안정 막대(벨 바)
+  acRod(g,M.metal,[0,3.0,0],[0,3.75,0],.12,8);
+  const hub=acRotor(g,0,3.8,7.3,2,.53);const bar=new T.Group();hub.add(bar);acRod(bar,M.metal,[0,.12,-1.1],[0,.12,1.1],.03,4);for(const s of [-1,1])acMesh(bar,new T.BoxGeometry(.35,.08,.12),M.blk,0,.12,s*1.15);
+  // 꼬리: 수직핀(뒤로 기운), 꼬리 아래 받침, 수평 승강타, 왼쪽 꼬리 로터
+  acMesh(g,acPlate([[-8.2,2.05],[-9.45,3.6],[-10.0,3.6],[-9.4,2.0]],.2),M.od);acRod(g,M.metal,[-8.7,2.05,0],[-9.2,1.45,0],.04,4);
+  acMesh(g,new T.BoxGeometry(.6,.07,2.9),M.od,-5.6,2.12,0);acMesh(g,new T.BoxGeometry(.4,.4,.35),M.od,-9.65,3.25,0);
+  acTail(g,-9.7,3.25,-.3,1.3,2);
+  // 스키드: 두 줄 관, 앞이 들린 끝, 휜 가로 관 두 개
+  for(const s of [-1,1]){acRod(g,M.metal,[-2.1,.1,s*1.3],[2.3,.1,s*1.3],.06,6);acRod(g,M.metal,[2.3,.1,s*1.3],[2.75,.42,s*1.3],.06,6);
+    for(const x of [1.25,-.95]){acRod(g,M.metal,[x,.1,s*1.3],[x,.45,s*1.22],.06,5);acRod(g,M.metal,[x,.45,s*1.22],[x,.62,s*.8],.06,5);}}
+  for(const x of [1.25,-.95])acRod(g,M.metal,[x,.62,-.8],[x,.62,.8],.06,5);
+  // 안테나·조종석 위 와이어 커터
+  acRod(g,M.blk,[2.6,2.35,0],[2.2,2.75,0],.03,4);acRod(g,M.blk,[3.0,.6,0],[3.25,.3,0],.03,4);
+  g.traverse(m=>{if(m.isMesh){m.userData.keepGeo=1;m.userData.keepMat=1;}});return ACM.huey=g;}
+// 휴이 한 대: 도어거너 둘(문에 걸린 기관총)과 화물칸의 분대원(pax: 내리면 숨긴다)
+function acHuey(n){const T=V3.T,M=acMats();const root=new T.Group();const g=acHueyTpl().clone();g.scale.setScalar(MU);root.add(g);root.userData.body=g;
+  const pax=[];const sol=(x,z,ry,sy,isPax)=>{const s=v3Soldier(n,'rifle');s.scale.set(12,12*sy,12);s.position.set(x,.62,z);s.rotation.y=ry;g.add(s);if(isPax)pax.push(s);return s;};
+  for(const s of [-1,1]){sol(-1.0,s*.95,-s*Math.PI/2,.78);const gun=new T.Group();gun.position.set(-.75,1.45,s*1.15);g.add(gun);
+    acMesh(gun,new T.BoxGeometry(.25,.18,.5),M.blk,0,0,0);acRod(gun,M.blk,[0,.02,0],[0,.02,s*1.15],.04,4);acRod(gun,M.metal,[0,-.1,-s*.1],[0,-.6,-s*.25],.03,4);}
+  for(const [x,z] of [[.6,-.55],[.6,.55],[-.2,-.5],[-.2,.5],[.2,0]])sol(x,z,(z<0?1:-1)*Math.PI/2,.72,1);
+  root.userData.pax=pax;g.traverse(m=>{if(m.userData.trot)root.userData.trot=m;if(m.userData.rotor)root.userData.hub=m;});return root;}
+
+/* ---------- 공격헬기 (탠덤 조종석) ---------- */
+const AH_ST=[[7.35,1.5,.2,.2,2],[6.8,1.55,.5,.42,2.4],[5.6,1.6,.72,.5,3],[3.4,1.72,.85,.56,3.5],[1.0,1.82,.95,.75,4],[-2.4,1.96,.8,.7,4],[-4,2.12,.42,.38,3],[-9.3,2.32,.22,.2,2.5]];
+function acApacheTpl(){if(ACM.ah64)return ACM.ah64;const T=V3.T,M=acMats();const g=new T.Group();
+  acMesh(g,acLoft(AH_ST,{seg:18}),M.ah);
+  // 계단식 조종석 덮개(앞 사수석 낮게, 뒤 조종사석 높게)와 유리
+  const CN=[[6.3,2.05,.06,.3,2],[5.7,2.15,.38,.42,2.4],[4.4,2.32,.48,.46,2.6],[3.9,2.34,.5,.46,2.6],[3.6,2.5,.52,.46,2.6],[2.2,2.6,.52,.46,2.6],[1.4,2.4,.25,.4,2]];
+  acMesh(g,acLoft(CN,{a0:0,a1:Math.PI,seg:10}),M.glass,0,0,0,false);acMesh(g,new T.BoxGeometry(.1,.5,.9),M.ah,3.75,2.55,0);acMesh(g,new T.BoxGeometry(1.0,.25,.9),M.ah,1.6,2.62,0);
+  // 기수 아래 센서 포탑, 기관포
+  acMesh(g,new T.CylinderGeometry(.42,.42,.7,10),M.ah,7.15,1.38,0).rotation.x=Math.PI/2;acMesh(g,new T.BoxGeometry(.25,.32,.5),M.glass,7.5,1.4,0,false);
+  acMesh(g,new T.SphereGeometry(.32,8,6),M.blk,4.4,.95,0);acRod(g,M.blk,[4.4,.9,0],[6.3,.8,0],.06,6);
+  // 양옆 엔진 나셀(뒤쪽 배기는 옆으로 꺾임)
+  for(const s of [-1,1]){acMesh(g,acLoft([[1.2,2.35,.05,.05,2],[.9,2.38,.42,.42,2.6],[-2.6,2.38,.45,.45,2.6],[-3.4,2.38,.32,.32,2]],{seg:10}),M.ah,0,0,s*1.05);
+    acMesh(g,new T.BoxGeometry(.7,.4,.15),M.nozzle,-3.0,2.38,s*1.5);acMesh(g,new T.CircleGeometry(.36,10),M.inside,.9,2.38,s*1.05).rotation.y=Math.PI/2;}
+  // 짧은 날개와 무장: 안쪽 로켓 포드, 바깥쪽 대전차 미사일 네 발
+  for(const s of [-1,1]){acMesh(g,new T.BoxGeometry(1.6,.14,2.1),M.ah,.35,1.75,s*1.65);
+    for(const z of [1.4,2.3]){acRod(g,M.ah,[.4,1.7,s*z],[.4,1.35,s*z],.07,4);}
+    acMesh(g,new T.CylinderGeometry(.28,.28,1.6,10),M.war,.4,1.05,s*1.4).rotation.z=Math.PI/2;acMesh(g,new T.CircleGeometry(.26,10),M.inside,1.21,1.05,s*1.4).rotation.y=Math.PI/2;
+    for(const [dy,dz] of [[-.12,-.14],[-.12,.14],[-.42,-.14],[-.42,.14]]){acMesh(g,new T.CylinderGeometry(.09,.09,1.6,6),M.war,.45,1.3+dy,s*2.3+dz).rotation.z=Math.PI/2;}}
+  // 주 바퀴·꼬리 바퀴
+  for(const s of [-1,1]){acRod(g,M.metal,[2.8,1.1,s*.5],[2.8,.38,s*1.05],.07,5);acMesh(g,new T.CylinderGeometry(.36,.36,.24,10),M.blk,2.8,.36,s*1.15).rotation.x=Math.PI/2;}
+  acRod(g,M.metal,[-8.6,2.2,0],[-8.8,.3,0],.06,5);acMesh(g,new T.CylinderGeometry(.2,.2,.12,8),M.blk,-8.8,.22,0).rotation.x=Math.PI/2;
+  // 마스트, 네 날 로터, 마스트 위 레이더 돔
+  acRod(g,M.metal,[0,2.75,0],[0,3.75,0],.14,8);acRotor(g,0,3.8,7.3,4,.53);acMesh(g,new T.SphereGeometry(.45,10,6),M.ah,0,4.25,0).scale.y=.6;
+  // 꼬리: 수직핀, 아래쪽 수평 안정판, 왼쪽 X자 꼬리 로터
+  acMesh(g,acPlate([[-8.5,2.2],[-9.6,4.3],[-10.25,4.3],[-9.7,2.15]],.22),M.ah);acMesh(g,new T.BoxGeometry(.75,.08,3.4),M.ah,-9.6,2.4,0);
+  acTail(g,-9.95,3.85,-.32,1.4,4);
+  g.traverse(m=>{if(m.isMesh){m.userData.keepGeo=1;m.userData.keepMat=1;}});return ACM.ah64=g;}
+
+/* ---------- 전투기 (단발 다목적기) ---------- */
+const JET_ST=[[7.7,0,.04,.04,2],[6.6,0,.32,.32,2],[5.0,.05,.48,.45,2.2],[3.0,0,.55,.6,2.6],[0,-.05,.55,.7,3],[-3.5,-.05,.55,.65,3],[-6.0,0,.48,.5,2.4],[-7.3,0,.42,.42,2]];
+function acJetTpl(){if(ACM.jet)return ACM.jet;const T=V3.T,M=acMats();const g=new T.Group();
+  acMesh(g,acLoft(JET_ST,{seg:16}),M.gray);
+  acMesh(g,new T.SphereGeometry(1,12,8),M.glass,4.3,.45,0,false).scale.set(1.7,.5,.42);
+  // 동체 아래 공기 흡입구
+  acMesh(g,acLoft([[3.4,-.6,.28,.45,4],[0,-.55,.3,.48,4],[-2,-.4,.2,.4,3]],{seg:10}),M.gray);acMesh(g,new T.BoxGeometry(.06,.45,.8),M.inside,3.42,-.6,0,false);
+  // 주날개(앞전 연장부 포함), 수평 꼬리날개 — 양쪽 대칭
+  for(const s of [-1,1]){const w=acPlate([[5.0,.5],[1.2,1.3],[-2.3,4.7],[-3.3,4.7],[-3.6,.5]],.12,true);if(s<0)w.scale(1,1,-1);acMesh(g,w,M.gray,0,-.1,0);
+    const h=acPlate([[-5.2,.5],[-7.0,2.9],[-7.9,2.9],[-7.9,.5]],.08,true);if(s<0)h.scale(1,1,-1);acMesh(g,h,M.gray,0,-.05,0);
+    acMesh(g,new T.CylinderGeometry(.07,.07,3.0,6),M.war,-1.6,-.05,s*4.8).rotation.z=Math.PI/2;
+    for(const z of [2.0,3.1]){acRod(g,M.gray,[-1.2,-.15,s*z],[-1.2,-.4,s*z],.05,4);const b=acMesh(g,new T.CylinderGeometry(.18,.18,2.2,8),M.war,-1.2,-.55,s*z);b.rotation.z=Math.PI/2;acMesh(g,new T.ConeGeometry(.18,.5,8),M.war,-.1+.25,-.55,s*z).rotation.z=-Math.PI/2;}}
+  acMesh(g,new T.CylinderGeometry(.3,.3,3.5,10),M.gray,-.5,-.85,0).rotation.z=Math.PI/2;
+  // 수직 꼬리날개, 배기구
+  acMesh(g,acPlate([[-3.6,.4],[-6.4,3.3],[-7.5,3.3],[-7.4,.4]],.12),M.gray);
+  acMesh(g,new T.CylinderGeometry(.42,.36,.8,12),M.nozzle,-7.65,0,0).rotation.z=Math.PI/2;
+  g.traverse(m=>{if(m.isMesh){m.userData.keepGeo=1;m.userData.keepMat=1;}});return ACM.jet=g;}
+
+/* ---------- 정찰드론 (사각 쿼드콥터, 짐벌 카메라) — 잘 보이게 실제보다 크게 ---------- */
+function acQuadTpl(){if(ACM.quad)return ACM.quad;const T=V3.T,M=acMats();const g=new T.Group();
+  acMesh(g,acLoft([[.55,.05,.06,.2,2],[.35,.06,.13,.32,3],[-.4,.06,.13,.32,3],[-.55,.05,.08,.22,2]],{seg:10}),M.dg);
+  for(const [a,b] of [[1,1],[1,-1],[-1,1],[-1,-1]]){acRod(g,M.dg,[a*.2,.08,b*.2],[a*.82,.12,b*.82],.045,5);acMesh(g,new T.CylinderGeometry(.08,.08,.12,8),M.blk,a*.82,.16,b*.82);
+    const p=new T.Mesh(new T.CircleGeometry(.48,20),M.pdisc);p.rotation.x=-Math.PI/2;p.position.set(a*.82,.23,b*.82);p.userData.rotor=1;g.add(p);
+    const bl=new T.Mesh(new T.BoxGeometry(.9,.015,.06),M.blk);bl.position.set(a*.82,.23,b*.82);bl.userData.rotor=1;g.add(bl);}
+  acMesh(g,new T.SphereGeometry(.12,8,6),M.blk,.42,-.12,0);acMesh(g,new T.CircleGeometry(.05,8),M.glass,.535,-.13,0,false).rotation.y=Math.PI/2;
+  for(const s of [-1,1]){acRod(g,M.blk,[.1,0,s*.18],[.15,-.3,s*.32],.02,4);acRod(g,M.blk,[-.1,0,s*.18],[-.15,-.3,s*.32],.02,4);acRod(g,M.blk,[.25,-.3,s*.32],[-.25,-.3,s*.32],.02,4);}
+  acRod(g,M.blk,[-.3,.18,0],[-.32,.45,0],.012,3);
+  g.traverse(m=>{if(m.isMesh){m.userData.keepGeo=1;m.userData.keepMat=1;}});return ACM.quad=g;}
+
+/* ---------- FPV 자폭드론: 탄소 프레임, 배터리, 앞으로 기운 카메라, 배에 묶은 대전차 탄두 ---------- */
+function acFpvTpl(){if(ACM.fpv)return ACM.fpv;const T=V3.T,M=acMats();const g=new T.Group();
+  for(const [a,b] of [[1,1],[1,-1],[-1,1],[-1,-1]]){acRod(g,M.blk,[0,0,0],[a*.55,0,b*.55],.035,4);acMesh(g,new T.CylinderGeometry(.07,.07,.09,8),M.metal,a*.55,.05,b*.55);
+    const p=new T.Mesh(new T.CircleGeometry(.36,16),M.pdisc);p.rotation.x=-Math.PI/2;p.position.set(a*.55,.11,b*.55);p.userData.rotor=1;g.add(p);}
+  acMesh(g,new T.BoxGeometry(.5,.05,.24),M.blk,0,.02,0);acMesh(g,new T.BoxGeometry(.38,.14,.2),new T.MeshStandardMaterial({color:'#2f3a4a',roughness:.6}),-.03,.12,0);
+  acMesh(g,new T.BoxGeometry(.06,.035,.22),M.war,-.03,.12,0);
+  acMesh(g,new T.BoxGeometry(.1,.1,.1),M.blk,.25,.08,0).rotation.z=-.4;acRod(g,M.metal,[-.22,.05,.06],[-.38,.28,.12],.01,3);
+  // 탄두: 앞을 보고 배에 묶임(원뿔 머리, 몸통, 꼬리 날개)
+  acMesh(g,new T.CylinderGeometry(.11,.11,.5,8),M.war,.05,-.13,0).rotation.z=Math.PI/2;acMesh(g,new T.ConeGeometry(.11,.32,8),M.war,.46,-.13,0).rotation.z=-Math.PI/2;
+  acMesh(g,new T.CylinderGeometry(.05,.05,.3,6),M.blk,-.33,-.13,0).rotation.z=Math.PI/2;for(const r of [0,Math.PI/2])acMesh(g,new T.BoxGeometry(.12,.22,.01),M.blk,-.45,-.13,0).rotation.x=r;
+  for(const x of [-.1,.15])acMesh(g,new T.BoxGeometry(.03,.2,.27),M.blk,x,-.07,0);
+  g.traverse(m=>{if(m.isMesh){m.userData.keepGeo=1;m.userData.keepMat=1;}});return ACM.fpv=g;}
+
+/* ---------- 부대 모형에 끼우기 ---------- */
+{const _m=v3AirModel;v3AirModel=function(u,g){const tp=u.type==='gunship'?acApacheTpl:u.type==='fpv'?acFpvTpl:u.type==='drone'?acQuadTpl:null;if(!tp)return _m(u,g);
+  const c=tp().clone();c.scale.setScalar(MU);g.add(c);g.userData.trots=[];c.traverse(m=>{if(m.userData.trot)g.userData.trots.push(m);});return true;};}
+v3JetModel=function(){const T=V3.T;const g=new T.Group();const c=acJetTpl().clone();c.scale.setScalar(MU);g.add(c);return g;};
+
+/* ---------- 매 프레임: 꼬리 로터 돌리기, 정찰드론은 가는 쪽으로 살짝 숙인다 ---------- */
+{const _f=v3AirFrame;v3AirFrame=function(now,dt){_f(now,dt);if(!G||!V3.uo||!(dt>0))return;
+  for(const o of V3.uo.values()){const b=o.userData.body,u=o.userData.u;if(!b||!u)continue;
+    if(b.userData.trots)for(const t of b.userData.trots)t.rotation.z+=dt*42;
+    if(u.type==='drone'){const ud=o.userData,px=ud.dpx??o.position.x,pz=ud.dpz??o.position.z;const vx=(o.position.x-px)/dt,vz=(o.position.z-pz)/dt;ud.dpx=o.position.x;ud.dpz=o.position.z;
+      const f=-(b.rotation.y||0);const fw=vx*Math.cos(f)+vz*Math.sin(f),lt=-vx*Math.sin(f)+vz*Math.cos(f);const k=Math.min(1,dt*4);
+      b.rotation.order='YZX';b.rotation.z+=(Math.max(-.3,Math.min(.3,-fw*.12))-b.rotation.z)*k;b.rotation.x+=(Math.max(-.3,Math.min(.3,lt*.12))-b.rotation.x)*k;}}};}
+
+/* ---------- 수송헬기 투입 비행 ---------- */
+const HUEY_FLY={v0:5,t1:1.0,Ta:3.6,Td:5.0,hov:.9,clr:.9,lift:1.2};
+// 주변(반경 2칸)에서 가장 높은 것: 지붕, 또는 숲 칸의 나무 꼭대기(약 12m)
+function acClear(x,z){let h=0;const r0=Math.floor(z),c0=Math.floor(x);for(let r=r0-2;r<=r0+2;r++)for(let c=c0-2;c<=c0+2;c++)if(inb(r,c)){const m=G.map[r][c];h=Math.max(h,v3Top(r,c)+(m.t==='park'&&(m.wild||m.orch)?(m.orch?.6:1.0):0));}return h;}
+const acSm=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k);};
+function acDustCol(){return typeof bmClime==='function'&&bmClime()==='winter'?'#dfe3e6':typeof bmClime==='function'&&bmClime()==='desert'?'#b49c74':'#9c9283';}
+v3Heli=function(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const y0=v3Top(r,c);const H=acHuey(n);const h=H.userData.body;V3.G.fx.add(H);h.rotation.order='YZX';
+  const dir=[[-1,0],[1,0],[0,-1],[0,1]][n??0]||[-1,0];const F=HUEY_FLY;const Dd=F.v0*(F.Ta-F.t1)/2,D=F.v0*F.t1+Dd;
+  const sx=x+dir[0]*D,sz=z+dir[1]*D;const ang=Math.atan2(dir[1],-dir[0]);// 기수 = 착륙지 쪽
+  const t0=G.time;const LAND=HELI_T+1.6;const turn=Math.random()<.5?1:-1;let dustT=0,lastT=t0,pitch=-.1,roll=0,cruise=acClear(sx,sz)+F.clr;
+  const dep={x,z,y:y0,psi:ang,v:0};
+  if(typeof sndTrack==='function')sndTrack(H,'rotor');
+  V3.fx.push({o:H,t0:performance.now(),dur:1e9,upd:(o)=>{const t=G.time-t0;const now=performance.now();const dt=Math.max(0,Math.min(.1,G.time-lastT));lastT=G.time;
+    if(H.userData.hub)H.userData.hub.rotation.y-=Math.max(.35,dt*34);if(H.userData.trot)H.userData.trot.rotation.z+=Math.max(.5,dt*48);
+    let px=x,pz=z,py=y0,psi=ang,wp=0,wr=0;
+    if(t<F.Ta){// 접근: 순항 후 감속. 감속하는 동안 기수를 들어 속도를 죽인다
+      let d,v;if(t<F.t1){d=D-F.v0*t;v=F.v0;wp=-.12;}else{const q=(t-F.t1)/(F.Ta-F.t1);d=Dd*(1-q)*(1-q);v=F.v0*(1-q);wp=.2*Math.min(1,(1-q)/.3);}
+      px=x+dir[0]*d;pz=z+dir[1]*d;cruise=Math.max(cruise-dt*.3,acClear(px,pz)+F.clr);const hk=acSm((t-F.t1)/(F.Ta-F.t1));py=cruise+(y0+F.hov-cruise)*hk;
+      py=Math.max(py,acClear(px,pz)*(1-hk)+.4);}
+    else if(t<F.Td){const k=(t-F.Ta)/(F.Td-F.Ta);py=y0+F.hov*(1-acSm(k));wp=.03;wr=Math.sin(t*2.3)*.025;px+=Math.sin(t*1.7)*.03*(1-k);pz+=Math.cos(t*1.3)*.03*(1-k);}
+    else if(t<LAND){py=y0;wp=0;if(t>=HELI_T)for(const p of H.userData.pax)p.visible=false;}
+    else{for(const p of H.userData.pax)p.visible=false;const q=t-LAND;
+      if(q<F.lift){py=y0+F.hov*acSm(q/F.lift);wp=-.06*q/F.lift;dep.y=py;}
+      else{// 이륙: 기수를 숙여 앞으로 가속하며 몸을 기울여 돌아 나간다
+        const w=q-F.lift;const om=w<3.2?turn*.95:0;dep.v=Math.min(F.v0,dep.v+dt*2.2);dep.psi+=om*dt;
+        dep.x+=Math.cos(dep.psi)*dep.v*dt;dep.z+=-Math.sin(dep.psi)*dep.v*dt;dep.y=Math.max(dep.y+dt*.5,acClear(dep.x,dep.z)+F.clr*Math.min(1,w/2));
+        px=dep.x;pz=dep.z;py=dep.y;psi=dep.psi;wp=-.08-.1*Math.min(1,dep.v/F.v0)*(dep.v<F.v0?1:.4);wr=-om*dep.v*.08;
+        if(w>9||Math.hypot(px-x,pz-z)>N*.75+8){o.visible=false;return false;}}
+      if(q<F.lift){px=x;pz=z;dep.x=x;dep.z=z;}}
+    const k=Math.min(1,dt*3.5);pitch+=(wp-pitch)*k;roll+=(Math.max(-.45,Math.min(.45,wr))-roll)*k;
+    H.position.set(px,py,pz);h.rotation.set(roll,psi,pitch);
+    // 로터 바람: 낮을수록 넓고 진하게 먼지가 둥글게 밀려난다
+    const ag=py-v3TopAt(px,pz);if(ag<1.4&&now-dustT>150-ag*60){dustT=now;const I=1-ag/1.4;const gy=v3TopAt(px,pz)+.03;
+      for(let i=0;i<1+Math.round(I*2);i++){const a=Math.random()*6.283;const d=.35+Math.random()*.45;dsDust(px+Math.cos(a)*d,pz+Math.sin(a)*d,.35+I*.45,1400+I*800,1,acDustCol(),gy);}}}});};
+
 /* ---- 07y-logi.js ---- */
 /* ===================== 화면: 보급 트럭·구난차·보급소·탄약 표시 =====================
    05j-supply의 규칙을 보여 준다. 기존 화면 함수(v3VehBuild, fortBar, uHealth, v3MorTag, v3FortFrame)는 감싸서 덧붙이기만 한다. */
@@ -10286,6 +10709,382 @@ function voxFoe(u){let b=null,bd=1e9;for(const e of G.units){if(e.nat===u.nat||!
   voxSync();
 })();
 
+/* ---- 07zv-vehicles.js ---- */
+/* ===================== 지상 차량 모형: 실제 장비처럼 =====================
+   한서의 요청(실제 UH-1 사진처럼 현실적으로)에 맞춰 지상 차량을 모두 다시 만든다.
+   - 실제 치수(1m = MU)와 실제 장비의 생김새: 궤도 고리와 보기륜, 측면 스커트, 포탑 해치·조준경·연막탄 발사기,
+     안테나, 짐 묶음, 바퀴 허브, 유리창, 전조등. 짝수 세력은 서방식(M1·스트라이커·험비·K9·하이마스),
+     홀수 세력은 동구권식(T-90·BTR·테크니컬·그라드).
+   - 위장 도색: 세력마다 다른 3색 무늬를 셰이더로 칠한다(차량 기준 좌표라 움직여도 무늬가 따라간다).
+     아래쪽과 윗면에는 흙먼지, 전체에 얼룩. 겨울 지도에서는 흰 칠을 덧바른다.
+   - 세력 표식: 차체 옆·뒤와 윗면(위에서 보는 시점)에 흰 기호(Λ, +, △, =), 안테나에 세력 색 띠.
+   - 성능: 차종·세력마다 한 번 만들고, 움직이는 덩어리(차체·포탑·발사대)마다 재질별로 형상을 하나로 합친다.
+     그래서 부품이 많아져도 차량 한 대는 메쉬 10여 개다.
+   기존 함수(v3VehicleM, v3VehBuild, v3ZuBuild, v3MlrsBuild, v3AmbBuild, v3LogiBuild)를 이 파일이 대신한다.
+   포탑은 userData.turret, 세력 몸체는 userData.body 표시를 그대로 지킨다(07x2-motion, 07b-destruct가 쓴다). */
+const VX={mats:new Map(),U:null};
+const VX_CAMO=[// [바탕, 무늬1, 무늬2] 바랜 군용색
+  ['#4d5139','#5f523c','#26271f'],   // 0 서방 3색(녹·갈·흑)
+  ['#8b8066','#666446','#6d5a42'],   // 1 사막 황토 + 올리브·갈색 줄무늬
+  ['#535a40','#77714f','#2a2b24'],   // 2 녹색 + 모래·흑
+  ['#64665a','#43443c','#8a846f']];  // 3 회녹 + 짙은 회·모래
+const VX_CIV=['#b8b09c','#3a3a38','#8c8270','#d0ccc2'];
+const VX_GLSL=`
+float vxH(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float vxN(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
+  return mix(mix(mix(vxH(i),vxH(i+vec3(1,0,0)),f.x),mix(vxH(i+vec3(0,1,0)),vxH(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(vxH(i+vec3(0,0,1)),vxH(i+vec3(1,0,1)),f.x),mix(vxH(i+vec3(0,1,1)),vxH(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float vxF(vec3 p){return .55*vxN(p)+.3*vxN(p*2.1+5.2)+.15*vxN(p*4.3+1.7);}`;
+function vxUni(){if(VX.U)return VX.U;const T=V3.T;return VX.U={uDust:{value:new T.Color('#8f8268')},uWash:{value:0}};}
+/* 차량 재질: k=종류, camo=위장 세 색(없으면 단색), dk=흙먼지 정도 */
+function vxMat(key,o){if(VX.mats.has(key))return VX.mats.get(key);const T=V3.T;const U=vxUni();
+  const m=new T.MeshStandardMaterial({color:o.c||'#ffffff',roughness:o.r??.85,metalness:o.mt??.1,flatShading:o.flat!==false,map:o.map||null,vertexColors:!!o.vc,emissive:o.em||'#000000',emissiveIntensity:o.ei??1});
+  const camo=o.camo;const u={uC0:{value:new T.Color(camo?camo[0]:'#fff')},uC1:{value:new T.Color(camo?camo[1]:'#fff')},uC2:{value:new T.Color(camo?camo[2]:'#fff')},
+    uK:{value:camo?1:0},uDK:{value:o.dk??1},uSc:{value:o.sc||7.5}};
+  m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,u,{uDust:U.uDust,uWash:U.uWash});
+    sh.vertexShader='attribute vec3 aV;\nvarying vec3 vV;\nvarying vec3 vON;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvV=aV;vON=normal;');
+    sh.fragmentShader='uniform vec3 uC0,uC1,uC2,uDust;uniform float uK,uDK,uSc,uWash;varying vec3 vV;varying vec3 vON;\n'+VX_GLSL+'\n'+sh.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+  {vec3 q=vV*uSc;
+   if(uK>.5){float a=vxF(q*vec3(1.,1.7,1.)),b=vxF(q*vec3(1.2,1.9,1.2)+17.3);vec3 c=mix(uC0,uC1,smoothstep(.5,.53,a));c=mix(c,uC2,smoothstep(.6,.63,b)*(1.-smoothstep(.52,.55,a)*.3));diffuseColor.rgb=c;}
+   float g=vxN(vV*190.);diffuseColor.rgb*=.86+.24*g;
+   float h=vV.y*12.;float n=vxN(vV*55.);
+   float d=(1.-smoothstep(.15,1.25+n*.4,h))*.6+smoothstep(.7,.95,vON.y)*.25*(.5+.7*n);
+   diffuseColor.rgb=mix(diffuseColor.rgb,uDust,clamp(d*uDK,0.,.75));
+   if(uWash>0.){float w=smoothstep(.38,.55,vxF(vV*28.+3.));diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.8,.81,.79),w*uWash*uK);}}`);};
+  m.customProgramCacheKey=()=>'vx';
+  VX.mats.set(key,m);return m;}
+function vxTrackTex(){if(VX.trT)return VX.trT;const T=V3.T;const c=document.createElement('canvas');c.width=64;c.height=8;const x=c.getContext('2d');
+  x.fillStyle='#4a4842';x.fillRect(0,0,64,8);for(let i=0;i<64;i+=8){x.fillStyle='#1e1d1b';x.fillRect(i,0,3,8);x.fillStyle='#5c5a52';x.fillRect(i+4,0,1,8);}
+  const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(9,9);t.magFilter=T.NearestFilter;VX.trT=t;return t;}
+/* 작은 부품 색은 정점 색 하나의 재질로 합친다(그리기 횟수 줄이기) */
+const VX_VC={tire:'#1f1f1d',rubber:'#262624',steel:'#3f413c',dark:'#252623',hub:'#3d4033',lens:'#cfc9a8',mark:'#d9d6c8',plate:'#6c6248',bag:'#565743',
+  drum:'#3c4636',red:'#b3302a',white:'#e2e0d8',rust:'#6b4630',slat:'#3a3a35',tape:null,canvas:null};
+function vxVcCol(k,n){return k==='tape'?(TAPE[n]||'#ccc'):k==='canvas'?(n%2?'#7a7058':'#5d5d48'):VX_VC[k];}
+/* 재질 열쇠 → 재질. n=세력 */
+function vxMatOf(k,n){
+  switch(k){
+    case 'vc':return vxMat('vc',{c:'#ffffff',r:.85,mt:.2,vc:1});
+    case 'body':return vxMat('body'+n,{camo:VX_CAMO[n%4],r:.82,mt:.12});
+    case 'civ':return vxMat('civ'+n,{c:VX_CIV[n%4],r:.55,mt:.25});
+    case 'tape':return vxMat('tape'+n,{c:TAPE[n]||'#ccc',r:.9,dk:.2});
+    case 'canvas':return vxMat('canvas'+(n%2),{c:n%2?'#7a7058':'#5d5d48',r:1});
+    case 'track':return vxMat('track',{c:'#ffffff',map:typeof document!=='undefined'?vxTrackTex():null,r:.9,mt:.35,dk:1.3});
+    case 'tire':return vxMat('tire',{c:'#1f1f1d',r:.95,mt:0,dk:1.3});
+    case 'rubber':return vxMat('rubber',{c:'#262624',r:.95,mt:0});
+    case 'steel':return vxMat('steel',{c:'#3f413c',r:.5,mt:.55});
+    case 'dark':return vxMat('dark',{c:'#252623',r:.8,mt:.2});
+    case 'hub':return vxMat('hub',{c:'#3d4033',r:.7,mt:.3});
+    case 'glass':return vxMat('glass',{c:'#141a1e',r:.2,mt:.7,dk:.35});
+    case 'lens':return vxMat('lens',{c:'#cfc9a8',r:.3,mt:.3,em:'#5a5440',ei:.6,dk:.2});
+    case 'mark':return vxMat('mark',{c:'#d9d6c8',r:.8,dk:.7});
+    case 'plate':return vxMat('plate',{c:'#6c6248',r:.95});
+    case 'bag':return vxMat('bag',{c:'#565743',r:1});
+    case 'drum':return vxMat('drum',{c:'#3c4636',r:.7,mt:.3});
+    case 'red':return vxMat('red',{c:'#b3302a',r:.7,dk:.5});
+    case 'white':return vxMat('white',{c:'#e2e0d8',r:.7,dk:.5});
+    case 'amber':return vxMat('amber',{c:'#ffb33a',em:'#ff9a1a',ei:.9,r:.4,dk:0});
+    case 'blue':return vxMat('blue',{c:'#3b7bff',em:'#2a62ff',ei:1.1,r:.4,dk:0});
+    case 'rust':return vxMat('rust',{c:'#6b4630',r:1,mt:.2});
+    case 'slat':return vxMat('slat',{c:'#3a3a35',r:.7,mt:.4});
+    default:return vxMat('dark',{c:'#252623'});}}
+
+/* ---------- 만드는 도구 (치수는 m) ---------- */
+function vxKit(){const T=V3.T,m=MU;const root=new T.Group();const stub=VX.stub||(VX.stub=new T.MeshBasicMaterial());
+  const put=(geo,k,x,y,z,par,r)=>{const o=new T.Mesh(geo,stub);o.userData.mk=k||'body';o.position.set(x*m,y*m,z*m);if(r)o.rotation.set(r[0]||0,r[1]||0,r[2]||0);(par||root).add(o);return o;};
+  const K={T,m,root,
+    G:(x,y,z,par)=>{const g=new T.Group();g.position.set(x*m,y*m,z*m);(par||root).add(g);return g;},
+    B:(w,h,d,x,y,z,k,par,r)=>put(new T.BoxGeometry(w*m,h*m,d*m),k,x,y,z,par,r),
+    C:(rt,rb,h,x,y,z,k,par,r,seg)=>put(new T.CylinderGeometry(rt*m,rb*m,h*m,seg||8),k,x,y,z,par,r),
+    // x축 원통: x0에서 앞(+x)으로 len
+    Cx:(r,len,x0,y,z,k,par,seg,r2)=>put(new T.CylinderGeometry((r2??r)*m,r*m,len*m,seg||8),k,x0+len/2,y,z,par,[0,0,-Math.PI/2]),
+    Cz:(r,w,x,y,z,k,par,seg)=>put(new T.CylinderGeometry(r*m,r*m,w*m,seg||12),k,x,y,z,par,[Math.PI/2,0,0]),
+    // 옆모습 다각형(x,y)을 폭 w로
+    P:(pts,w,x,y,z,k,par)=>put(v3Prism(pts.map(([a,b])=>[a*m,b*m]),w*m),k,x,y,z,par),
+    // 위에서 본 다각형(x,z)을 높이 h로(아래 y)
+    PT:(pts,h,x,y,z,k,par)=>{const s=new T.Shape();pts.forEach(([a,b],i)=>i?s.lineTo(a*m,-b*m):s.moveTo(a*m,-b*m));s.closePath();
+      const g=new T.ExtrudeGeometry(s,{depth:h*m,bevelEnabled:false});g.rotateX(-Math.PI/2);return put(g,k,x,y,z,par);},
+    // 위 반원통(x축): 천막 덮개·갈빗대
+    H:(r,len,x0,y,z,k,par,sy)=>{const g=new T.CylinderGeometry(r*m,r*m,len*m,10,1,true,0,Math.PI);g.rotateZ(Math.PI/2);g.scale(1,sy||1,1);return put(g,k,x0+len/2,y,z,par);},
+    S:(rx,ry,rz,x,y,z,k,par,half)=>{const g=new T.SphereGeometry(1,12,half?5:8,0,Math.PI*2,0,half?Math.PI/2:Math.PI);g.scale(rx*m,ry*m,rz*m);return put(g,k,x,y,z,par);}};
+  /* 바퀴: 타이어 + 허브 + 볼트 원판 */
+  K.wheel=(r,w,x,y,z,par,big)=>{const s=Math.sign(z)||1;K.Cz(r,w,x,y,z,'tire',par,12);K.Cz(r*.58,w*.12,x,y,z+s*w*.5,'hub',par,8);K.Cz(r*.22,w*.1,x,y,z+s*(w*.56),'dark',par,6);
+    if(big)K.Cz(r*.62,w*1.02,x,y,z,'dark',par,8);};
+  /* 궤도 고리(구멍 뚫린 옆모습) + 안쪽 보기륜. 앞 아이들러(xf,yf,rf), 뒤 스프로킷(xr,yr,rr), 땅 닿는 구간 [gr,gf] */
+  K.track=(o)=>{const {xf,yf,rf,xr,yr,rr,gf,gr,w,z,t,nw,rw,par}=o;
+    const loop=(d)=>{const pts=[];for(let a=90;a>=-55;a-=15){const q=a*Math.PI/180;pts.push([xf+(rf-d)*Math.cos(q),yf+(rf-d)*Math.sin(q)]);}
+      pts.push([gf-d*.4,d]);pts.push([gr+d*.4,d]);for(let a=235;a>=90;a-=15){const q=a*Math.PI/180;pts.push([xr+(rr-d)*Math.cos(q),yr+(rr-d)*Math.sin(q)]);}return pts;};
+    const s=new T.Shape();loop(0).forEach(([a,b],i)=>i?s.lineTo(a*m,b*m):s.moveTo(a*m,b*m));s.closePath();
+    const hl=new T.Path();loop(t).reverse().forEach(([a,b],i)=>i?hl.lineTo(a*m,b*m):hl.moveTo(a*m,b*m));hl.closePath();s.holes.push(hl);
+    const g=new T.ExtrudeGeometry(s,{depth:w*m,bevelEnabled:false,curveSegments:4});g.translate(0,0,-w*m/2);put(g,'track',0,0,z,par);
+    const ww=w*.86;K.Cz(rf-t-.02,ww,xf,yf,z,'hub',par,10);K.Cz(rr-t-.02,ww,xr,yr,z,'dark',par,10);
+    for(let i=0;i<nw;i++){const x=gr+(gf-gr)*(i+.5)/nw;K.Cz(rw,ww,x,t+rw,z,'hub',par,10);K.Cz(rw*.45,ww+.02,x,t+rw,z,'dark',par,6);}
+    if(o.ret)for(const x of o.ret)K.Cz(.12,ww*.6,x,o.ry,z,'dark',par,6);};
+  /* 표식: 흰 기호. at=[x,y,z], face: 'z+','z-','y','x-','x+', s=크기(m), n=세력 */
+  K.mark=(n,at,face,s,par)=>{const sym=n%4;const bars=[];const L=s,W=s*.16;
+    if(sym===0)bars.push([-.22*s,0,L*.62,W,.62],[.22*s,0,L*.62,W,-.62]);                 // Λ
+    else if(sym===1)bars.push([0,0,L,W,0],[0,0,W,L,0]);                                    // +
+    else if(sym===2)bars.push([0,-.29*s,L,W,0],[-.25*s,.144*s,L,W,1.047],[.25*s,.144*s,L,W,-1.047]);  // △
+    else bars.push([0,.2*s,L,W,0],[0,-.2*s,L,W,0]);                                       // =
+    const th=.02;for(const [u,v,a,b,rot] of bars){let o;
+      if(face==='y'){o=K.B(a,th,b,at[0]+u,at[1],at[2]+v,'mark',par,[0,-rot,0]);}
+      else if(face[0]==='z'){const sg=face[1]==='+'?1:-1;o=K.B(a,b,th,at[0]+u*sg,at[1]+v,at[2],'mark',par,[0,0,rot*sg]);}
+      else{const sg=face[1]==='+'?1:-1;o=K.B(th,b,a,at[0],at[1]+v,at[2]-u*sg,'mark',par,[rot*sg,0,0]);}}};
+  /* 안테나: 얇은 막대 + 세력 색 띠 */
+  K.ant=(x,y,z,h,par)=>{K.C(.012,.025,h,x,y+h/2,z,'dark',par,null,4);K.B(.05,.22,.05,x,y+h*.86,z,'tape',par);K.C(.07,.07,.1,x,y+.05,z,'dark',par,null,6);};
+  /* 연막탄 발사기 묶음 */
+  K.smoke=(x,y,z,side,par,n=3)=>{for(let i=0;i<n;i++)K.Cx(.06,.32,x-.1,y+.02*i,z+side*(i*.13),'dark',par,6);};
+  /* 기관총 */
+  K.mg=(x,y,z,len,par,heavy)=>{K.B(.55,.16,.14,x,y,z,'steel',par);K.Cx(heavy?.035:.025,len,x+.25,y+.02,z,'steel',par,6);K.B(.22,.18,.1,x+.05,y-.02,z+(heavy?.12:.1),'plate',par);};
+  /* 짐: 천 주머니·말린 위장망·연료통 */
+  K.bag=(x,y,z,l,par,k)=>K.B(l,.35,.45,x,y,z,k||'bag',par);
+  K.roll=(x,y,z,l,par)=>K.Cz(.2,l,x,y,z,'canvas',par,8);
+  K.can=(x,y,z,par)=>{K.B(.18,.46,.34,x,y,z,'drum',par);K.B(.04,.06,.2,x,y+.25,z,'dark',par);};
+  /* 전조등 */
+  K.lamp=(x,y,z,par)=>{K.B(.08,.16,.2,x,y,z,'dark',par);K.B(.02,.11,.15,x+.045,y,z,'lens',par);};
+  return K;}
+
+/* ---------- 재질별로 합치기 ----------
+   그룹(차체·포탑·발사대)마다 바로 아래 메쉬들을 재질 열쇠별로 한 형상으로 합친다.
+   aV: 차량 기준 좌표(정지 자세). 위장 무늬와 흙먼지가 이 좌표를 쓴다. */
+function vxBake(root,n){const T=V3.T;const col=new T.Color();root.updateMatrixWorld(true);const inv=new T.Matrix4().copy(root.matrixWorld).invert();
+  const walk=(grp)=>{const byK=new Map();for(const c of [...grp.children]){if(c.isMesh&&c.userData.mk){const b=c.userData.mk in VX_VC?'vc':c.userData.mk;if(!byK.has(b))byK.set(b,[]);byK.get(b).push(c);grp.remove(c);}else if(c.isGroup)walk(c);}
+    const gm=new T.Matrix4().multiplyMatrices(inv,grp.matrixWorld);
+    for(const [k,list] of byK){const P=[],Nn=[],UV=[],AV=[],CC=[];const v=new T.Vector3();
+      for(const o of list){o.updateMatrix();let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry;g.applyMatrix4(o.matrix);
+        const pa=g.attributes.position.array,na=g.attributes.normal.array,ua=g.attributes.uv?g.attributes.uv.array:null;
+        for(let i=0;i<pa.length;i+=3){P.push(pa[i],pa[i+1],pa[i+2]);Nn.push(na[i],na[i+1],na[i+2]);v.set(pa[i],pa[i+1],pa[i+2]).applyMatrix4(gm);AV.push(v.x,v.y,v.z);}
+        const nv=pa.length/3;for(let i=0;i<nv;i++){UV.push(ua?ua[i*2]:0,ua?ua[i*2+1]:0);}
+        if(k==='vc'){col.set(vxVcCol(o.userData.mk,n));for(let i=0;i<nv;i++)CC.push(col.r,col.g,col.b);}
+        if(g!==o.geometry)g.dispose();o.geometry.dispose();}
+      const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setAttribute('normal',new T.Float32BufferAttribute(Nn,3));
+      geo.setAttribute('uv',new T.Float32BufferAttribute(UV,2));geo.setAttribute('aV',new T.Float32BufferAttribute(AV,3));if(k==='vc')geo.setAttribute('color',new T.Float32BufferAttribute(CC,3));geo.computeBoundingSphere();
+      const mesh=new T.Mesh(geo,VX.stub);mesh.userData.mk=k;if(k==='body')mesh.userData.body=1;mesh.userData.keepGeo=1;grp.add(mesh);}};
+  walk(root);return root;}
+
+/* ===================== 차종별 ===================== */
+/* 주력전차. 서방식(M1/K2 꼴): 쐐기 포탑, 측면 스커트, 7개 보기륜. 동구권식(T-90 꼴): 낮은 둥근 포탑, 반응장갑, 머리 위 철망, 뒤 연료통 */
+function vxTank(K,n){const east=n%2===1;const {B,C,Cx,P,PT,S,G}=K;
+  const tw=.64,tz=1.53;
+  for(const s of [-1,1])K.track(east?{xf:3.15,yf:.62,rf:.36,xr:-3.3,yr:.66,rr:.38,gf:2.7,gr:-2.85,w:.6,z:s*tz,t:.08,nw:6,rw:.37}
+                                    :{xf:3.25,yf:.72,rf:.38,xr:-3.4,yr:.75,rr:.42,gf:2.75,gr:-2.8,w:tw,z:s*tz,t:.08,nw:7,rw:.33});
+  P([[-3.7,.5],[3.35,.5],[3.9,1.12],[-3.75,1.12]],2.3,0,0,0);                            // 아래 차체(궤도 사이)
+  if(!east){
+    P([[-3.9,1.1],[3.85,1.1],[3.95,1.25],[1.6,1.62],[-3.9,1.6]],3.66,0,0,0);              // 위 차체(궤도 위까지)
+    for(const s of [-1,1]){B(6.9,.62,.07,.3,.82,s*1.86);for(const x of [-2.1,-.7,.7,2.1])B(.05,.6,.03,x,.82,s*1.9,'dark');B(.6,.5,.08,3.6,.85,s*1.84);} // 측면 스커트·이음매
+    B(1.5,.04,2.6,-3.1,1.62,0,'dark');for(let i=0;i<6;i++)B(.06,.05,2.5,-3.75+i*.27,1.65,0,'steel');                     // 뒤 엔진 덮개 격자
+    B(.7,.08,.6,2.3,1.6,0,'dark');for(const z of [-.18,0,.18])B(.06,.08,.12,2.62,1.66,z,'glass');                   // 조종수 해치·잠망경
+    for(const s of [-1,1])K.lamp(3.86,1.23,s*1.45);
+    K.mark(n,[-2.4,.84,1.92],'z+',.45);K.mark(n,[-2.4,.84,-1.92],'z-',.45);K.mark(n,[-3.93,1.35,0],'x-',.45);
+  }else{
+    P([[-3.7,1.1],[3.45,1.1],[3.9,1.18],[1.8,1.5],[-3.7,1.5]],3.5,0,0,0);
+    for(let i=0;i<4;i++)for(let j=-2;j<=2;j++)B(.32,.1,.5,2.25+i*.36,1.42-i*.07,j*.55,0,null,[0,0,.17]);             // 앞 경사판 반응장갑
+    for(const s of [-1,1]){B(6.2,.55,.04,0,.86,s*1.79,'rubber');for(let i=0;i<5;i++)B(.48,.44,.1,1.3+i*.5,.88,s*1.83);}   // 고무 스커트 + 앞쪽 반응장갑
+    for(const s of [-1,1])K.Cz(.3,1.1,-3.95,1.4,s*.75,'drum');                                                          // 뒤 연료통
+    B(1.7,.04,2.4,-2.7,1.51,0,'dark');for(let i=0;i<5;i++)B(.06,.05,2.3,-3.4+i*.3,1.53,0,'steel');
+    for(const s of [-1,1])K.lamp(3.5,1.5,s*1.2);
+    K.mark(n,[-1.5,.98,1.86],'z+',.5);K.mark(n,[-1.5,.98,-1.86],'z-',.5);K.mark(n,[-3.75,1.32,0],'x-',.4);
+    K.mark(n,[2.6,1.5,0],'y',.6);}
+  const tur=G(east?-.2:-.35,east?1.5:1.62,0);tur.userData.turret=1;
+  if(!east){// 쐐기 포탑
+    PT([[2.75,.75],[1.9,1.72],[-2.1,1.78],[-2.3,1.45],[-3.45,1.4],[-3.5,-1.4],[-2.3,-1.45],[-2.1,-1.78],[1.9,-1.72],[2.75,-.75]],.8,0,0,0,'body',tur);
+    B(.7,.62,1.0,2.55,.42,0,'body',tur);const gx=2.85;                                                                  // 방패(맨틀릿)
+    Cx(.11,2.0,gx,.42,0,'steel',tur,8);Cx(.095,1.6,gx+2.0,.42,0,'steel',tur,8);Cx(.15,.7,gx+1.65,.42,0,'steel',tur,8);Cx(.085,1.0,gx+3.6,.42,0,'steel',tur,8);// 포신·배연기
+    B(.14,.08,.08,gx+4.62,.53,0,'dark',tur);
+    B(.6,.42,.45,1.35,1.0,.95,'body',tur);B(.04,.28,.34,1.66,1.0,.95,'glass',tur);                                     // 포수 조준경
+    C(.18,.2,.48,.8,1.04,-.75,'body',tur);B(.36,.34,.4,.8,1.42,-.75,'body',tur);B(.04,.2,.3,.99,1.42,-.75,'glass',tur);   // 차장 조준경(CITV)
+    C(.45,.5,.25,-.5,.92,.75,'dark',tur,null,10);K.mg(-.2,1.25,.75,1.1,tur,true);B(.3,.3,.3,-.6,1.18,.75,'body',tur);       // 차장 해치·원격 기관총
+    C(.4,.42,.12,-.5,.86,-.85,'dark',tur,null,10);K.mg(.05,1.15,-.85,.8,tur);B(.06,.4,.7,.25,1.12,-.85,'body',tur);         // 장전수 해치·기관총·방패
+    K.smoke(1.95,.62,1.45,1,tur);K.smoke(1.95,.62,-1.45,-1,tur);
+    for(const s of [-1,1]){B(1.9,.05,.05,-2.8,1.1,s*1.62,'slat',tur);for(const x of [-3.6,-2.8,-2])B(.05,.35,.05,x,.95,s*1.62,'slat',tur);}  // 뒤 바구니 난간
+    K.bag(-2.6,1.0,1.25,1.4,tur);K.roll(-3.1,1.05,0,2.4,tur);K.bag(-2.4,1.0,-1.2,1.0,tur,'plate');K.can(-3.75,.95,-.9,tur);
+    K.ant(-3.2,.8,1.3,2.2,tur);K.ant(-3.2,.8,-1.3,1.6,tur);B(.04,.5,.04,1.0,1.05,0,'dark',tur);                         // 안테나·풍향 센서
+    K.mark(n,[-1.4,.42,1.79],'z+',.5,tur);K.mark(n,[-1.4,.42,-1.79],'z-',.5,tur);K.mark(n,[-1.0,.81,0],'y',.9,tur);
+  }else{// 둥근 주조 포탑 + 반응장갑 + 철망
+    S(1.75,.72,1.6,0,0,0,'body',tur,true);B(2.4,.25,2.6,-.4,.08,0,'body',tur);
+    for(const s of [-1,1]){B(1.3,.42,.55,1.25,.3,s*.75,'body',tur,[0,s*-.55,0]);B(1.2,.12,.5,1.0,.62,s*.8,'body',tur);}    // 앞 반응장갑 '조개'
+    for(let i=0;i<3;i++)for(const s of [-1,1])B(.4,.08,.35,.2-i*.45,.72,s*(.5+i*.08),'body',tur);                        // 지붕 반응장갑
+    for(const s of [-1,1]){B(.35,.3,.3,1.35,.55,s*.55,'dark',tur);B(.03,.18,.18,1.53,.55,s*.55,'red',tur);}              // 적외선 교란기(시토라)
+    B(.4,.45,.6,1.6,.3,0,'body',tur);const gx=1.75;Cx(.1,1.8,gx,.3,0,'steel',tur,8);Cx(.085,2.6,gx+1.8,.3,0,'steel',tur,8);Cx(.1,.35,gx+4.4,.3,0,'steel',tur,8);
+    C(.42,.45,.25,-.3,.75,-.6,'body',tur,null,10);K.mg(-.1,1.08,-.6,1.0,tur,true);B(.3,.3,.25,.25,.95,.6,'body',tur);B(.03,.18,.2,.41,.95,.6,'glass',tur);
+    K.smoke(.3,.4,1.45,1,tur,4);K.smoke(.3,.4,-1.45,-1,tur,4);
+    K.Cx(.12,2.2,-2.6,.6,1.0,'drum',tur,8);                                                                              // 뒤 스노클 통
+    K.bag(-1.6,.5,-1.2,1.0,tur);K.roll(-1.75,.6,.2,1.6,tur);
+    for(const [x,z] of [[1.3,1.4],[1.3,-1.4],[-1.6,1.4],[-1.6,-1.4]])B(.06,1.3,.06,x,1.0,z,'slat',tur);                 // 머리 위 철망(코프 케이지)
+    for(let i=0;i<8;i++)B(.04,.04,3.0,1.35-i*.42,1.62,0,'slat',tur);for(const z of [-1.4,0,1.4])B(3.1,.04,.04,-.15,1.66,z,'slat',tur);
+    K.ant(-1.4,.5,1.2,2.0,tur);
+    K.mark(n,[-.6,.4,1.62],'z+',.45,tur);K.mark(n,[-.6,.4,-1.62],'z-',.45,tur);}
+}
+/* 장갑차. 서방식(스트라이커 꼴 8륜): 상자 차체, 덧댄 장갑판, 원격 사격 무기, 쇠살 장갑. 동구권식(BTR-82 꼴): 뾰족한 배 모양 앞, 작은 원뿔 포탑 */
+function vxIfv(K,n){const east=n%2===1;const {B,C,Cx,P,G}=K;
+  if(!east){
+    for(const x of [2.3,1.05,-.85,-2.1])for(const s of [-1,1])K.wheel(.55,.42,x,.55,s*1.13,null,true);
+    P([[-3.45,.5],[2.6,.5],[3.45,1.0],[3.45,1.25],[-3.45,1.25]],2.2,0,0,0);
+    P([[-3.5,1.2],[3.45,1.2],[3.5,1.4],[2.35,2.15],[-3.5,2.15]],2.72,0,0,0);
+    for(const s of [-1,1]){for(let i=0;i<5;i++)for(let j=0;j<2;j++)B(1.12,.4,.05,-2.8+i*1.18,1.48+j*.44,s*1.38);
+      for(let i=0;i<9;i++)B(.05,1.2,.05,-3.35+i*.75,1.55,s*1.62,'slat');for(let j=0;j<4;j++)B(6.1,.04,.05,-.35,1.0+j*.36,s*1.62,'slat');}   // 덧댄 장갑판·쇠살 장갑
+    B(.8,.06,.7,2.0,2.17,.65,'dark');for(const z of [.45,.65,.85])B(.05,.08,.12,2.42,2.22,z,'glass');                 // 조종수 해치
+    B(.04,1.2,1.6,-3.52,1.3,0,'dark');B(.04,1.1,1.5,-3.54,1.3,0,'body');                                               // 뒤 램프
+    for(const s of [-1,1]){K.lamp(3.42,1.32,s*1.15);K.smoke(2.6,2.15,s*1.2,s);}
+    K.bag(-2.5,2.32,.8,1.2);K.bag(-2.6,2.32,-.6,1.0,null,'plate');K.roll(-3.1,2.3,0,2.0);K.can(-1.6,2.38,1.1);K.can(-1.4,2.38,1.1);
+    B(.9,.4,.04,2.7,1.6,-1.39,'dark');                                                                                // 배기 격자
+    K.ant(-3.1,2.15,1.1,2.2);K.ant(-3.1,2.15,-1.1,1.8);
+    K.mark(n,[-1.0,1.9,1.44],'z+',.5);K.mark(n,[-1.0,1.9,-1.44],'z-',.5);K.mark(n,[-3.56,1.85,0],'x-',.45);K.mark(n,[.8,2.16,0],'y',.75);
+    const tur=G(.3,2.15,-.25);tur.userData.turret=1;                                                                   // 원격 사격 무기(M151 꼴)
+    C(.42,.48,.22,0,.11,0,'dark',tur,null,10);B(.5,.5,.5,0,.45,0,'body',tur);K.mg(.25,.55,.0,1.25,tur,true);
+    B(.4,.3,.3,.15,.85,-.35,'body',tur);B(.03,.22,.22,.36,.85,-.35,'glass',tur);
+    for(let i=0;i<6;i++)B(.12,.14,.12,-1.0+Math.cos(i)*.32,2.22,.7+Math.sin(i)*.32,'glass');                          // 차장 잠망경
+  }else{
+    for(const x of [2.65,1.3,-1.0,-2.35])for(const s of [-1,1])K.wheel(.56,.4,x,.56,s*1.22,null,true);
+    P([[-3.8,.55],[2.6,.55],[3.85,1.15],[3.8,1.35],[-3.8,1.35]],2.5,0,0,0);
+    P([[-3.8,1.3],[3.8,1.3],[2.2,2.0],[-3.6,2.0]],2.9,0,0,0);
+    for(const s of [-1,1]){B(7.0,.08,.5,-.2,2.08,s*1.22,0,null,[s*.5,0,0]);                                           // 안으로 기운 위 옆판
+      B(.9,.75,.05,.15,1.45,s*1.46,'dark');B(.82,.68,.04,.15,1.45,s*1.48);                                             // 옆문(2·3축 사이)
+      for(const x of [2.0,-.6,-1.6,-2.6])B(.12,.1,.05,x,1.85,s*1.47,'glass');}
+    B(.06,.5,2.0,3.3,1.55,0,0,null,[0,0,-.9]);                                                                         // 앞 파도막이판
+    for(const s of [-1,1])K.lamp(3.6,1.38,s*1.0);B(.5,.3,.4,-3.7,1.75,.9,'dark');B(.5,.3,.4,-3.7,1.75,-.9,'dark');   // 배기구
+    for(const [x,z] of [[1.8,.6],[1.8,-.6],[-1.6,.6],[-1.6,-.6]])C(.3,.3,.07,x,2.06,z,'dark',null,null,8);             // 둥근 해치
+    K.bag(-2.6,2.15,.0,1.6);K.can(-3.2,2.25,.8);K.roll(-3.3,2.2,-.6,1.2);
+    K.ant(-3.2,2.0,1.0,2.0);
+    K.mark(n,[-2.0,1.65,1.46],'z+',.5);K.mark(n,[-2.0,1.65,-1.46],'z-',.5);K.mark(n,[-3.82,1.6,0],'x-',.4);K.mark(n,[-.8,2.06,0],'y',.75);
+    const tur=G(.9,2.0,0);tur.userData.turret=1;                                                                       // 원뿔 포탑 + 30mm 기관포
+    C(.55,.78,.58,0,.29,0,'body',tur,null,10);B(.5,.32,.4,.55,.35,0,'body',tur);
+    Cx(.06,1.2,.7,.38,0,'steel',tur,6);Cx(.045,1.9,1.9,.38,0,'steel',tur,6);Cx(.06,.2,3.8,.38,0,'steel',tur,6);Cx(.025,.6,.7,.38,-.22,'steel',tur,6);
+    B(.35,.28,.25,.15,.7,.45,'body',tur);B(.03,.18,.18,.33,.7,.45,'glass',tur);
+    K.smoke(-.2,.35,.75,1,tur);K.smoke(-.2,.35,-.75,-1,tur);}
+}
+/* 험비(M1151 꼴): 넓고 낮은 차체, 장갑 문, 사수 방패(O-GPK)와 M2 */
+function vxHmv(K,n){const {B,C,Cx,P,G}=K;
+  for(const [x,z] of [[1.55,1],[1.55,-1],[-1.45,1],[-1.45,-1]])K.wheel(.47,.4,x,.47,z*.93,null,true);
+  P([[-2.4,.5],[2.35,.5],[2.4,.98],[1.2,1.2],[-2.4,1.2]],2.18,0,0,0);
+  P([[-1.55,1.18],[.92,1.18],[.62,1.9],[-1.55,1.9]],2.0,0,0,0);
+  for(const s of [-1,1]){B(1.0,.12,.3,1.55,1.0,s*1.0,0);B(1.0,.12,.3,-1.45,1.0,s*1.0,0);                              // 바퀴 위 펜더
+    B(.48,.3,.04,.15,1.6,s*1.01,'glass');B(.48,.3,.04,-.65,1.6,s*1.01,'glass');B(.03,.62,.04,-.25,1.5,s*1.02,'dark');  // 장갑 문 작은 창
+    B(.08,.5,.04,.82,1.55,s*1.0,'dark');}
+  for(const z of [-.5,.5])B(.05,.32,.8,.78,1.6,z,'glass',null,[0,0,-.4]);                                             // 두 장 앞유리
+  for(let i=0;i<6;i++)B(.04,.3,.06,2.39,.78,-.5+i*.2,'dark');B(.18,.12,2.1,2.42,.55,0,'dark');                         // 그릴·범퍼
+  for(const s of [-1,1])K.lamp(2.32,.98,s*.75);
+  B(.95,.3,2.0,-1.98,1.34,0);K.bag(-2.0,1.65,.5,.8);K.can(-2.2,1.66,-.5);K.can(-1.95,1.66,-.5);
+  K.ant(-2.3,1.2,.95,2.4);K.ant(-2.3,1.2,-.95,1.6);
+  K.mark(n,[1.75,1.08,0],'y',.55);K.mark(n,[-.25,1.12,1.03],'z+',.35);K.mark(n,[-.25,1.12,-1.03],'z-',.35);
+  const tur=G(-.35,1.9,0);tur.userData.turret=1;
+  C(.6,.62,.18,0,.09,0,'dark',tur,null,10);
+  B(.06,.55,1.1,.55,.5,0,'body',tur);for(const s of [-1,1])B(.06,.55,.55,.35,.5,s*.72,'body',tur,[0,s*.7,0]);           // 사수 방패(앞+양옆)
+  B(.07,.22,.2,.56,.66,.28,'glass',tur);B(.07,.22,.2,.56,.66,-.28,'glass',tur);for(const s of [-1,1])B(.5,.45,.06,-.1,.45,s*.6,'body',tur);
+  K.mg(.4,.45,0,1.15,tur,true);}
+/* 민병대 픽업(테크니컬): 민간 픽업 + 롤바 + 짐칸 중기관총(방패) + 녹·흙먼지 */
+function vxTech(K,n,zu){const {B,C,Cx,P,G}=K;const pk=CAR_KINDS.pickup;const sc=pts=>pts.map(([x,y])=>[x,y]);
+  P(sc(pk.body),pk.w,0,0,0,'civ');K.P(sc(pk.cab),pk.w-.12,0,0,0,'glass');
+  B(1.4,.06,pk.w-.3,.4,1.88,0,'civ');
+  for(const s of [-1,1])B(2.6,.35,.08,-1.5,1.3,s*(pk.w/2-.05),'civ');
+  for(const [x,z] of [[1.75,1],[1.75,-1],[-1.75,1],[-1.75,-1]])K.wheel(.4,.3,x,.4,z*.85);
+  B(.08,.7,1.7,-.25,1.55,0,'dark');B(.08,.08,1.7,-.25,1.9,0,'dark');                                                  // 롤바
+  for(const [x,y,z,w,h] of [[.9,1.05,.88,.4,.22],[-2.6,.95,-.88,.5,.25],[1.9,.85,-.9,.35,.18]])B(w,h,.04,x,y,z*(pk.w/2)/.9,'rust');  // 녹
+  for(const s of [-1,1])K.lamp(2.2,.9,s*.7);
+  if(!zu){K.Cz(.36,.25,-2.1,1.25,.45,'tire',null,10);K.can(-2.6,1.25,-.5);}
+  K.mark(n,[1.4,1.12,0],'y',.45);
+  const tur=G(-1.6,1.15,0);tur.userData.turret=1;
+  if(zu){// ZU-23-2: 쌍열 23mm, 사수석, 탄통, 얇은 방패
+    B(1.2,.3,1.3,0,.15,0,'steel',tur);B(.5,.5,.06,.15,.6,.62,'body',tur);B(.5,.5,.06,.15,.6,-.62,'body',tur);B(.35,.12,.35,-.4,.45,0,'dark',tur);
+    for(const s of [-1,1]){const b=K.Cx(.045,2.4,.2,.75,s*.25,'steel',tur,6);b.rotation.z+=.32;b.position.y+=.35*MU;B(.45,.32,.18,.15,.55,s*.4,'drum',tur);}
+    B(.6,.5,1.0,.4,.75,0,'body',tur);}
+  else{C(.08,.12,.9,0,.45,0,'steel',tur,null,6);B(.06,.5,.9,.45,1.05,0,'body',tur);Cx(.045,1.5,.2,.95,0,'steel',tur,6);B(.5,.18,.16,0,.95,0,'steel',tur);Cx(.08,.15,1.7,.95,0,'steel',tur,6);
+    B(.22,.18,.12,.05,.88,.14,'drum',tur);}}
+/* 자주포(K9·M109 꼴): 큰 상자 포탑을 뒤에, 긴 155mm 포신과 두 겹 포구 제퇴기, 앞 갑판의 포신 고정대 */
+function vxSpg(K,n){const {B,C,Cx,P,PT,G}=K;
+  for(const s of [-1,1])K.track({xf:3.2,yf:.7,rf:.36,xr:-3.3,yr:.72,rr:.38,gf:2.7,gr:-2.75,w:.55,z:s*1.45,t:.08,nw:6,rw:.34,ret:[2.0,0,-2.0],ry:1.0});
+  P([[-3.5,.5],[3.0,.5],[3.6,1.05],[-3.55,1.05]],2.2,0,0,0);
+  P([[-3.6,1.0],[3.4,1.0],[3.65,1.2],[2.4,1.55],[-3.6,1.55]],3.4,0,0,0);
+  for(const s of [-1,1]){B(6.8,.08,.6,.0,1.08,s*1.5,0);K.lamp(3.5,1.3,s*1.3);}
+  B(.9,.06,.7,2.6,1.4,.8,'dark');                                                                                     // 조종수 해치
+  K.mark(n,[1.5,1.56,-.6],'y',.5);
+  const tur=G(-1.0,1.55,0);tur.userData.turret=1;
+  PT([[1.6,1.0],[1.3,1.55],[-2.5,1.55],[-2.5,-1.55],[1.3,-1.55],[1.6,-1.0]],1.3,0,0,0,'body',tur);
+  B(.7,.8,1.0,1.75,.6,0,'body',tur);const gx=2.1;
+  Cx(.13,1.6,gx,.65,0,'steel',tur,8);Cx(.11,5.6,gx+1.6,.65,0,'steel',tur,8);Cx(.2,.8,gx+2.8,.65,0,'steel',tur,8);              // 포신·배연기
+  B(.3,.32,.55,gx+7.35,.65,0,'steel',tur);B(.3,.32,.55,gx+7.8,.65,0,'steel',tur);Cx(.12,.3,gx+7.45,.65,0,'dark',tur,8);        // 두 겹 제퇴기
+  for(const s of [-1,1]){B(2.0,.45,.3,-.6,.5,s*1.7,'body',tur);B(.04,.35,.3,.5,.95,s*1.4,'dark',tur);K.smoke(1.3,1.05,s*1.25,s,tur);}  // 옆 짐상자
+  C(.38,.42,.25,-.6,1.42,.75,'dark',tur,null,10);K.mg(-.3,1.75,.75,1.1,tur,true);C(.32,.34,.12,-.9,1.36,-.7,'dark',tur,null,10);
+  B(.04,.9,1.4,-2.53,.6,0,'dark',tur);K.bag(-1.8,1.45,-.3,1.1,tur);K.roll(-2.2,1.45,.6,1.4,tur);
+  K.ant(-2.2,1.3,1.2,2.0,tur);K.ant(-2.2,1.3,-1.2,1.5,tur);
+  K.mark(n,[-1.2,.6,1.57],'z+',.6,tur);K.mark(n,[-1.2,.6,-1.57],'z-',.6,tur);K.mark(n,[-.8,1.31,0],'y',1.0,tur);}
+/* 군용 트럭 운전실. kind: 'cab'(FMTV 꼴 평평한 앞), 'hood'(우랄·KamAZ 꼴 긴 보닛) */
+function vxCab(K,n,x,kind,w=2.4){const {B,C}=K;
+  if(kind==='hood'){B(1.6,.95,2.2,x+.9,1.45,0);B(1.6,.2,.4,x+.9,1.0,1.15,0);B(1.6,.2,.4,x+.9,1.0,-1.15,0);           // 보닛·펜더
+    for(let i=0;i<7;i++)B(.04,.6,.06,x+1.72,1.3,-.6+i*.2,'dark');K.lamp(x+1.7,1.2,.95);K.lamp(x+1.7,1.2,-.95);
+    B(1.5,1.4,w,x-.6,2.0,0);B(.06,.6,w-.3,x+.16,2.35,0,'glass',null,[0,0,-.12]);for(const s of [-1,1])B(.7,.45,.04,x-.5,2.35,s*w/2,'glass');
+    K.mark(n,[x+.9,1.94,0],'y',.5);return;}
+  B(1.9,1.65,w,x,1.9,0);B(.06,.65,w-.3,x+.95,2.35,0,'glass');B(.06,.06,w-.2,x+.97,2.35,0,'dark');                   // 운전실·두 장 앞유리
+  for(let i=0;i<5;i++)B(.04,.55,.06,x+.97,1.45,-.5+i*.25,'dark');B(.2,.2,w+.1,x+1.0,1.0,0,'dark');                   // 그릴·범퍼
+  for(const s of [-1,1]){B(.75,.55,.04,x+.2,2.3,s*w/2,'glass');K.lamp(x+.95,1.25,s*(w/2-.25));B(.04,.35,.18,x+1.1,2.25,s*(w/2+.2),'dark');B(.3,.04,.04,x+1.0,2.4,s*(w/2+.08),'dark');}  // 옆창·전조등·거울
+  B(1.8,.08,w-.2,x-.05,2.75,0);K.mark(n,[x,2.8,0],'y',.6);}
+/* 보급 트럭(6륜): 운전실 + 천막 짐칸(갈빗대), 뒤에서 보이는 탄약 상자, 예비 타이어, 연료통, 배기관 */
+function vxSup(K,n){const {B,C,Cx}=K;const east=n%2===1;
+  B(7.2,.35,1.1,0,.95,0,'dark');vxCab(K,n,east?1.6:2.6,east?'hood':'cab');
+  for(const [x,z] of [[2.7,1],[2.7,-1],[-.7,1],[-.7,-1],[-2.0,1],[-2.0,-1]])K.wheel(.55,.42,x,.55,z*1.05,null,true);
+  for(const s of [-1,1]){B(1.0,.12,.4,-1.35,1.18,s*1.05,0);K.Cz(.3,1.0,1.0,.95,s*.75,'drum');}                          // 펜더·연료통
+  K.Cz(.5,.3,1.25,1.7,.0,'tire');B(.06,1.2,.06,1.35,2.6,1.0,'dark');                                                   // 예비 타이어·배기관
+  B(4.4,.25,2.5,-1.15,1.25,0);for(const s of [-1,1]){B(4.4,.6,.06,-1.15,1.65,s*1.22);for(let i=0;i<6;i++)B(.04,.55,.04,-3.2+i*.82,1.65,s*1.26,'dark');}
+  K.H(1.22,4.2,-3.2,2.25,0,'canvas',null,.7);B(4.2,.9,2.44,-1.1,1.8,0,'canvas');for(let i=0;i<5;i++)K.H(1.24,.06,-3.2+i*1.03,2.25,0,'dark',null,.71);   // 천막 덮개·갈빗대
+  B(.04,1.4,2.3,-3.22,1.95,0,'dark');for(let i=0;i<3;i++)for(let j=0;j<2;j++)B(.5,.4,.6,-3.05,1.6+j*.42,-.7+i*.7,'plate');   // 뒤 열린 칸의 탄약 상자
+  K.ant(1.4,2.75,-1.0,1.4);K.mark(n,[-1.2,3.22,0],'y',.9);K.mark(n,[-1.2,1.7,1.29],'z+',.5);K.mark(n,[-1.2,1.7,-1.29],'z-',.5);}
+/* 구난차(8륜 HEMTT 꼴): 운전실, 장비 상자, 돌아가는 기중기 붐과 고리, 뒤 견인 받침과 땅 버팀, 호박색 경광등 */
+function vxRec(K,n){const {B,C,Cx,G}=K;
+  B(8.4,.4,1.2,0,1.0,0,'dark');vxCab(K,n,3.0,'cab',2.5);C(.08,.1,.12,2.9,2.84,.85,'amber',null,null,6);C(.08,.1,.12,2.9,2.84,-.85,'amber',null,null,6);
+  for(const [x,z] of [[3.1,1],[3.1,-1],[1.8,1],[1.8,-1],[-1.6,1],[-1.6,-1],[-2.9,1],[-2.9,-1]])K.wheel(.6,.45,x,.6,z*1.08,null,true);
+  for(const s of [-1,1]){B(3.0,.9,.5,-.3,1.65,s*1.0);for(let i=0;i<3;i++)B(.04,.75,.04,-1.6+i*1.0,1.65,s*1.26,'dark');}   // 장비 상자
+  B(4.6,.15,2.5,-.9,1.25,0);K.can(.8,1.55,0);K.roll(.6,1.5,.6,.9);
+  B(1.2,.25,.3,-4.6,.85,0,'steel');B(.3,.4,1.0,-4.2,.85,0,'steel');for(const s of [-1,1])B(.5,.9,.3,-3.9,.5,s*1.05,'steel');  // 견인 받침·버팀
+  K.mark(n,[.3,1.65,1.26],'z+',.55);K.mark(n,[.3,1.65,-1.26],'z-',.55);
+  const cr=G(-1.6,2.1,0);cr.userData.turret=1;                                                                         // 기중기는 포탑처럼 돈다
+  C(.6,.7,.45,0,.2,0,'body',cr,null,10);B(1.0,.6,.9,.2,.65,0,'body',cr);
+  const boom=B(5.2,.42,.42,-2.0,1.0,0,'steel',cr,[0,0,-.32]);B(4.0,.3,.3,-2.3,1.1,0,'body',cr,[0,0,-.32]);           // 두 단 붐
+  B(.04,1.4,.04,-4.45,1.0,0,'dark',cr);B(.2,.2,.12,-4.45,.25,0,'steel',cr);}
+/* 구급차(M997 꼴): 험비 앞부분 + 높은 환자칸. 흰 바탕에 붉은 십자를 양옆·뒤·지붕에 */
+function vxAmb(K,n){const {B,C,P}=K;
+  for(const [x,z] of [[1.6,1],[1.6,-1],[-1.5,1],[-1.5,-1]])K.wheel(.47,.4,x,.47,z*.93,null,true);
+  P([[-2.6,.5],[2.35,.5],[2.4,.98],[1.2,1.2],[-2.6,1.2]],2.18,0,0,0);
+  P([[.0,1.18],[.92,1.18],[.62,1.9],[.0,1.9]],2.0,0,0,0);for(const z of [-.5,.5])B(.05,.32,.8,.78,1.6,z,'glass',null,[0,0,-.4]);
+  for(let i=0;i<6;i++)B(.04,.3,.06,2.39,.78,-.5+i*.2,'dark');B(.18,.12,2.1,2.42,.55,0,'dark');for(const s of [-1,1])K.lamp(2.32,.98,s*.75);
+  B(2.75,1.7,2.15,-1.3,2.0,0);B(.04,1.4,1.0,-2.69,1.95,0,'dark');                                                      // 환자칸·뒷문
+  const cross=(x,y,z,face,sz)=>{if(face==='y'){B(sz,.02,sz,x,y,z,'white');B(sz*.7,.03,sz*.2,x,y,z,'red');B(sz*.2,.03,sz*.7,x,y,z,'red');}
+    else if(face==='x'){B(.02,sz,sz,x,y,z,'white');B(.03,sz*.7,sz*.2,x,y,z,'red');B(.03,sz*.2,sz*.7,x,y,z,'red');}
+    else{B(sz,sz,.02,x,y,z,'white');B(sz*.7,sz*.2,.03,x,y,z,'red');B(sz*.2,sz*.7,.03,x,y,z,'red');}};
+  cross(-1.3,2.1,1.09,'z',1.0);cross(-1.3,2.1,-1.09,'z',1.0);cross(-2.71,2.35,0,'x',.6);cross(-1.3,2.86,0,'y',1.4);
+  B(.25,.1,.5,.4,1.95,0,'blue');K.ant(-2.4,2.85,.9,1.2);K.can(-2.5,1.4,-.9);}
+/* 다연장. 서방식(하이마스 꼴): 6륜 운전실 + 6발 상자. 동구권식(그라드 꼴): 긴 보닛 트럭 + 40발 관 묶음 */
+function vxMlrs(K,n){const {B,C,Cx,G}=K;const east=n%2===1;
+  B(7.2,.4,1.1,0,1.0,0,'dark');vxCab(K,n,east?1.6:2.7,east?'hood':'cab');
+  for(const x of east?[2.6,-.6,-2.0]:[2.6,.2,-1.4,-2.8])for(const s of [-1,1])K.wheel(.55,.42,x,.55,s*1.1,null,true);
+  for(const s of [-1,1])K.Cz(.28,.9,.9,.95,s*.75,'drum');B(4.8,.2,2.4,-1.2,1.25,0);K.mark(n,[-1.3,1.25,1.22],'z+',.5);K.mark(n,[-1.3,1.25,-1.22],'z-',.5);
+  const tur=G(-1.3,1.35,0);tur.userData.turret=1;B(1.4,.3,1.4,0,.15,0,'dark',tur);
+  const box=G(0,.35,0,tur);box.rotation.z=.42;
+  if(!east){B(4.6,1.0,2.1,0,.55,0,'body',box);B(4.62,.06,2.12,0,1.05,0,'dark',box);
+    for(let i=0;i<2;i++)for(let j=0;j<3;j++){K.Cx(.2,.04,2.3,.3+i*.5,-.6+j*.6,'dark',box,8);}
+    K.mark(n,[-.6,1.07,0],'y',.8,box);}
+  else{for(let i=0;i<4;i++)for(let j=0;j<10;j++)K.Cx(.062,3.0,-1.5,.15+i*.135,-.62+j*.138,'steel',box,6);
+    for(const x of [-1.2,0,1.2])B(.12,.7,1.5,x,.35,0,'body',box);B(3.0,.12,1.5,0,-.05,0,'body',box);}}
+/* 자폭 차량: 민간 픽업 앞·옆창을 철판으로 덮고 좁은 틈만 남김, 짐칸에 덮개 상자 */
+function vxVbied(K,n){const {B}=K;vxTech(K,n,false);for(const o of [...K.root.children])if(o.userData&&o.userData.turret)K.root.remove(o);
+  B(.08,.9,1.85,1.0,1.45,0,'rust',null,[0,0,-.3]);B(.1,.06,1.2,1.05,1.55,0,'dark',null,[0,0,-.3]);
+  for(const s of [-1,1])B(1.4,.75,.06,.3,1.5,s*.93,'rust');B(2.2,.9,1.7,-1.5,1.6,0,'steel');
+  for(const [x,z] of [[-.9,.5],[-2.1,-.4]])B(.5,.04,.5,x,2.06,z,'rust');B(.22,.9,.6,2.3,.8,0,'steel');}
+
+const VX_BUILD={tank:vxTank,ifv:vxIfv,hmv:vxHmv,tech:(K,n)=>vxTech(K,n,false),zu:(K,n)=>vxTech(K,n,true),spg:vxSpg,sup:vxSup,rec:vxRec,amb:vxAmb,mlrs:vxMlrs,vbied:vxVbied};
+function vxTemplate(ty,n){const key=ty+'|'+n;V3.vxT=V3.vxT||new Map();if(V3.vxT.has(key))return V3.vxT.get(key);
+  const f=VX_BUILD[ty]||vxTank;const K=vxKit();f(K,n);const g=vxBake(K.root,n);V3.vxT.set(key,g);return g;}
+/* 한 판마다: 겨울이면 흰 칠, 사막이면 흙먼지를 밝게 */
+function vxClime(){const U=vxUni();const c=typeof G!=='undefined'&&G&&G.feat&&G.feat.clime||'temp';
+  U.uWash.value=c==='winter'?.6:0;U.uDust.value.set(c==='desert'?'#b3a07c':c==='winter'?'#9c978c':'#8f8268');}
+
+v3VehicleM=function(ty,g,n){if(ty==='hmv'&&n%2)ty='tech';
+  vxClime();const src=vxTemplate(ty,n);const c=src.clone(true);
+  c.traverse(o=>{if(o.isMesh){o.material=vxMatOf(o.userData.mk,n);o.castShadow=true;o.receiveShadow=true;o.userData.keepGeo=1;}});
+  g.add(c);let tur=null;c.traverse(o=>{if(o.userData.turret)tur=o;});if(tur)g.userData.tur=tur;return c;};
+/* 예전 이름으로 부르는 곳을 위해: 형상 틀만 돌려준다 */
+v3VehBuild=function(ty){return vxTemplate(ty,0);};
+v3ZuBuild=function(){return vxTemplate('zu',1);};
+v3MlrsBuild=function(){return vxTemplate('mlrs',0);};
+
 /* ---- 08-ui.js ---- */
 /* ===================== UI: HUD·하단 바·메뉴 ===================== */
 function render(){if(!G||typeof document==='undefined')return;if(UI.sel){if(G.units.includes(UI.sel))UI.targets=targetsOf(UI.sel,false);else clearSel();}if(typeof scnCheck==='function')scnCheck();
@@ -10523,13 +11322,14 @@ if(typeof document!=='undefined'){if(document.readyState==='loading')document.ad
     const sp=el.querySelector(':scope>span');if(sp&&!grp.some(u=>u.man!=null))sp.insertAdjacentText('beforeend',' · 직접 명령하면 이 부대만 직접 지휘');return;}
   if(UI.pane||UI.phase==='buy'||UI.phase==='sup')return;
   const div=document.createElement('div');div.className='adj-row';
-  if(N2.auto){const I=N2.intent;
-    div.innerHTML=`<b>부관 지휘 중</b><span class="adj-i">주공: ${adjDesc(I)}</span>`+
-      `<button class="btn sm${I&&I.k==='atk'?' primary':''}" data-act="adj:atk" id="ab-adj-atk" title="모든 부대가 그쪽으로 공격합니다">${adjL('공격 목표','공격')}</button>`+
-      `<button class="btn sm${I&&I.k==='def'?' primary':''}" data-act="adj:def" id="ab-adj-def" title="그 둘레 엄폐에서 지킵니다">${adjL('방어 지점','방어')}</button>`+
-      `<button class="btn sm${I?'':' primary'}" data-act="adj:free-all" id="ab-adj-any" title="부관이 가까운 거점부터 알아서 잡습니다">${adjL('부관 재량','재량')}</button>`+
-      `<button class="btn sm" data-act="adj:buy" id="ab-adj-buy" aria-pressed="${N2.autoBuy!==false}" title="부관이 지휘점수로 부대를 사서 보냅니다">${adjL('자동 증원: ','증원 ')}${N2.autoBuy!==false?'켬':'끔'}</button>`+
-      `<button class="btn sm" data-act="adj:off" id="ab-adj-off" title="모든 부대를 직접 지휘합니다">${adjL('직접 지휘로','직접')}</button>`;}
+  if(N2.auto){const I=N2.intent;const og=typeof orgOn==='function'&&orgOn(n);
+    // 목표는 아래 편성 칩(전체·중대)을 고르고 지도를 탭해서 준다. 여기엔 상태와 설정(⚙)만
+    div.innerHTML=`<b>부관 지휘</b><span class="adj-i">${I?`주공: ${adjDesc(I)}`:og?'중대를 고르고 지도를 탭하면 그곳을 공격합니다':`주공: ${adjDesc(I)}`}</span>`+
+      `<button class="btn sm" data-act="adj:more" id="ab-adj-more" aria-expanded="${!!UI.adjMore}" title="자동 증원·직접 지휘">⚙</button>`+
+      (UI.adjMore||!og?(og?'':`<button class="btn sm${I&&I.k==='atk'?' primary':''}" data-act="adj:atk" id="ab-adj-atk">${adjL('공격 목표','공격')}</button><button class="btn sm${I&&I.k==='def'?' primary':''}" data-act="adj:def" id="ab-adj-def">${adjL('방어 지점','방어')}</button>`)+
+      (I?`<button class="btn sm" data-act="adj:free-all" id="ab-adj-any" title="부관이 가까운 거점부터 알아서 잡습니다">${adjL('목표 지우기','지우기')}</button>`:'')+
+      (UI.adjMore?`<button class="btn sm" data-act="adj:buy" id="ab-adj-buy" aria-pressed="${N2.autoBuy!==false}" title="부관이 지휘점수로 부대를 사서 보냅니다">${adjL('자동 증원: ','증원 ')}${N2.autoBuy!==false?'켬':'끔'}</button>`+
+      `<button class="btn sm" data-act="adj:off" id="ab-adj-off" title="모든 부대를 직접 지휘합니다">${adjL('직접 지휘로','직접')}</button>`:''):'');}
   else div.innerHTML=`<span class="adj-i">어렵다면 부관에게 맡기세요: 목표만 정하면 이동·엄폐·지원·증원을 AI가 합니다</span><button class="btn sm primary" data-act="adj:on" id="ab-adj-on">부관에게 맡기기</button>`;
   el.prepend(div);
   if(N2.auto){const sp=el.querySelector(':scope>span');if(sp)sp.textContent=sp.textContent.replace('아군을 탭해 지휘','부대를 골라 직접 명령도 가능');}};}
@@ -10537,9 +11337,10 @@ if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e
   const a=b.dataset.act.slice(4),n=G.viewer,N2=G.nats[n];
   if(a==='atk'||a==='def'){clearSel();UI.pane=null;UI.phase='aim:'+a;render();return;}
   if(a==='cancel'){UI.phase=null;render();return;}
+  if(a==='more'){UI.adjMore=!UI.adjMore;render();return;}
   if(a==='free-all'){autoIntent(n,null);toast('부관 재량: 가까운 거점부터 잡습니다');render();return;}
   if(a==='buy'){N2.autoBuy=N2.autoBuy===false;toast(`자동 증원 ${N2.autoBuy?'켬':'끔'}`);render();return;}
-  if(a==='on'){autoSet(n,true);toast('부관이 지휘합니다. 공격 목표를 정해 주세요');render();return;}
+  if(a==='on'){autoSet(n,true);toast('부관이 지휘합니다 · 중대를 고르고 지도를 탭해 목표를 정하세요');render();return;}
   if(a==='off'){autoSet(n,false);toast('직접 지휘로 바꿨습니다');render();return;}
   if(a==='free'){const grp=[UI.sel,...(UI.group||[])].filter(u=>u&&G.units.includes(u)&&(N2.auto||SELF_RUN[u.type]));for(const u of grp){u.man=null;u.hold=false;}toast(N2.auto?`${grp.length}개 부대를 부관에게 돌려줌`:`${grp.length}개 지원 부대 자동 임무`);clearSel();render();return;}});
 /* 지도 탭: 목표 지정 중이면 목표로 */
@@ -10554,7 +11355,7 @@ if(typeof occLabels==='function'){const _ol=occLabels;occLabels=function(want,vs
   const y=(typeof v3TopAt==='function'?v3TopAt(I.x,I.z):0)+.7;want.set('adj-int',{html:`<span>주공 · ${ADJ_K[I.k]}</span>`,cls:'v3c',col:'#ffd27a',p:[I.x,y,I.z]});};}
 if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){const h=_ut(u);return G&&u.nat===G.viewer&&u.man!=null&&autoOn(u.nat)?h+'<u class="man">직접</u>':h;};}
 /* 판을 시작하면 한 번 안내 */
-{const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(G&&!G._adjHint&&adjCan()&&G.nats[G.viewer].auto&&$('#setup').hidden){G._adjHint=1;toast('부관이 부대를 지휘합니다 · 아래 [공격 목표]로 주공 방향을 정하세요');}}catch(e){}return r;};}
+{const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(G&&!G._adjHint&&adjCan()&&G.nats[G.viewer].auto&&$('#setup').hidden){G._adjHint=1;toast('부관이 부대를 지휘합니다 · 아래 [1중대]를 고르고 지도를 탭하면 그곳을 공격합니다');}}catch(e){}return r;};}
 /* 지원 부대 정보: 자동 임무 중인지 */
 {const _ui=uInfo;uInfo=function(u){let s=_ui(u);if(G&&u.nat===G.viewer&&!isAI(u.nat)&&SELF_RUN[u.type])s+=selfRun(u)?' · 자동 임무':' · 직접 명령 중';return s;};}
 
@@ -10599,12 +11400,13 @@ function orgChip(n,c){const us=orgCoUnits(n,c);const I=c.intent;const rc=G.nats[
     const ref=UI.org&&orgRefUnits(n,UI.org).length?UI.org:null;
     if(ref&&ref.k==='hq'){const T={};for(const u of g)T[UT[u.type].n]=(T[UT[u.type].n]||0)+1;
       div.innerHTML=`<b>본부</b><span class="adj-i">지원 부대 ${g.length}개 · 알아서 일합니다 (${Object.entries(T).map(([k,v])=>`${k} ${v}`).join(', ')})</span>`;}
-    else if(ref){const o=ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);const c=ref.k==='co'?o:orgCo(n,o.co);const P=c?orgCoPqs(n,c):[];
-      let h=`<b>${o.name}</b><span class="adj-i">${ref.k==='co'?`${P.length}개 소대 · `:''}${g.length}개 부대 · ${orgIDesc(n,o.intent,ref.k==='pq'?o:null)}</span>`;
-      h+=`<button class="btn sm${o.intent&&o.intent.k==='atk'?' primary':''}" data-act="org:atk" id="ab-org-atk" title="${o.name}이 그쪽을 공격합니다">${adjL('공격 목표','공격')}</button>`;
-      h+=`<button class="btn sm${o.intent&&o.intent.k==='def'?' primary':''}" data-act="org:def" id="ab-org-def" title="${o.name}이 그 둘레를 지킵니다">${adjL('방어 지점','방어')}</button>`;
-      if(o.intent)h+=`<button class="btn sm" data-act="org:clr" id="ab-org-clr" title="${autoOn(n)?'위 단위(중대·전체 주공) 목표를 따릅니다':'임무를 풉니다'}">${adjL('목표 지우기','지우기')}</button>`;
-      if(c)h+=`<button class="btn sm" data-act="org:reinf" id="ab-org-reinf" aria-pressed="${N2.reinfCo===c.id}" title="새로 오는 증원 부대가 ${c.name}으로 갑니다">${N2.reinfCo===c.id?'★ 증원 받는 중':adjL(`증원은 ${c.name}로`,'증원 받기')}</button>`;
+    else if(ref){const all=ref.k==='all';const o=all?null:ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);const c=all?null:ref.k==='co'?o:orgCo(n,o.co);const P=c?orgCoPqs(n,c):[];
+      const I=all?(N2.intent||null):o.intent;const nm=all?'전체':o.name;const K=UI.orgK==='def'?'def':'atk';
+      const anyI=all?!!N2.intent||O.co.some(q=>q.intent)||O.pq.some(q=>q.intent):!!I;
+      let h=`<b>${nm}</b><span class="adj-i">${g.length}개 부대 · ${all?(I?adjDesc(I):autoOn(n)?'부관 재량':'목표 없음'):orgIDesc(n,I,ref.k==='pq'?o:null)} · <b>지도를 탭하면 ${ADJ_K[K]}</b></span>`;
+      h+=`<button class="btn sm" data-act="org:k" id="ab-org-k" title="지도를 탭했을 때 공격 목표로 할지 방어 지점으로 할지">${K==='def'?'방어 → 공격으로':'공격 → 방어로'}</button>`;
+      if(anyI)h+=`<button class="btn sm" data-act="org:clr" id="ab-org-clr" title="${autoOn(n)?'목표를 지우면 위 단위 목표나 부관 재량을 따릅니다':'임무를 풉니다'}">${adjL('목표 지우기','지우기')}</button>`;
+      if(c)h+=`<button class="btn sm" data-act="org:reinf" id="ab-org-reinf" aria-pressed="${N2.reinfCo===c.id}" title="새로 오는 증원 부대가 ${c.name}으로 갑니다">${N2.reinfCo===c.id?'★ 증원 받는 중':adjL('증원 받기','증원 받기')}</button>`;
       if(ref.k==='co'&&P.length>1)for(const p of P)h+=`<button class="btn sm" data-act="org:pq:${p.id}" id="ab-org-pq-${p.sh}">${p.no}소대</button>`;
       if(ref.k==='pq'&&c)h+=`<button class="btn sm" data-act="org:co:${c.id}" id="ab-org-up">${adjL(`${c.name} 전체`,c.name)}</button>`;
       div.innerHTML=h;}
@@ -10619,7 +11421,7 @@ function orgChip(n,c){const us=orgCoUnits(n,c);const I=c.intent;const rc=G.nats[
     el.prepend(div);return;}
   if(UI.pane||UI.phase==='buy'||UI.phase==='sup'||!O.co.length&&!orgHQUnits(n).length)return;
   const hq=orgHQUnits(n).length;
-  div.innerHTML=`<span class="adj-i adj-l">편성</span>`+O.co.map(c=>orgChip(n,c)).join('')+(hq?`<button class="btn sm oc" data-act="org:hq" id="ab-org-hq" title="지원 부대(알아서 일함)"><b>본부</b><em>${hq}</em></button>`:'');
+  div.innerHTML=(O.co.length>1?`<button class="btn sm oc" data-act="org:all" id="ab-org-all" title="전투 부대 전체"><b>전체</b>${N2.intent?`<small>${ADJ_K[N2.intent.k]}${N2.intent.obj?' '+N2.intent.obj:''}</small>`:''}</button>`:'')+O.co.map(c=>orgChip(n,c)).join('')+(hq?`<button class="btn sm oc" data-act="org:hq" id="ab-org-hq" title="지원 부대(알아서 일함)"><b>본부</b><em>${hq}</em></button>`:'');
   const a=el.querySelector('.adj-row');if(a)a.after(div);else el.prepend(div);};}
 if(typeof document!=='undefined'){
   document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b||b.disabled||!G||!orgCan())return;const act=b.dataset.act;const n=G.viewer;
@@ -10628,9 +11430,11 @@ if(typeof document!=='undefined'){
     if(a.startsWith('co:')){orgSelect({k:'co',id:+a.slice(3)});return;}
     if(a.startsWith('pq:')){orgSelect({k:'pq',id:+a.slice(3)});return;}
     if(a==='hq'){orgSelect({k:'hq'});return;}
+    if(a==='all'){orgSelect({k:'all'});return;}
+    if(a==='k'){UI.orgK=UI.orgK==='def'?'atk':'def';render();return;}
     const g=orgGrp();
     if(a==='atk'||a==='def'){if(!UI.org)return;UI.aimOrg=UI.org;UI.phase='aim:'+a;render();return;}
-    if(a==='clr'){if(!UI.org)return;orgAim(n,UI.org,null);toast(`${orgRefName(n,UI.org)} 목표 지움`);render();return;}
+    if(a==='clr'){if(!UI.org)return;if(UI.org.k==='all'){if(autoOn(n))autoIntent(n,null);else{orgClearIntents(n);const us=orgRefUnits(n,UI.org);if(us.length)radioSend(n,us,'mis',['off']);}}else orgAim(n,UI.org,null);toast(`${orgRefName(n,UI.org)} 목표 지움`);render();return;}
     if(a==='reinf'){const o=UI.org&&(UI.org.k==='co'?orgCo(n,UI.org.id):orgCo(n,orgPq(n,UI.org.id)?.co));if(!o)return;const N2=G.nats[n];
       N2.reinfCo=N2.reinfCo===o.id?null:o.id;toast(N2.reinfCo!=null?`새 증원 부대는 ${o.name}로 갑니다`:'증원은 가장 작은 중대부터 채웁니다');
       if(N2.reinfCo!=null&&!autoOn(n)){UI.sheet=true;UI.tab='cmd';}render();return;}
@@ -10646,6 +11450,15 @@ if(typeof document!=='undefined'){
 {const _aa=adjAim;adjAim=function(x,z){const ref=UI.aimOrg;if(!ref)return _aa(x,z);const n=G.viewer;const k=UI.phase==='aim:def'?'def':'atk';UI.aimOrg=null;UI.phase=null;
   const I=orgAim(n,ref,k,x,z);if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#9fd3ff');if(typeof sndRadio==='function')sndRadio('ack');const m=`${orgRefName(n,ref)}: ${adjDesc(I)}`;toast(m);L(m);if(typeof scnAfterAct==='function')scnAfterAct();}
   orgSelect(ref);};}
+/* 중대·소대·전체를 고른 채 지도를 탭하면 그곳이 목표(공격 또는 방어). 아군을 탭하면 그 부대를 고른다 */
+const orgAimable=()=>UI.org&&UI.org.k!=='hq'&&(!UI.phase||UI.phase==='select')&&orgRefUnits(G.viewer,UI.org).length>0;
+function orgAimAt(x,z){const ref=UI.org;const n=G.viewer;const k=UI.orgK==='def'?'def':'atk';const I=orgAim(n,ref,k,x,z);
+  if(I){if(typeof v3Ping==='function')v3Ping(I.x,I.z,'#9fd3ff');if(typeof sndRadio==='function')sndRadio('ack');const m=`${orgRefName(n,ref)}: ${adjDesc(I)}`;toast(m);L(m);if(typeof scnAfterAct==='function')scnAfterAct();}
+  orgSelect(ref);}
+{const _tap=tap;tap=function(k){if(G&&!G.over&&!G.boot&&orgCan()&&orgAimable()){const pid=typeof V3!=='undefined'?V3.pickId:null;const u0=pid!=null?G.units.find(z=>z.id===pid):null;
+    if(!(u0&&u0.nat===G.viewer)){const vis=!G.fog||!u0||seen(u0,G.viewer);const pt=u0&&vis?[u0.x,u0.z]:(typeof V3!=='undefined'&&V3.pickPt)||[kc(k)+.5,kr(k)+.5];orgAimAt(pt[0],pt[1]);return;}}
+  return _tap(k);};}
+if(typeof mmPick==='function'){const _mp=mmPick;mmPick=function(x,z,first){if(G&&orgCan()&&orgAimable()){if(first)orgAimAt(x,z);return false;}return _mp.apply(this,arguments);};}
 /* 추가 선택: 아군을 탭하면 넣고 빼기 */
 const orgAdding=()=>(UI.addSel||UI.shift)&&UI.sel&&G.units.includes(UI.sel)&&(!UI.phase||UI.phase==='select');
 {const _tap=tap;tap=function(k){if(G&&!G.over&&orgAdding()){const pid=typeof V3!=='undefined'?V3.pickId:null;const u=pid!=null?G.units.find(z=>z.id===pid&&z.nat===G.viewer):null;if(u){orgToggle(u);return;}}return _tap(k);};}
@@ -10878,6 +11691,46 @@ function genSpec(site,by){if(typeof document==='undefined')return;
 if(typeof v3UnitTag==='function'){const _ut=v3UnitTag;v3UnitTag=function(u){let h=_ut(u);
   if(u.type==='amb'&&typeof genOn==='function'&&genOn())h+=genProtUnit(u)?'<em title="제네바 협약 보호">✚ 보호</em>':'<em title="보호를 잃음">보호 해제</em>';return h;};}
 
+/* ---- 08w2-simple.js ---- */
+/* ===================== SIMPLE: 하단 바 줄이기 =====================
+   "조작법 간편화가 필요해". 버튼이 너무 많아서 자주 쓰는 것만 보이고 나머지는 [⋯]에 접는다.
+   - 기본 흐름: 아래 편성 칩(전체·1중대·…)을 고르고 지도를 탭하면 그곳이 목표(08p-org). 부대 하나를 고르고 땅을 탭하면 이동.
+   - 부대를 골랐을 때 늘 보이는 것: 그 자리에서 바로 쓸 수 있는 것(돌입·하차·옥상·폭약 터뜨리기·보급 버튼·부관에게 돌려주기),
+     [소대](그 부대의 소대 고르기), [정지], [✕](선택 해제). 켜져 있는 버튼(고수 등)도 보인다.
+     나머지(고수·축성·임무·건물 사격·벽 뚫기·폭약·같은 병종·추가 선택·새 소대/중대로)는 [⋯]를 눌러 편다.
+   - 중대·전체를 골랐을 때는 첫 부대의 개별 버튼을 숨기고 중대 줄만 보인다([⋯]로 펼 수 있음).
+   - 아무것도 안 골랐을 때 [전체 선택]은 편성 칩(전체)이 대신한다.
+   - 무엇을 고르든 메뉴 단계(축성·임무·폭약 자리 고르기 등) 중에는 다 보인다. */
+if(typeof document!=='undefined'&&!document.getElementById('simple-css')){const st=document.createElement('style');st.id='simple-css';
+  st.textContent=`#actbar .sx-h{display:none!important}
+#actbar.sx-org>b,#actbar.sx-org>span{display:none}
+@media (max-width:760px){#actbar>span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}}`;
+  document.head.appendChild(st);}
+const SX_KEEP=/^ab-(clear|dis|floor|adj-free|ug-fire|ug-det|lg-|stop|cancel|org-mypq|msn-ok|msn-no|sx-more)/;
+{const _s=select;select=function(u){UI.abMore=false;return _s.apply(this,arguments);};}
+{const _c=clearSel;clearSel=function(){UI.abMore=false;return _c.apply(this,arguments);};}
+{const _ra=renderActbar;renderActbar=function(){const r=_ra.apply(this,arguments);const el=$('#actbar');if(!el||!G||G.over)return r;
+  try{el.classList.remove('sx-org');
+    const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;const n=G.viewer;
+    if(!s){if(typeof orgOn==='function'&&orgOn(n)&&el.querySelector('.org-row')){const a=el.querySelector('#ab-all');if(a)a.remove();}return r;}
+    const cancel=el.querySelector('#ab-cancel');if(cancel){cancel.textContent='✕';cancel.title='선택 해제';cancel.setAttribute('aria-label','선택 해제');}
+    if(UI.phase&&UI.phase!=='select')return r;                      // 메뉴 단계: 다 보인다
+    const org=!!(UI.org&&typeof orgRefUnits==='function'&&orgRefUnits(n,UI.org).length);
+    const ab=el.querySelector(':scope>.ab');if(!ab)return r;
+    if(org)el.classList.add('sx-org');
+    // 선택 줄(같은 병종·소대·중대·추가 선택·새로 묶기)은 접고 [소대]만 아래로 옮긴다
+    const row=el.querySelector('.org-row');const selRow=row&&!org?row:null;
+    const pq=selRow&&selRow.querySelector('#ab-org-mypq');
+    let hidden=0;
+    if(!UI.abMore){
+      if(selRow){if(pq){pq.textContent='소대';ab.prepend(pq);}if(UI.addSel){const ad=selRow.querySelector('#ab-org-add');if(ad)ab.prepend(ad);}selRow.classList.add('sx-h');hidden++;}
+      for(const b of ab.querySelectorAll('button')){if(SX_KEEP.test(b.id||'')&&!(org&&!/^ab-(cancel|msn-)/.test(b.id)))continue;if(b.classList.contains('primary')||b.getAttribute('aria-pressed')==='true')continue;b.classList.add('sx-h');hidden++;}}
+    if(hidden||UI.abMore){const m=document.createElement('button');m.className='btn sm';m.dataset.act='sx:more';m.id='ab-sx-more';m.setAttribute('aria-expanded',UI.abMore?'true':'false');
+      m.title=UI.abMore?'접기':'고수·축성·임무·같은 병종 고르기·새로 묶기 등';m.textContent=UI.abMore?'접기':'⋯';const c=ab.querySelector('#ab-cancel');if(c)ab.insertBefore(m,c);else ab.append(m);}
+  }catch(e){}
+  return r;};}
+if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e.target.closest('[data-act="sx:more"]');if(!b||!G)return;UI.abMore=!UI.abMore;render();});
+
 /* ---- 08x-polish.js ---- */
 /* ===================== POLISH UI: 하단 바를 바뀔 때만 다시 그리기 =====================
    하단 바는 0.25초마다 새로 그려져서, 누르는 순간 버튼이 바뀌면 클릭이 빠졌다.
@@ -11046,8 +11899,8 @@ function scnObjective(){if(!G||!G.scn)return null;const n=0;if(G.camp&&typeof ca
       ['4/8 점령','깃발과 빛기둥이 있는 거점에 소총분대를 들여보내 점령하세요. 거점마다 30초마다 승점과 지휘점수가 들어옵니다.'],
       ['5/8 증원','하단 바의 "증원·지원"에서 부대를 골라 집결지(초록 칸)에 배치해 보세요. 보급 트럭·구급차·구난차는 배치만 하면 탄약 보급·부상자 후송·견인을 알아서 합니다.'],
       ['6/8 부관','부대마다 명령하기 번거로우면 부관(AI)에게 맡기세요. 아무 부대도 고르지 않은 상태에서 하단의 [부관에게 맡기기]를 누르세요.'],
-      ['7/8 목표','부대는 저절로 소대·중대로 묶입니다. [공격 목표]를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요(전체). 하단 [1중대]를 누르면 그 중대·소대에만 따로 목표를 줄 수 있습니다. 이동·엄폐·화력 지원은 부관이 합니다.'],
-      ['8/8 직접 명령','부관이 지휘하는 중에도 부대를 골라 명령하면 그 부대만 직접 움직입니다(\'직접\' 표시). 일을 마치고 45초 뒤, 또는 [부관에게 돌려주기]로 다시 부관이 맡습니다. 중대를 골라 [증원 받기]를 누르면 새로 오는 부대가 그 중대로 갑니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
+      ['7/8 목표','부대는 저절로 소대·중대로 묶입니다. 아래 [1중대]를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요. 그곳이 중대의 공격 목표가 되고, 이동·엄폐·화력 지원은 부관이 합니다. [공격 → 방어로]를 누른 뒤 탭하면 지킬 곳이 됩니다.'],
+      ['8/8 직접 명령','부대 하나를 골라 땅을 탭하면 그 부대만 직접 움직입니다(\'직접\' 표시, 45초 뒤나 [부관에게 돌려주기]로 다시 부관이 맡음). 고수·축성 같은 드문 명령은 [⋯]에 있습니다. 중대를 골라 [증원 받기]를 누르면 새로 오는 부대가 그 중대로 갑니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
     const i=Math.min(G.tut||0,7);return {t:S[i][0],m:S[i][1]};}
   if(G.scn==='assault')return {t:'도심 돌파',m:`거점 ${objCount(n)}/5 동시 확보 · 남은 시간 ${fmtT(16*ROUND_S-G.time)}`};
   if(G.scn==='hold')return {t:'최후 방어',m:`거점 ${objCount(n)}곳 유지 중 (3곳 이상) · 남은 시간 ${fmtT(14*ROUND_S-G.time)}`};
