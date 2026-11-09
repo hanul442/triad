@@ -25,6 +25,8 @@ const aiRun=n=>G.nats[n].ctrl==='ai'||!!G.nats[n].auto;
    보급 트럭·구난차·구급차: 탄약 보급·견인·수리·부상자 후송 / 박격포·자주포·다연장: 사거리 끝 안전한 자리로 옮겨 쏨 /
    저격수: 높은 곳·적과 5칸 거리 / 정찰드론: 적과 거점 쪽을 살핌 / 드론팀·FPV: 자리 잡고 자폭드론 운용 / 대공·대공포·전자전: 아군 곁을 따라감.
    플레이어가 직접 명령하면 그 일을 마칠 때까지(그 뒤 45초, 사수 명령이면 풀 때까지)는 손대지 않는다(u.man). */
+/* 대공 병종(요격·격추를 하는 쪽) */
+const AA_T={aa:1,zu:1,spaa:1};
 const SELF_RUN={sup:1,rec:1,amb:1,mortar:1,spg:1,mlrs:1,sniper:1,drone:1,dteam:1,fpv:1,aa:1,zu:1,ew:1};
 const selfRun=u=>aiRun(u.nat)||(!!SELF_RUN[u.type]&&!u.hold&&!(u.man!=null&&typeof autoManual==='function'&&autoManual(u)));
 const hostile=(a,b)=>a!==b;

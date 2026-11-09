@@ -19,6 +19,10 @@ function wrvIndex(){const g=V3.G&&V3.G.world;if(!g)return null;const T=V3.T;
   for(const o of g.children){if(!o.isInstancedMesh)continue;const isT=treeGeo.has(o.geometry)||trunkMat.has(o.material);const isP=!isT&&propGeo.has(o.geometry);if(!isT&&!isP)continue;
     const m0=o.instanceMatrix.array.slice(0,o.count*16);const c0=o.instanceColor?o.instanceColor.array.slice(0,o.count*3):null;
     (isT?trees:props).push({o,m0,c0,own:null});}
+  // 가로수 줄기(07w 거리 장식): 다른 기둥과 한 메시라 색으로 골라낸다
+  {const tc=new T.Color('#4a3d30');for(const o of g.children){if(!o.isInstancedMesh||!o.instanceColor||trees.some(M=>M.o===o)||props.some(M=>M.o===o))continue;const C=o.instanceColor.array,idx=[];
+    for(let i=0;i<o.count;i++)if(Math.abs(C[i*3]-tc.r)<.004&&Math.abs(C[i*3+1]-tc.g)<.004&&Math.abs(C[i*3+2]-tc.b)<.004)idx.push(i);
+    if(idx.length)trees.push({o,m0:o.instanceMatrix.array.slice(0,o.count*16),c0:null,own:null,idx});}}
   // 소품 인스턴스 → 가장 가까운 소품
   const P=G.props||[];const grid=new Map();P.forEach((p,i)=>{const k=Math.floor(p.z)*N+Math.floor(p.x);let a=grid.get(k);if(!a)grid.set(k,a=[]);a.push(i);});
   for(const M of props){const A=M.m0,n=M.o.count;M.own=new Int32Array(n).fill(-1);
@@ -34,8 +38,8 @@ function wrvHide(M,i){const S=WRV.meshes.tmp;S.m.makeScale(0,0,0);M.o.setMatrixA
 /* 쓰러진 나무 */
 function wrvTrees(){const W=WRV.meshes;const Z=G.fellZ||[];const zg=new Map();
   for(const f of Z){for(let a=Math.floor(f.z-f.r);a<=Math.floor(f.z+f.r);a++)for(let b=Math.floor(f.x-f.r);b<=Math.floor(f.x+f.r);b++){const k=a*N+b;let L=zg.get(k);if(!L)zg.set(k,L=[]);L.push(f);}}
-  for(const M of W.trees){const A=M.m0,n=M.o.count;let ch=false;
-    for(let i=0;i<n;i++){const x=A[i*16+12],z=A[i*16+14];const L=zg.get(Math.floor(z)*N+Math.floor(x));let f=null;
+  for(const M of W.trees){const A=M.m0,n=M.o.count;let ch=false;const IX=M.idx;
+    for(let q=0;q<(IX?IX.length:n);q++){const i=IX?IX[q]:q;const x=A[i*16+12],z=A[i*16+14];const L=zg.get(Math.floor(z)*N+Math.floor(x));let f=null;
       if(L)for(const q of L){const d=Math.hypot(q.x-x,q.z-z);if(d>q.r)continue;const h=wrvHash(Math.round(x*997),Math.round(z*991));if(d<q.r*.6||h<.65){f=q;break;}}
       const was=M.o.userData.wf&&M.o.userData.wf[i];
       if(!f){if(was){M.o.setMatrixAt(i,W.tmp.m.fromArray(A,i*16));M.o.userData.wf[i]=0;ch=true;}continue;}

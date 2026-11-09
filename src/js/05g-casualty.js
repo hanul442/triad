@@ -65,8 +65,8 @@ function casPick(u,kind,by,o,M){const ex=kind==='blast'||kind==='frag'||kind==='
   let best=null,bs=-1e9,bc=0;
   for(const m of L){let cov=.4,s;
     if(!ex){const t=tileAt(m.x,m.z);if(t&&t.t!=='bldg'&&objs)cov=Math.max(TT[t.t].cov||0,dirCoverAt(m.x,m.z,ux,uz,'inf',u,objs).cov);
-      s=Math.random()*.7-cov+(m.spd>.05?.25:0)-(m.pr>0?.15:0)-(m.down?.3:0);}
-    else if(o&&o.x!=null){const d=Math.hypot(m.x-o.x,m.z-o.z);s=Math.random()*.6-d/Math.max(.3,o.rad||.4)-(m.pr>0?.15:0);}
+      s=Math.random()*.7-cov+(m.spd>.05?.25:0)-(m.pr>0||m.lay?.15:0)-(m.down?.3:0);}
+    else if(o&&o.x!=null){const d=Math.hypot(m.x-o.x,m.z-o.z);s=Math.random()*.6-d/Math.max(.3,o.rad||.4)-(m.pr>0||m.lay?.15:0);}
     else s=Math.random();
     if(s>bs){bs=s;best=m;bc=cov;}}
   return {m:best,cov:bc};}

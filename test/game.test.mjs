@@ -64,7 +64,9 @@ test('건물은 시야를 막고, 더 높은 곳에서는 넘겨 본다', () => 
   assert.equal(T.los(3, 2, .5, 3, 8, .5), true, '옆 줄은 트임');
   bldg(G, 5, 2, 6); T.bump();
   assert.equal(T.los(5, 2, 6.3, 5, 8, .5), true, '6층 건물 옥상에서는 3층 건물 너머가 보임');
-  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), false, '건물 한가운데(창에서 먼 곳)에서는 밖이 안 보임');
+  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), true, '건물 안에서도 바깥 벽 창으로 내다본다(병사들이 창가로 붙는다)');
+  bldg(G, 5, 1, 6); bldg(G, 5, 3, 6); for (const c of [1, 2, 3]) G.map[5][c].blk = 9; T.bump();
+  assert.equal(T.los(5, 2, 5.5, 5, 8, .5), false, '양옆이 같은 건물에 붙은 안쪽 칸에서는 그쪽 창이 없어 안 보임');
 });
 
 test('엄폐: 건물 안 보병은 피해를 덜 받고, 폭발물은 엄폐를 절반만 받는다', () => {
@@ -73,7 +75,7 @@ test('엄폐: 건물 안 보병은 피해를 덜 받고, 폭발물은 엄폐를 
   const open = T.calcDmg(a, d, false);
   bldg(G, 5, 4, 2); T.bump();
   const cov = T.calcDmg(a, d, false);
-  assert.ok(Math.abs(cov - open * 0.6) < 1e-9, `건물 엄폐 40% (${open} → ${cov})`);
+  assert.ok(Math.abs(cov - open * 0.45) < 1e-9, `건물(창가) 엄폐 55% (${open} → ${cov})`);
   const at = T.mkUnit(0, 'tank', 6, 2);
   assert.ok(T.calcDmg(at, d, false) > T.UT.tank.atk.inf * 0.6 * 0.99 * (0.4 + 0.6), '전차는 건물 엄폐 절반');
 });
@@ -172,7 +174,7 @@ test('1층에 막 들어온 보병은 낮게 보고, 위층에 오르면 건물 
   assert.ok(T.canHit(u, e), '4층 창가에서는 넘겨 쏜다');
 });
 
-test('벽 너머로는 못 쏜다: 건물 안에서는 바깥 벽 창가에서만 쏜다', () => {
+test('벽 너머로는 못 쏜다: 건물 안에서는 바깥 벽 창으로만 쏜다', () => {
   const T = loadGame(); const G = setup(T);
   for (const c of [4, 5, 6]) { bldg(G, 5, c, 2); G.map[5][c].blk = 1; } T.bump();
   const e = T.mkUnit(1, 'rifle', 5, 9); e.x = 9.5; e.z = 5.5;
@@ -180,10 +182,9 @@ test('벽 너머로는 못 쏜다: 건물 안에서는 바깥 벽 창가에서�
   assert.ok(!T.canHit(u, e), '같은 블록의 다른 칸 벽 너머는 못 쏜다');
   u.x = 4.5; u.z = 5.2; assert.ok(!T.canHit(u, e), '건물 안쪽 칸에서는 동쪽 적을 못 본다');
   const v = T.mkUnit(0, 'rifle', 5, 6); v.fl = 0; v.flK = T.key(5, 6); v.x = 6.5; v.z = 5.5; T.bump();
-  assert.ok(!T.canHit(v, e), '방 한가운데에서는 못 쏜다');
-  v.x = 6.8; T.bump(); assert.ok(T.canHit(v, e), '바깥 벽 창가에서는 쏜다');
-  assert.ok(T.canHit(e, v), '창가의 적은 맞출 수 있다');
-  v.x = 6.5; T.bump(); assert.ok(!T.canHit(e, v), '방 안쪽 적은 밖에서 못 맞춘다');
+  assert.ok(T.canHit(v, e), '바깥 벽 쪽 방이면 병사들이 그 창가로 붙어 쏜다');
+  assert.ok(T.canHit(e, v), '창으로 쏘는 적은 밖에서도 맞출 수 있다');
+  v.x = 6.2; v.z = 5.5; T.bump(); assert.ok(T.canHit(v, e), '방 어디에 있든 바깥 벽 창으로 쏜다');
 });
 
 test('거점 점령과 지휘점수 수입', () => {
@@ -235,6 +236,7 @@ test('트인 곳에서는 칸을 따라 꺾지 않고 곧게 간다', () => {
 test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, 건물 안이 더 오래 버틴다', () => {
   const ttk = (inBldg) => { const T = loadGame(); const G = setup(T); G.maxR = 999; G.nats[1].ctrl = 'human'; // AI가 표적을 건물 밖으로 빼지 않게
     if (inBldg) bldg(G, 5, 5, 2);
+    T.__set('squadGL', () => {}); // 엄폐 비교만: 유탄(엄폐 뒤 적에게 쏨)은 뺀다
     T.mkUnit(0, 'rifle', 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); d.nocas = 1; T.bump();
     for (let i = 0; i < 300; i++) { d.cd = 99; d.supp = 0; T.rtTick(0.1); }
     return d.dmgIn || 0; };
@@ -644,7 +646,7 @@ test('공중전: FPV는 표적에 날아가 터지고, 전파 방해 안에서�
 
 test('공중전: 전투기 폭격은 몇 초 뒤에 떨어지고, 공격헬기는 시간이 끝나면 돌아간다', () => {
   const T = loadGame(); const G = setup(T);
-  G.nats[1].ctrl = 'human'; const e = T.mkUnit(1, 'rifle', 5, 5); const s = T.mkUnit(0, 'rifle', 5, 2); e.hold = s.hold = true;
+  G.nats[1].ctrl = 'human'; const e = T.mkUnit(1, 'rifle', 5, 5); const s = T.mkUnit(0, 'drone', 5, 2); e.hold = s.hold = true;   // 관측은 드론(아군 지상 부대가 100m 안이면 폭격이 거부된다: 06x-ff)
   G.nats[0].cp = 50; G.wx = 'clear'; assert.ok(T.support(0, 'air', 5, 5));
   assert.equal(e.hp, 10, '바로 떨어지지 않음'); T.rtRun(3.2); assert.ok(e.hp < 10 || !G.units.includes(e), '몇 초 뒤 폭격');
   const far = T.mkUnit(1, 'rifle', 15, 15); far.hold = true; G.over = null;
@@ -871,13 +873,15 @@ test('제병협동 AI: 적 무더기엔 포격·폭격을 부르고, 장갑차�
   const T = loadGame(); const G = setup(T); G.fog = false; G.time = 100;
   // 적 소총분대 셋이 한데 모여 있다 → 화력 지원
   for (const [r, c] of [[10, 20], [10, 21], [11, 20]]) T.mkUnit(1, 'rifle', r, c);
-  T.mkUnit(0, 'rifle', 10, 16); G.nats[0].cp = 30; T.bump();
+  T.mkUnit(0, 'rifle', 10, 10); G.nats[0].cp = 30; T.bump();   // 아군은 위험 거리(포병 100m) 밖
   const E = G.units.filter(u => u.nat === 1);
   assert.ok(T.__get('aiSupport')(0, E), '지원 호출'); assert.ok(G.nats[0].cp < 30);
   assert.ok(G.nats[0].supT > G.time, '재사용 대기');
-  // 장갑차 하차는 소총분대
+  // 장갑차 하차는 태운 소총분대(지휘점수를 쓰지 않는다). 빈 장갑차는 내릴 것이 없다
   G.nats[0].cp = 10; const v = T.mkUnit(0, 'ifv', 5, 3);
-  const r = T.__get('aiDismount')(v); assert.ok(r && r.type === 'rifle'); assert.equal(G.nats[0].cp, 10 - 3);
+  assert.equal(T.__get('aiDismount')(v), null);
+  const p = T.mkUnit(0, 'rifle', 5, 4); assert.ok(T.__get('fleetEmbark')(p, v));
+  const r = T.__get('aiDismount')(v); assert.ok(r === p && r.type === 'rifle'); assert.equal(G.nats[0].cp, 10); assert.ok(G.units.includes(p));
   // 부대 구성: 장갑차·전차가 하나도 없으면 가중치가 소총보다 크게 뛴다
   const cnt = t => G.units.filter(u => u.nat === 0 && u.type === t).length;
   const w = T.__get('aiArmsW')(0, [], cnt, 10);

@@ -1,7 +1,7 @@
 // 진지 구축 2(지뢰·벙커·건물 요새화·구호소), 의료(가까운 시설로 후송·치료 후 복귀·구급차), 특별 거점 기능
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGame, playAI } from './harness.mjs';
+import { loadGame, playAI, seedRandom } from './harness.mjs';
 
 const F = (T, n) => T.__get(n);
 function setup(T) {
@@ -141,7 +141,7 @@ test('남겨진 부상자: 구급차가 실어 가고, 적 지역에 남으면 �
 });
 
 test('구급차 안전: 적이 가까우면 물러나고 그 분대는 한동안 찾아가지 않는다', () => {
-  const T = loadGame(); const G = setup(T);
+  const T = loadGame(); seedRandom(T, 1); const G = setup(T);   // 주사위에 따라 main에서도 약 7%(40판 중 3판) 실패해 고정
   const s = T.mkUnit(0, 'rifle', 20, 20); run(T, .2); s.ws[4] = { s: 'hw', w: 'leg', b: 999, a: 1 }; F(T, 'casSync')(s, null);
   const a = T.mkUnit(0, 'amb', 20, 14); run(T, 2); assert.ok(a.mj && a.mj.id === s.id, '부상자 쪽으로 감');
   const e = T.mkUnit(1, 'rifle', 18, 16); e.x = a.x + 2; e.z = a.z; T.bump(); run(T, .3);
@@ -169,7 +169,7 @@ test('제네바 협약: AI는 구호소 둘레에 포격을 부르지 않고, �
   G.forts.push({ id: 900, k: 'aid', nat: 0, x: 15.5, z: 15.5, ry: 0, hp: 10, prog: 1 });
   G.nats[1].ctrl = 'ai'; G.nats[1].cp = 99;
   const can = T.canSupport;
-  T.mkUnit(1, 'rifle', 15, 19); T.bump();
+  T.mkUnit(1, 'rifle', 15, 27); T.bump();   // 자기 부대는 포병 위험 거리(100m ≈ 8칸) 밖
   G.geneva = 'off'; assert.equal(can(1, 'arty', 15, 15), true, '협약을 끄면 부름');
   G.geneva = 'all'; assert.equal(can(1, 'arty', 15, 15), false, '구호소 자리엔 안 부름');
   const g = T.mkUnit(0, 'rifle', 15, 16); g.x = 16; g.z = 15.6; g.firedT = G.time; run(T, .2);

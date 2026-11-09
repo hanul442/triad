@@ -60,8 +60,8 @@ function airRemove(u){G.units=G.units.filter(x=>x!==u);if(UI.sel===u)UI.sel=null
 function jetRun(n,r,c){G.airq=G.airq||[];const j={kind:'jet',n,r,c,t:(G.time||0)+JET_T,id:UID++};G.airq.push(j);if(FXH.jet)FXH.jet(j);L(`${natName(n)} 전투기 폭격 진입`);return j;}
 function jetDrop(j){const {n,r,c}=j;
   // 목표 근처(7칸 안) 적 대공팀·대공포가 한 번씩 쏜다. 빠르고 높이 날아서 잘 맞지 않는다.
-  for(const e of G.units){if(e.nat===n||(e.type!=='aa'&&e.type!=='zu'))continue;if(Math.hypot(e.x-(c+.5),e.z-(r+.5))>7)continue;if(e.supp>.5)continue;
-    e.firedT=G.time;e.face=Math.atan2(r+.5-e.z,c+.5-e.x)*180/Math.PI;const p=e.type==='aa'?.3:.12;if(FXH.aaShot)FXH.aaShot(e,j);
+  for(const e of G.units){if(e.nat===n||!AA_T[e.type])continue;if(Math.hypot(e.x-(c+.5),e.z-(r+.5))>7)continue;if(e.supp>.5)continue;
+    e.firedT=G.time;e.face=Math.atan2(r+.5-e.z,c+.5-e.x)*180/Math.PI;const p=e.type==='aa'?.3:e.type==='spaa'?.2:.12;if(FXH.aaShot)FXH.aaShot(e,j);
     if(Math.random()<p){const a=Math.random()*6.283,d=1.5+Math.random()*2;const x=Math.min(N-.5,Math.max(.5,c+.5+Math.cos(a)*d)),z=Math.min(N-.5,Math.max(.5,r+.5+Math.sin(a)*d));
       L(`${natName(e.nat)} ${UT[e.type].n} 전투기 격추! 폭격 실패`);G.nats[e.nat].kills++;e.kills=(e.kills||0)+1;
       crashAt({x,z,t:G.time+1.6,big:1,nat:n,kind:'jet'});if(FXH.jetDown)FXH.jetDown(j,x,z);sfx('boom',1.2,x,z);bump();return;}}
@@ -129,9 +129,9 @@ function dteamTick(u,dt){if(u.dr==null){u.dr=4;u.dsT=0;u.lt=-99;u.rs=G.time;}
   if(!best)return;launchFpv(u,best);}
 function launchFpv(u,e){const f=mkUnit(u.nat,'fpv',u.r,u.c);f.x=u.x;f.z=u.z;f.op=u.id;f.tgt=e?e.id:null;f.air={born:G.time};u.dr--;u.lt=G.time;u.firedT=G.time;
   if(FXH.fpvLaunch)FXH.fpvLaunch(u,f);sfx('launch',.5,u.x,u.z);L(`${natName(u.nat)} 드론팀 FPV 이륙`);bump();return f;}
-/* 험비·장갑차에서 드론팀 하차 (차량마다 한 번, 지휘 3) */
+/* 험비에서 드론팀 하차(장갑차·보병전투차는 태운 분대를 내린다: 09e-fleet) (차량마다 한 번, 지휘 3) */
 const DISMOUNT_CP=3;
-function canDismount(v){return v&&(v.type==='hmv'||v.type==='ifv')&&!v.dis&&G.nats[v.nat].cp>=DISMOUNT_CP;}
+function canDismount(v){return v&&v.type==='hmv'&&!v.dis&&G.nats[v.nat].cp>=DISMOUNT_CP;}
 function dismount(v){if(!canDismount(v))return null;let spot=null,bd=9;
   for(let i=0;i<16;i++){const a=i/16*6.283;for(const R of [.45,.7,1]){const x=v.x+Math.cos(a)*R,z=v.z+Math.sin(a)*R;const t=tileAt(x,z);if(!t||t.t==='bldg'||t.t==='water')continue;if(R<bd){bd=R;spot=[x,z];}}}
   if(!spot)return null;G.nats[v.nat].cp-=DISMOUNT_CP;v.dis=1;const u=mkUnit(v.nat,'dteam',Math.floor(spot[1]),Math.floor(spot[0]));u.x=spot[0];u.z=spot[1];u.face=v.face;
@@ -158,6 +158,6 @@ function aiFpv(n,u,E){if(u.tgt!=null&&G.units.some(e=>e.id===u.tgt))return true;
   if(best){u.tgt=best.id;u.path=[];return true;}return false;}
 // 공격헬기: 적이 여럿 보이고 아군 헬기가 없을 때, 적이 가장 몰린 곳에
 function aiAirSup(n,E){const N2=G.nats[n];if(N2.cp<SUP.gunship.cost+2||WX[G.wx].noAir||E.length<3)return false;if(G.units.some(u=>u.nat===n&&u.type==='gunship'))return false;
-  const eAA=E.filter(e=>e.type==='aa'||e.type==='zu').length;if(eAA>=2&&Math.random()<.7)return false;
+  const eAA=E.filter(e=>AA_T[e.type]).length;if(eAA>=2&&Math.random()<.7)return false;
   let best=null,bs=0;for(const e of E){if(UT[e.type].fly)continue;let s=0;for(const o of E)if(Math.hypot(o.x-e.x,o.z-e.z)<3)s+=UT[o.type].cost;if(s>bs){bs=s;best=e;}}
   if(!best||bs<9)return false;return support(n,'gunship',best.r,best.c);}

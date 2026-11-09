@@ -102,9 +102,9 @@ function landNaval(C,M,S){const nv=M.naval;if(!nv||G.time<nv.t0||G.time<(S.navT|
   for(const e of G.units){if(e.nat===0||UT[e.type].fly||e.x>lim)continue;if(!vs.has(key(Math.floor(e.z),Math.floor(e.x)))||!safe(e.x,e.z))continue;
     const s=(typeof bunkerAt==='function'&&bunkerAt(e.x,e.z)?3:1)+({mg:1.5,at:1.2,tank:1.6,mortar:1.2,ifv:1,spg:1.4}[e.type]||.6)+Math.random();if(s>bs){bs=s;best=[e.x,e.z];}}
   for(const f of G.forts||[]){if(f.nat===0||(f.k!=='bunker'&&f.k!=='nest')||f.x>lim)continue;if(!vs.has(key(Math.floor(f.z),Math.floor(f.x)))||!safe(f.x,f.z))continue;
-    const s=(f.k==='bunker'?2.2:1.4)+Math.random();if(s>bs){bs=s;best=[f.x,f.z];}}
-  if(!best){S.navT=G.time+4;return;}S.navT=G.time+(pre?nv.preEvery:nv.every);const [tx,tz]=best;
-  for(let i=0;i<nv.n;i++){const s=shellLaunch({x0:-5,z0:tz+(i-nv.n/2)*.9,h0:3,tx:tx+(Math.random()-.5)*.6,tz:tz+(Math.random()-.5)*.6,n:0,src:null,type:'spg',pw:1.6,spread:.45,delay:.5+i*.7,T:2.6,ap:6});s.off=1;}
+    const s=(f.k==='bunker'?2.2:1.4)+Math.random();if(s>bs){bs=s;best=[f.x,f.z,1];}}
+  if(!best){S.navT=G.time+4;return;}S.navT=G.time+(pre?nv.preEvery:nv.every);const [tx,tz,fx]=best;const sp=fx?.3:.6;
+  for(let i=0;i<nv.n;i++){const s=shellLaunch({x0:-5,z0:tz+(i-nv.n/2)*.9,h0:3,tx:tx+(Math.random()-.5)*sp,tz:tz+(Math.random()-.5)*sp,n:0,src:null,type:'spg',pw:nv.pw||1.6,spread:fx?.25:.45,delay:.5+i*.7,T:2.6,ap:6});s.off=1;}
   if(typeof FXH.naval==='function')FXH.naval(tx,tz,nv.n);
   if(!S.navMsg){S.navMsg=1;campMsg(nv.msg||'구축함이 해안 가까이 들어와 함포 사격을 시작합니다');}}
 /* AI가 상륙 지점을 고른다(관전, 또는 부관 지휘에서 플레이어가 아직 직접 고르지 않았을 때).
@@ -137,6 +137,7 @@ function landTick(C,dt){const M=CAMP[C.id],S=C.st;C.boats=C.boats||[];
     if(shoot&&(b.st==='in'||b.st==='un')&&b.x>b.tx-10){foes=foes||landFoes();landFire(C,b,foes);}}
   C.boats=C.boats.filter(b=>!b.gone);
   landClearTick(dt);landNaval(C,M,S);
+  C._rsT=(C._rsT||0)+dt;if(C._rsT>=.5){C._rsT=0;landRush();}
   // 상륙정이 오는 중이거나 남은 상륙파가 있으면 '아군 전멸'로 끝내지 않는다
   if(C.boats.some(b=>b.st==='in'||b.st==='un')||(M.lw||[]).some(w=>!S.lw[w.t]))G.nats[0].emptyT=null;}
 
@@ -156,21 +157,24 @@ CAMP.omaha={no:1,op:'landing',land:1,n:'피의 오마하',kind:'해안 상륙',w
     '해변에서 절벽 위로 올라가는 길은 골짜기 출구 세 곳(D-1·E-1·F-1)뿐이고, 차량은 이 출구로만 해변을 벗어날 수 있습니다. 출구마다 벙커와 기관총 진지가 지키고, 길은 콘크리트 방벽으로 막혀 있습니다. 출구 두 곳을 열고 생로랑 마을을 점령하면 교두보가 섭니다.',
     '상륙파는 정해진 시각에 옵니다. 오른쪽 위 목표 창에서 다음 상륙파가 내릴 해변(도그·이지·폭스)을 고르세요. 증원을 사면 그 부대도 상륙정에 실려 같은 해변으로 옵니다. 부관 지휘(기본)라면 내린 부대는 알아서 목표로 나아갑니다.'],
   goals:['해변에 상륙하기','절벽 출구 두 곳 열기 (D-1·E-1·F-1 중)','생로랑 마을 점령'],
-  intel:'벙커 6곳(출구마다 둘)과 기관총 진지, 절벽 위 박격포가 해변을 쏩니다. 물가 앞 모래밭엔 대전차 고슴도치가 늘어서 있어 차량이 돌아가야 합니다. 마을엔 예비대와 전차가 있고, 5분쯤부터 내륙에서 반격이 옵니다. 상륙정은 해안 화기에 맞으면 다치거나 가라앉습니다. 해변에 연막을 치거나 적을 제압하면 덜 맞습니다. 1분 뒤부터 구축함이 보이는 진지를 함포로 칩니다.',
-  force:'1파: 소총분대 4 · 공병 2 · 전차 2 (해변 셋에 나눠서). 그 뒤 약 1~2분마다 상륙파 5개. 부대는 시대 장비 대신 이 게임의 현대 부대로 재현합니다.',
+  intel:'벙커 6곳(출구마다 둘)과 기관총 진지, 절벽 위 박격포가 해변을 쏩니다. 물가 앞 모래밭엔 대전차 고슴도치가 늘어서 있어 차량이 돌아가야 합니다. 마을엔 예비대와 전차가 있고, 5분쯤부터 내륙에서 작은 반격이 옵니다. 상륙정은 해안 화기에 맞으면 다치거나 가라앉습니다. 해변에 연막을 치거나 적을 제압하면 덜 맞습니다. 30초 뒤부터 구축함이 해안에 바짝 붙어 보이는 벙커·진지를 함포로 부숩니다. 해변에 멈추지 말고 절벽 밑까지 뛰어가세요.',
+  force:'1파: 소총분대 6 · 공병 3 · 기관총팀 · 전차 3 (해변 셋에 나눠서), 40초 뒤 2파 8개 부대. 그 뒤 1~2분마다 상륙파 7개가 정해진 시각에 옵니다(증원을 사지 않아도 이길 만큼). 부대는 시대 장비 대신 이 게임의 현대 부대로 재현합니다.',
   stars:['임무 성공','출구 세 곳 모두 열기','12분 안에 끝내기'],
-  naval:{t0:45,every:22,n:4,reach:12},after:landAfter,
-  lw:[{t:0,sec:'all',u:['rifle','eng','tank','rifle','eng','tank','rifle','rifle'],msg:'H시: 1파 상륙정이 해변으로 갑니다'},
-    {t:70,sec:'pick',u:['rifle','mg','at','rifle'],msg:'2파가 출발했습니다'},
-    {t:150,sec:'pick',u:['rifle','rifle','mortar','eng','tank'],msg:'3파가 출발했습니다'},
-    {t:250,sec:'pick',u:['rifle','mg','at','tank','sniper'],msg:'4파가 출발했습니다'},
-    {t:370,sec:'pick',u:['rifle','rifle','ifv','sup','amb'],msg:'5파가 출발했습니다: 보급·구급 차량'},
-    {t:500,sec:'pick',u:['tank','ifv','rifle','rifle','at'],msg:'6파가 출발했습니다'}],
-  waves:[{t:300,side:'e',u:['rifle','rifle','mg'],msg:'독일군 예비대가 내륙에서 다가옵니다'},
-    {t:470,side:'e',u:['tank','rifle','at']},
-    {t:640,side:'e',u:['ifv','rifle','rifle','mg'],msg:'독일군 기갑 반격'},
-    {t:820,side:'e',u:['tank','rifle','rifle']}],
-  income:n=>n===0?6:1};
+  // 실제 오마하: 첫날 3만 4천 명이 내렸고 해변을 지킨 독일군은 2천 명 안팎이었다. 해변을 연 것은 수와 끈질긴 상륙파, 그리고 해안에 바짝 붙은 구축함 포격이었다.
+  naval:{t0:30,every:14,n:4,reach:12,pw:3},after:landAfter,
+  lw:[{t:0,sec:'all',u:['rifle','eng','tank','rifle','eng','tank','rifle','eng','tank','rifle','rifle','mg','rifle'],msg:'H시: 1파 상륙정이 해변으로 갑니다'},
+    {t:40,sec:'all',u:['rifle','rifle','mg','at','rifle','eng','rifle','tank'],msg:'2파가 출발했습니다'},
+    {t:100,sec:'pick',u:['rifle','rifle','mortar','at','mg','rifle'],msg:'3파가 출발했습니다'},
+    {t:170,sec:'pick',u:['rifle','rifle','eng','tank','tank','rifle'],msg:'4파가 출발했습니다'},
+    {t:250,sec:'pick',u:['rifle','mg','at','rifle','sniper','rifle'],msg:'5파가 출발했습니다'},
+    {t:340,sec:'pick',u:['rifle','rifle','ifv','sup','amb'],msg:'6파가 출발했습니다: 보급·구급 차량'},
+    {t:430,sec:'pick',u:['tank','ifv','rifle','rifle','at','tank'],msg:'7파가 출발했습니다'},
+    {t:530,sec:'pick',u:['rifle','rifle','mg','tank','rifle'],msg:'8파가 출발했습니다'},
+    {t:650,sec:'pick',u:['rifle','rifle','ifv','tank'],msg:'9파가 출발했습니다'}],
+  waves:[{t:300,side:'e',u:['rifle','mg'],msg:'독일군 예비대가 내륙에서 다가옵니다'},
+    {t:520,side:'e',u:['rifle','at','rifle']},
+    {t:720,side:'e',u:['tank','rifle'],msg:'독일군 전차가 반격합니다'}],
+  income:n=>n===0?6:0};
 const OMAHA={SAND:10,BL:15,TOWN:18};
 const omahaDraws=()=>[9,campMid(),N-10];
 CAMP.omaha.setup=function(){const {SAND,BL,TOWN}=OMAHA;const D=omahaDraws();
@@ -179,7 +183,8 @@ CAMP.omaha.setup=function(){const {SAND,BL,TOWN}=OMAHA;const D=omahaDraws();
     let c=TOWN,k=0;while(inb(r,c)&&k++<10&&G.map[r][c].t!=='road'){campCell(r,c,{t:'road',ro:'h',rw:1});c++;}}
   landVillage(TOWN,c=>c<30?2:3,(x,c)=>x.f<=2?'house':'villa');
   G.props=(G.props||[]).filter(p=>p.x>=TOWN+.05);
-  const m=campMid();const town=campNear(m+3,TOWN+6,(r,c,x)=>x.t==='bldg'&&Math.abs(r-m)>1,9)||[m+3,TOWN+6];
+  const m=campMid();// 마을 거점은 건물 안이 아니라 마을 한가운데 길목(교차로): 건물 칸이면 보병이 문을 못 찾아 둘레에 몰려 있기만 하고 끝내 못 잡는 판이 나왔다
+  const town=campNear(m+3,TOWN+6,(r,c,x)=>(x.t==='road'||x.t==='plaza')&&Math.abs(r-m)>1&&[[0,1],[0,-1],[1,0],[-1,0]].some(([a,b])=>inb(r+a,c+b)&&G.map[r+a][c+b].t==='bldg'),9)||campNear(m+3,TOWN+6,(r,c,x)=>x.t==='bldg'&&Math.abs(r-m)>1,9)||[m+3,TOWN+6];
   campObjs([{r:D[0],c:BL+1,name:'D-1 출구 (비에르빌)',owner:1},{r:D[1],c:BL+1,name:'E-1 출구 (생로랑)',owner:1},{r:D[2],c:BL+1,name:'F-1 출구 (콜빌)',owner:1},{r:town[0],c:town[1],name:'생로랑 마을',owner:1}]);
   const C=G.camp;C.boats=[];C.shore=SAND;C.sec=1;
   C.secs=[landSecDef('도그 비치','북쪽 · D-1 출구 앞',1,D[0]+7),landSecDef('이지 비치','가운데 · E-1 출구 앞',D[0]+8,D[1]+8),landSecDef('폭스 비치','남쪽 · F-1 출구 앞',D[1]+9,N-2)];
@@ -227,21 +232,22 @@ CAMP.incheon={no:2,op:'landing',land:1,n:'크로마이트',kind:'조수 상륙',
     '저녁 만조가 오면 시가지 북쪽 레드 비치와 남쪽 블루 비치로 주력이 올라갑니다. 해안은 모래밭이 아니라 높은 안벽이라 사다리를 걸고 올라야 해서 내리는 데 시간이 걸립니다. 인천항 부두를 점령하면 물때와 상관없이 부두로 증원을 받을 수 있습니다. 응봉산 관측소와 서울로 가는 경인가도 입구를 점령하고 월미도를 지키면 작전 성공입니다.'],
   goals:['아침 만조: 월미도 점령','썰물 동안 월미도 지키기 (90초 넘게 빼앗기면 실패)','저녁 만조: 응봉산과 경인가도 입구 점령','(선택) 인천항 부두 점령: 언제든 부두로 증원'],
   intel:'월미도엔 벙커와 기관총 진지, 해안포 대신 대전차팀과 박격포가 있습니다. 둑길 끝은 콘크리트 방벽으로 막혀 있습니다. 안벽 위 기관총이 레드·블루 비치를 내려다보고, 응봉산엔 박격포가 있습니다. 썰물 때 북한군 증원과 전차가 항구로 내려옵니다. 처음 1분 동안 함포가 월미도를 두들기고, 그 뒤로도 보이는 해안 진지를 칩니다.',
-  force:'아침: 해병 소총분대 4 · 공병 · 기관총팀 · 전차 2, 이어서 2파. 저녁 만조: 레드·블루 비치에 상륙파 넷. 부대는 시대 장비 대신 이 게임의 현대 부대로 재현합니다.',
+  force:'아침: 해병 소총분대 5 · 공병 · 기관총팀 · 대전차팀 · 전차 2, 이어서 2파. 저녁 만조: 레드·블루 비치에 상륙파 다섯(증원을 사지 않아도 이길 만큼). 부대는 시대 장비 대신 이 게임의 현대 부대로 재현합니다.',
   stars:['임무 성공','인천항 부두 점령','월미도를 한 번도 빼앗기지 않기'],
   naval:{t0:2,every:25,n:4,reach:14,pre:70,preX:11,preEvery:7,msg:'상륙 전 함포 사격: 함포가 월미도를 두들깁니다'},after:landAfter,
-  lw:[{t:0,sec:2,u:['rifle','rifle','eng','tank','rifle','mg','tank','rifle'],msg:'H시: 해병 3대대가 월미도 그린 비치로 갑니다'},
-    {t:100,sec:2,u:['rifle','at','mortar','rifle'],msg:'2파가 그린 비치로 갑니다'},
-    {t:545,sec:0,u:['rifle','rifle','eng','mg','at','rifle'],msg:'저녁 만조: 해병 5연대가 레드 비치 안벽을 오릅니다'},
-    {t:550,sec:3,u:['rifle','rifle','tank','ifv','mg','eng'],msg:'해병 1연대가 블루 비치로 갑니다'},
+  // 실제 인천: 상륙 첫날 해병 1만 3천 명 대 인천 수비대 2천 명 남짓. 월미도는 한 대대가 45분 만에 빼앗았다.
+  lw:[{t:0,sec:2,u:['rifle','rifle','eng','tank','rifle','mg','tank','rifle','at','rifle'],msg:'H시: 해병 3대대가 월미도 그린 비치로 갑니다'},
+    {t:100,sec:2,u:['rifle','at','mortar','rifle','mg'],msg:'2파가 그린 비치로 갑니다'},
+    {t:545,sec:0,u:['rifle','rifle','eng','mg','at','rifle','rifle','mortar'],msg:'저녁 만조: 해병 5연대가 레드 비치 안벽을 오릅니다'},
+    {t:550,sec:3,u:['rifle','rifle','tank','ifv','mg','eng','rifle','tank'],msg:'해병 1연대가 블루 비치로 갑니다'},
     {t:660,sec:'pick',u:['tank','ifv','rifle','rifle','sup','amb'],msg:'다음 상륙파가 출발했습니다: 보급·구급 차량'},
-    {t:800,sec:'pick',u:['rifle','rifle','at','mortar','tank'],msg:'다음 상륙파가 출발했습니다'}],
-  waves:[{t:300,side:'e',u:['rifle','rifle','mg'],msg:'썰물: 북한군 증원이 항구로 내려옵니다'},
-    {t:440,side:'e',u:['tank','rifle','at']},
-    {t:640,side:'e',u:['tank','rifle','mg','rifle'],msg:'북한군 전차가 시가지로 들어옵니다'},
-    {t:860,side:'e',u:['ifv','rifle','rifle','at']},
-    {t:1000,side:'e',u:['tank','rifle','rifle']}],
-  income:n=>n===0?5:1};
+    {t:780,sec:'pick',u:['rifle','rifle','at','mortar','tank'],msg:'다음 상륙파가 출발했습니다'},
+    {t:900,sec:'pick',u:['rifle','rifle','mg','tank','ifv'],msg:'다음 상륙파가 출발했습니다'}],
+  waves:[{t:300,side:'e',u:['rifle','mg'],msg:'썰물: 북한군 증원이 항구로 내려옵니다'},
+    {t:460,side:'e',u:['tank','rifle']},
+    {t:680,side:'e',u:['rifle','at','rifle'],msg:'북한군 증원이 시가지로 들어옵니다'},
+    {t:900,side:'e',u:['tank','rifle']}],
+  income:n=>n===0?5:0};
 const INCH={COAST:13};
 CAMP.incheon.setup=function(){const {COAST}=INCH;const m=campMid();
   for(let r=0;r<N;r++)for(let c=0;c<COAST;c++)campCell(r,c,{t:'water',sea:1});
@@ -302,3 +308,23 @@ CAMP.incheon.labels=landLabels;
 
 /* ---------- 설정 화면: 상륙 작전 목록 ---------- */
 if(typeof showSetup==='function'){const _ss=showSetup;showSetup=function(){const r=_ss.apply(this,arguments);const el=typeof document!=='undefined'&&document.getElementById('camp-land');if(el)el.innerHTML=campList('landing');return r;};}
+
+/* ---------- 해변 돌파: 물가에 멈춰 서면 죽는다 ----------
+   실제 상륙 보병은 모래밭에서 엎드려 쏘지 않고, 해안 화기 아래를 뛰어 건너 절벽 밑·안벽 위로 붙는다(해변 교범: 해변을 빨리 비워라).
+   AI 전술(접적 시 엄폐에 멈추기, 사거리 끝에서 멈춰 쏘기)이 모래밭 한가운데서 분대를 세워 두어 1파가 1분 안에 거의 전멸했다.
+   - 아군 보병이 해변(모래·안벽·부두·갯벌)에 있으면 같은 줄로 해변 너머 첫 땅까지 뛰어 올라간다. 그동안 다른 판단이 멈추게 하지 않는다.
+   - 해변에선 제압돼도 엎드려 굳지 않고 느리게나마 계속 기어 오른다. 해변을 벗어나면 평소 전술로 돌아간다. */
+const landShore=y=>!!(y&&!y.sea&&(y.sand||y.wall||y.mudz||(y.pier&&!y.cau)));
+const landOnBeach=u=>landOn()&&u.nat===0&&UT[u.type].cls==='inf'&&!u.brk&&!u.cqb&&landShore(tileAt(u.x,u.z));
+function landInland(u){const r=Math.floor(u.z);let c=Math.floor(u.x);while(c<N&&landShore(G.map[r][c]))c++;
+  if(c>=N||!G.map[r][c]||G.map[r][c].sea)return null;const y=G.map[r][c];if(mcost(u.type,y)===Infinity)return null;
+  return [c+.6,u.z+((u.id*7)%5-2)*.08];}
+function landRush(dt){const t=G.time||0;
+  for(const u of G.units){if(!landOnBeach(u)){if(u._bch)u._bch=null;continue;}
+    if(u.type==='eng'&&(t-(u._clrGo??-99)<10||u._clr>0))continue;   // 공병은 장애물을 걷어 내는 중
+    if(u._bch&&u.path&&u.path.length&&t-u._bch.t<6)continue;
+    const p=landInland(u);if(!p)continue;const P=pathPts(u,p[0],p[1]);if(!P.length)continue;
+    u.path=P;u.dest=p;u.tgt=null;u.tgtTile=null;u._bch={t};if(u.tk){u.tk.at=t;u.tk.role='assault';}}}
+{const _go=tacGo;tacGo=function(u,x,z,role){if(u&&u._bch&&landOnBeach(u)&&u.path&&u.path.length)return false;return _go.apply(this,arguments);};}
+{const _r=tacReact;tacReact=function(u){if(u&&u._bch&&landOnBeach(u))return;return _r.apply(this,arguments);};}
+{const _mv=rtMove;rtMove=function(u,dt){if(u._bch&&typeof pinned==='function'&&pinned(u)&&landOnBeach(u)){const s=u.supp;u.supp=PINNED-.01;try{_mv(u,dt*.6);}finally{u.supp=Math.max(u.supp,s);}return;}return _mv(u,dt);};}

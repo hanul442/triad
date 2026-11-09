@@ -82,10 +82,13 @@ function rtMove(u,dt){if(!u.path||!u.path.length)return;const [tx,tz]=u.path[0];
   // 바로 옆에 새 잔해·방어물이 생겨 지금 자리부터 막혔으면 빠져나가는 걸음은 허용한다(갇힘 방지)
   const esc=!walkable(u,u.x,u.z)&&!!tileAt(nx,nz)&&mcost(u.type,tileAt(nx,nz))<Infinity;
   if((!esc&&!walkable(u,nx,nz))||wallCross(u,u.x,u.z,nx,nz)){u._blk=(u._blk||0)+1;
+    // 경로는 작은 칸 가운데끼리 잇는다. 칸 가장자리에 서 있으면 곧은 걸음이 옆 막힌 칸(주차 차 모서리 등)을 스치니, 먼저 지금 칸 가운데로 붙는다
+    if(typeof NAV_R!=='undefined'&&typeof navCls==='function'&&navCls(u)){const cx=(Math.floor(u.x*NAV_R)+.5)/NAV_R,cz=(Math.floor(u.z*NAV_R)+.5)/NAV_R,p0=u.path[0];
+      if(u._snap!==p0&&Math.hypot(cx-u.x,cz-u.z)>.005&&!(Math.abs(p0[0]-cx)<1e-6&&Math.abs(p0[1]-cz)<1e-6)&&walkable(u,cx,cz)&&!wallCross(u,u.x,u.z,cx,cz)){u._snap=p0;const b=u._blk;u.path.unshift([cx,cz]);u._blkK=b;return;}}
     // 같은 경유점에서 계속 막히면(길찾기 격자와 실제 통행 여유폭이 어긋남) 그 점을 건너뛰고 다음 점으로 간다
     if(u._blk>=3&&u.path.length>1){u.path.shift();return;}
     const end=u.path[u.path.length-1];u.path=[];if(!u._rp){u._rp=1;u.path=pathPts(u,end[0],end[1]);}return;}
-  u._rp=0;u._blk=0;u.x=nx;u.z=nz;if(d<=sp*dt)u.path.shift();
+  u._rp=0;u._blk=u._blkK&&u.path.length>1&&u._snap===u.path[1]?u._blkK:0;u.x=nx;u.z=nz;if(d<=sp*dt){u.path.shift();u._blkK=0;}
   // 서로 밀어 제자리걸음(목적지가 다른 부대 바로 옆): 4초 넘게 못 나아가면 목적지 근처면 거기서 멈추고, 멀면 길을 다시 찾는다
   {const t=G.time||0,g=u._pg;if(!g||Math.hypot(g[0]-u.x,g[1]-u.z)>.08){u._pg=[u.x,u.z,t];u._pgN=0;}else if(t-g[2]>4){u._pg=[u.x,u.z,t];u._pgN=(u._pgN||0)+1;const e=u.path[u.path.length-1];
     // 두 번째부터는 길을 다시 찾아도 같은 자리에서 밀리니: 목적지가 2칸 안이면 멈추고, 아니면 막힌 경유점을 건너뛴다

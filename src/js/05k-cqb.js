@@ -22,6 +22,8 @@ function flWant(u,x){if(u.cqb)return u.cqb.fl!=null?u.cqb.fl:Math.floor((u.fl||0
   const taken=new Set(),me=u._inT||0;
   for(const v of G.units){if(v===u||v.nat!==u.nat||v.r!==u.r||v.c!==u.c||UT[v.type].cls!=='inf'||v._inK!==k)continue;if(v.path&&v.path.length)continue;
     const f=v.cqb?flOf(v):v._flC;if(f==null)continue;const vt=v._inT||0;if(v.cqb||vt<me||(vt===me&&v.id<u.id))taken.add(f);}
+  // 교전 중(방금 쐈다)이면 지금 층에서 계속 쏜다: 계단을 오르는 동안은 못 쏘니 싸움이 끝난 뒤 오른다(사람이 층을 시킨 때는 따른다)
+  if(u.flT==null&&!u.climb&&u.fl!=null&&u.flK===k&&(G.time||0)-(u.firedT??-99)<4){const cur=Math.round(u.fl);if(Math.abs(u.fl-cur)<1e-6&&cur<=top&&!taken.has(cur)){u._flC=cur;return cur;}}
   let f=want;if(taken.has(f)){f=null;for(let d=1;d<=top;d++){if(want-d>=0&&!taken.has(want-d)){f=want-d;break;}if(want+d<=top&&!taken.has(want+d)){f=want+d;break;}}if(f==null)f=want;}
   u._flC=f;return f;}
 if(typeof COVK==='object'){COVK.room=COVK.room||{n:'실내 근접',v:CQB.roomCov};COVK.stair=COVK.stair||{n:'계단',v:0};}
@@ -141,8 +143,14 @@ function nearTaken(u){const p=u.path;if(!p||p.length!==1||UT[u.type].fly)return 
   return false;}
 {const _spMove0=rtMove;rtMove=function(u,dt){if(u.path&&u.path.length){if(nearTaken(u)){u.path=[];u.dest=null;return;}const k=spaceWait(u);if(k<=0)return;dt*=k;}return _spMove0(u,dt);};}
 const _cqbMove0=rtMove;
+// 나아감은 '남은 경로 길이'로 잰다(목적지까지 곧은 거리로 재면 건물을 돌아가는 길에서 멀쩡히 가는 부대를 세웠다).
+// 처음 헛걸음이면 지금 자리에서 길을 다시 찾고, 또 헛걸음이면 그때 멈춘다. 지상 차량은 05b2-motion이 따로 빼낸다.
+const pathLeft=u=>{const p=u.path;let d=0,x=u.x,z=u.z;for(const q of p){d+=Math.hypot(q[0]-x,q[1]-z);x=q[0];z=q[1];}return d;};
 rtMove=function(u,dt){_cqbMove0(u,dt);if(!G.units.includes(u))return;const p=u.path;if(!p||!p.length){u._pw=null;return;}
-  const e=p[p.length-1],t=G.time||0,d=Math.hypot(e[0]-u.x,e[1]-u.z);const w=u._pw;
-  if(!w||Math.abs(w.x-e[0])>.01||Math.abs(w.z-e[1])>.01){u._pw={x:e[0],z:e[1],d,t};return;}
+  if(typeof isGV==='function'&&isGV(u)){u._pw=null;return;}
+  const e=p[p.length-1],t=G.time||0,d=pathLeft(u);const w=u._pw;
+  if(!w||Math.abs(w.x-e[0])>.01||Math.abs(w.z-e[1])>.01){u._pw={x:e[0],z:e[1],d,t,n:w&&w.n&&Math.hypot(w.x-e[0],w.z-e[1])<.6?w.n:0};return;}
   if(d<w.d-CQB.stallD){w.d=d;w.t=t;return;}
-  if(t-w.t>CQB.stallT){u._pw=null;u.path=[];u.dest=null;G.stallN=(G.stallN||0)+1;if(u.cqb)cqbEnd(u,0,'stall');}};
+  if(t-w.t>CQB.stallT){G.stallN=(G.stallN||0)+1;
+    if(!w.n&&!u.cqb){const np=pathPts(u,e[0],e[1]);if(np.length){u.path=np;u._pw={x:e[0],z:e[1],d:pathLeft(u),t,n:1};return;}}
+    u._pw=null;u.path=[];u.dest=null;if(u.cqb)cqbEnd(u,0,'stall');}};

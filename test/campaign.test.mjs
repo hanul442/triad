@@ -103,3 +103,24 @@ test('캠페인: 양쪽 다 AI로 돌려도 오류 없이 끝난다', () => {
     assert.ok(G.over, id); assert.equal((G.errs || []).length, 0, id + ' ' + (G.errs || [])[0]); assert.ok(G.camp.res, id);
   }
 });
+
+test('캠페인: 아군 증원은 정해진 시각에 서쪽에서 오고, 적은 지휘점수로 부대를 사지 않는다', () => {
+  const T = loadGame();
+  for (const id of ['evac', 'bridge', 'station']) {
+    const G = start(T, id); quiet(G);
+    const M = T.__eval('CAMP')[id]; assert.ok(M.bw && M.bw.length, `${id} 아군 증원 일정`);
+    assert.equal(M.income(1), 0, `${id} 적 수입 없음`);
+    const n0 = G.units.filter(u => u.nat === 0).length;
+    G.time = M.bw[0].t; T.rtTick(0.1);
+    const n1 = G.units.filter(u => u.nat === 0).length;
+    assert.ok(n1 >= n0 + M.bw[0].u.length - 1, `${id} 증원 도착 ${n0}→${n1}`);
+    assert.ok(G.units.filter(u => u.nat === 0).slice(-M.bw[0].u.length).every(u => u.c <= 4), `${id} 서쪽 가장자리`);
+  }
+});
+
+test('도심 돌파: 공격 측이 수비보다 넉넉히 많고, 수비는 증원을 사지 않는다', () => {
+  const T = loadGame(); T.__get('scnSetup')('assault', 0); const G = T.G;
+  const b = G.units.filter(u => u.nat === 0).length, r = G.units.filter(u => u.nat === 1).length;
+  assert.ok(b > r, `공격 ${b} 수비 ${r}`);
+  assert.equal(T.income(1), 0); assert.ok(T.income(0) > 0);
+});

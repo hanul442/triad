@@ -16,14 +16,15 @@ const calm = e => { e.cd = 1e9; e.nocas = 1; e.dmgIn = 0; };
 
 test('호위: 적 근처로 탄약을 나르는 보급 트럭에 놀던 험비가 붙어 함께 간다', () => {
   const T = loadGame(); const G = setup(T, true);
-  const a = T.mkUnit(0, 'mg', 12, 16); a.am = 0; a.hold = true;
-  const e = T.mkUnit(1, 'rifle', 12, 22); calm(e); e.hold = true;
+  // 적은 험비 기관총 사거리(18칸) 밖: 처음부터 멈춰 쏘지 않고 따라가는지 본다
+  const a = T.mkUnit(0, 'mg', 12, 25); a.am = 0; a.hold = true;
+  const e = T.mkUnit(1, 'rifle', 12, 31); calm(e); e.hold = true;
   const s = T.mkUnit(0, 'sup', 12, 4); const h = T.mkUnit(0, 'hmv', 13, 6);
   F(T, 'supSend')(s, a);
   let got = 0, near = 0;
   for (let i = 0; i < 100; i++) { T.rtTick(0.1); if (h.esc && h.esc.s === s.id) got++; if (h.esc && Math.hypot(h.x - s.x, h.z - s.z) < 2) near++; }
   assert.ok(got > 50, `호위 붙음 ${got}`); assert.equal(s.escBy, h.id);
-  assert.ok(near > 15, `곁에서 따라감 ${near}`);
+  assert.ok(near > 22, `곁에서 따라감 ${near}`);
   assert.ok(Math.hypot(s.x - 4.5, s.z - 12.5) > 2, '트럭이 앞으로 감');
 });
 

@@ -14,9 +14,20 @@ function v3HeliModel(){const T=V3.T;const g=new T.Group();const body=new T.MeshS
 function v3Heli(r,c,n){if(!V3.on)return;const T=V3.T;const [x,z]=v3x(r,c);const y0=v3Top(r,c);const h=v3HeliModel();V3.G.fx.add(h);
   const dir=[[-1,0],[1,0],[0,-1],[0,1]][n??0]||[-1,0];const far=N*.9;const sx=x+dir[0]*far,sz=z+dir[1]*far;const ang=Math.atan2(-(z-sz),x-sx);h.rotation.y=ang;
   const t0=G.time,FLY=2.4,DESC=1.6,STAY=HELI_T-FLY-DESC+1.2,LIFT=1.2,OUT=2.6;const TOTAL=FLY+DESC+STAY+LIFT+OUT;let dustT=0;
+  // 대공에 맞은 헬기(05f3-aa): 격추되면 모형을 지우고(추락 연출은 잔해가 맡는다), 투입을 포기하면 그 자리에서 돌아 나간다
+  let H=null,ab=null;
   if(typeof sndTrack==='function')sndTrack(h,'rotor');
   V3.fx.push({o:h,t0:performance.now(),dur:1e9,upd:(o)=>{const t=G.time-t0;const now=performance.now();o.userData.hub.rotation.y=now/14;
     let px=x,pz=z,py=y0+.06,tilt=0;
+    if(!H){H=(G.trh||[]).find(e=>e.n===n&&e.r===r&&e.c===c&&!e.vis&&Math.abs(e.t0-t0)<.5)||null;if(H)H.vis=1;}
+    if(H&&H.down){// 격추: 불붙어 돌면서 떨어지고, 땅에 닿으면 폭발과 불
+      if(!ab){ab={t:t,x:o.position.x,y:o.position.y,z:o.position.z,gy:v3TopAt(o.position.x,o.position.z)};v3Burst(ab.x,ab.y+.2,ab.z,1.2,'#ff7a2a',5,3);}
+      const k=Math.min(1,(t-ab.t)/1.6);o.position.set(ab.x,ab.y+(ab.gy+.1-ab.y)*k*k,ab.z);o.rotation.y+=.25;o.rotation.z=.5*k;
+      if(now-dustT>90){dustT=now;v3Trail(o.position.x,o.position.y+.2,o.position.z,'#3a3430',.18,2600);}
+      if(k>=1){o.visible=false;v3Burst(ab.x,ab.gy+.2,ab.z,2,'#ff6a1a',8,5);dsSpray(ab.x,ab.gy+.2,ab.z,100,1.2);dsScar('crater',ab.x,ab.z,.35);dsFires(ab.x,ab.z,3,25000,1);dsColumn(ab.x,ab.z,1.5);V3.shake=Math.max(V3.shake,.25);return false;}
+      return;}
+    if(H&&H.abort){if(!ab)ab={t:t,x:o.position.x,y:o.position.y,z:o.position.z};const k=Math.min(1,(t-ab.t)/OUT),e=k*k;
+      if(k>=1){o.visible=false;return false;}o.position.set(ab.x+(sx-x)*e*1.2,Math.max(ab.y,y0+.3)+e*2.5,ab.z+(sz-z)*e*1.2);o.rotation.y=ang+Math.PI;o.rotation.z=-.3;return;}
     if(t<FLY){const k=t/FLY,e=1-Math.pow(1-k,2);px=sx+(x-sx)*e;pz=sz+(z-sz)*e;py=4.2-e*.6;tilt=.25*(1-k);}
     else if(t<FLY+DESC){const k=(t-FLY)/DESC;py=3.6-(3.6-y0-.06)*(1-Math.pow(1-k,2.2));}
     else if(t<FLY+DESC+STAY){py=y0+.06;}
