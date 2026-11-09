@@ -6475,10 +6475,125 @@ if(typeof recTick==='function'){const _rt=recTick;recTick=function(u,dt,t){_rt(u
   const v=uById(u.lj.id);if(!v)return;
   if(logiDanger(u.nat,u.x,u.z)||logiDanger(u.nat,v.x,v.z)){(u.nog=u.nog||{})[v.id]=t+20;u._hk=0;u._fixing=null;supHome(u);if(typeof tacN==='function')tacN('recFlee');}};}
 
+/* ---- 06g2-escort.js ---- */
+/* ===================== ESCORT: 보급·구난·구급 차량 호위와 안전한 길 =====================
+   "보급트럭이나 구급차같은건 호위병력이 있어야되지않을까" (2026-11-09).
+   실제 교범(전투 호송): 앞쪽으로 가는 지원 차량에는 무장 차량(건트럭·험비)이 붙어 길을 앞서 살피고,
+   적을 만나면 호위가 맞서 싸우는 동안 지원 차량은 빠져나간다. 길은 알려진 적을 비켜 간다.
+   - 호위 붙이기: 보급 트럭(탄약 나르기)·구난차(수리·견인)·구급차(부상자 받으러)가 일을 맡아 가는 곳이
+     적 근처(보이는 적·8초 안에 본 적에서 7칸 안)면, 6칸 안에서 놀고 있는 험비 > 장갑차 > (소대에 안 든)소총·기관총 분대
+     하나를 호위로 붙인다. AI 세력과 부관 지휘를 켠 플레이어만(직접 지휘에서는 플레이어 부대를 가져가지 않는다).
+   - 호위 자리: 아는 적이 10칸 안에 있으면 지원 차량에서 그 적 쪽으로 1칸, 아니면 지원 차량이 갈 길 1칸 앞.
+   - 적이 쏠 거리에 들어오면 호위는 멈춰 싸운다. 지원 차량은 06g-logi 위험 판단대로 물러난다.
+   - 호송 걸음: 호위가 2칸 넘게 뒤처지면 지원 차량이 앞으로 가는 걸음을 늦춘다(물러날 때는 늦추지 않는다).
+   - 일이 끝나거나 지원 차량이 물러나 적이 없으면, 또는 90초가 지나면 호위를 풀어 원래 AI로 돌려준다.
+   - 안전한 길: 지원 차량의 길이 아는 적 2.8칸 안을 지나면 옆으로 3~5.5칸 돌아가는 길을 찾아 더 안전하면 그 길로. */
+const ESC={on:1,route:1,front:7,mem:8,pick:6,lead:1,upd:.4,max:90,lag:2,risk:2.8,memR:20,repath:1.2};
+const ESC_HIDE={esc:1};
+const ESC_SUP={sup:1,rec:1,amb:1};
+const ESC_PREF={hmv:3,ifv:2,rifle:1,mg:1};
+/* 지원 차량이 지금 앞으로 가는 일을 맡았나: 가는 곳 [x,z] 또는 null */
+function escFwd(s){if(s.type==='sup'){if(s.lj&&s.lj.k==='serve'){const e=uById(s.lj.id);if(e)return [e.x,e.z];}return null;}
+  if(s.type==='rec'){if(s.tow!=null)return s.path&&s.path.length?s.path[s.path.length-1]:null;
+    if(s.lj&&s.lj.k==='fix'){const v=uById(s.lj.id);if(v)return [v.x,v.z];}return null;}
+  if(s.type==='amb'){const j=s.mj;if(!j)return null;
+    if(j.k==='move'||j.k==='wait'){const o=uById(j.id);if(o)return [o.x,o.z];}
+    if(j.k==='orph'&&s.path&&s.path.length)return s.path[s.path.length-1];return null;}
+  return null;}
+/* 세력 n이 아는 적 위치(보이는 지상 적 + 기억). ESC 틱마다 한 번 */
+function escKnown(n,age){const t=G.time||0,out=[];
+  for(const e of G.units){if(e.nat===n||e.hp<=0)continue;const fly=UT[e.type].fly;if(fly&&!(e.type==='gunship'||e.type==='fpv'))continue;if(G.fog&&!seen(e,n))continue;out.push([e.x,e.z]);}
+  if(typeof memOf==='function'){const M=memOf(n);for(const id in M){const p=M[id];if(t-p.t>age)continue;out.push([p.x,p.z]);}}
+  return out;}
+const escNear=(K,x,z,r)=>{for(const p of K)if(Math.hypot(p[0]-x,p[1]-z)<r)return true;return false;};
+function escFree(u,t){const ty=UT[u.type];if(!ESC_PREF[u.type]||ty.fly||u.esc||u.job||u.post||u.cqb||u.hold||u.msn||u.fol||u.climb||u.tow!=null||u.towBy!=null)return false;
+  if(u.pl!=null||u.man!=null&&t-u.man<60)return false;if(u.fesc!=null&&t-(u.fescT||-99)<5)return false;
+  if(u.hp<hpMax(u)*.6||(u.supp||0)>0)return false;if(inside(u))return false;
+  if(G.units.some(e=>e.nat!==u.nat&&!UT[e.type].fly&&(!G.fog||seen(e,u.nat))&&Math.hypot(e.x-u.x,e.z-u.z)<4.5))return false;   // 교전 중인 부대는 빼지 않는다
+  return true;}
+function escPick(s,t){let best=null,bs=-1e9;
+  for(const u of G.units){if(u.nat!==s.nat||!escFree(u,t))continue;const d=Math.hypot(u.x-s.x,u.z-s.z);if(d>ESC.pick)continue;
+    const sc=ESC_PREF[u.type]*2-d;if(sc>bs){bs=sc;best=u;}}
+  return best;}
+function escRelease(u,why){const s=u.esc?uById(u.esc.s):null;if(s&&s.escBy===u.id)s.escBy=null;u.esc=null;u._escRp=null;
+  if(why!=='fight')u.path=[];if(u.job===ESC_HIDE)u.job=null;}
+/* 호위 자리 */
+function escSlot(u,s,K){let tx=null,tz=null,bd=10;for(const p of K){const d=Math.hypot(p[0]-s.x,p[1]-s.z);if(d<bd){bd=d;tx=p[0];tz=p[1];}}
+  let x,z;
+  if(tx!=null){const m=bd||1;x=s.x+(tx-s.x)/m*ESC.lead;z=s.z+(tz-s.z)/m*ESC.lead;}
+  else if(s.path&&s.path.length){let px=s.x,pz=s.z,left=ESC.lead;x=s.path[s.path.length-1][0];z=s.path[s.path.length-1][1];
+    for(const p of s.path){const d=Math.hypot(p[0]-px,p[1]-pz);if(d>=left){const f=left/(d||1);x=px+(p[0]-px)*f;z=pz+(p[1]-pz)*f;break;}left-=d;px=p[0];pz=p[1];}}
+  else{const f=escFwd(s);if(f){const dx=f[0]-s.x,dz=f[1]-s.z,m=Math.hypot(dx,dz)||1;const k=Math.min(.8,m);x=s.x+dx/m*k;z=s.z+dz/m*k;}else{x=s.x;z=s.z;}}
+  x=Math.min(N-.05,Math.max(.05,x));z=Math.min(N-.05,Math.max(.05,z));
+  if(!walkable(u,x,z))return [s.x,s.z];return [x,z];}
+function escFight(u){for(const e of G.units){if(e.nat===u.nat||e.hp<=0)continue;if(G.fog&&!seen(e,u.nat))continue;
+  if(canHit(u,e))return true;}return false;}
+/* 호위 하나: 따르기·싸우기 */
+function escFollow(u,t,K){const s=uById(u.esc.s);
+  if(!s||s.nat!==u.nat||s.escBy!==u.id){escRelease(u);return;}
+  const fwd=escFwd(s);
+  if(escFight(u)){u.esc.ft=t+4;if(u.path&&u.path.length)u.path=[];return;}   // 멈춰 싸운다(조준·사격은 엔진이)
+  if((u.esc.ft||0)>t)return;
+  if(!fwd&&!escNear(K,s.x,s.z,ESC.front)){escRelease(u);return;}   // 일이 끝났거나 물러나 안전하다
+  if(t-u.esc.t0>ESC.max||u.hp<hpMax(u)*.4||u.post||u.cqb||u.hold||u.man!=null&&u.man>u.esc.t0||u.fesc!=null&&t-(u.fescT||-99)<5){escRelease(u);return;}
+  if(u.pl!=null){escRelease(u,'fight');return;}
+  const sl=escSlot(u,s,K);const d=Math.hypot(sl[0]-u.x,sl[1]-u.z);
+  if(d<.3){if(u.path&&u.path.length)u.path=[];return;}
+  if(typeof formClear==='function'&&formClear(u,u.x,u.z,sl[0],sl[1]))u.path=[[sl[0],sl[1]]];
+  else if(u._escRp==null||t-u._escRp>ESC.repath||!u.path||!u.path.length){u._escRp=t;const P=pathPts(u,sl[0],sl[1]);u.path=P.length?P:[];}
+  u.dest=null;u.tgtTile=null;}
+function escTick(){if(!ESC.on)return;const t=G.time||0;if((G._escT||0)>t)return;G._escT=t+ESC.upd;
+  const KN={};const known=n=>KN[n]||(KN[n]=escKnown(n,ESC.mem));
+  for(const u of G.units.slice())if(u.esc&&G.units.includes(u))escFollow(u,t,known(u.nat));
+  for(const s of G.units){if(!ESC_SUP[s.type]||s.escBy!=null||!aiRun(s.nat)||!selfRun(s))continue;
+    if(s.escBy!=null&&!uById(s.escBy))s.escBy=null;
+    const f=escFwd(s);if(!f||Math.hypot(f[0]-s.x,f[1]-s.z)<1.5)continue;
+    if((s._escPk||0)>t)continue;s._escPk=t+3;
+    const K=known(s.nat);if(!escNear(K,f[0],f[1],ESC.front)&&!escNear(K,s.x,s.z,ESC.front))continue;
+    const u=escPick(s,t);if(!u)continue;
+    u.esc={s:s.id,t0:t};s.escBy=u.id;u.tgt=null;if(typeof tacN==='function')tacN('esc');
+    if(s.nat===G.viewer&&!isAI(s.nat)&&typeof L==='function')L(`${UT[u.type].n} → ${UT[s.type].n} 호위`);}
+  for(const s of G.units)if(s.escBy!=null){const e=uById(s.escBy);if(!e||!e.esc||e.esc.s!==s.id)s.escBy=null;}}
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;try{escTick();}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+// 호위 중인 부대는 다른 AI 판단(기동·제병협동·부관)이 데려가지 않는다
+{const _ai=aiThink;aiThink=function(n){const hid=[];
+  for(const u of G.units)if(u.nat===n&&u.esc&&!u.job){u.job=ESC_HIDE;hid.push(u);}
+  try{return _ai(n);}finally{for(const u of hid)if(u.job===ESC_HIDE)u.job=null;}};}
+// 사람이 직접 명령하면 호위를 푼다
+{const man=f=>function(u){if(u&&u.esc)escRelease(u);return f.apply(null,arguments);};orderMoveTo=man(orderMoveTo);orderStop=man(orderStop);}
+// 호송 걸음: 호위가 뒤처지면 앞으로 가는 지원 차량이 늦춘다
+{const _mv=rtMove;rtMove=function(u,dt){if(u.escBy==null||!ESC_SUP[u.type]||!u.path||!u.path.length)return _mv(u,dt);
+  const e=uById(u.escBy);if(!e||!escFwd(u))return _mv(u,dt);const d=Math.hypot(e.x-u.x,e.z-u.z);
+  return _mv(u,d>ESC.lag*1.6?dt*.35:d>ESC.lag?dt*.6:dt);};}
+/* ---------- 안전한 길 ---------- */
+function escRisk(P,x0,z0,K){if(!K.length)return 0;let r=0,px=x0,pz=z0;const n=P.length;
+  for(let i=0;i<n;i++){const q=P[i];const L0=Math.hypot(q[0]-px,q[1]-pz);const k=Math.max(1,Math.ceil(L0/.5));
+    for(let j=1;j<=k;j++){const x=px+(q[0]-px)*j/k,z=pz+(q[1]-pz)*j/k;if(escNear(K,x,z,ESC.risk))r+=.5;}px=q[0];pz=q[1];}
+  return r;}
+function escLen(P,x0,z0){let l=0,px=x0,pz=z0;for(const q of P){l+=Math.hypot(q[0]-px,q[1]-pz);px=q[0];pz=q[1];}return l;}
+{const _pp=pathPts;let busy=false;pathPts=function(u,x,z){const P=_pp(u,x,z);
+  if(busy||!ESC.route||!u||!ESC_SUP[u.type]||!G||!G.units||!G.units.includes(u)||P.length<1||!selfRun(u))return P;
+  const t=G.time||0;const c=u._cvy;
+  if(c&&t-c.t<1.5&&Math.hypot(c.x-x,c.z-z)<.5&&Math.hypot(c.sx-u.x,c.sz-u.z)<.5)return c.P.slice();
+  const K=escKnown(u.nat,ESC.memR);const r0=escRisk(P,u.x,u.z,K);
+  let best=P;
+  if(r0>0){busy=true;try{const l0=escLen(P,u.x,u.z);let bc=r0*4+l0;
+      const dx=x-u.x,dz=z-u.z,m=Math.hypot(dx,dz)||1,mx=(u.x+x)/2,mz=(u.z+z)/2;
+      for(const o of [3,-3,5.5,-5.5]){const wx=mx-dz/m*o,wz=mz+dx/m*o;if(wx<.3||wz<.3||wx>N-.3||wz>N-.3||!walkable(u,wx,wz))continue;
+        const A=_pp(u,wx,wz);if(!A.length)continue;const p=Object.create(u);p.x=wx;p.z=wz;p.r=Math.floor(wz);p.c=Math.floor(wx);
+        const B=_pp(p,x,z);if(!B.length)continue;const e=B[B.length-1];if(Math.hypot(e[0]-x,e[1]-z)>.6)continue;
+        const Q=A.concat(B);const r=escRisk(Q,u.x,u.z,K);const l=escLen(Q,u.x,u.z);if(l>l0*2.2+4)continue;const cc=r*4+l;
+        if(cc<bc-1){bc=cc;best=Q;}}}
+    finally{busy=false;}
+    if(best!==P&&typeof tacN==='function')tacN('cvyRoute');}
+  Object.defineProperty(u,'_cvy',{value:{t,x,z,sx:u.x,sz:u.z,P:best.slice()},writable:true,configurable:true,enumerable:false});
+  return best;};}
+
 /* ---- 06h-org.js ---- */
 /* ===================== ORG: 중대·소대 자동 편성 =====================
    "중대 소대 만드는 건 자동으로", "내가 목표를 주고 증원해 주는 형식으로".
    - 사람 세력의 전투 부대(보병·차량)는 저절로 소대(4개 부대까지)로, 소대는 중대(3개 소대까지)로 묶인다.
+     병종을 따른다: 전차는 전차소대, 장갑차·험비는 분대와 함께 기계화 보병 소대(소대에 차량 둘까지). 손실로 작아진 소대는 가까운 같은 갈래 소대와 합친다.
      지원 부대(보급·구급·구난·박격포·포병·저격·드론·대공·전자전)는 '본부'에 남아 알아서 일한다(02-helpers SELF_RUN).
    - 새로 온 증원은 '증원 받는 중대'(N2.reinfCo)로, 정하지 않았으면 가장 작은 중대의 빈 소대로 들어간다. 다 차면 새 중대.
    - 목표: 소대 목표 > 중대 목표 > 전체 주공(N2.intent) 순으로 따른다(06f autoIOf).
@@ -6503,21 +6618,53 @@ function orgClean(n){const O=orgOf(n);const live=new Set();for(const u of G.unit
   O.pq=O.pq.filter(p=>live.has(p.id)&&O.co.some(c=>c.id===p.co));O.co=O.co.filter(c=>O.pq.some(p=>p.co===c.id));
   const ok=new Set(O.pq.map(p=>p.id));for(const u of G.units)if(u.nat===n&&u.pq!=null&&(!ok.has(u.pq)||orgHQ(u)))u.pq=null;
   const N2=G.nats[n];if(N2.reinfCo!=null&&!orgCo(n,N2.reinfCo))N2.reinfCo=null;}
-/* 판 처음: 아군 전투 부대를 좌우로 늘어놓고 고르게 소대로 나눈다 */
+/* 병종 갈래: 전차는 전차소대, 장갑차·험비는 보병과 함께 기계화 보병 소대(차량은 소대에 둘까지), 보병만이면 보병 소대.
+   실제 편제처럼 전차소대 4대, 기계화 보병 소대는 분대와 그 장갑차가 한 소대. 중대는 소대를 섞어 '중대 전투단'이 된다. */
+const orgKind=u=>u.type==='tank'?'tank':UT[u.type]&&UT[u.type].cls==='veh'?'veh':'inf';
+const ORG_VEH=2;
+function orgPqKind(n,p){const us=orgPqUnits(n,p);if(us.length&&us.every(u=>orgKind(u)==='tank'))return 'tank';return us.some(u=>orgKind(u)==='veh')?'mech':'inf';}
+const ORG_KN={tank:'전차',mech:'기계화',inf:'보병'};
+/* 이 소대에 이 부대가 맞는가 */
+function orgFits(n,p,u,cap){const us=orgPqUnits(n,p).filter(x=>x!==u);if(us.length>=(cap||ORG.pl))return false;const k=orgKind(u);
+  if(!us.length)return true;const tk=us.some(x=>orgKind(x)==='tank');
+  if(k==='tank')return tk&&us.every(x=>orgKind(x)==='tank');if(tk)return false;
+  if(k==='veh')return us.filter(x=>orgKind(x)==='veh').length<ORG_VEH;return true;}
+/* 판 처음: 전차는 전차소대로, 나머지는 좌우로 늘어놓아 고르게 소대로 나누고 장갑차·험비를 소대마다 나눠 붙인다 */
 function orgInit(n,us){if(!us.length)return;const d=typeof depotOf==='function'?depotOf(n):{x:N/2,z:N/2};
   const fx=N/2-d.x,fz=N/2-d.z,L=Math.hypot(fx,fz)||1;const sx=-fz/L,sz=fx/L;   // 앞쪽에 직각인 축
-  us=us.slice().sort((a,b)=>(a.x*sx+a.z*sz)-(b.x*sx+b.z*sz)||a.id-b.id);
-  const k=Math.ceil(us.length/ORG.pl);let c=null,pq=null,cur=-1;
-  for(let i=0;i<us.length;i++){const j=Math.floor(i*k/us.length);if(j!==cur){cur=j;if(!c||orgCoPqs(n,c).length>=ORG.co)c=orgNewCo(n);pq=orgNewPq(n,c);}us[i].pq=pq.id;}}
-/* 새 부대 하나를 넣을 소대 */
-function orgPlace(n,u){const O=orgOf(n),N2=G.nats[n];let c=orgCo(n,N2.reinfCo);const pick=!!c;
-  if(!c){let bs=1e9;for(const q of O.co){const P=orgCoPqs(n,q);const full=P.length>=ORG.co&&P.every(p=>orgPqUnits(n,p).length>=ORG.pl);if(full)continue;const m=orgCoUnits(n,q).length;if(m<bs){bs=m;c=q;}}}
-  if(!c)c=orgNewCo(n);
-  let pq=null,bm=99;for(const p of orgCoPqs(n,c)){const m=orgPqUnits(n,p).length;if(m<ORG.pl&&m<bm){bm=m;pq=p;}}
-  if(!pq){if(pick&&orgCoPqs(n,c).length>=ORG.coMax)c=orgNewCo(n);pq=orgNewPq(n,c);}
-  u.pq=pq.id;return pq;}
-function orgTick(n){orgClean(n);const O=orgOf(n);const us=G.units.filter(u=>u.nat===n&&!orgHQ(u)&&u.pq==null);if(!us.length)return;
-  if(!O.co.length)orgInit(n,us);else for(const u of us){const p=orgPlace(n,u);if(n===G.viewer&&(G.time||0)>3)L(`${UT[u.type].n} → ${p.name} 배속`);}}
+  const lat=u=>u.x*sx+u.z*sz;us=us.slice().sort((a,b)=>lat(a)-lat(b)||a.id-b.id);
+  const tanks=us.filter(u=>orgKind(u)==='tank'),veh=us.filter(u=>orgKind(u)==='veh'),inf=us.filter(u=>orgKind(u)==='inf');
+  const groups=[];
+  const rest=inf.length+veh.length;if(rest){const k=Math.max(Math.ceil(rest/ORG.pl),Math.ceil(veh.length/ORG_VEH));const G2=[];for(let j=0;j<k;j++)G2.push([]);
+    for(let i=0;i<inf.length;i++)G2[Math.floor(i*k/inf.length)].push(inf[i]);
+    for(const v of veh){let b=null,bs=1e9;for(const g of G2){if(g.length>=ORG.pl||g.filter(x=>orgKind(x)==='veh').length>=ORG_VEH)continue;
+        const c=g.length?g.reduce((a,x)=>a+lat(x),0)/g.length:lat(v);const sc=g.filter(x=>orgKind(x)==='veh').length*100+g.length*10+Math.abs(c-lat(v));if(sc<bs){bs=sc;b=g;}}
+      (b||G2[G2.push([])-1]).push(v);}
+    for(const g of G2)if(g.length)groups.push(g);}
+  if(tanks.length){const k=Math.ceil(tanks.length/ORG.pl);for(let j=0;j<k;j++)groups.push(tanks.filter((_,i)=>Math.floor(i*k/tanks.length)===j));}
+  let c=null;for(const g of groups){if(!c||orgCoPqs(n,c).length>=ORG.co)c=orgNewCo(n);const pq=orgNewPq(n,c);for(const u of g)u.pq=pq.id;}}
+/* 새 부대 하나를 넣을 소대: 증원 받는 중대(없으면 작은 중대부터)에서 병종이 맞고 빈자리가 있는 소대, 없으면 새 소대·새 중대 */
+function orgPlace(n,u){const O=orgOf(n),N2=G.nats[n];const c0=orgCo(n,N2.reinfCo);
+  const cs=c0?[c0]:O.co.slice().sort((a,b)=>orgCoUnits(n,a).length-orgCoUnits(n,b).length||a.no-b.no);
+  for(const c of cs){let pq=null,bm=99;for(const p of orgCoPqs(n,c)){if(p.man&&!c0)continue;if(!orgFits(n,p,u))continue;const m=orgPqUnits(n,p).length;if(m<bm){bm=m;pq=p;}}if(pq){u.pq=pq.id;return pq;}}
+  const lim=orgKind(u)==='tank'?ORG.coMax:ORG.co;   // 전차소대는 보병 중대에 하나 더 붙을 수 있다(중대 전투단)
+  let c=c0?(orgCoPqs(n,c0).length<ORG.coMax?c0:null):cs.find(q=>orgCoPqs(n,q).length<lim);
+  if(!c)c=orgNewCo(n);const pq=orgNewPq(n,c);u.pq=pq.id;return pq;}
+/* 손실 뒤 재편: 같은 중대에서 병종이 맞는 작은 소대 둘(가까이 있는)을 하나로 합친다. 손으로 묶은 소대는 그대로 */
+function orgMerge(n){const O=orgOf(n);let done=null;
+  for(const c of O.co){const P=orgCoPqs(n,c).filter(p=>!p.man).map(p=>({p,us:orgPqUnits(n,p)})).filter(q=>q.us.length&&q.us.length<=ORG.pl/2).sort((a,b)=>a.us.length-b.us.length);
+    for(let i=0;i<P.length&&!done;i++)for(let j=i+1;j<P.length&&!done;j++){const a=P[i],b=P[j];if(a.us.length+b.us.length>ORG.pl)continue;
+      if(a.us.some(u=>!orgFits(n,b.p,u,ORG.pl*2)))continue;if(orgPqKind(n,a.p)==='tank'!==(orgPqKind(n,b.p)==='tank'))continue;
+      if(a.us.filter(u=>orgKind(u)==='veh').length+b.us.filter(u=>orgKind(u)==='veh').length>ORG_VEH)continue;
+      const ca=a.us.reduce((s,u)=>[s[0]+u.x/a.us.length,s[1]+u.z/a.us.length],[0,0]),cb=b.us.reduce((s,u)=>[s[0]+u.x/b.us.length,s[1]+u.z/b.us.length],[0,0]);
+      if(Math.hypot(ca[0]-cb[0],ca[1]-cb[1])>10)continue;
+      for(const u of a.us)u.pq=b.p.id;if(!b.p.intent&&a.p.intent)b.p.intent=a.p.intent;done={from:a.p.name,to:b.p.name};}
+    if(done)break;}
+  if(done){orgClean(n);if(n===G.viewer)L(`재편: ${done.from} 남은 병력 → ${done.to}`);}
+  return done;}
+function orgTick(n){orgClean(n);const O=orgOf(n);const us=G.units.filter(u=>u.nat===n&&!orgHQ(u)&&u.pq==null);
+  if(us.length){if(!O.co.length)orgInit(n,us);else for(const u of us){const p=orgPlace(n,u);if(n===G.viewer&&(G.time||0)>3)L(`${UT[u.type].n} → ${p.name}(${ORG_KN[orgPqKind(n,p)]}) 배속`);}}
+  if((G.time||0)>=(G.orgMT||0)){G.orgMT=(G.time||0)+5;orgMerge(n);}}
 /* 목표 */
 function orgIntent(n,pqId){if(!G.org||!G.org[n])return null;const p=orgPq(n,pqId);if(p){if(p.intent)return p.intent;const c=orgCo(n,p.co);if(c&&c.intent)return c.intent;return null;}
   if(pqId==null){const c=orgCo(n,G.nats[n].reinfCo);if(c&&c.intent)return c.intent;}return null;}
@@ -6536,13 +6683,13 @@ function orgAim(n,ref,k,x,z){const O=orgOf(n);
 function orgRegroup(n,us,kind){us=us.filter(u=>u&&u.nat===n&&!orgHQ(u)&&G.units.includes(u));if(!us.length)return null;orgClean(n);
   let c=null;if(kind==='pq'){const p0=orgPq(n,us[0].pq);c=p0?orgCo(n,p0.co):null;if(c&&orgCoPqs(n,c).filter(p=>orgPqUnits(n,p).some(u=>!us.includes(u))).length>=ORG.coMax)c=null;}
   if(!c)c=orgNewCo(n);const made=[];
-  for(let i=0;i<us.length;i+=ORG.pl){const p=orgNewPq(n,c);made.push(p);for(const u of us.slice(i,i+ORG.pl))u.pq=p.id;}
+  for(let i=0;i<us.length;i+=ORG.pl){const p=orgNewPq(n,c);p.man=true;made.push(p);for(const u of us.slice(i,i+ORG.pl))u.pq=p.id;}
   orgClean(n);return {c,made};}
 /* ---------- 엔진에 끼우기 ---------- */
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||G.over||!G.units)return;const t=G.time||0;if((G.orgT||0)>t)return;G.orgT=t+ORG.tick;
   for(const n of G.order){if(isAI(n)||!G.nats[n].alive)continue;try{orgTick(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}}};}
 // 산 부대는 바로 소대에 넣는다
-{const _b=buy;buy=function(n){const u=_b.apply(this,arguments);if(u&&G.org&&G.org[n]&&!isAI(n)&&!orgHQ(u)&&u.pq==null){const p=orgPlace(n,u);if(n===G.viewer)L(`${UT[u.type].n} → ${p.name} 배속`);}return u;};}
+{const _b=buy;buy=function(n){const u=_b.apply(this,arguments);if(u&&G.org&&G.org[n]&&!isAI(n)&&!orgHQ(u)&&u.pq==null){const p=orgPlace(n,u);if(n===G.viewer)L(`${UT[u.type].n} → ${p.name}(${ORG_KN[orgPqKind(n,p)]}) 배속`);}return u;};}
 // 부관 지휘: 전술 소대(06c)는 편성 소대 안에서만 짠다
 {const _to=tacOrganize;tacOrganize=function(n){if(!autoOn(n)||!orgOn(n))return _to(n);const P=tacPl();const t=G.time||0;
   for(const p of P)if(p.nat===n)p.mem=p.mem.filter(id=>G.units.some(u=>u.id===id&&u.nat===n));
@@ -7021,7 +7168,8 @@ function v3Ground(cx,cy){const T=V3.T,p=new T.Vector3();return v3Ray(cx,cy).ray.
 /* 손가락(커서) 아래 지점을 고정한 채 확대·축소 */
 function v3ZoomAt(f,cx,cy,now){const s=V3.cs,o=s.gd;const p=cx!=null?v3Ground(cx,cy):null;v3Zoom(f);if(now)s.d=s.gd;if(!p)return;const k=1-s.gd/o;
   s.gx=Math.min(N,Math.max(0,s.gx+(p.x-s.gx)*k));s.gz=Math.min(N,Math.max(0,s.gz+(p.z-s.gz)*k));if(now){s.x=s.gx;s.z=s.gz;}}
-/* 터치 조작: 한 손가락 드래그 이동(관성), 두 손가락 확대·회전·기울기, 짧게 탭 명령, 길게 눌러 끌기 범위 선택, 두 손가락 탭 선택 해제 */
+/* 마우스(PC): 왼쪽 클릭 선택·이동, 왼쪽 끌기 범위 선택(Shift: 더하기), 오른쪽 클릭 명령, 오른쪽 끌기·Ctrl/Alt+끌기 회전·기울기, 가운데 끌기 이동, 휠 확대.
+   터치 조작: 한 손가락 드래그 이동(관성), 두 손가락 확대·회전·기울기, 짧게 탭 명령, 길게 눌러 끌기 범위 선택, 두 손가락 탭 선택 해제 */
 const LP_MS=420;
 function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,last2=null,lp=null,lpT=0,vel=[0,0],lastMv=0,inertia=0;const pos=e=>[e.clientX,e.clientY];
   const box=$('#selbox');
@@ -7030,13 +7178,14 @@ function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,las
     const st=now=>{const dt=Math.min(40,now-t0);t0=now;v3Pan(vx*dt,vy*dt);const d=Math.exp(-dt/260);vx*=d;vy*=d;inertia=Math.hypot(vx,vy)>.02?requestAnimationFrame(st):0;};inertia=requestAnimationFrame(st);};
   const drawBox=(a,b)=>{if(!box)return;const x=Math.min(a[0],b[0]),y=Math.min(a[1],b[1]);box.style.left=x+'px';box.style.top=y+'px';box.style.width=Math.abs(a[0]-b[0])+'px';box.style.height=Math.abs(a[1]-b[1])+'px';box.hidden=false;};
   cv.addEventListener('contextmenu',e=>e.preventDefault());
-  cv.addEventListener('pointerdown',e=>{stopInertia();if(typeof closeMore==='function')closeMore();try{cv.setPointerCapture(e.pointerId);}catch(_){}P.set(e.pointerId,{p:pos(e),b:e.button,mod:e.shiftKey||e.ctrlKey||e.altKey});
-    if(P.size===1){start={p:pos(e),t:performance.now(),touch:e.pointerType!=='mouse'};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
-      if(e.button===0&&!P.get(e.pointerId).mod)lpT=setTimeout(()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}},LP_MS);}
+  cv.addEventListener('pointerdown',e=>{stopInertia();if(typeof closeMore==='function')closeMore();try{cv.setPointerCapture(e.pointerId);}catch(_){}const ms=e.pointerType==='mouse';P.set(e.pointerId,{p:pos(e),b:e.button,mod:ms?e.ctrlKey||e.altKey:e.shiftKey||e.ctrlKey||e.altKey,sh:e.shiftKey});
+    if(P.size===1){start={p:pos(e),t:performance.now(),touch:!ms,mb:ms&&e.button===0&&!P.get(e.pointerId).mod};moved=0;multi=false;lp=null;vel=[0,0];clearTimeout(lpT);
+      if(e.button===0&&!P.get(e.pointerId).mod&&!ms){const bm=typeof UI!=='undefined'&&UI.boxMode;const go=()=>{if(P.size===1&&!multi&&moved<10&&start){lp={a:start.p,b:start.p,bm};try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}drawBox(lp.a,lp.b);}};if(bm)go();else lpT=setTimeout(go,LP_MS);}}
     else{multi=true;last2=null;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}}});
   cv.addEventListener('pointermove',e=>{const q=P.get(e.pointerId);if(!q){if(e.pointerType==='mouse')v3Hover(e);return;}
     const np=pos(e),dx=np[0]-q.p[0],dy=np[1]-q.p[1];q.p=np;moved+=Math.abs(dx)+Math.abs(dy);
     if(P.size===1){if(lp){lp.b=np;drawBox(lp.a,lp.b);return;}
+      if(start&&start.mb&&q.b===0){if(moved>4){lp={a:start.p,b:np,add:q.sh};drawBox(lp.a,lp.b);}return;}
       if(q.b===2||q.mod){const s=V3.cs;s.gyaw-=dx*.006;s.yaw=s.gyaw;s.pitch=Math.min(1.5,Math.max(.2,s.pitch+dy*.005));}
       else if(moved>(start&&start.touch?10:4)){v3Pan(dx,dy);const now=performance.now(),dt=Math.max(1,now-lastMv);lastMv=now;const k=Math.min(1,dt/40);vel=[vel[0]*(1-k)+dx/dt*k,vel[1]*(1-k)+dy/dt*k];}}
     else if(P.size===2){const [a,b]=[...P.values()];const mx=(a.p[0]+b.p[0])/2,my=(a.p[1]+b.p[1])/2,dd=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]),an=Math.atan2(b.p[1]-a.p[1],b.p[0]-a.p[0]);
@@ -7046,9 +7195,10 @@ function v3Controls(cv){const P=new Map();let start=null,moved=0,multi=false,las
       last2={mx,my,dd,an};}});
   const up=e=>{const had=P.has(e.pointerId);P.delete(e.pointerId);if(P.size<2)last2=null;clearTimeout(lpT);
     if(had&&P.size===0&&start){const dur=performance.now()-start.t;
-      if(lp){if(box)box.hidden=true;const a=lp.a,b=lp.b;lp=null;if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>16){if(typeof boxSelect==='function')boxSelect(a,b);}else{const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof holdTap==='function')holdTap(k);}}
+      if(lp){if(box)box.hidden=true;const a=lp.a,b=lp.b,bm=lp.bm,add=lp.add;lp=null;if(bm&&typeof boxModeOff==='function')boxModeOff();if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>16){if(typeof boxSelect==='function')boxSelect(a,b,add);}else{const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null){if(start.mb){if(typeof tap==='function')tap(k);}else if(typeof holdTap==='function')holdTap(k);}}}
       else if(multi){if(moved<24&&dur<450&&typeof twoTap==='function')twoTap();}
-      else if(moved<(start.touch?12:8)&&dur<LP_MS&&e.button!==2){const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof tap==='function')tap(k);}
+      else if(!start.touch&&e.button===2&&moved<8){const k=v3Pick(e.clientX,e.clientY,28);if(k!=null&&typeof v3Order==='function')v3Order(k);}
+      else if(moved<(start.touch?12:8)&&(dur<LP_MS||!start.touch)&&e.button===0){const k=v3Pick(e.clientX,e.clientY,start.touch?36:28);if(k!=null&&typeof tap==='function')tap(k);}
       else if(performance.now()-lastMv<80)fling();}
     if(P.size===0)start=null;};
   cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{P.delete(e.pointerId);multi=true;clearTimeout(lpT);if(lp){lp=null;if(box)box.hidden=true;}if(P.size===0)start=null;});
@@ -7068,7 +7218,7 @@ function v3Pick(cx,cy,rad){if(!G)return null;V3.pickId=null;V3.pickPt=null;const
     if(best){V3.pickId=best.userData.id;return best.userData.k;}}
   return k;}
 let v3HovRaf=0;
-function v3Hover(e){if(v3HovRaf)return;const x=e.clientX,y=e.clientY;v3HovRaf=requestAnimationFrame(()=>{v3HovRaf=0;const k=v3Pick(x,y);if(k!==UI.hk){UI.hk=k;v3SyncHl();if(typeof renderTip==='function')renderTip();}});}
+function v3Hover(e){if(v3HovRaf)return;const x=e.clientX,y=e.clientY;v3HovRaf=requestAnimationFrame(()=>{v3HovRaf=0;const k=v3Pick(x,y);if(k!==UI.hk){UI.hk=k;v3SyncHl();if(typeof renderTip==='function')renderTip();}if(typeof v3Cursor==='function')v3Cursor();});}
 function v3Clear(g){for(const o of [...g.children]){g.remove(o);o.traverse(x=>{if(x.geometry)x.geometry.dispose();});}}
 
 /* ---------- 지면 ---------- */
@@ -12894,7 +13044,7 @@ function vpChart(){const W2=320,H2=120;const mx=Math.max(G.vpWin,...G.hist.flat(
   const lines=G.order.map((nat,j)=>`<polyline fill="none" stroke="${mapCol(nat)}" stroke-width="2" points="${G.hist.map((v,i)=>`${(i/(n-1)*W2).toFixed(1)},${(H2-v[j]/mx*H2).toFixed(1)}`).join(' ')}"/>`).join('');
   return `<h3>승점 추이</h3><svg viewBox="-4 -4 ${W2+8} ${H2+8}" style="width:100%;max-width:360px" role="img" aria-label="라운드별 승점"><line x1="0" x2="${W2}" y1="${H2-G.vpWin/mx*H2}" y2="${H2-G.vpWin/mx*H2}" stroke="#555" stroke-dasharray="4 3"/>${lines}</svg>`;}
 const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로 흐릅니다. 30초마다 거점 하나당 승점 +1, 지휘점수 +2가 들어옵니다(기본 지휘 +3)</li><li>승점을 먼저 채우거나, 제한 시간이 끝났을 때 승점이 많은 쪽이 이깁니다. 적을 전멸시켜도 승리</li><li>거점은 지상 전투 부대가 들어가 버티면 점령됩니다. 소총분대·공병이 가장 빠르고(12초), 기관총·대전차팀은 조금 느리며, 장갑차·전차·험비는 더 느립니다(건물 거점엔 못 들어감). 드론·항공기·곡사 차량·보급·구급차는 점령하지 못합니다. 적 지상 부대가 둘레에 있으면 다툼 중이라 멈춥니다</li></ul>
-<h3>지휘</h3><ul class="rules"><li>전황 보고: 거점이 공격받거나, 한 구역에서 부대를 잇달아 잃거나, 탄약·구급차·대전차·대공이 모자라면 부대들이 작은 지도 아래에 보고를 올립니다. 보고를 누르면 그 자리로 가고, 버튼 하나로 그 근처에 증원을 내리거나 포격·연막을 부릅니다</li><li>아군을 탭해 고른 뒤 땅을 탭하면 그곳으로 이동, 적을 탭하면 쫓아가 공격합니다</li><li>부대는 사거리 안에 보이는 적을 알아서 쏩니다. 움직이면서 쏘면 연사가 느려지고, 박격포는 멈춰야 쏩니다</li><li>고수: 적을 쫓지 않고 자리를 지킵니다 · 정지: 명령 취소 · 건물 사격: 폭발물 부대로 건물을 부숩니다</li><li>Space 또는 일시정지 버튼으로 멈추고 생각할 수 있습니다. 배속은 0.5×·1×·2×</li></ul>
+<h3>지휘</h3><ul class="rules"><li>전황 보고: 거점이 공격받거나, 한 구역에서 부대를 잇달아 잃거나, 탄약·구급차·대전차·대공이 모자라면 부대들이 작은 지도 아래에 보고를 올립니다. 보고를 누르면 그 자리로 가고, 버튼 하나로 그 근처에 증원을 내리거나 포격·연막을 부릅니다</li><li>호송: 보급 트럭·구난차·구급차가 적 근처로 일하러 가면 근처에서 놀던 험비·장갑차(또는 소대에 안 든 분대) 하나가 호위로 앞서 갑니다. 적을 만나면 호위가 멈춰 싸우고 지원 차량은 물러나며, 지원 차량은 아는 적을 비켜 돌아가는 길을 씁니다. 부관 지휘를 켰을 때만 플레이어 부대를 호위로 씁니다</li><li>아군을 탭해 고른 뒤 땅을 탭하면 그곳으로 이동, 적을 탭하면 쫓아가 공격합니다</li><li>부대는 사거리 안에 보이는 적을 알아서 쏩니다. 움직이면서 쏘면 연사가 느려지고, 박격포는 멈춰야 쏩니다</li><li>고수: 적을 쫓지 않고 자리를 지킵니다 · 정지: 명령 취소 · 건물 사격: 폭발물 부대로 건물을 부숩니다</li><li>Space 또는 일시정지 버튼으로 멈추고 생각할 수 있습니다. 배속은 0.5×·1×·2×</li></ul>
 <h3>이동과 시야</h3><ul class="rules"><li>건물은 시야를 가립니다. 높은 건물 안에 있으면 더 멀리, 낮은 건물 너머까지 봅니다</li><li>보병은 건물 출입문(어두운 문)으로만 드나들고, 안에서는 계단으로 한 층씩 오릅니다. 멈추면 옥상까지 올라가고(옥상은 멀리 보지만 엄폐 25%), 나갈 때는 먼저 1층으로 내려옵니다</li><li>차량은 건물에 못 들어가고 잔해·공원에서 느립니다. 보병은 건물·잔해를 지날 때 느려집니다</li><li>밤에는 시야 −2, 비 −1, 안개·폭우 −2</li></ul>
 <h3>전투</h3><ul class="rules"><li>엄폐: 건물 40%, 잔해 25%, 공원 15%만큼 피해가 줄어듭니다. 폭발물(전차·대전차·공병·박격포)은 건물 엄폐를 절반만 받습니다</li><li>제압: 총알이 날아올 때마다 쌓이고(기관총은 더 많이) 조용하면 풀립니다. 조금 제압되면 느려지고 공격 −30%, 많이 쌓이면 엎드려 꼼짝 못 합니다</li></ul>
 <h3>사상자와 사기</h3><ul class="rules">
@@ -12909,7 +13059,7 @@ const RULES_HTML=`<h3>목표</h3><ul class="rules"><li>전투는 실시간으로
 <h3>방어물</h3><ul class="rules"><li>보병을 고르고 [축성]을 누르면 모래주머니(엄폐 40%)·철조망(보병 차단)·참호(안에 들어가면 사방 엄폐 50%)를, 기관총팀은 기관총 진지를, 공병은 콘크리트 방벽·대전차 장애물(차량 차단)까지 지휘점수로 쌓습니다</li><li>도로 위에 놓으면 길을 가로질러 놓입니다. 차량은 주차된 차·방벽·장애물을 넘지 못하고 돌아가며, 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다</li></ul>
 <h3>미사일</h3><ul class="rules"><li>대전차미사일팀은 멈춰서 쏩니다. 미사일이 표적을 따라가다 위에서 내리꽂혀 장갑을 거의 무시하지만, 표적이 연막에 들어가거나 시야 밖으로 숨으면 유도가 끊겨 엉뚱한 곳에 떨어집니다</li><li>다연장 로켓은 아군이 보는 곳에 로켓 12발을 넓게 흩뿌리고, 다시 장전하는 데 25초 걸립니다</li><li>순항미사일(화력 지원)은 몇 초 뒤 낮게 날아와 건물을 무너뜨리고, 근처 적 대공이 요격할 수 있습니다. 탄도미사일은 8초 뒤 떨어지며 요격할 수 없고 반경 2칸을 초토화합니다. 떨어질 곳은 적에게도 붉은 원으로 보이니 그 사이에 피할 수 있습니다</li></ul>
 <h3>공중전</h3><ul class="rules"><li>드론과 헬기는 쏜다고 다 맞지 않습니다. 소총·기관총은 대부분 빗나가고, 대공팀(휴대용 대공미사일)과 대공포 차량이 잘 맞힙니다. 보병은 아주 가까이 온 드론에 산탄총을 씁니다</li><li>전자전팀은 반경 3.5칸 안 적 드론의 신호를 끊어 떨어뜨립니다(헬기·전투기에는 효과 없음)</li><li>드론팀은 멈춰서 3초 자리를 잡으면 보이는 적(10칸 안)에게 FPV를 띄웁니다. 한 번에 2대까지, 드론 4대를 들고 25초마다 1대씩 보급받습니다. 조종수가 쓰러지거나 10칸 밖으로 나가면 드론이 떨어집니다. 험비·장갑차를 고르고 [드론팀 하차]로 내려놓을 수도 있습니다</li><li>FPV 자폭드론은 적에게 날아가 부딪혀 터집니다. 위에서 덮쳐 장갑을 무시하지만 한 발만 맞아도 떨어집니다</li><li>공격헬기는 지정한 곳 위를 45초 동안 선회하며 쏩니다. 탭해서 선회 지점을 옮길 수 있고, 대공미사일은 플레어로 두 번까지 피하기도 합니다</li><li>근접 항공 지원은 전투기가 몇 초 뒤 와서 폭탄을 떨어뜨리고, 목표 근처 적 대공이 먼저 격추할 수 있습니다. 폭우에는 헬기·전투기가 뜨지 못합니다</li><li>격추된 헬기는 떨어진 곳 주변에 피해를 줍니다</li></ul>
-<h3>화면</h3><ul class="rules"><li>드래그: 이동(튕기면 미끄러짐) · 두 손가락: 확대·회전·기울기 · 마우스 휠: 커서 위치로 확대 · 오른쪽 드래그 또는 Shift+드래그: 회전·기울기</li><li>휴대폰: 아래 부대 목록을 탭하면 그 부대를 고르고 카메라가 따라갑니다 · 길게 누른 채 끌면 범위 안 아군을 한꺼번에 선택 · 길게 누르면 그 지점 정보 · 두 손가락으로 톡 치면 선택 해제 · ⋯ 버튼에 나머지 지도 버튼</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지</li></ul>`;
+<h3>화면</h3><ul class="rules"><li>PC: 왼쪽 클릭 고르기 · 왼쪽 끌기 범위 선택(Shift 누르고 끌면 더하기) · 오른쪽 클릭 명령(이동·공격, 중대를 골랐으면 목표) · 아군 더블클릭 그 소대 전체 · 오른쪽 끌기 또는 Ctrl+끌기 회전·기울기 · 가운데 끌기·화면 가장자리·WASD 화면 이동 · 휠 확대</li><li>휴대폰: 한 손가락 끌기 화면 이동(튕기면 미끄러짐) · 두 손가락 확대·회전·기울기</li><li>휴대폰: 아래 부대 목록을 탭하면 그 부대를 고르고 카메라가 따라갑니다 · 오른쪽 아래 [범위 선택](점선 네모)을 누르고 끌거나, 길게 누른 채 끌면 범위 안 아군을 한꺼번에 선택 · 길게 누르면 그 지점 정보 · 두 손가락으로 톡 치면 선택 해제 · ⋯ 버튼에 나머지 지도 버튼</li><li>키보드: WASD 이동, Q/E 회전, R/F 기울기, Space 일시정지, Ctrl+숫자 부대 번호 붙이기 · 숫자 그 부대 고르기(두 번 누르면 카메라 이동), Ctrl+A 전체, H 집결지, Esc 취소</li></ul>`;
 function showSetup(){const cl=$('#camp-list');if(cl&&typeof campList==='function')cl.innerHTML=campList();for(const id of ['brief','debrief']){const o=$('#'+id);if(o)o.hidden=true;}const sl=$('#scn-list');if(sl&&typeof scnButtons==='function')sl.innerHTML=scnButtons();
   const box=$('#slots');box.innerHTML=NATS.map((N2,i)=>`<div class="slot"><i class="sw" style="background:${N2.col}"></i><label for="slot-${i}">${N2.full} <small>${N2.edge}</small></label><select id="slot-${i}"><option value="human">사람</option><option value="ai">AI</option>${i>1?'<option value="none">없음</option>':''}</select></div>`).join('');
   NATS.forEach((_,i)=>{$('#slot-'+i).value=UI.setupSlots[i]||'none';});$('#b-resume').hidden=!loadSave();$('#setup').hidden=false;}
@@ -13007,7 +13157,7 @@ function mmDraw(){if(!MM.ctx||!G||!G.map)return;const el=MM.el;const hide=!MM.on
   const nd=Math.hypot(nx-S/2,ny-S/2)||1;g.fillText('N',S/2+(nx-S/2)/nd*(S/2-7),S/2+(ny-S/2)/nd*(S/2-7));}
 /* 미니맵을 누르면: 기본은 카메라 이동. 감싼 쪽이 true를 돌려주면 그걸로 끝 */
 function mmPick(x,z,first){if(!V3.cs)return true;const s=V3.cs;s.gx=Math.max(0,Math.min(N,x));s.gz=Math.max(0,Math.min(N,z));if(UI.follow!=null){UI.follow=null;UI.specAuto=false;}return true;}
-function mmSize(){const sm=window.matchMedia&&window.matchMedia('(max-width:760px)').matches;MM.px=sm?118:176;MM.dpr=Math.min(2,window.devicePixelRatio||1);
+function mmSize(){const mq=q=>!!(window.matchMedia&&window.matchMedia(q).matches);MM.px=mq('(max-height:500px)')?112:mq('(max-width:760px)')?136:176;MM.dpr=Math.min(2,window.devicePixelRatio||1);
   const cv=MM.cv;if(!cv)return;cv.width=Math.round(MM.px*MM.dpr);cv.height=Math.round(MM.px*MM.dpr);cv.style.width=cv.style.height=MM.px+'px';}
 function mmInit(){if(typeof document==='undefined'||MM.el)return;mmLoad();
   const st=document.createElement('style');st.id='mm-css';
@@ -13120,6 +13270,7 @@ if(typeof document!=='undefined'&&!document.getElementById('org-css')){const st=
 .org-row .oc{display:inline-flex;gap:5px;align-items:baseline}.org-row .oc small{color:#c9d1d6;font-weight:400}.org-row .oc em{font-style:normal;color:#9fd3ff}
 .org-row .btn[aria-pressed="true"]{border-color:#9fd3ff;color:#9fd3ff}
 #roster .rh{flex:0 0 auto;min-height:34px;padding:0 8px;border-radius:8px;border:1px solid rgba(159,211,255,.45);background:rgba(20,40,60,.75);color:#9fd3ff;font:600 12px/1 inherit;cursor:pointer}
+#roster .rh small.pk{display:block;font-size:9.5px;font-weight:500;opacity:.8;margin-top:2px}
 #roster .rh.co{background:rgba(159,211,255,.18);color:#d9efff}#roster .rh[aria-pressed="true"]{background:#9fd3ff;color:#0d1a26}
 .v3u u.pq{border-color:#9fd3ff;color:#9fd3ff}
 .org-row .adj-s{display:none}
@@ -13224,7 +13375,7 @@ if(typeof renderRoster==='function'){const _rr=renderRoster;let sig0='';renderRo
     return `<button class="rc" data-act="pick:${u.id}" id="rc-${u.id}" aria-pressed="${sel.has(u.id)}"><b>${UT[u.type].n}</b>${st?`<small>${st}</small>`:''}<i style="--f:${f};--c:${f>.6?'#5cd18a':f>.3?'#f0c45a':'#ff6a3d'}"></i></button>`;};
   el.innerHTML=groups.map(g=>{let h='';
     if(g.c)h+=`<button class="rh co" data-act="org:co:${g.c.id}" aria-pressed="${!!(UI.org&&UI.org.k==='co'&&UI.org.id===g.c.id)}">${g.c.name}</button>`;
-    if(g.p)h+=`<button class="rh" data-act="org:pq:${g.p.id}" aria-pressed="${!!(UI.org&&UI.org.k==='pq'&&UI.org.id===g.p.id)}" title="${g.p.name}">${g.p.no}소대</button>`;
+    if(g.p)h+=`<button class="rh" data-act="org:pq:${g.p.id}" aria-pressed="${!!(UI.org&&UI.org.k==='pq'&&UI.org.id===g.p.id)}" title="${g.p.name} (${ORG_KN[orgPqKind(n,g.p)]})">${g.p.no}소대<small class="pk">${ORG_KN[orgPqKind(n,g.p)]}</small></button>`;
     else h+=`<button class="rh" data-act="org:hq" aria-pressed="${!!(UI.org&&UI.org.k==='hq')}">본부</button>`;
     return h+g.us.map(chip).join('');}).join('');
   const sid=UI.sel?UI.sel.id:null;if(sid!==rosterSel){rosterSel=sid;const on=$('#rc-'+sid);if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center'});}};}
@@ -13758,10 +13909,11 @@ document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('i
    - 두 손가락 탭: 선택·명령 모드 취소
    - 명령을 내린 지점에 잠깐 표시가 뜬다 */
 function canCmd(){return G&&!G.over&&!G.boot&&!isAI(G.viewer)&&$('#setup').hidden;}
-function boxSelect(a,b){if(!canCmd()||typeof V3==='undefined'||!V3.cam)return;const n=G.viewer;const r=V3.cv.getBoundingClientRect();
+function boxSelect(a,b,add){if(!canCmd()||typeof V3==='undefined'||!V3.cam)return;const n=G.viewer;const r=V3.cv.getBoundingClientRect();
   const x0=Math.min(a[0],b[0]),x1=Math.max(a[0],b[0]),y0=Math.min(a[1],b[1]),y1=Math.max(a[1],b[1]);const v=new V3.T.Vector3();
   const us=G.units.filter(u=>{if(u.nat!==n)return false;const o=V3.uo.get(u.id);if(!o)return false;v.copy(o.position);if(typeof v3TY==='function')v.y+=v3TY(v.x,v.z);v.project(V3.cam);
     const sx=(v.x+1)/2*r.width+r.left,sy=(1-v.y)/2*r.height+r.top;return sx>=x0-10&&sx<=x1+10&&sy>=y0-10&&sy<=y1+10;});
+  if(add){for(const u of [UI.sel,...(UI.group||[])])if(u&&u.nat===n&&G.units.includes(u)&&!us.includes(u))us.push(u);}
   if(!us.length){toast('범위 안에 아군이 없습니다');return;}
   clearSel();select(us[0]);UI.group=us.slice(1);toast(`${us.length}개 부대 선택`);render();}
 function holdTap(k){if(!G)return;const r=kr(k),c=kc(k),x=cell(r,c),n=G.viewer;const pid=V3.pickId;const u0=pid!=null?G.units.find(z=>z.id===pid):null;
@@ -13795,6 +13947,159 @@ if(typeof document!=='undefined')document.addEventListener('click',e=>{const b=e
   if(a.startsWith('pick:'))rosterPick(+a.slice(5));});
 function closeMore(){const m=$('#mapctl');if(m&&m.classList.contains('open')){m.classList.remove('open');const mb=$('#b-more');if(mb)mb.setAttribute('aria-expanded','false');}}
 
+/* ---- 09c-phone.js ---- */
+/* ===================== PHONE: 휴대폰 한 손 조작 =====================
+   "단축키 말고 모바일 조작 개선". 휴대폰에서 아래 패널이 화면 절반을 덮고, 위 시계가 지휘점수를 밀어내고,
+   무전 자막이 부대 목록 위에 겹치던 것을 정리한다.
+   - 아무것도 안 골랐을 때 하단 바는 한 줄: 부관 상태 한 줄 + [증원·지원] [속도] [⏸]. 편성 칩(전체·중대·소대·본부)은 부대 목록 맨 앞에 있다.
+   - 지도 버튼(회전·집결지·범위 선택·⋯)은 엄지가 닿는 오른쪽 아래, 하단 패널 바로 위로 옮긴다.
+   - [범위 선택]: 누른 뒤 한 손가락으로 끌면 그 안의 아군을 고른다(한 번 쓰면 꺼짐). 길게 눌러 끌기도 그대로.
+   - 무전 자막과 지도 버튼은 하단 패널 높이(--dock-h)를 따라 그 위에 뜬다. 휴대폰에서는 지난 자막을 숨긴다.
+   CSS는 여기서 넣는다. */
+const PH_Q='(max-width:760px),(pointer:coarse)';
+const phOn=()=>typeof window!=='undefined'&&!!(window.matchMedia&&window.matchMedia(PH_Q).matches);
+if(typeof document!=='undefined'&&!document.getElementById('ph-css')){const st=document.createElement('style');st.id='ph-css';
+  st.textContent=`.mapctl .bx svg{stroke-dasharray:3 2.4}
+.mapctl .bx[aria-pressed="true"]{background:#e8ecef;color:#0d1218;border-color:#e8ecef}
+.mapctl .bx[aria-pressed="true"] svg{stroke-dasharray:none}
+.app.boxm .v3d{cursor:crosshair}
+@media ${PH_Q}{
+  #actbar.ph-idle{flex-wrap:nowrap;gap:6px;padding:5px 5px 5px 10px}
+  #actbar.ph-idle>b,#actbar.ph-idle>span,#actbar.ph-idle>.org-row{display:none}
+  #actbar.ph-idle>.adj-row{flex:1 1 auto;min-width:0;width:auto;flex-wrap:nowrap;border:0;margin:0;padding:0;gap:6px}
+  #actbar.ph-idle>.adj-row>b{display:none}
+  #actbar.ph-idle .adj-i{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px;line-height:1.3}
+  #actbar.ph-idle .adj-row .btn{min-height:44px;min-width:44px;flex:none}
+  #actbar.ph-idle>.ab{flex:none;margin-left:0;overflow:visible}
+  #actbar.ph-idle #ab-reinf{background:#eef1f3;color:#0d1218;border-color:#eef1f3;font-weight:600}
+  #actbar.ph-idle #ab-pause{min-width:44px;padding:0 10px;font-size:15px}
+  .top .tl>.ib{flex:none}
+  #actbar .btn.sm{min-width:44px}
+  #actbar.sx-org>.org-row{display:contents}
+  #actbar.sx-org>.org-row>b{flex:none}
+  #actbar.sx-org>.org-row>.adj-i{flex:1 1 calc(100% - 80px);min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:11.5px}
+  #actbar.sx-org>.ab{margin-left:0}
+  #actbar.sx-org [id^="ab-org-pq-"],#actbar.sx-org #ab-org-up{display:none}
+  #mm-t{height:36px;padding:0 10px}
+  .rvox{bottom:calc(var(--dock-h,108px) + 8px)!important;max-width:min(440px,calc(100vw - 76px))!important}
+  .rvox p{font-size:11px;padding:3px 7px}
+  .rvox p.old{display:none}
+  .mapctl{top:auto!important;bottom:calc(var(--dock-h,120px) + 10px);transform:none}
+  #roster .rh{min-height:48px;min-width:48px;padding:0 10px;font-size:13px}
+  #roster .rh.all{background:rgba(255,210,122,.16);border-color:rgba(255,210,122,.55);color:#ffe2a8}
+  #roster .rh.all[aria-pressed="true"]{background:#ffd27a;color:#1a1408}
+}
+@media (max-width:760px){
+  .top{grid-template-columns:minmax(0,1fr) auto}
+  .top .tl{min-width:0}
+  #hud-clock{min-width:0;overflow:hidden;flex:0 1 auto}
+  #hud-clock small{min-width:0;overflow:hidden;text-overflow:ellipsis}
+}
+@media (max-height:500px) and (orientation:landscape){
+  .mapctl{bottom:max(10px,env(safe-area-inset-bottom,0px))}
+  #roster .rh{min-height:40px}
+  .actbar>span{min-width:0!important;flex:1 1 0!important}
+  .actbar>.ab{flex:0 1 auto;min-width:0}
+  #actbar.sx-org>.org-row>.adj-i{flex:1 1 0}
+}`;
+  document.head.appendChild(st);}
+/* 하단 패널 높이를 CSS 변수로 */
+function phDock(){if(typeof document==='undefined')return;const d=document.querySelector('.dock'),app=$('#app');if(!d||!app)return;
+  const set=()=>{const h=Math.round(d.getBoundingClientRect().height);if(app._dh!==h){app._dh=h;app.style.setProperty('--dock-h',h+'px');}};set();
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(set).observe(d);else window.addEventListener('resize',set);}
+/* 범위 선택 버튼 */
+function boxModeSet(on){UI.boxMode=!!on;const b=$('#b-box');if(b)b.setAttribute('aria-pressed',UI.boxMode?'true':'false');const a=$('#app');if(a)a.classList.toggle('boxm',UI.boxMode);}
+function boxModeOff(){if(UI.boxMode)boxModeSet(false);}
+function phBoxBtn(){const m=$('#mapctl');if(!m||$('#b-box'))return;const b=document.createElement('button');b.className='ib bx';b.id='b-box';b.dataset.act='boxsel';
+  b.setAttribute('aria-label','범위 선택: 누른 뒤 끌어서 여러 부대 고르기');b.title='범위 선택 (누른 뒤 끌기)';b.setAttribute('aria-pressed','false');
+  b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4z"/></svg>';m.insertBefore(b,m.firstChild);}
+if(typeof document!=='undefined'){
+  const init=()=>{phBoxBtn();phDock();};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-act="boxsel"]');if(!b)return;
+    if(!(typeof canCmd==='function'&&canCmd())){toast('지금은 고를 수 없습니다');return;}
+    boxModeSet(!UI.boxMode);if(UI.boxMode)toast('끌어서 범위 안의 아군을 고르세요');});}
+/* 하단 바: 아무것도 안 골랐을 때 휴대폰은 한 줄 */
+{const _ra=renderActbar;renderActbar=function(){const r=_ra.apply(this,arguments);const el=$('#actbar');if(!el)return r;
+  try{const s=UI.sel&&G&&G.units.includes(UI.sel)?UI.sel:null;
+    const idle=phOn()&&G&&!G.over&&!G.boot&&!isAI(G.viewer)&&!s&&!UI.pane&&!UI.phase&&!UI.adjMore&&!!el.querySelector(':scope>.ab #ab-reinf');
+    el.classList.toggle('ph-idle',idle);
+    if(idle){const p=el.querySelector('#ab-pause');if(p){p.textContent=G.paused?'▶':'⏸';p.setAttribute('aria-label',G.paused?'재개':'일시정지');p.title=G.paused?'재개':'일시정지';}}
+  }catch(e){}
+  return r;};}
+/* 부대 목록 맨 앞에 [전체] */
+if(typeof renderRoster==='function'){const _rr=renderRoster;renderRoster=function(){const r=_rr.apply(this,arguments);const el=$('#roster');if(!el||el.hidden||!G)return r;
+  let a=el.querySelector('.rh.all');const og=typeof orgOn==='function'&&orgOn(G.viewer);
+  if(!a){a=document.createElement('button');a.className='rh co all';a.id='rc-all';a.textContent='전체';el.prepend(a);}
+  a.dataset.act=og?'org:all':'all';a.title=og?'전투 부대 전체 고르기 (지도를 탭하면 목표)':'아군 전체 고르기';
+  a.setAttribute('aria-pressed',og?String(!!(UI.org&&UI.org.k==='all')):'false');
+  return r;};}
+
+/* ---- 09d-pc.js ---- */
+/* ===================== PC: 마우스·키보드 지휘 =====================
+   "PC 조작도 개선". 실시간 전략 게임에서 익숙한 방식으로:
+   - 왼쪽 클릭 고르기·이동, 왼쪽 끌기 범위 선택(Shift: 더하기), 오른쪽 클릭 명령 (07-view3d v3Controls)
+   - 오른쪽 클릭: 고른 부대가 있으면 그곳으로 이동(적이면 공격, 아군 위면 그 자리로 이동), 중대·전체를 골랐으면 그곳이 목표.
+     배치·화력 지원 고르는 중에는 취소, 돌입·축성 같은 자리 고르기 중에는 그 단계만 취소.
+   - 아군 더블클릭: 그 소대 전체 (편성이 있을 때)
+   - Ctrl+숫자: 고른 부대에 번호, 숫자: 그 번호 고르기(두 번 누르면 카메라가 간다), Shift+숫자: 더하기
+   - Ctrl+A: 전체 고르기, H: 집결지로 카메라
+   - 마우스를 화면 가장자리에 대면 화면이 그쪽으로 움직인다
+   - 커서: 아군 위 손가락, 고른 부대가 있을 때 적 위 조준, 땅 위 이동 표시 */
+const pcCan=()=>G&&!G.over&&!G.boot&&!isAI(G.viewer)&&typeof $==='function'&&$('#setup')&&$('#setup').hidden&&!(typeof specOn==='function'&&specOn());
+const pcGrp=()=>{const s=UI.sel&&G.units.includes(UI.sel)?UI.sel:null;return s?[s,...(UI.group||[])].filter(u=>u&&G.units.includes(u)):[];};
+/* 오른쪽 클릭 명령 */
+function v3Order(k){if(!pcCan())return;
+  if(UI.phase==='buy'||UI.phase==='sup'){clearSel();render();return;}
+  if(UI.phase==='aim:atk'||UI.phase==='aim:def'){tap(k);return;}
+  if(UI.phase&&UI.phase!=='select'){UI.phase='select';render();return;}
+  if(!pcGrp().length){if(UI.pane){UI.pane=null;render();}return;}
+  const pid=typeof V3!=='undefined'?V3.pickId:null;const u=pid!=null?G.units.find(z=>z.id===pid):null;
+  if(u&&u.nat===G.viewer){V3.pickPt=[u.x,u.z];V3.pickId=null;}
+  const add=UI.addSel;UI.addSel=false;UI.shift=false;try{tap(k);}finally{UI.addSel=add;}}
+/* 커서 */
+function v3Cursor(){if(typeof V3==='undefined'||!V3.cv)return;let c='';
+  if(G&&pcCan()){const n=G.viewer;const pid=V3.pickId;const u=pid!=null?G.units.find(z=>z.id===pid):null;const has=pcGrp().length>0;
+    if(UI.boxMode)c='crosshair';
+    else if(UI.phase&&UI.phase!=='select')c='crosshair';
+    else if(u&&u.nat===n)c='pointer';
+    else if(has&&u&&u.nat!==n&&(!G.fog||seen(u,n)))c='crosshair';
+    else if(has)c='cell';}
+  if(V3.cv.style.cursor!==c)V3.cv.style.cursor=c;}
+/* 아군 더블클릭(더블탭): 그 소대 전체 */
+{const _tap=tap;tap=function(k){
+  if(G&&pcCan()&&(!UI.phase||UI.phase==='select')&&!UI.addSel&&!UI.shift&&typeof orgOn==='function'&&orgOn(G.viewer)){
+    const pid=typeof V3!=='undefined'?V3.pickId:null;const u=pid!=null?G.units.find(z=>z.id===pid&&z.nat===G.viewer):null;
+    if(u&&u===UI.sel&&Date.now()-(UI.lastTap||0)<400&&u.pq!=null&&typeof orgPq==='function'&&orgPq(G.viewer,u.pq)){UI.lastTap=0;orgSelect({k:'pq',id:u.pq});return;}}
+  return _tap.apply(this,arguments);};}
+/* 부대 번호 (Ctrl+숫자) */
+function pcGroupSet(i){const g=pcGrp();UI.cg=UI.cg||{};if(!g.length){delete UI.cg[i];toast(`${i}번 지움`);return;}UI.cg[i]=g.map(u=>u.id);toast(`${i}번: ${g.length}개 부대`);}
+function pcGroupGet(i,add){const ids=(UI.cg||{})[i];const n=G.viewer;let us=ids?ids.map(id=>G.units.find(u=>u.id===id&&u.nat===n)).filter(Boolean):[];
+  if(!us.length){toast(`${i}번 부대가 없습니다 · Ctrl+${i}로 붙이세요`);return;}
+  if(add)for(const u of pcGrp())if(!us.includes(u))us.push(u);
+  const now=Date.now();const again=UI.cgLast===i&&now-(UI.cgT||0)<500;UI.cgLast=i;UI.cgT=now;
+  clearSel();select(us[0]);UI.group=us.slice(1);
+  if(again&&typeof V3!=='undefined'&&V3.cs){let x=0,z=0;for(const u of us){x+=u.x;z+=u.z;}V3.cs.gx=x/us.length;V3.cs.gz=z/us.length;}
+  toast(`${i}번: ${us.length}개 부대${again?'':' · 한 번 더 누르면 카메라 이동'}`);render();}
+if(typeof window!=='undefined')window.addEventListener('keydown',e=>{if(e.target&&e.target.closest&&e.target.closest('input,select,textarea'))return;if(!pcCan())return;
+  const m=/^Digit([1-9])$/.exec(e.code||'');
+  if(m&&!e.altKey){const i=+m[1];e.preventDefault();e.stopPropagation();if(e.ctrlKey||e.metaKey)pcGroupSet(i);else pcGroupGet(i,e.shiftKey);return;}
+  if((e.key==='a'||e.key==='A')&&(e.ctrlKey||e.metaKey)){e.preventDefault();e.stopPropagation();
+    if(typeof orgOn==='function'&&orgOn(G.viewer)&&typeof orgSelect==='function')orgSelect({k:'all'});
+    else{const us=G.units.filter(u=>u.nat===G.viewer);if(us.length){clearSel();select(us[0]);UI.group=us.slice(1);toast(`${us.length}개 부대 선택`);render();}}return;}
+  if((e.key==='h'||e.key==='H')&&!e.ctrlKey&&!e.metaKey&&!e.altKey){const b=$('#b-home');if(b)b.click();}},true);
+/* 화면 가장자리 스크롤 (마우스만) */
+const EDGE={x:-1,y:-1,in:false,raf:0,t:0};
+function pcEdgeOk(){return typeof V3!=='undefined'&&V3.on&&V3.cs&&G&&!G.boot&&!UI.sheet&&!(typeof PR!=='undefined'&&PR.on)&&$('#setup')&&$('#setup').hidden&&(typeof document.hasFocus!=='function'||document.hasFocus());}
+function pcEdgeTick(now){EDGE.raf=0;if(!EDGE.in)return;const dt=Math.min(50,now-(EDGE.t||now));EDGE.t=now;const W=innerWidth,H=innerHeight,M=8;
+  let dx=0,dy=0;if(EDGE.x<=M)dx=1;else if(EDGE.x>=W-1-M)dx=-1;if(EDGE.y<=M)dy=1;else if(EDGE.y>=H-1-M)dy=-1;
+  if(!dx&&!dy){EDGE.t=0;return;}
+  if(pcEdgeOk()){const sp=.9*dt;v3Pan(dx*sp,dy*sp);}
+  EDGE.raf=requestAnimationFrame(pcEdgeTick);}
+if(typeof document!=='undefined'){
+  document.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;EDGE.x=e.clientX;EDGE.y=e.clientY;EDGE.in=true;if(!EDGE.raf){EDGE.t=0;EDGE.raf=requestAnimationFrame(pcEdgeTick);}},{passive:true});
+  document.addEventListener('mouseout',e=>{if(!e.relatedTarget)EDGE.in=false;});
+  window.addEventListener('blur',()=>{EDGE.in=false;});}
+
 /* ---- 10-scenario.js ---- */
 /* ===================== SCENARIOS ===================== */
 const SCN={
@@ -13821,13 +14126,13 @@ function scnSetup(k,sp){sp=sp??260;
 function scnObjective(){if(!G||!G.scn)return null;const n=0;if(G.camp&&typeof campObjective==='function')return campObjective();
   if(G.scn==='tut'){const S=[
       ['1/8 이동','소총분대를 탭해 고르고 땅을 탭하면 그리로 움직입니다. 건물에 들어가면 엄폐 40%를 받습니다.'],
-      ['2/8 시야','건물은 시야를 가립니다. 높은 건물에 들어가면 더 멀리 봅니다. 화면을 드래그하거나 왼쪽 위 작은 지도를 눌러 둘러보세요. Space로 언제든 멈출 수 있습니다.'],
+      ['2/8 시야','건물은 시야를 가립니다. 높은 건물에 들어가면 더 멀리 봅니다. 화면을 드래그하거나 왼쪽 위 작은 지도를 눌러 둘러보세요. Space(휴대폰은 아래 ⏸)로 언제든 멈출 수 있습니다.'],
       ['3/8 사격','부대는 사거리 안의 적을 알아서 쏩니다. 부대를 고른 뒤 적을 탭하면 그 적을 쫓아가 공격합니다.'],
       ['4/8 점령','깃발과 빛기둥이 있는 거점에 부대를 들여보내 점령하세요. 땅을 딛는 전투 부대는 모두 점령할 수 있지만 보병 분대가 가장 빠르고(소총분대·공병 12초), 차량은 느리며 건물 거점엔 못 들어갑니다. 드론·항공기·보급차는 점령하지 못합니다. 거점마다 30초마다 승점과 지휘점수가 들어옵니다.'],
-      ['5/8 증원','하단 바의 "증원·지원"에서 부대를 골라 집결지(초록 칸)에 배치해 보세요. 보급 트럭·구급차·구난차는 배치만 하면 탄약 보급·부상자 후송·견인을 알아서 합니다.'],
+      ['5/8 증원','하단 바의 "증원·지원"에서 부대를 골라 집결지(초록 칸)에 배치해 보세요. 보급 트럭·구급차·구난차는 배치만 하면 탄약 보급·부상자 후송·견인을 알아서 합니다 적 근처로 갈 때는 근처 험비·장갑차가 호위로 붙습니다.'],
       ['6/8 부관','부대마다 명령하기 번거로우면 부관(AI)에게 맡기세요. 아무 부대도 고르지 않은 상태에서 하단의 [부관에게 맡기기]를 누르세요.'],
-      ['7/8 목표','부대는 저절로 소대·중대로 묶입니다. 아래 [1중대]를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요. 그곳이 중대의 공격 목표가 되고, 이동·엄폐·화력 지원은 부관이 합니다. [공격 → 방어로]를 누른 뒤 탭하면 지킬 곳이 됩니다.'],
-      ['8/8 직접 명령','부대 하나를 골라 땅을 탭하면 그 부대만 직접 움직입니다(\'직접\' 표시, 45초 뒤나 [부관에게 돌려주기]로 다시 부관이 맡음). 고수·축성 같은 드문 명령은 [⋯]에 있습니다. 중대를 골라 [증원 받기]를 누르면 새로 오는 부대가 그 중대로 갑니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
+      ['7/8 목표','부대는 저절로 소대·중대로 묶입니다. 아래 부대 목록 맨 앞의 [1중대](또는 [전체])를 누르고 3D 지도나 왼쪽 위 작은 지도에서 남은 거점을 탭하세요. 그곳이 중대의 공격 목표가 되고, 이동·엄폐·화력 지원은 부관이 합니다. [공격 → 방어로]를 누른 뒤 탭하면 지킬 곳이 됩니다.'],
+      ['8/8 직접 명령','부대 하나를 골라 땅을 탭하면 그 부대만 직접 움직입니다(\'직접\' 표시, 45초 뒤나 [부관에게 돌려주기]로 다시 부관이 맡음). 고수·축성 같은 드문 명령은 [⋯]에 있습니다. 여러 부대는 지도 버튼의 [범위 선택]을 누르고 끌어서 한꺼번에 고릅니다. 중대를 골라 [증원 받기]를 누르면 새로 오는 부대가 그 중대로 갑니다. 남은 적을 몰아내고 거점을 모두 확보하세요.']];
     const i=Math.min(G.tut||0,7);return {t:S[i][0],m:S[i][1]};}
   if(G.scn==='assault')return {t:'도심 돌파',m:`거점 ${objCount(n)}/5 동시 확보 · 남은 시간 ${fmtT(16*ROUND_S-G.time)}`};
   if(G.scn==='hold')return {t:'최후 방어',m:`거점 ${objCount(n)}곳 유지 중 (3곳 이상) · 남은 시간 ${fmtT(14*ROUND_S-G.time)}`};
