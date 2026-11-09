@@ -371,3 +371,12 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 .pr-vcap{max-width:min(720px,100%);width:100%;font-family:var(--font-d)}.pr-vcap p{margin:0 0 2px;font-size:14px}.pr-vcap small{color:#8f8a7f;font-family:var(--font-m);font-size:11px}
 .pr-vact{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.pr-vact a.btn{text-decoration:none;display:inline-flex;align-items:center}
 @media (prefers-reduced-motion: reduce){.press-still{transition:none}.pr-shut span{transition:none}}
+
+/* 상륙 작전: 다음 상륙 지점 고르기·물때 */
+.lpan{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.1)}
+.lpan .lk{font-size:11px;color:var(--muted);letter-spacing:.04em;margin-right:2px}
+.lpan .lrow{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.lpan .lsec{padding:3px 8px;font-size:12px;min-height:28px}
+.lpan .lsec.on{border-color:#f0c45a;color:#f0c45a;background:rgba(240,196,90,.12)}
+.lpan small{color:var(--muted);font-size:11px}
+.ltide{margin:2px 0 0;font-size:12px;color:#9fc3d6}.ltide.low{color:#c9a27a}

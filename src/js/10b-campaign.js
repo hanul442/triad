@@ -6,6 +6,12 @@
    진행 기록은 localStorage 'triad-campaign' = {임무 id: 받은 별 수}. */
 const CAMP_K='triad-campaign';
 const CAMP_IDS=['evac','bridge','station'];
+/* 작전(임무 묶음). free=1이면 순서 없이 모두 열린다. 10c-landing이 '상륙 작전'을 더한다 */
+const CAMP_OPS=[{id:'haryeong',n:'하령 작전',ids:['evac','bridge','station'],end:'하령 작전을 모두 마쳤습니다. 방송국에서 연방의 목소리가 다시 흘러나옵니다.'}];
+const campOpOf=id=>CAMP_OPS.find(o=>o.ids.includes(id))||CAMP_OPS[0];
+/* 세력 이름: 역사 임무는 잠시 바꾸고, 다른 판을 시작하면 되돌린다 */
+const NATS_DEF=NATS.map(o=>({...o}));
+function campNames(list){NATS.forEach((o,i)=>Object.assign(o,NATS_DEF[i],(list&&list[i])||{}));}
 const EVAC_CAP={hmv:3,ifv:5};   // 한 번에 태우는 사람 수
 const EVAC_T=3;               // 한 사람이 타는 데 걸리는 초
 const EVAC_N=20;
@@ -36,7 +42,7 @@ const CAMP={
 /* ---------- 진행 기록 ---------- */
 function campLoad(){try{if(typeof localStorage==='undefined')return {};const o=JSON.parse(localStorage.getItem(CAMP_K)||'{}');return o&&typeof o==='object'?o:{};}catch(e){return {};}}
 function campRecord(id,stars){const s=campLoad();s[id]=Math.max(s[id]||0,stars);try{localStorage.setItem(CAMP_K,JSON.stringify(s));}catch(e){}return s;}
-function campOpen(id){const i=CAMP_IDS.indexOf(id);return i===0||(i>0&&!!campLoad()[CAMP_IDS[i-1]]);}
+function campOpen(id){const op=campOpOf(id);const i=op.ids.indexOf(id);if(i<0)return false;return !!op.free||i===0||!!campLoad()[op.ids[i-1]];}
 
 /* ---------- 지도·배치 도구 ---------- */
 const campMid=()=>Math.round((N-1)/2);
@@ -134,18 +140,20 @@ CAMP.station.income=n=>n===0?4:3;
 
 /* ---------- 시작 ---------- */
 function campStart(id){const M=CAMP[id];if(!M)return null;
-  newGame({slots:['human','ai','none','none'],size:'m',fog:true,speed:0,scn:'camp',seed:M.seed,force:[],maxR:Math.ceil(M.limit/ROUND_S),vpWin:9999});
-  G.camp={id,st:{},log:[]};G.wx='clear';
+  newGame({slots:['human','ai','none','none'],size:'m',fog:true,speed:0,scn:'camp',seed:M.seed,force:[],maxR:Math.ceil(M.limit/ROUND_S),vpWin:9999,hour:M.hour});
+  G.camp={id,st:{},log:[]};G.wx=M.wx||'clear';campNames(M.nats);
   M.setup();
   G.navV=(G.navV||0)+1;if(typeof propCovers==='function')propCovers();
   M.units();
   if(typeof fortCovers==='function'){fortCovers();G.fortNV=(G.fortNV||0)+1;G.fortV=(G.fortV||0)+1;}
   for(const n of G.order)G.nats[n].alive=true;
+  if(M.after)M.after();
   bump();return G;}
 
 /* ---------- 매 틱 ---------- */
 function campTick(dt){const C=G.camp;if(!C||G.over)return;const M=CAMP[C.id];if(!M)return;
   C.st.w=C.st.w||{};for(const w of M.waves||[]){if(C.st.w[w.t]||G.time<w.t)continue;C.st.w[w.t]=1;campWave(w);}
+  if(M.land&&typeof landTick==='function')landTick(C,dt);
   CAMP_TICK[C.id](C,C.st,dt);
   if(!G.over&&G.time>=M.limit)G.over={win:1,why:'작전 시간 초과'};
   if(G.over)campEnd();}
@@ -193,13 +201,15 @@ function campBlow(){const S=G.camp.st;S.blown=1;const ch=G.camp.charge;
 
 /* ---------- 끝: 별 매기기 ---------- */
 function campEnd(){const C=G.camp;if(C.res)return C.res;const S=C.st,win=G.over&&G.over.win===0;const t=G.time||0,loss=G.nats[0].losses;
-  const got={evac:[win,win&&S.saved>=EVAC_N,win&&t<=240],bridge:[win,win&&S.left>=120,win&&loss<=4],station:[win,win&&!!S.relay,win&&t<=480]}[C.id];
-  const n=got.filter(Boolean).length;C.res={win,got,n,t,loss,kills:G.nats[0].kills,kia:(G.nats[0].cas||{}).kia||0};
+  const got=M0=>M0.stars2?M0.stars2(C,S,win,t,loss):null;const g0=got(CAMP[C.id]);
+  const gotK={evac:[win,win&&S.saved>=EVAC_N,win&&t<=240],bridge:[win,win&&S.left>=120,win&&loss<=4],station:[win,win&&!!S.relay,win&&t<=480]};const gotA=g0||gotK[C.id];
+  const n=gotA.filter(Boolean).length;C.res={win,got:gotA,n,t,loss,kills:G.nats[0].kills,kia:(G.nats[0].cas||{}).kia||0};
   if(win)campRecord(C.id,n);return C.res;}
 
 /* ---------- 화면에 보일 목표 ---------- */
 function campObjective(){const C=G&&G.camp;if(!C)return null;const M=CAMP[C.id],S=C.st;const left=fmtT(M.limit-(G.time||0));
   const li=(st,txt)=>`<li class="${st}">${txt}</li>`;let L2=[];
+  if(M.obj)return {t:`${M.n} · 남은 시간 ${left}`,m:'',html:M.obj(C,S,li)};
   if(C.id==='evac'){const ride=Object.values(S.pax).reduce((a,p)=>a+p,0);
     L2=[li(S.saved>=EVAC_N?'ok':'',`피란민 후송 ${S.saved}/${EVAC_N} · 대기 ${S.wait} · 차 안 ${ride}`),
       li(S.lostT>0?'bad':'',S.lostT>0?`대사관 빼앗김: ${Math.ceil(20-S.lostT)}초 안에 되찾기`:'대사관 지키기'),li(S.lost?'bad':'',`잃은 피란민 ${S.lost}/4`)];}
@@ -209,17 +219,17 @@ function campObjective(){const C=G&&G.camp;if(!C)return null;const M=CAMP[C.id],
     L2=[li(own?'ok':'','중앙 방송국 점령'),li(own&&S.near?'bad':'',own?`방송국 유지 ${Math.floor(S.hold)}/60초${S.near?' · 둘레 3칸에 적이 있어 멈춤':''}`:'점령 뒤 60초 유지'),li(S.relay?'ok':'','(선택) 송신 중계소 점령')];}
   return {t:`${M.no}. ${M.n} · 남은 시간 ${left}`,m:'',html:`<ul class="cobj">${L2.join('')}</ul>`};}
 /* 3D 라벨 (07-view3d v3SyncLabels가 부른다) */
-function campLabels(want){const C=G&&G.camp;if(!C||typeof v3TopAt!=='function')return;const S=C.st;
+function campLabels(want){const C=G&&G.camp;if(!C||typeof v3TopAt!=='function')return;const S=C.st;if(CAMP[C.id]&&CAMP[C.id].labels)CAMP[C.id].labels(C,S,want);
   if(C.id==='evac'&&S.wait>0)want.set('camp-lz',{html:`<span>피란민 ${S.wait}명 · 승차 지점</span>`,cls:'v3c',col:'#f0c45a',p:[C.lz.x,v3TopAt(C.lz.x,C.lz.z)+.5,C.lz.z]});
   if(C.id==='bridge'&&!S.disarmed&&!S.blown)want.set('camp-ch',{html:`<span>폭약 ${fmtT(S.charge)}${S.dis>0?` · 해체 ${Math.round(S.dis*100)}%`:''}</span>`,cls:'v3c',col:'#ff5a4e',p:[C.charge.x,.5,C.charge.z]});}
 
 /* ---------- 화면: 임무 선택·브리핑·결과 ---------- */
 const STAR=(on)=>`<i class="cstar${on?' on':''}" aria-hidden="true">★</i>`;
-function campList(){const P=campLoad();
-  return CAMP_IDS.map(id=>{const M=CAMP[id];const open=campOpen(id);const s=P[id]||0;
+function campList(opId){const P=campLoad();const op=CAMP_OPS.find(o=>o.id===opId)||CAMP_OPS[0];
+  return op.ids.map(id=>{const M=CAMP[id];const open=campOpen(id);const s=P[id]||0;
     return `<button class="btn cmis" data-act="camp:${id}" id="camp-${id}" ${open?'':'disabled'}><span class="cno">${M.no}</span><span class="cbody"><b>${M.n}</b><small>${M.kind} · ${open?M.when:'앞 임무를 마치면 열립니다'}</small></span><span class="cst" aria-label="별 ${s}개">${[0,1,2].map(i=>STAR(i<s)).join('')}</span></button>`;}).join('');}
 function campBrief(id){const M=CAMP[id];if(!M||!campOpen(id))return;UI.campSel=id;const el=$('#brief');if(!el)return;
-  el.querySelector('.card').innerHTML=`<p class="ckick">하령 작전 · 임무 ${M.no} · ${M.kind}</p><h2>${M.n}</h2><p class="cwhen">${M.when}</p>
+  el.querySelector('.card').innerHTML=`<p class="ckick">${campOpOf(id).n} · 임무 ${M.no} · ${M.kind}</p><h2>${M.n}</h2><p class="cwhen">${M.when}</p>
     ${M.brief.map(p=>`<p>${p}</p>`).join('')}
     <h3 class="sec">목표</h3><ol class="cgoal">${M.goals.map(g=>`<li>${g}</li>`).join('')}</ol>
     <h3 class="sec">적 정보</h3><p>${M.intel}</p>
@@ -230,10 +240,10 @@ function campBrief(id){const M=CAMP[id];if(!M||!campOpen(id))return;UI.campSel=i
 function campGo(id){id=id||UI.campSel;if(!campStart(id))return;const br=$('#brief');if(br)br.hidden=true;const db=$('#debrief');if(db)db.hidden=true;
   $('#setup').hidden=true;G.boot=false;clearSel();UI.sheet=false;rtStart();render();if(typeof v3HomeCam==='function')v3HomeCam(false);toast(`임무 ${CAMP[id].no} ${CAMP[id].n}: ${CAMP[id].goals[0]}`);}
 function campDebrief(){const C=G&&G.camp;if(!C||typeof document==='undefined')return;const R=campEnd();const M=CAMP[C.id];const el=$('#debrief');if(!el)return;
-  const i=CAMP_IDS.indexOf(C.id),next=CAMP_IDS[i+1];
+  const op=campOpOf(C.id);const i=op.ids.indexOf(C.id),next=op.ids[i+1];
   el.querySelector('.card').innerHTML=`<p class="ckick">임무 ${M.no} · ${M.n}</p><h2 class="${R.win?'cwin':'close'}">${R.win?'임무 성공':'임무 실패'}</h2><p>${G.over.why} · ${fmtT(R.t)}</p>
     <ul class="cstars">${M.stars.map((s,j)=>`<li class="${R.got[j]?'on':''}">${STAR(R.got[j])} ${s}</li>`).join('')}</ul>
     <div class="kv"><dt>격파</dt><dd>${R.kills}</dd><dt>잃은 부대</dt><dd>${R.loss}</dd><dt>전사</dt><dd>${R.kia}</dd></div>
     <div class="crow"><button class="btn" data-act="camp-list" id="b-clist">임무 선택</button><button class="btn" data-act="camp-retry" id="b-cretry">다시 하기</button>${R.win&&next?`<button class="btn primary" data-act="camp:${next}" id="b-cnext">다음 임무</button>`:''}${R.win&&!next?`<button class="btn primary" data-act="camp-list" id="b-cend">작전 종료</button>`:''}</div>
-    ${R.win&&!next?'<p>하령 작전을 모두 마쳤습니다. 방송국에서 연방의 목소리가 다시 흘러나옵니다.</p>':''}`;
+    ${R.win&&!next?`<p>${M.endTxt||op.end}</p>`:''}`;
   el.hidden=false;}

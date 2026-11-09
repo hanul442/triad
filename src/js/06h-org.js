@@ -44,10 +44,12 @@ function orgTick(n){orgClean(n);const O=orgOf(n);const us=G.units.filter(u=>u.na
 function orgIntent(n,pqId){if(!G.org||!G.org[n])return null;const p=orgPq(n,pqId);if(p){if(p.intent)return p.intent;const c=orgCo(n,p.co);if(c&&c.intent)return c.intent;return null;}
   if(pqId==null){const c=orgCo(n,G.nats[n].reinfCo);if(c&&c.intent)return c.intent;}return null;}
 function orgClearIntents(n){if(!G.org||!G.org[n])return;for(const c of G.org[n].co)c.intent=null;for(const p of G.org[n].pq)p.intent=null;}
-function orgRefUnits(n,ref){if(!ref)return [];if(ref.k==='hq')return orgHQUnits(n);if(ref.k==='co'){const c=orgCo(n,ref.id);return c?orgCoUnits(n,c):[];}const p=orgPq(n,ref.id);return p?orgPqUnits(n,p):[];}
-function orgRefName(n,ref){if(!ref)return '';if(ref.k==='hq')return '본부';const o=ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);return o?o.name:'';}
+function orgRefUnits(n,ref){if(!ref)return [];if(ref.k==='hq')return orgHQUnits(n);if(ref.k==='all')return G.units.filter(u=>u.nat===n&&u.pq!=null);if(ref.k==='co'){const c=orgCo(n,ref.id);return c?orgCoUnits(n,c):[];}const p=orgPq(n,ref.id);return p?orgPqUnits(n,p):[];}
+function orgRefName(n,ref){if(!ref)return '';if(ref.k==='hq')return '본부';if(ref.k==='all')return '전체';const o=ref.k==='co'?orgCo(n,ref.id):orgPq(n,ref.id);return o?o.name:'';}
 /* 중대·소대에 목표 주기. k=null이면 목표를 지운다(부관 재량·임무 해제) */
-function orgAim(n,ref,k,x,z){const O=orgOf(n);const o=ref.k==='co'?orgCo(n,ref.id):ref.k==='pq'?orgPq(n,ref.id):null;if(!o)return null;
+function orgAim(n,ref,k,x,z){const O=orgOf(n);
+  if(ref.k==='all'){// 전체: 부관이면 전체 주공, 직접 지휘면 중대마다 임무
+    if(autoOn(n))return autoIntent(n,k,x,z);let I=null;for(const c of O.co.slice())I=orgAim(n,{k:'co',id:c.id},k,x,z)||I;return I;}const o=ref.k==='co'?orgCo(n,ref.id):ref.k==='pq'?orgPq(n,ref.id):null;if(!o)return null;
   const I=k?autoMkIntent(k,x,z):null;o.intent=I;if(ref.k==='co')for(const p of O.pq)if(p.co===o.id)p.intent=null;
   G.nats[n].aiT=0;
   if(!autoOn(n)){const us=orgRefUnits(n,ref);if(us.length)radioSend(n,us,'mis',I?[I.k==='def'?'defend':'attack',I.x,I.z,'full']:['off']);}
