@@ -29,8 +29,3 @@ function standFoe(n,x,z){const M=typeof memOf==='function'?memOf(n):{};const t=G
   if(!foe)return;if(r==='cap'&&u.dest&&Math.hypot(u.dest[0]-u.x,u.dest[1]-u.z)<1)return;   // 거점 바로 앞이면 마저 들어간다
   const objs=coverObjs(u);const s=tacSpot(u,u.x,u.z,[0,.25,.5],(x,z)=>tacCov(x,z,foe.x,foe.z,objs)*4-Math.hypot(x-u.x,z-u.z)*1.5+Math.min(0,Math.hypot(x-foe.x,z-foe.z)-Math.hypot(u.x-foe.x,u.z-foe.z))*2);   // 적 쪽으로 다가가는 자리는 피한다
   u.path=s&&Math.hypot(s[0]-u.x,s[1]-u.z)>.08?pathPts(u,s[0],s[1]):[];u.dest=null;u.tk.role='react';u.tk.at=t;tacN('react');};}
-/* 보병 시야·사거리: 거리 1칸 ≈ 12m. 맨눈 60m·소총 60m로는 도시 큰길에서도 늘 코앞 교전이 된다.
-   트인 길·광장에서는 더 멀리서 보고 쏘게 한다(건물이 시야를 가리는 골목은 그대로 가깝다). 먼 거리 명중률은 05j-real의 거리 감쇠가 낮춘다. */
-const STAND_R={vis:{rifle:7,mg:7,at:7,eng:5},rng:{rifle:6,mg:7,at:5}};
-for(const k in STAND_R.vis)if(UT[k]){UT[k].vis=STAND_R.vis[k];if(typeof OPT==='object')OPT.vis[k]=STAND_R.vis[k];}
-for(const k in STAND_R.rng)if(UT[k])UT[k].rng=[UT[k].rng[0],STAND_R.rng[k]];

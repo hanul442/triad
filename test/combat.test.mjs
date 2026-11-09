@@ -39,9 +39,9 @@ test('폭발: 폭심에서 먼 병사는 다치지 않는다', () => {
 
 test('직접 봐야 조준: 아군이 본 적이라도 쏘는 분대가 못 보면 조준 사격하지 않는다', () => {
   const T = loadGame(); const G = setup(T, true);
-  G.map[5][9] = { t: 'park', owner: null, obj: null, smoke: 0 };
-  const a = put(T, 0, 'rifle', 4.5, 5.5), e = put(T, 1, 'rifle', 9.4, 5.5);
-  put(T, 0, 'drone', 9.5, 4.5);   // 드론은 숨은 적을 본다
+  G.map[5][15] = { t: 'park', owner: null, obj: null, smoke: 0 };
+  const a = put(T, 0, 'rifle', 4.5, 5.5), e = put(T, 1, 'rifle', 15.4, 5.5);   // 11칸: 숨은 보병 발견 거리(시야×0.6) 밖, 사거리 안
+  put(T, 0, 'drone', 15.5, 4.5);   // 드론은 숨은 적을 본다
   T.bump(); G.time = 10;
   assert.equal(T.seen(e, 0), true, '우리 편 누군가는 봄');
   assert.equal(F(T, 'selfSees')(a, e), false, '소총분대는 공원 속 적을 직접 못 봄');
