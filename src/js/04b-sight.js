@@ -64,7 +64,7 @@ function losPt(x1,z1,h1,x2,z2,h2){const dx=x2-x1,dz=z2-z1;
     const x=G.map[r][c];const te=x.el||0;
     if(G.elv&&x.t!=='bldg'&&Math.max(G.elv[r*(N+1)+c],G.elv[r*(N+1)+c+1],G.elv[(r+1)*(N+1)+c],G.elv[(r+1)*(N+1)+c+1])>Math.min(h1,h2)-.5){
       const s=segBox(x1,z1,x2,z2,[c,c+1,r,r+1]);if(s){for(const t of [s[0],(s[0]+s[1])/2,s[1]]){if(elAt(x1+dx*t,z1+dz*t)>h1+(h2-h1)*t-.05)return false;}}}   // 땅(언덕 능선)이 가린다: 칸 안 세 점의 실제 지면 높이
-    if(x.t==='park'&&!x.yard&&!(x.smoke>0)){const s=segBox(x1,z1,x2,z2,[c,c+1,r,r+1]);   // 숲: 나무 높이(약 6m)보다 낮게 숲을 오래 지나면 가린다
+    if(x.t==='park'&&!x.yard&&!(x.tl>=.6)&&!(x.smoke>0)){const s=segBox(x1,z1,x2,z2,[c,c+1,r,r+1]);   // 숲: 나무 높이(약 6m)보다 낮게 숲을 오래 지나면 가린다
       if(s&&Math.min(h1+(h2-h1)*s[0],h1+(h2-h1)*s[1])<te+TREE_H){wood+=(s[1]-s[0])*L;if(wood>WOOD_L)return false;}continue;}
     if(!(x.smoke>0)&&x.t!=='bldg')continue;
     if(x.t!=='bldg')return false;           // 연막
@@ -103,7 +103,7 @@ function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.r
   const bx0=Math.max(0,Math.floor(qx-v)),bx1=Math.min(N-1,Math.floor(qx+v)),bz0=Math.max(0,Math.floor(qz-v)),bz1=Math.min(N-1,Math.floor(qz+v));
   const W=bx1-bx0+1;const TB=new Array(W*(bz1-bz0+1));
   for(let r=bz0;r<=bz1;r++)for(let c=bx0;c<=bx1;c++){const x=G.map[r][c];const own=r===r1&&c===c1;
-    TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0&&!own,own,e:x.el||0}:{b:null,h:0,sm:x.smoke>0&&!own,own,e:x.el||0,wd:x.t==='park'&&!x.yard};}
+    TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0&&!own,own,e:x.el||0}:{b:null,h:0,sm:x.smoke>0&&!own,own,e:x.el||0,wd:x.t==='park'&&!x.yard&&!(x.tl>=.6)};}
   // 건물 안이면 창가로만 내다본다
   const oc=G.map[r1]&&G.map[r1][c1];const h0=h+gndAt(qx,qz);   // 지형 높이를 더한 눈높이
   const inB=oc&&oc.t==='bldg'&&h<bldgH(oc)-.05?bldgBox(r1,c1):null;
