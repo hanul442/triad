@@ -33,6 +33,8 @@ function genBreach(n,site,by){if(!genOn()||!site||!G.nats[n])return;const t=G.ti
 {const _p=rtPick;rtPick=function(u){if(!genKeeps(u.nat))return _p(u);
   const prot=G.units.filter(e=>e.nat!==u.nat&&genProtUnit(e)&&!(u.tgt===e.id&&!isAI(u.nat)));if(!prot.length)return _p(u);
   const all=G.units;G.units=all.filter(e=>!prot.includes(e));try{return _p(u);}finally{G.units=all;}};}
+// 분대 대전차 로켓도 보호 대상(구급차)은 고르지 않는다(사람이 직접 찍은 표적은 그대로)
+{const _k=rkSkip;rkSkip=function(u,e){if(genKeeps(u.nat)&&genProtUnit(e)&&!(u.tgt===e.id&&!isAI(u.nat)))return true;return _k(u,e);};}
 // AI가 보호 대상을 공격 명령 표적으로 고르지 않게
 {const _oa=orderAttack;orderAttack=function(u,e){if(aiRun(u.nat)&&!u.man&&genKeeps(u.nat)&&genProtUnit(e)&&e.nat!==u.nat)return;return _oa(u,e);};}
 /* 직접 사격: 보호 대상을 겨눈 사격은 위반 */
