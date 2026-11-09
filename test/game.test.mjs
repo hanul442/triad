@@ -236,6 +236,7 @@ test('트인 곳에서는 칸을 따라 꺾지 않고 곧게 간다', () => {
 test('실시간 사격: 사거리 안의 보이는 적을 자동으로 쏘고, 건물 안이 더 오래 버틴다', () => {
   const ttk = (inBldg) => { const T = loadGame(); const G = setup(T); G.maxR = 999; G.nats[1].ctrl = 'human'; // AI가 표적을 건물 밖으로 빼지 않게
     if (inBldg) bldg(G, 5, 5, 2);
+    T.__set('squadGL', () => {}); // 엄폐 비교만: 유탄(엄폐 뒤 적에게 쏨)은 뺀다
     T.mkUnit(0, 'rifle', 5, 2); const d = T.mkUnit(1, 'rifle', 5, 5); d.nocas = 1; T.bump();
     for (let i = 0; i < 300; i++) { d.cd = 99; d.supp = 0; T.rtTick(0.1); }
     return d.dmgIn || 0; };
