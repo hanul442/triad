@@ -69,7 +69,7 @@ function supTick(u,dt){if(u.cargo==null)u.cargo=CARGO;u._srv=null;
   if(u._srv)return;                                   // 지금 누군가에게 나눠 주는 중
   if(u.cargo<15){if(!atDepot(u))supHome(u);return;}
   if((u._auT||0)>(G.time||0))return;u._auT=(G.time||0)+2;
-  const ai=isAI(u.nat),R=ai?99:5;let best=null,bs=0;
+  const ai=aiRun(u.nat),R=ai?99:5;let best=null,bs=0;
   for(const o of G.units){if(o.nat!==u.nat||o===u||!amMax(o)||UT[o.type].fly)continue;const f=amFrac(o);if(f>.6||inZone(o.nat,o.r,o.c))continue;const d=Math.hypot(o.x-u.x,o.z-u.z);if(d>R)continue;
     if(u.nog&&(u.nog[o.id]||0)>(G.time||0))continue;if(G.units.some(s=>s!==u&&s.type==='sup'&&s.nat===u.nat&&s.lj&&s.lj.id===o.id))continue;
     const s=(1-f)*LOAD[o.type]/(1+d*.25)*(f<.05?2:1);if(s>bs){bs=s;best=o;}}
@@ -94,7 +94,7 @@ function recTick(u,dt,t){u._fixing=null;
     u._hk=0;u._fixing=v.id;if(!fixVeh(v,dt,.6)||!vNeed(v)){u.lj=null;u._fixing=null;}return;}
   if(u.hold||!idle(u))return;
   if((u._auT||0)>t)return;u._auT=t+2;
-  const v=recPick(u,isAI(u.nat)?99:7);if(v)recSend(u,v);}
+  const v=recPick(u,aiRun(u.nat)?99:7);if(v)recSend(u,v);}
 function recPick(u,R){let best=null,bs=0;
   for(const v of G.units){if(v.nat!==u.nat||v===u||v.towBy!=null)continue;const need=vNeed(v);if(!need)continue;if(atDepot(v))continue;
     if(v.vd&&!v.vd.mob&&v.path&&v.path.length)continue;   // 움직이는 차는 쫓아가지 않는다

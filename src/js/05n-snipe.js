@@ -34,4 +34,4 @@ function snpAI(n){const t=G.time||0;
       if(G.units.some(e=>e.nat!==n&&Math.hypot(e.x-(c+.5),e.z-(r+.5))<2))continue;const s=X.f-Math.hypot(r-u.r,c-u.c)*.5+Math.random();if(s>bs){bs=s;best=[r,c];}}
     if(best){orderMove(u,best[0],best[1]);u._snpN=0;u.job='ug';u._ugT=t+12;}}}
 {const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over)return;const t=G.time||0;if(t<(G._snpAI||0))return;G._snpAI=t+1;
-  try{for(const n of G.order||[])if(G.nats[n].alive&&isAI(n))snpAI(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
+  try{for(const n of G.order||[])if(G.nats[n].alive&&aiRun(n))snpAI(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}

@@ -70,7 +70,7 @@ function cqbNext(u,blk){let best=null,bd=1e9;for(const e of G.units){if(e.nat===
   const d=Math.hypot(e.c+.5-u.x,e.r+.5-u.z);if(d<bd){bd=d;best=[e.r,e.c];}}return best;}
 function cqbStep(u,t){const C=u.cqb;const r=kr(C.k),c=kc(C.k),X=G.map[r][c];
   if(!isB(X)){cqbEnd(u,0,'gone');return;}if(t-C.t0>CQB.maxT){cqbEnd(u,0,'slow');return;}                                         // 무너졌거나 너무 오래 걸린다
-  if(isAI(u.nat)&&u.hp<hpMax(u)*.3){cqbEnd(u,0,'hurt');return;}                                     // 너무 다쳤다: AI는 물러난다
+  if(aiRun(u.nat)&&u.hp<hpMax(u)*.3){cqbEnd(u,0,'hurt');return;}                                     // 너무 다쳤다: AI는 물러난다
   const moving=u.path&&u.path.length;
   if(C.st==='move'){if(moving)return;
     if(cell(u.r,u.c)===X||sameBlk(cell(u.r,u.c),X)){C.st='entry';return;}

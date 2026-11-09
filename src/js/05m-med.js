@@ -82,7 +82,7 @@ function ambTick(a,dt,t){a.load=a.load||[];const moving=a.path&&a.path.length;co
   if(a.hold||moving)return;
   if(a.load.length){const f=ccpOf(a.nat,a.x,a.z,false);if(Math.hypot(f.x-a.x,f.z-a.z)<1.2){ambUnload(a);return;}}
   if((a._auT||0)>t)return;a._auT=t+2;
-  const o=ambWant(a.nat,a.x,a.z,isAI(a.nat)?99:7);if(!o)return;const sp=ambSpot(a,o);if(!sp)return;
+  const o=ambWant(a.nat,a.x,a.z,aiRun(a.nat)?99:7);if(!o)return;const sp=ambSpot(a,o);if(!sp)return;
   a.mj={k:'move',id:o.id};a.path=pathPts(a,sp[0],sp[1]);}
 /* 구급차가 부서지면 실린 환자도 죽는다 */
 {const _k=kill;kill=function(u,by){if(u&&u.type==='amb'&&u.load&&u.load.length){const S=medStats(u.nat);
@@ -113,7 +113,7 @@ function orphFree(n,x,z,R){let best=null,bd=R;for(const o of G.cas||[]){if(o.nat
     return;}
   _at(a,dt,t);
   if(a.mj||a.hold||(a.path&&a.path.length)||a.load.length>=AMB_CAP||(a._oT||0)>t)return;a._oT=t+2;
-  const o=orphFree(a.nat,a.x,a.z,isAI(a.nat)?40:10);if(!o||o.noAmb)return;o.taken=1;a.mj={k:'orph',id:o.id};a.path=pathPts(a,o.x,o.z);};}
+  const o=orphFree(a.nat,a.x,a.z,aiRun(a.nat)?40:10);if(!o||o.noAmb)return;o.taken=1;a.mj={k:'orph',id:o.id};a.path=pathPts(a,o.x,o.z);};}
 // 적 보병이 곁을 지나고 아군이 멀면 남겨진 부상자는 포로로 잡혀 간다
 function orphPow(){if(!G.cas||!G.cas.length)return;G.cas=G.cas.filter(o=>{if(o.taken)return true;
   const foe=G.units.find(e=>hostile(e.nat,o.nat)&&UT[e.type].cls==='inf'&&Math.hypot(e.x-o.x,e.z-o.z)<1.2);if(!foe)return true;

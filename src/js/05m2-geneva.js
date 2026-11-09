@@ -34,12 +34,12 @@ function genBreach(n,site,by){if(!genOn()||!site||!G.nats[n])return;const t=G.ti
   const prot=G.units.filter(e=>e.nat!==u.nat&&genProtUnit(e)&&!(u.tgt===e.id&&!isAI(u.nat)));if(!prot.length)return _p(u);
   const all=G.units;G.units=all.filter(e=>!prot.includes(e));try{return _p(u);}finally{G.units=all;}};}
 // AI가 보호 대상을 공격 명령 표적으로 고르지 않게
-{const _oa=orderAttack;orderAttack=function(u,e){if(isAI(u.nat)&&genKeeps(u.nat)&&genProtUnit(e)&&e.nat!==u.nat)return;return _oa(u,e);};}
+{const _oa=orderAttack;orderAttack=function(u,e){if(aiRun(u.nat)&&!u.man&&genKeeps(u.nat)&&genProtUnit(e)&&e.nat!==u.nat)return;return _oa(u,e);};}
 /* 직접 사격: 보호 대상을 겨눈 사격은 위반 */
 {const _s=rtShoot;rtShoot=function(a,d){if(genOn()&&d&&genProtUnit(d)&&hostile(a.nat,d.nat))genBreach(a.nat,{x:d.x,z:d.z,nat:d.nat,k:'amb',u:d},a);return _s(a,d);};}
 /* 지원 사격: AI(지키는 세력)는 보호 시설 둘레를 피하고, 그 자리에 부르면 위반 */
 {const _c=canSupport;canSupport=function(n,kind,r,c){if(!_c(n,kind,r,c))return false;
-  if(isAI(n)&&genKeeps(n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&genNear(n,c+.5,r+.5,(SUP[kind].rad||1)+GEN.supPad))return false;return true;};}
+  if((isAI(n)||G._adj===n)&&genKeeps(n)&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any&&genNear(n,c+.5,r+.5,(SUP[kind].rad||1)+GEN.supPad))return false;return true;};}
 {const _su=support;support=function(n,kind,r,c){const ok=_su(n,kind,r,c);
   if(ok&&genOn()&&kind!=='smoke'&&kind!=='heli'&&SUP[kind]&&!SUP[kind].any){const s=genNear(n,c+.5,r+.5,(SUP[kind].rad||1)+.2);if(s)genBreach(n,s,null);}return ok;};}
 /* 보호를 잃는 경우: 구호소 곁에서 그 세력 부대가 사격(사격 진지로 씀) */

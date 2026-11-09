@@ -19,6 +19,8 @@ function occAll(){const m=new Map();for(const u of G.units){const k=key(u.r,u.c)
 const natName=n=>n==null?'중립':NATS[n].name;
 const mapCol=n=>n==null?'#8b9294':MAPCOL[n];
 const isAI=n=>G.nats[n].ctrl==='ai';
+/* AI 두뇌가 이 세력을 움직이는가: AI 세력, 또는 플레이어가 부관(06f-auto)에게 맡긴 세력 */
+const aiRun=n=>G.nats[n].ctrl==='ai'||!!G.nats[n].auto;
 const hostile=(a,b)=>a!==b;
 const hpMax=u=>UT[u.type].hpMax||10;
 const hourOf=()=>Math.floor(typeof dayH==='function'?dayH():(7+(G.turn-1))%24);
