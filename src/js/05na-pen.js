@@ -75,11 +75,11 @@ function pvGlance(u,by,o,R){const V=vdOf(u);const now=G.time||0;const nm=`${natN
   if(a.vd&&a.vd.opt)p*=1-.18*a.vd.opt;
   h.p=Math.max(0,Math.min(1,p));return h;};}
 /* 3) 보병이 맞는 폭발: 전차 고폭탄(반경 약 10m), 장갑차 기관포·헬기 로켓(한 발마다 작은 폭발) */
-const HE={tank:{rad:.85,pk:.85},gunship:{rad:.8,pk:.55},ifv:{rad:.28,pk:.45}};   // 120mm 고폭 약 10m, 헬기 70mm 로켓·30mm 약 10m, 30mm 기관포 약 3m
+const HE={tank:{rad:.85,pk:.85},gunship:{rad:.6,pk:.45},ifv:{rad:.28,pk:.45}};   // 120mm 고폭 약 10m, 헬기 70mm 로켓 약 10m·30mm 약 4m을 섞어 약 7m, 30mm 기관포 약 3m
 {const _harm=harm;harm=function(u,amt,by,o){o=o||{};
   if(u&&by&&amt>0&&!o.w&&!by._sec&&HE[by.type]&&G.units.includes(u)&&UT[u.type].cls==='inf'&&o.x==null&&!u.nocas&&typeof blastMen==='function'){
     const H=HE[by.type];const inB=cell(u.r,u.c).t==='bldg';/* 건물 안: 방마다 벽이 있어 한 방만 크게 다친다 */const M=menOf(u).filter(m=>!m.dead&&!m.gone);if(M.length){
-      const n=by.type==='tank'?1:Math.max(1,Math.min(4,o.hits||1));
+      const n=by.type==='tank'?1:Math.max(1,Math.min(by.type==='gunship'?2:4,o.hits||1));   // 헬기: 한 번에 로켓 한두 발 + 기관포
       for(let i=0;i<n&&G.units.includes(u);i++){const m=M[Math.floor(Math.random()*M.length)];const a=Math.random()*6.283,r=Math.random()*.15;
         _harm(u,amt/n,by,{kind:'blast',x:m.x+Math.cos(a)*r,z:m.z+Math.sin(a)*r,rad:inB?H.rad*.5:H.rad,pk:H.pk});}
       return amt;}}
