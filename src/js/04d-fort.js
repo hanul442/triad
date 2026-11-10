@@ -58,7 +58,7 @@ function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // 
 const NAVB={};
 const navObsKey=o=>o.k+'|'+o.x+'|'+o.z+'|'+o.ry+'|'+o.hl+'|'+o.hw;
 function navBase(cls){if(NAV.base[cls])return NAV.base[cls];
-  const W=N*NAV_R,clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':'ifv';
+  const W=N*NAV_R,clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':cls==='trk'||cls==='dz'?'tank':'ifv';   // 궤도 차량은 바퀴 차량이 못 가는 땅(상륙 절벽 숲)도 오른다
   const TC=new Uint8Array(N*N);for(let r=0;r<N;r++)for(let c=0;c<N;c++){const m=mcost(ty,G.map[r][c]);TC[r*N+c]=m===Infinity?0:Math.min(250,m);}
   let C=NAVB[cls];
   const tc=(x,z)=>{if(x<0||z<0||x>=N||z>=N)return 0;return TC[(z|0)*N+(x|0)];};const d=clr+.08;

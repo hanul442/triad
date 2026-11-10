@@ -179,7 +179,9 @@ const OMAHA={SAND:10,BL:15,TOWN:18};
 const omahaDraws=()=>[9,campMid(),N-10];
 CAMP.omaha.setup=function(){const {SAND,BL,TOWN}=OMAHA;const D=omahaDraws();
   for(let r=0;r<N;r++)for(let c=0;c<TOWN;c++)campCell(r,c,c<SAND?{t:'water',sea:1}:c<BL?{t:'plaza',sand:1}:{t:'park',bluff:1,yard:1});
-  for(const r of D){for(let c=BL;c<TOWN;c++)campCell(r,c,{t:'road',ro:'h',rw:1,draw:1});
+  // 골짜기 출구(draw)는 세 칸 너비: 가운데 길 + 양옆 완만한 풀밭(절벽 아님). 한 칸 길이면 차량이 줄줄이 막혔다
+  for(const r of D){for(const dr of [-1,1])for(let c=BL;c<TOWN;c++)if(inb(r+dr,c))campCell(r+dr,c,{t:'park',yard:1,draw:1});
+    for(let c=BL;c<TOWN;c++)campCell(r,c,{t:'road',ro:'h',rw:1,draw:1});
     let c=TOWN,k=0;while(inb(r,c)&&k++<10&&G.map[r][c].t!=='road'){campCell(r,c,{t:'road',ro:'h',rw:1});c++;}}
   landVillage(TOWN,c=>c<30?2:3,(x,c)=>x.f<=2?'house':'villa');
   G.props=(G.props||[]).filter(p=>p.x>=TOWN+.05);
@@ -193,14 +195,14 @@ CAMP.omaha.units=function(){const {SAND,BL}=OMAHA;const D=omahaDraws();const m=c
   for(const r of D){   // 출구마다 저항 거점: 벙커 둘, 기관총 진지 둘, 길막이
     const b1=campFort(1,'bunker',BL+1.5,r-1.5,Math.PI/2),b2=campFort(1,'bunker',BL+1.5,r+2.5,Math.PI/2);
     const n1=campFort(1,'nest',BL+.5,r-3.5,Math.PI/2),n2=campFort(1,'nest',BL+.5,r+4.5,Math.PI/2);
-    landBlock(1,BL+.45,r);
+    for(const dr of [-1,0,1])landBlock(1,BL+.45,r+dr);
     if(b1)landPutAt(1,'mg',b1.x,b1.z,{post:1});if(b2)landPutAt(1,'at',b2.x,b2.z,{post:1});
     if(n1)landPutAt(1,'mg',n1.x,n1.z,{post:1});if(n2)landPutAt(1,'rifle',n2.x,n2.z,{post:1});
     if(r===m)landPutAt(1,'mortar',BL+3.5,r+2.5,{post:1});landPutAt(1,'rifle',BL+2.5,r+.5,{});}
   // 출구 사이 절벽 위 진지
   for(const r of [Math.round((D[0]+D[1])/2),Math.round((D[1]+D[2])/2)]){const n=campFort(1,'nest',BL+.6,r+.5,Math.PI/2);if(n)landPutAt(1,'mg',n.x,n.z,{post:1});landPutAt(1,'rifle',BL+1.5,r+2.5,{post:1});}
   // 해변 장애물과 철조망(사이사이 틈)
-  const rows=[];for(let r=1;r<N-1;r++)if(!D.includes(r))rows.push(r);
+  const rows=[];for(let r=1;r<N-1;r++)if(D.every(d=>Math.abs(d-r)>1))rows.push(r);   // 출구 앞 세 줄은 공병이 미리 낸 통로
   landHedge(SAND+1.2,rows.filter(r=>r%2===0),.9);landHedge(SAND+2.7,rows.filter(r=>r%2===1),.9);
   for(const r of rows)if(r%4!==1&&D.every(d=>Math.abs(d-r)>1))campFort(1,'wire',BL-.3,r+.5,Math.PI/2);
   for(const r of D)for(const dz of [-1.5,2.5])campFort(1,'mine',BL-.8,r+dz,0);
@@ -209,7 +211,7 @@ CAMP.omaha.units=function(){const {SAND,BL}=OMAHA;const D=omahaDraws();const m=c
   campPut(1,'rifle',t.r-3,t.c+2,{bldg:false});campPut(1,'at',t.r+3,t.c+1,{bldg:false});campPut(1,'tank',t.r,t.c+4,{bldg:false});campPut(1,'rifle',m-12,BL+8,{bldg:false});campPut(1,'rifle',m+12,BL+8,{bldg:false});
   G.nats[0].cp=8;G.nats[1].cp=0;};
 /* 출구의 길막이(콘크리트 방벽): 출구를 점령하고 10초 지나면 공병·불도저가 치운다 */
-const omahaBlocks=i=>{const o=G.objs[i];return (G.forts||[]).filter(f=>f.k==='jersey'&&f.nat!==0&&Math.abs(f.z-o.r-.5)<.6&&Math.abs(f.x-o.c)<2.2);};
+const omahaBlocks=i=>{const o=G.objs[i];return (G.forts||[]).filter(f=>f.k==='jersey'&&f.nat!==0&&Math.abs(f.z-o.r-.5)<1.6&&Math.abs(f.x-o.c)<2.2);};
 CAMP_TICK.omaha=function(C,S,dt){const O=G.objs;let ex=0;S.exT=S.exT||{};
   for(let i=0;i<3;i++)if(ownObj(i)){ex++;if(!S.exo[i]){S.exo[i]=1;campMsg(`${O[i].name} 확보${omahaBlocks(i).length?': 10초 뒤 길막이를 치우면 차량이 이 길로 해변을 벗어납니다':': 이 길로 차량이 해변을 벗어날 수 있습니다'}`);}
     S.exT[i]=(S.exT[i]||0)+dt;const bl=omahaBlocks(i);if(bl.length&&S.exT[i]>=10){for(const f of bl)fortRemove(f,'clear');campMsg(`${O[i].name} 길막이를 치웠습니다: 차량이 해변을 벗어납니다`);}}
@@ -256,9 +258,10 @@ CAMP.incheon.setup=function(){const {COAST}=INCH;const m=campMid();
   for(let r=m-6;r<=m+5;r++){let first=true;for(let c=1;c<COAST;c++){if(!isl(r,c))continue;campCell(r,c,first?{t:'plaza',sand:1}:{t:'park',isl:1,yard:1});first=false;}}
   for(const [r,c] of [[m+3,7],[m+3,8]])if(G.map[r][c].isl)campCell(r,c,{t:'bldg',f:1,bmax:11,bhp:11,blk:90001,ks:'ware',isl:1});
   // 둑길: 월미도 동쪽 끝에서 안벽까지
-  {let c=COAST-1;while(c>0&&!G.map[m][c].isl){campCell(m,c,{t:'road',ro:'h',rw:1,cau:1});c--;}}
+  // 둑길은 두 줄(차가 엇갈려 지나간다): 한 줄이면 섬에 내린 차량이 줄지어 막혔다
+  for(const r of [m-1,m]){let c=COAST-1;while(c>0&&!G.map[r][c].isl){campCell(r,c,{t:'road',ro:'h',rw:1,cau:1});c--;}}
   // 안벽과 부두 앞마당
-  for(let r=0;r<N;r++){campCell(r,COAST,r===m?{t:'road',ro:'h',rw:1}:{t:'plaza',pier:1,wall:1});
+  for(let r=0;r<N;r++){campCell(r,COAST,r===m||r===m-1?{t:'road',ro:'h',rw:1}:{t:'plaza',pier:1,wall:1});
     for(const c of [COAST+1,COAST+2])if(G.map[r][c].t!=='road')campCell(r,c,{t:'plaza',pier:1});}
   // 북쪽 잔교(부두): 바다로 두 칸 나간다
   const P0=m-9;for(let r=P0;r<=P0+2;r++)for(const c of [COAST-2,COAST-1])campCell(r,c,{t:'plaza',pier:1});
@@ -277,7 +280,7 @@ CAMP.incheon.units=function(){const {COAST}=INCH;const m=campMid();const W=G.obj
   // 월미도 수비대
   for(const [k,x,z,t] of [['bunker',4.6,m-3.2,'mg'],['bunker',5.4,m+2.6,'at'],['nest',7.6,m+.6,'rifle']]){const f=campFort(1,k,x,z,Math.PI/2);if(f)landPutAt(1,t,f.x,f.z,{post:1});}
   landPutAt(1,'mortar',8.5,m-2.5,{post:1});landPutAt(1,'rifle',7.5,m+3.5,{});
-  landBlock(1,COAST-.55,m);
+  landBlock(1,COAST-.55,m);landBlock(1,COAST-.55,m-1);
   landHedge(3.2,[m-4,m-2,m+1,m+3],1.1);
   // 안벽 위 진지: 레드·블루
   for(const r of [6,11,m+10,m+16]){const f=campFort(1,'nest',COAST+.6,r+.5,Math.PI/2);if(f)landPutAt(1,r%2?'rifle':'mg',f.x,f.z,{post:1});}
@@ -297,8 +300,15 @@ const TIDE_END={high1:240,low1:540,high2:1020,low2:1e9};
 CAMP_TICK.incheon=function(C,S,dt){
   if(ownObj(0)){if(!S.wtaken){S.wtaken=1;campMsg('월미도 점령! 썰물 동안 섬을 지키세요');}S.wl=0;}
   else if(S.wtaken){if(!S.wl){S.wlost=1;campMsg('월미도를 빼앗겼습니다! 90초 안에 되찾으세요');}S.wl+=dt;if(S.wl>=90){G.over={win:1,why:'월미도 재함락'};return;}}
+  // 둑길 끝 방벽: 월미도를 쥐고 10초 지나면 공병이 치운다(오마하 출구와 같다). 그 전엔 섬에 내린 차량이 영영 못 나갔다
+  if(ownObj(0)){S.cwT=(S.cwT||0)+dt;const bl=inchCauBlocks();if(bl.length&&S.cwT>=10){for(const f of bl)fortRemove(f,'clear');campMsg('둑길 방벽을 치웠습니다: 월미도의 차량이 항구로 건너갈 수 있습니다');}}
+  // 섬에 멈춘 차량: 썰물엔 섬을 지키고, 만조가 되면 둑길로 항구에 건너간다
+  S.cvT=(S.cvT||0)+dt;if(S.cvT>=3){S.cvT=0;if(ownObj(0)&&!inchCauBlocks().length&&S.tide!=='low1'){const m=campMid();
+    for(const u of G.units){if(u.nat!==0||UT[u.type].fly||UT[u.type].cls!=='veh'||u.hold||(u.path&&u.path.length))continue;if(u.x>=INCH.COAST)continue;
+      try{orderMoveTo(u,INCH.COAST+2.5,m-.5+((u.id%3)-1)*.6);}catch(e){}}}}
   if(ownObj(1)&&!S.pier){S.pier=1;campMsg('인천항 부두 확보: 이제 물때와 상관없이 부두로 증원이 들어옵니다');}
   if(ownObj(0)&&ownObj(2)&&ownObj(3))G.over={win:0,why:'인천 탈환'};};
+const inchCauBlocks=()=>{const m=campMid();return (G.forts||[]).filter(f=>f.k==='jersey'&&f.nat!==0&&f.z>=m-1&&f.z<m+1&&Math.abs(f.x-INCH.COAST)<1.2);};
 CAMP.incheon.stars2=(C,S,win)=>[win,win&&!!S.pier,win&&!S.wlost];
 CAMP.incheon.obj=function(C,S,li){const t=G.time||0;const end=TIDE_END[S.tide];
   const tide=`<p class="ltide${S.low?' low':''}">물때: ${TIDE_N[S.tide]}${end<1e8?` · ${S.low?'만조':'썰물'}까지 ${fmtT(end-t)}`:''}</p>`;

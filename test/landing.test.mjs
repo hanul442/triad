@@ -51,7 +51,7 @@ test('상륙정: 물가에 닿아 부대를 내리고, 많이 맞으면 가라�
   T.rtRun(5); assert.ok(!G.units.some(x => x.nat === 0 && x.type === 'tank'), '전차는 내리지 못했다');
 });
 
-test('상륙: 증원은 고른 해변으로 상륙정에 실려 오고, 차량은 절벽을 못 오른다', () => {
+test('상륙: 증원은 고른 해변으로 상륙정에 실려 오고, 바퀴 차량은 절벽을 못 오르고 궤도 차량은 숲을 밀고 오른다', () => {
   const T = loadGame(); const G = start(T, 'omaha'); quiet(G);
   const pick = T.__get('landPick'); assert.ok(pick(0)); assert.equal(G.camp.sec, 0);
   const sp = T.deploySpots(0, 'rifle'); const tl = new Set(G.camp.secs[0].tl.map(([r, c]) => T.key(r, c)));
@@ -61,7 +61,8 @@ test('상륙: 증원은 고른 해변으로 상륙정에 실려 오고, 차량�
   assert.ok(nu && nu.boat); assert.equal(G.units.length, n0, '바로 생기지 않는다'); assert.equal(G.camp.boats.length, b0 + 1);
   assert.equal(G.nats[0].cp, 20 - T.UT.rifle.cost);
   const m = Math.round((T.N - 1) / 2);
-  assert.equal(T.mcost('tank', G.map[m - 4][16]), Infinity, '절벽');
+  assert.equal(T.mcost('sup', G.map[m - 4][16]), Infinity, '절벽: 바퀴 차량');
+  assert.ok(T.mcost('tank', G.map[m - 4][16]) > T.mcost('tank', G.map[m][16]), '절벽: 전차는 느리게 오른다');
   assert.ok(T.mcost('rifle', G.map[m - 4][16]) < Infinity, '보병은 절벽을 오른다');
   assert.ok(T.mcost('tank', G.map[m][16]) < Infinity, '출구 길');
 });
@@ -112,4 +113,27 @@ test('상륙: 관전(AI 지휘)이면 AI가 상륙 지점을 스스로 고르고
   T.rtRun(16); assert.notEqual(G.camp.sec, 1);
   const o = G.objs[1]; const near = () => G.forts.filter(f => f.k === 'jersey' && Math.abs(f.z - o.r - .5) < .6 && Math.abs(f.x - o.c) < 2.2).length;
   assert.ok(near() > 0); own(G, 1, 0); T.rtRun(11); assert.equal(near(), 0, '길막이 치움');
+});
+
+test('상륙 출구: 오마하 출구는 세 칸, 인천 둑길은 두 줄이고 월미도를 쥐면 둑길 방벽이 치워진다', () => {
+  const T = loadGame(); const G = start(T, 'omaha'); quiet(G);
+  for (const i of [0, 1, 2]) { const o = G.objs[i]; for (const dr of [-1, 0, 1]) assert.ok(T.mcost('sup', G.map[o.r + dr][16]) < Infinity, `출구 ${i} 줄 ${dr}`); }
+  const G2 = start(T, 'incheon'); quiet(G2); const m = Math.round((T.N - 1) / 2);
+  assert.ok(G2.map[m][11].cau && G2.map[m - 1][11].cau, '둑길 두 줄');
+  const blk = () => G2.forts.filter(f => f.k === 'jersey' && Math.abs(f.x - 13) < 1.2 && f.z >= m - 1 && f.z < m + 1).length;
+  assert.ok(blk() >= 4); own(G2, 0, 0); T.rtRun(11); assert.equal(blk(), 0, '둑길 방벽 치움');
+});
+
+test('상륙 출구: 절벽에 막힌 바퀴 차량이 있으면 공병이 절벽에 차량 길을 낸다', () => {
+  const T = loadGame(); seedRandom(T, 5); const G = start(T, 'omaha');
+  G.units = []; G.nats[1].ctrl = 'human'; G.camp.st.lw = Object.fromEntries(T.__eval('CAMP.omaha.lw').map(w => [w.t, 1])); G.camp.boats = [];
+  const m = Math.round((T.N - 1) / 2), r = m - 4;
+  assert.ok(G.map[r][15].bluff && !G.map[r][15].cut);
+  const v = T.mkUnit(0, 'sup', r, 14); v.x = 14.6; v.z = r + .5;
+  const e = T.mkUnit(0, 'eng', r + 2, 12);
+  T.rtRun(50);
+  assert.ok(G.camp.st.cuts >= 1, '절벽 길을 냈다');
+  const L = G.camp.cutL[0]; assert.ok(Math.abs(L.r - r) <= 6 && G.map[L.r][15].cut && G.map[L.r][17].cut);
+  assert.ok(T.mcost('sup', G.map[L.r][16]) < Infinity, '바퀴 차량도 지난다');
+  T.rtRun(40); assert.ok(v.x > 16.5, `차량이 절벽 길로 올라간다 (${v.x.toFixed(2)},${v.z.toFixed(2)})`);
 });
