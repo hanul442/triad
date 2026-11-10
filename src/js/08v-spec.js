@@ -94,7 +94,7 @@ function ltsOutFx(n){if(typeof document==='undefined')return;const p=G.ltsLast&&
   if(specOn()&&p){UI.specOut={x:p.x,z:p.z,until:performance.now()+6000};UI.specHotT=performance.now();}}
 /* ---------- 화면: 관전 중에는 HUD·하단 바를 바꾼다 ---------- */
 function specHUD(){const r=$('#hud-res');if(!r)return;const lts=typeof ltsOn==='function'&&ltsOn();
-  r.innerHTML=`<span class="rv"><b>관전</b><small class="lbl" title="${specMapName()} · 지도 번호 ${G.seed}">시야 ${specVisLabel()}</small></span><span class="rv"><b>${G.order.map(n=>`<span class="spec-sc${G.nats[n].alive?'':' out'}" style="color:${mapCol(n)}" title="${NATS[n].name} ${lts?'남은 부대':'승점'}">${lts?ltsCount(n):G.nats[n].vp}</span>`).join(' ')}</b><small class="lbl">${lts?'최후 생존 · 남은 부대':`승점 / ${G.vpWin}`}</small></span>`;
+  r.innerHTML=`<span class="rv"><b>관전</b><small class="lbl" title="${specMapName()} · 지도 번호 ${G.seed}">시야 ${specVisLabel()}</small></span><span class="rv"><b>${G.order.map(n=>`<span class="spec-sc${G.nats[n].alive?'':' out'}" style="color:${mapCol(n)}" title="${NATS[n].name} ${lts?'남은 부대':'승점'}">${lts?ltsCount(n):G.nats[n].vp}</span>`).join(' ')}</b><small class="lbl">${lts?'최후 생존 · 남은 부대':typeof winOn==='function'&&winOn()?'승점 · 장악 '+winNeed()+'/'+G.objs.length:`승점 / ${G.vpWin}`}</small></span>`;
   const t=$('#t-cmd');if(t)t.hidden=true;}
 function specBar(){const el=$('#actbar');if(!el)return;el.hidden=false;
   if(G.over){const w=G.over.win;el.innerHTML=`<b>${w==null?'무승부':`<span style="color:${mapCol(w)}">${NATS[w].full}</span> 승리`}</b><span>${G.over.why} · ${fmtT(G.time||0)} · ${specMapName()} · 지도 번호 ${G.seed}</span><div class="ab"><button class="btn sm" data-act="report" id="ab-rep">전황</button><button class="btn sm" data-act="spec-same" id="ab-ssame">같은 지도로 다시</button><button class="btn sm primary" data-act="spec-again" id="ab-sagain">다시 관전</button><button class="btn sm" data-act="new" id="ab-new">새 작전</button></div>`;return;}
@@ -116,7 +116,7 @@ function specSetupBox(){if($('#spec-box'))return;const card=$('#setup .card');co
 <div class="slot"><span></span><label for="spec-n">세력 수</label><select id="spec-n"><option value="2">2세력</option><option value="3">3세력</option><option value="4">4세력</option></select></div>
 <div class="slot"><span></span><label for="spec-map">전장</label><select id="spec-map">${specMaps().map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></div>
 <div class="slot"><span></span><label for="spec-size">도시 크기</label><select id="spec-size"><option value="s">소형 32×32</option><option value="m" selected>중형 44×44</option><option value="l">대형 56×56</option></select></div>
-<div class="slot"><span></span><label for="spec-win">승리 방식</label><select id="spec-win"><option value="vp">승점</option><option value="lts">최후 생존</option></select></div>
+<div class="slot"><span></span><label for="spec-win">승리 방식</label><select id="spec-win"><option value="vp">작전 목표</option><option value="lts">최후 생존</option></select></div>
 <div class="slot"><span></span><label for="spec-seed">지도 번호</label><input id="spec-seed" type="number" inputmode="numeric" min="0" step="1" placeholder="비우면 무작위"></div>
 <p class="spec-note" id="spec-note" hidden></p>
 <button class="btn" data-act="spec-start" id="b-spec">관전 시작</button>`;

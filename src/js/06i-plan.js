@@ -120,7 +120,10 @@ const PLAN_M={
       return [{i:0,v:40,atk:3,def:2},{i:1,v:10,atk:.8,def:.5},{i:2,v:30,atk:2,def:1},{i:3,v:30,atk:2,def:1}];}},
     1:{objs:()=>[{i:0,v:30,atk:2.5,def:2},{i:1,v:10,def:1},{i:2,v:16,def:1.2},{i:3,v:16,def:1.2}]}}},
   'scn:assault':{side:{0:{objs:()=>G.objs.map((o,i)=>({i,v:12,atk:1,def:1}))}}},
-  'scn:hold':{side:{0:{objs:()=>G.objs.map((o,i)=>{const m=(N-1)/2;const d=dist(o.r,o.c,m,m);return {i,v:d<8?20:6,atk:d<8?1.5:.3,def:d<8?1.5:.5};})}}},
+  'scn:hold':{side:{0:{objs:()=>G.objs.map((o,i)=>{const m=(N-1)/2;const d=dist(o.r,o.c,m,m);return {i,v:d<8?20:6,atk:d<8?1.5:.3,def:d<8?1.5:.5};})},
+    // 공격 측(레드)은 빈 바깥 거점이 아니라 블루가 지키는 도심 거점 넷을 노린다(예전엔 바깥 거점만 줍다 끝나 블루가 늘 이겼다)
+    1:{objs:()=>{const m=(N-1)/2;const near=G.objs.map((o,i)=>[i,dist(o.r,o.c,m,m)]).sort((a,b)=>a[1]-b[1]).slice(0,4).map(x=>x[0]);
+      return G.objs.map((o,i)=>near.includes(i)?{i,v:30,atk:2.5,def:1}:{i,v:3,atk:.3,def:.5});}}}},
 };
 function planMission(n){const k=G.camp?G.camp.id:G.scn&&G.scn!=='camp'?'scn:'+G.scn:null;const M=k&&PLAN_M[k];const s=M&&M.side[n];if(!s)return null;
   return {objs:s.objs?s.objs():null,extra:s.extra?s.extra():null,job:s.job||null};}

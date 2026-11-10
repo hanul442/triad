@@ -157,23 +157,23 @@ CAMP.omaha={no:1,op:'landing',land:1,n:'피의 오마하',kind:'해안 상륙',w
     '해변에서 절벽 위로 올라가는 길은 골짜기 출구 세 곳(D-1·E-1·F-1)뿐이고, 차량은 이 출구로만 해변을 벗어날 수 있습니다. 출구마다 벙커와 기관총 진지가 지키고, 길은 콘크리트 방벽으로 막혀 있습니다. 출구 두 곳을 열고 생로랑 마을을 점령하면 교두보가 섭니다.',
     '상륙파는 정해진 시각에 옵니다. 오른쪽 위 목표 창에서 다음 상륙파가 내릴 해변(도그·이지·폭스)을 고르세요. 증원을 사면 그 부대도 상륙정에 실려 같은 해변으로 옵니다. 부관 지휘(기본)라면 내린 부대는 알아서 목표로 나아갑니다.'],
   goals:['해변에 상륙하기','절벽 출구 두 곳 열기 (D-1·E-1·F-1 중)','생로랑 마을 점령'],
-  intel:'벙커 6곳(출구마다 둘)과 기관총 진지, 절벽 위 박격포가 해변을 쏩니다. 물가 앞 모래밭엔 대전차 고슴도치가 늘어서 있어 차량이 돌아가야 합니다. 마을엔 예비대와 전차가 있고, 5분쯤부터 내륙에서 작은 반격이 옵니다. 상륙정은 해안 화기에 맞으면 다치거나 가라앉습니다. 해변에 연막을 치거나 적을 제압하면 덜 맞습니다. 30초 뒤부터 구축함이 해안에 바짝 붙어 보이는 벙커·진지를 함포로 부숩니다. 해변에 멈추지 말고 절벽 밑까지 뛰어가세요.',
-  force:'1파: 소총분대 6 · 공병 3 · 기관총팀 · 전차 3 (해변 셋에 나눠서), 40초 뒤 2파 8개 부대. 그 뒤 1~2분마다 상륙파 7개가 정해진 시각에 옵니다(증원을 사지 않아도 이길 만큼). 부대는 시대 장비 대신 이 게임의 현대 부대로 재현합니다.',
+  intel:'벙커 6곳(출구마다 둘)과 기관총 진지, 절벽 위 박격포가 해변을 쏩니다. 물가 앞 모래밭엔 대전차 고슴도치가 늘어서 있어 차량이 돌아가야 합니다. 마을엔 예비대·기관총·박격포와 전차가 있고, 3분쯤부터 내륙에서 반격이 옵니다. 상륙정은 해안 화기에 맞으면 다치거나 가라앉습니다. 해변에 연막을 치거나 적을 제압하면 덜 맞습니다. 30초 뒤부터 구축함이 해안에 바짝 붙어 보이는 벙커·진지를 함포로 부숩니다. 해변에 멈추지 말고 절벽 밑까지 뛰어가세요.',
+  force:'1파: 소총분대 6 · 공병 3 · 기관총팀 · 전차 3 (해변 셋에 나눠서), 40초 뒤 2파 8개 부대. 그 뒤 1~2분마다 상륙파 5개가 정해진 시각에 옵니다(증원을 사지 않아도 이길 만큼). 부대는 시대 장비 대신 이 게임의 현대 부대로 재현합니다.',
   stars:['임무 성공','출구 세 곳 모두 열기','12분 안에 끝내기'],
   // 실제 오마하: 첫날 3만 4천 명이 내렸고 해변을 지킨 독일군은 2천 명 안팎이었다. 해변을 연 것은 수와 끈질긴 상륙파, 그리고 해안에 바짝 붙은 구축함 포격이었다.
-  naval:{t0:30,every:14,n:4,reach:12,pw:3},after:landAfter,
+  naval:{t0:30,every:14,n:4,reach:12,pw:2.2},after:landAfter,
   lw:[{t:0,sec:'all',u:['rifle','eng','tank','rifle','eng','tank','rifle','eng','tank','rifle','rifle','mg','rifle'],msg:'H시: 1파 상륙정이 해변으로 갑니다'},
     {t:40,sec:'all',u:['rifle','rifle','mg','at','rifle','eng','rifle','tank'],msg:'2파가 출발했습니다'},
     {t:100,sec:'pick',u:['rifle','rifle','mortar','at','mg','rifle'],msg:'3파가 출발했습니다'},
     {t:170,sec:'pick',u:['rifle','rifle','eng','tank','tank','rifle'],msg:'4파가 출발했습니다'},
     {t:250,sec:'pick',u:['rifle','mg','at','rifle','sniper','rifle'],msg:'5파가 출발했습니다'},
     {t:340,sec:'pick',u:['rifle','rifle','ifv','sup','amb'],msg:'6파가 출발했습니다: 보급·구급 차량'},
-    {t:430,sec:'pick',u:['tank','ifv','rifle','rifle','at','tank'],msg:'7파가 출발했습니다'},
-    {t:530,sec:'pick',u:['rifle','rifle','mg','tank','rifle'],msg:'8파가 출발했습니다'},
-    {t:650,sec:'pick',u:['rifle','rifle','ifv','tank'],msg:'9파가 출발했습니다'}],
-  waves:[{t:300,side:'e',u:['rifle','mg'],msg:'독일군 예비대가 내륙에서 다가옵니다'},
-    {t:520,side:'e',u:['rifle','at','rifle']},
-    {t:720,side:'e',u:['tank','rifle'],msg:'독일군 전차가 반격합니다'}],
+    {t:430,sec:'pick',u:['tank','ifv','rifle','rifle','at','tank'],msg:'7파가 출발했습니다'}],
+
+  waves:[{t:180,side:'e',u:['rifle','mg','rifle'],msg:'독일군 예비대가 내륙에서 다가옵니다'},
+    {t:360,side:'e',u:['rifle','at','rifle','mg']},
+    {t:540,side:'e',u:['tank','rifle','rifle'],msg:'독일군 전차가 반격합니다'},
+    {t:720,side:'e',u:['tank','rifle','at']}],
   income:n=>n===0?6:0};
 const OMAHA={SAND:10,BL:15,TOWN:18};
 const omahaDraws=()=>[9,campMid(),N-10];
@@ -243,12 +243,13 @@ CAMP.incheon={no:2,op:'landing',land:1,n:'크로마이트',kind:'조수 상륙',
     {t:545,sec:0,u:['rifle','rifle','eng','mg','at','rifle','rifle','mortar'],msg:'저녁 만조: 해병 5연대가 레드 비치 안벽을 오릅니다'},
     {t:550,sec:3,u:['rifle','rifle','tank','ifv','mg','eng','rifle','tank'],msg:'해병 1연대가 블루 비치로 갑니다'},
     {t:660,sec:'pick',u:['tank','ifv','rifle','rifle','sup','amb'],msg:'다음 상륙파가 출발했습니다: 보급·구급 차량'},
-    {t:780,sec:'pick',u:['rifle','rifle','at','mortar','tank'],msg:'다음 상륙파가 출발했습니다'},
-    {t:900,sec:'pick',u:['rifle','rifle','mg','tank','ifv'],msg:'다음 상륙파가 출발했습니다'}],
-  waves:[{t:300,side:'e',u:['rifle','mg'],msg:'썰물: 북한군 증원이 항구로 내려옵니다'},
-    {t:460,side:'e',u:['tank','rifle']},
-    {t:680,side:'e',u:['rifle','at','rifle'],msg:'북한군 증원이 시가지로 들어옵니다'},
-    {t:900,side:'e',u:['tank','rifle']}],
+    {t:780,sec:'pick',u:['rifle','rifle','at','mortar','tank'],msg:'다음 상륙파가 출발했습니다'}],
+
+  waves:[{t:240,side:'e',u:['rifle','mg','rifle'],msg:'썰물: 북한군 증원이 항구로 내려옵니다'},
+    {t:420,side:'e',u:['tank','rifle','at']},
+    {t:620,side:'e',u:['rifle','at','rifle','mg'],msg:'북한군 증원이 시가지로 들어옵니다'},
+    {t:820,side:'e',u:['tank','rifle','rifle']},
+    {t:1000,side:'e',u:['rifle','mg','at']}],
   income:n=>n===0?5:0};
 const INCH={COAST:13};
 CAMP.incheon.setup=function(){const {COAST}=INCH;const m=campMid();
@@ -338,3 +339,11 @@ function landRush(dt){const t=G.time||0;
 {const _go=tacGo;tacGo=function(u,x,z,role){if(u&&u._bch&&landOnBeach(u)&&u.path&&u.path.length)return false;return _go.apply(this,arguments);};}
 {const _r=tacReact;tacReact=function(u){if(u&&u._bch&&landOnBeach(u))return;return _r.apply(this,arguments);};}
 {const _mv=rtMove;rtMove=function(u,dt){if(u._bch&&typeof pinned==='function'&&pinned(u)&&landOnBeach(u)){const s=u.supp;u.supp=PINNED-.01;try{_mv(u,dt*.6);}finally{u.supp=Math.max(u.supp,s);}return;}return _mv(u,dt);};}
+
+/* 균형(2026-11-10): 관전 AI 블루가 오마하 6/6(평균 5분대)·인천 3/3으로 늘 이겼다. 함포를 조금 줄이고(3→2.2) 마지막 상륙파를 덜고,
+   독일·북한군 예비대를 앞당기고 키우며, 마을·시가지 거점에 수비 몇 개를 더 둔다. 시드 10판씩: 오마하 9/10·인천 7/10(오마하는 역사대로 공격 측이 피를 흘리며 이기는 판으로 둔다) */
+{const a=CAMP.omaha.after;CAMP.omaha.after=function(){a.apply(this,arguments);const t=G.objs[3];
+   for(const [k,dr,dc,o] of [['rifle',1,1,{bldg:true,post:1}],['mg',-1,1,{bldg:true,post:1}],['at',2,-1,{bldg:false,post:1}],['rifle',-2,2,{bldg:true,post:1}],['mortar',0,5,{bldg:false,post:1}]])campPut(1,k,t.r+dr,t.c+dc,o);};}
+{const a=CAMP.incheon.after;CAMP.incheon.after=function(){a.apply(this,arguments);for(const i of [2,3]){const t=G.objs[i];
+   for(const [k,dr,dc,o] of [['rifle',1,0,{bldg:true,post:1}],['mg',-1,1,{bldg:true,post:1}],['at',0,2,{bldg:false}]])campPut(1,k,t.r+dr,t.c+dc,o);}
+   const w=G.objs[0];for(const [k,dr,dc,o] of [['rifle',1,0,{bldg:true,post:1}],['mg',-1,1,{bldg:true,post:1}]])campPut(1,k,w.r+dr,w.c+dc,o);};}   // 월미도 수비도 둘 더
