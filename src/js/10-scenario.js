@@ -5,7 +5,7 @@ const SCN={
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
 const SCN_HOLD_ADD=['rifle','rifle','rifle','mg','at','eng','mortar','ifv','tank','rifle'];
-const SCN_ASSAULT_ADD=['rifle','rifle','rifle','rifle','eng','eng','mg','at','mortar','ifv','tank'];   // 장갑차 하나를 뺐다(2026-11-10, 관전 블루 5/6 → 균형)
+const SCN_ASSAULT_ADD=['rifle','rifle','rifle','eng','eng','mg','at','mortar','ifv','tank'];   // 2026-11-10: 12→10(관전 블루 10/10 → 3/6). 수는 비슷해도 전차·장갑차·공병이 붙은 공격 측 화력이 훨씬 세다
 /* 도심 돌파: 수비는 거점을 다 쥐고 있어도 증원을 사지 않는다(정해진 수비대만) */
 {const _in=income;income=function(n){if(G&&G.scn==='assault'&&n!==0)return 0;return _in(n);};}
 /* 최후 방어: 지키는 블루는 거점 넷에서 수입이 많아 증원을 쏟아부었다. 수비 수입은 절반, 공격 측은 +4 (2026-11-10 관전 블루 6/6 → 3/4) */

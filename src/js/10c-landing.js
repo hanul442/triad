@@ -341,8 +341,9 @@ function landRush(dt){const t=G.time||0;
 {const _mv=rtMove;rtMove=function(u,dt){if(u._bch&&typeof pinned==='function'&&pinned(u)&&landOnBeach(u)){const s=u.supp;u.supp=PINNED-.01;try{_mv(u,dt*.6);}finally{u.supp=Math.max(u.supp,s);}return;}return _mv(u,dt);};}
 
 /* 균형(2026-11-10): 관전 AI 블루가 오마하 6/6(평균 5분대)·인천 3/3으로 늘 이겼다. 함포를 조금 줄이고(3→2.2) 마지막 상륙파를 덜고,
-   독일·북한군 예비대를 앞당기고 키우며, 마을·시가지 거점에 수비 몇 개를 더 둔다. 같은 시드 4판씩: 오마하 3/4(평균 10.7분)·인천 3/4 */
+   독일·북한군 예비대를 앞당기고 키우며, 마을·시가지 거점에 수비 몇 개를 더 둔다. 시드 10판씩: 오마하 9/10·인천 7/10(오마하는 역사대로 공격 측이 피를 흘리며 이기는 판으로 둔다) */
 {const a=CAMP.omaha.after;CAMP.omaha.after=function(){a.apply(this,arguments);const t=G.objs[3];
    for(const [k,dr,dc,o] of [['rifle',1,1,{bldg:true,post:1}],['mg',-1,1,{bldg:true,post:1}],['at',2,-1,{bldg:false,post:1}],['rifle',-2,2,{bldg:true,post:1}],['mortar',0,5,{bldg:false,post:1}]])campPut(1,k,t.r+dr,t.c+dc,o);};}
 {const a=CAMP.incheon.after;CAMP.incheon.after=function(){a.apply(this,arguments);for(const i of [2,3]){const t=G.objs[i];
-   for(const [k,dr,dc,o] of [['rifle',1,0,{bldg:true,post:1}],['mg',-1,1,{bldg:true,post:1}],['at',0,2,{bldg:false}]])campPut(1,k,t.r+dr,t.c+dc,o);}};}
+   for(const [k,dr,dc,o] of [['rifle',1,0,{bldg:true,post:1}],['mg',-1,1,{bldg:true,post:1}],['at',0,2,{bldg:false}]])campPut(1,k,t.r+dr,t.c+dc,o);}
+   const w=G.objs[0];for(const [k,dr,dc,o] of [['rifle',1,0,{bldg:true,post:1}],['mg',-1,1,{bldg:true,post:1}]])campPut(1,k,w.r+dr,w.c+dc,o);};}   // 월미도 수비도 둘 더

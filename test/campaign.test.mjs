@@ -118,9 +118,11 @@ test('캠페인: 아군 증원은 정해진 시각에 서쪽에서 오고, 적�
   }
 });
 
-test('도심 돌파: 공격 측이 수비보다 넉넉히 많고, 수비는 증원을 사지 않는다', () => {
+test('도심 돌파: 공격 측 전투력이 수비 못지않고, 수비는 증원을 사지 않는다', () => {
   const T = loadGame(); T.__get('scnSetup')('assault', 0); const G = T.G;
-  const b = G.units.filter(u => u.nat === 0).length, r = G.units.filter(u => u.nat === 1).length;
-  assert.ok(b > r, `공격 ${b} 수비 ${r}`);
+  // 부대 값(전투력)으로 잰다: 공격 측엔 전차·장갑차·공병·박격포가 붙는다
+  const pow = n => G.units.filter(u => u.nat === n).reduce((a, u) => a + T.UT[u.type].cost, 0);
+  const b = pow(0), r = pow(1);
+  assert.ok(b >= r * .95, `공격 ${b} 수비 ${r}`);
   assert.equal(T.income(1), 0); assert.ok(T.income(0) > 0);
 });
