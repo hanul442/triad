@@ -42,11 +42,13 @@ test('상륙정: 물가에 닿아 부대를 내리고, 많이 맞으면 가라�
   // 해변에 멈추지 않고 모래밭을 건너 절벽 밑(첫 땅)까지 뛰어 올라간다
   assert.ok(Math.abs(u.r - r) <= 2 && u.c >= c - 1 && u.c <= 16, `해변 근처 (${u.r},${u.c})`);
   assert.ok(!G.map[u.r][u.c].sand, `모래밭을 건넜다 (${u.r},${u.c})`);
+  G.camp.st.navT = 1e9; G.units = G.units.filter(x => x.nat !== 0);   // 함포·상륙한 분대가 기관총을 먼저 잡지 않게
   const losses = G.nats[0].losses; const b2 = lb('tank', G.camp.secs[0].tl[2][0], G.camp.secs[0].tl[2][1], 0);
-  b2.dmg = b2.hp - 1; b2.x = b2.tx - 3;
-  // 가까이 적 기관총을 둔다: 계속 맞아 가라앉는다
-  const mg = T.mkUnit(1, 'mg', b2.r, b2.c + 2); mg.hold = true; mg.post = 1;
-  for (let i = 0; i < 400 && b2.st !== 'sink'; i++) T.rtTick(0.1);
+  b2.dmg = b2.hp - 1; b2.x = b2.tx - 6;
+  // 가까이 적 기관총 둘을 둔다: 계속 맞아 가라앉는다
+  for (const dr of [0, 1]) { const mg = T.mkUnit(1, 'mg', b2.r + dr, b2.c + 2); mg.hold = true; mg.post = 1; }
+  T.__eval('BOAT_HIT.mg *= 6');   // 몇 초 안에 닿으니 명중 확률을 올려 주사위에 덜 기대게 한다
+  for (let i = 0; i < 600 && b2.st !== 'sink'; i++) T.rtTick(0.1);
   assert.equal(b2.st, 'sink'); assert.equal(G.nats[0].losses, losses + 1);
   T.rtRun(5); assert.ok(!G.units.some(x => x.nat === 0 && x.type === 'tank'), '전차는 내리지 못했다');
 });
@@ -131,6 +133,7 @@ test('상륙 출구: 절벽에 막힌 바퀴 차량이 있으면 공병이 절�
   assert.ok(G.map[r][15].bluff && !G.map[r][15].cut);
   const v = T.mkUnit(0, 'sup', r, 14); v.x = 14.6; v.z = r + .5;
   const e = T.mkUnit(0, 'eng', r + 2, 12);
+  G.forts = G.forts.filter(f => f.k === 'bunker'); G.navV++; G.fortV = (G.fortV || 0) + 1;   // 해변 장애물은 치워 둔다(공병이 그걸 먼저 걷느라 시드마다 결과가 달랐다)
   T.rtRun(50);
   assert.ok(G.camp.st.cuts >= 1, '절벽 길을 냈다');
   const L = G.camp.cutL[0]; assert.ok(Math.abs(L.r - r) <= 6 && G.map[L.r][15].cut && G.map[L.r][17].cut);

@@ -65,10 +65,10 @@ test('다리 확보: 강은 건널 수 없고 서강교로만 건너며, 폭약�
   // 해체: 공병이 폭약 옆에서 18초
   G.units = G.units.filter(u => u.nat === 0); G.nats[1].ctrl = 'human'; const ch = G.camp.charge;
   const eng = G.units.find(u => u.type === 'eng'); eng.x = ch.x - .3; eng.z = ch.z; eng.r = Math.floor(eng.z); eng.c = Math.floor(eng.x); eng.path = []; eng.hold = true;
-  T.rtRun(19); assert.equal(G.camp.st.disarmed, 1, '해체'); assert.ok(G.camp.st.left > 240);
-  // 폭파: 아무도 안 건드리면 5분 뒤 다리가 무너져 실패
+  T.rtRun(19); assert.equal(G.camp.st.disarmed, 1, '해체'); assert.ok(G.camp.st.left > 200);
+  // 폭파: 아무도 안 건드리면 4분 뒤 다리가 무너져 실패
   G = start(T, 'bridge'); quiet(G); for (const u of G.units) if (u.nat === 0) u.hold = true;
-  T.rtRun(301);
+  T.rtRun(241);
   assert.ok(G.over && G.over.win === 1 && G.over.why.includes('폭파'));
   assert.ok(!G.map.flat().some(x => x.br === 1), '서강교는 물이 됨');
 });

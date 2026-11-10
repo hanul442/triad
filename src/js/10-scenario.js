@@ -4,9 +4,12 @@ const SCN={
   assault:{n:'도심 돌파',d:'적이 모든 거점을 쥐고 있습니다. 8분 안에 거점 5곳을 동시에 확보하세요.'},
   hold:{n:'최후 방어',d:'도심 거점을 지키며 7분을 버티세요. 끝날 때 거점 3곳 이상을 갖고 있어야 합니다.'},
 };
-const SCN_ASSAULT_ADD=['rifle','rifle','rifle','rifle','eng','eng','mg','at','mortar','ifv','ifv','tank'];
+const SCN_HOLD_ADD=['rifle','rifle','rifle','mg','at','eng','mortar','ifv','tank','rifle'];
+const SCN_ASSAULT_ADD=['rifle','rifle','rifle','rifle','eng','eng','mg','at','mortar','ifv','tank'];   // 장갑차 하나를 뺐다(2026-11-10, 관전 블루 5/6 → 균형)
 /* 도심 돌파: 수비는 거점을 다 쥐고 있어도 증원을 사지 않는다(정해진 수비대만) */
 {const _in=income;income=function(n){if(G&&G.scn==='assault'&&n!==0)return 0;return _in(n);};}
+/* 최후 방어: 지키는 블루는 거점 넷에서 수입이 많아 증원을 쏟아부었다. 수비 수입은 절반, 공격 측은 +4 (2026-11-10 관전 블루 6/6 → 3/4) */
+{const _in=income;income=function(n){const v=_in(n);if(G&&G.scn==='hold')return n===0?Math.round(v*.5):v+4;return v;};}
 function scnButtons(){return Object.keys(SCN).map(k=>`<button class="btn" data-act="scn:${k}" id="scn-${k}">${SCN[k].n}<small>${SCN[k].d}</small></button>`).join('');}
 function startScn(k){const sp=+($('#opt-speed')?.value??260);scnSetup(k,sp);
   bump();G.boot=false;$('#setup').hidden=true;clearSel();rtStart();UI.sheet=false;render();if(typeof v3HomeCam==='function')v3HomeCam(false);}
@@ -24,7 +27,10 @@ function scnSetup(k,sp){sp=sp??260;
     const m=(N-1)/2;const near=G.objs.slice().sort((a,b)=>dist(a.r,a.c,m,m)-dist(b.r,b.c,m,m)).slice(0,4);
     for(const o of near){G.map[o.r][o.c].owner=0;}
     for(const u of G.units.filter(u=>u.nat===0)){const o=near[u.id%4];const sp2=[[o.r,o.c],...nbrs(o.r,o.c),...nbrs(o.r,o.c).flatMap(([a,b])=>nbrs(a,b))].find(([a,b])=>!unitAt(a,b)&&mcost(u.type,G.map[a][b])<Infinity);if(sp2){u.r=sp2[0];u.c=sp2[1];}}
-    G.nats[1].cp=24;G.diff='hard';}
+    // 공격 측은 3:1을 넘게 모아야 시가지 거점을 뺏는다: 레드에 돌격 중대 하나를 더 붙이고 지휘점수를 넉넉히 준다
+    const R=G.units.filter(u=>u.nat===1);const rr=Math.round(R.reduce((a,u)=>a+u.r,0)/(R.length||1)),rc=Math.round(R.reduce((a,u)=>a+u.c,0)/(R.length||1));
+    if(typeof campPut==='function')for(const t of SCN_HOLD_ADD)campPut(1,t,rr,rc,{bldg:false});
+    G.nats[1].cp=40;G.diff='hard';}
   bump();return G;}
 function scnObjective(){if(!G||!G.scn)return null;const n=0;if(G.camp&&typeof campObjective==='function')return campObjective();
   if(G.scn==='tut'){const S=[
