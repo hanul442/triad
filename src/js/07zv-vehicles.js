@@ -29,7 +29,8 @@ function vxMat(key,o){if(VX.mats.has(key))return VX.mats.get(key);const T=V3.T;c
   const m=new T.MeshStandardMaterial({color:o.c||'#ffffff',roughness:o.r??.85,metalness:o.mt??.1,flatShading:o.flat!==false,map:o.map||null,vertexColors:!!o.vc,emissive:o.em||'#000000',emissiveIntensity:o.ei??1});
   const camo=o.camo;const u={uC0:{value:new T.Color(camo?camo[0]:'#fff')},uC1:{value:new T.Color(camo?camo[1]:'#fff')},uC2:{value:new T.Color(camo?camo[2]:'#fff')},
     uK:{value:camo?1:0},uDK:{value:o.dk??1},uSc:{value:o.sc||7.5}};
-  m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,u,{uDust:U.uDust,uWash:U.uWash});
+  m.onBeforeCompile=function(sh,ren){const P=V3.T.Material.prototype.onBeforeCompile;if(P)P.call(this,sh,ren);   // 지형 높이 훅(07g)을 먼저: 빠지면 차가 언덕 속에 묻힌다
+    Object.assign(sh.uniforms,u,{uDust:U.uDust,uWash:U.uWash});
     sh.vertexShader='attribute vec3 aV;\nvarying vec3 vV;\nvarying vec3 vON;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvV=aV;vON=normal;');
     sh.fragmentShader='uniform vec3 uC0,uC1,uC2,uDust;uniform float uK,uDK,uSc,uWash;varying vec3 vV;varying vec3 vON;\n'+VX_GLSL+'\n'+sh.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
   {vec3 q=vV*uSc;
