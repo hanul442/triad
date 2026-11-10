@@ -18,6 +18,7 @@ const run = (T, s) => { for (let i = 0; i < s * 10; i++) { T.rtTick(0.1); T.G.un
 test('전투 동작은 게임 결과를 바꾸지 않는다(난수·위치 그대로)', () => {
   const snap = on => {
     const T = loadGame(); seedRandom(T, 11); if (!on) T.__set('drillTick', () => {});
+    T.__set('cvPose', () => {});   // 은엄폐(05zc)는 자세를 보고 일부러 엎드림을 정하므로 여기서는 끈다(개인호가 생기면 낮은 엄폐 자세가 갈린다)
     T.newGame({ slots: ['ai', 'ai', 'none', 'none'], size: 's', fog: true, speed: 0, seed: 11 });
     for (let i = 0; i < 900 && !T.G.over; i++) T.rtTick(0.1);
     return JSON.stringify(T.G.units.map(u => [u.id, u.x, u.z, u.hp, (u._men || []).map(m => [m.x, m.z, m.dead])]));
