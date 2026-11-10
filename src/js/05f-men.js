@@ -94,6 +94,7 @@ function menPlan(u,M){const L=M.filter(menAct);if(!L.length)return;const th=menT
   const objs=typeof coverObjs==='function'?coverObjs(u):[];const C=[];
   for(const rad of [0,.1,.18,.26,.34,.42]){const na=rad?Math.round(rad*40):1;for(let i=0;i<na;i++){const a=i/na*6.283+menHash(u.id,i)*.3;const x=u.x+Math.cos(a)*rad,z=u.z+Math.sin(a)*rad;
       if(rad&&!menClear(u,u.x,u.z,x,z))continue;const t=tileAt(x,z);if(!t||t.t==='bldg')continue;
+      if(typeof vegIn==='function'&&vegIn(x,z))continue;   // 나무 줄기·덤불 속에는 서지 않는다
       let cov=typeof dirCoverAt==='function'?dirCoverAt(x,z,ux,uz,'inf',u,objs).cov:0;
       // 벽에 붙기: 옆에 건물 벽이 있으면 조금 더 좋다(시가지에서는 벽을 따라 선다)
       let hug=0;for(const [p,q] of [[1,0],[-1,0],[0,1],[0,-1]]){const tt=tileAt(x+p*.13,z+q*.13);if(tt&&tt.t==='bldg'){hug=.06;break;}}
@@ -139,13 +140,16 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
       if(u.supp>0&&!m.pr)m.pr=.6+Math.random()*.6;}            // 제압: 엎드린다
     // 곧장 못 가면(벽·건물 경계) 분대장이 지나간 발자국을 거꾸로 따라간다: 지금 자리에서 곧게 보이는 가장 앞쪽 발자국으로
     if(Math.hypot(gx-m.x,gz-m.z)>.006&&!menClear(u,m.x,m.z,gx,gz)){const w=menVia(u,m,t,gx,gz);if(w){gx=w[0];gz=w[1];}}
+    if(typeof vegPush==='function'){const q=vegPush(gx,gz,m.x,m.z);if(menClear(u,gx,gz,q[0],q[1])){gx=q[0];gz=q[1];}}   // 설 자리가 나무·덤불 안이면 바깥으로(05f4-veg)
     let dx=gx-m.x,dz=gz-m.z,d=Math.hypot(dx,dz);
+    if(d>.006&&typeof vegSteer==='function'){const s=vegSteer(m.x,m.z,dx/d,dz/d,Math.min(d,.12));dx=s[0]*d;dz=s[1]*d;}   // 앞에 줄기가 있으면 돌아간다
     if(d>.3)dash=Math.max(dash,1.7);else if(d>.12)dash=Math.max(dash,1.25);
     const crawl=m.pr>0&&!moving;m.crawl=crawl;let sp=base*(crawl?.35:dash)*(m.rl>0&&!moving?.6:1);
     if(d>.006){const st=Math.min(d,sp*dt);let nx=m.x+dx/d*st,nz=m.z+dz/d*st;
       if(!menClear(u,m.x,m.z,nx,nz)){m.stk+=dt;nx=m.x;nz=m.z;m.wp=null;// 막혔으면 서서 다음 틱에 발자국 길을 다시 찾는다(벽은 절대 통과하지 않는다)
         if(m.stk>2.5){const P=menTrailNear(u,m);if(P){nx=P[0];nz=P[1];}m.stk=0;}}   // 오래 끼어 있으면 가장 가까운 발자국 자리로 옮긴다
       else m.stk=0;
+      if(typeof vegPush==='function'){const q=vegPush(nx,nz,m.x,m.z);if(menClear(u,nx,nz,q[0],q[1])){nx=q[0];nz=q[1];}}
       m.spd=Math.hypot(nx-m.x,nz-m.z)/dt;m.x=nx;m.z=nz;if(m.spd>.02)m.f=Math.atan2(dz,dx);}
     else m.spd=0;
     // 너무 멀리 떨어지면(밀려나거나 막힘) 분대장 곁으로 붙인다
@@ -154,7 +158,8 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
   // 서로 겹치지 않게
   for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++){const a=L[i],b=L[j];const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),R=moving?.05:.07;if(d>=R)continue;
     const p=(R-d)/2,nx=d>1e-4?dx/d:Math.cos(i+j),nz=d>1e-4?dz/d:Math.sin(i+j);
-    if(menClear(u,a.x,a.z,a.x-nx*p,a.z-nz*p)){a.x-=nx*p;a.z-=nz*p;}if(menClear(u,b.x,b.z,b.x+nx*p,b.z+nz*p)){b.x+=nx*p;b.z+=nz*p;}}}
+    const vok=(x,z)=>typeof vegIn!=='function'||!vegIn(x,z);   // 서로 비켜서다 나무 속으로 들어가지 않게
+    if(menClear(u,a.x,a.z,a.x-nx*p,a.z-nz*p)&&vok(a.x-nx*p,a.z-nz*p)){a.x-=nx*p;a.z-=nz*p;}if(menClear(u,b.x,b.z,b.x+nx*p,b.z+nz*p)&&vok(b.x+nx*p,b.z+nz*p)){b.x+=nx*p;b.z+=nz*p;}}}
 /* 엔진에 끼우기: 틱 끝에 병사 갱신, 사격 때 실제로 쏜 병사·맞은 쪽 위협 방향 기록 */
 {const _tick=rtTick;rtTick=function(dt){_tick(dt);if(!G||!G.units)return;for(const u of G.units)if(UT[u.type].cls==='inf')try{menTick(u,dt);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};
  const _shoot=rtShoot;rtShoot=function(a,d){if(UT[a.type].cls==='inf'){if(!a._men)menInit(a);
