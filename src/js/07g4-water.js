@@ -9,7 +9,7 @@
    캠페인(G.camp)은 07c-camp가 따로 그리므로 건드리지 않는다. */
 const WS={D:.3,lv:-.19,on:false,u:{t:{value:null},p:{value:null}}};
 const wLv=()=>WS.on?WS.lv:0;   // 물 높이(화면)
-const wRiver=()=>G&&!G.camp&&G.feat&&G.feat.river&&G.feat.river.pts?G.feat.river:null;
+const wRiver=()=>G&&!campPlain()&&G.feat&&G.feat.river&&G.feat.river.pts?G.feat.river:null;
 const wFount=(r,c)=>{if(!inb(r,c))return false;const x=G.map[r][c];return x.t==='water'&&!x.rv&&!x.sea&&[[-1,0],[1,0],[0,-1],[0,1]].some(([a,b])=>inb(r+a,c+b)&&G.map[r+a][c+b].sq);};
 // 물길 띠의 바깥 가장자리: 강 가운데선에서 이만큼이 둑 꼭대기
 const wBank=()=>{const f=wRiver();return f?f.w/2:0;};
@@ -40,7 +40,7 @@ function wTerrMat(){const m=V3.M&&V3.M.terr;if(!m||m.userData.wsink)return;m.use
   const ck=m.customProgramCacheKey;m.customProgramCacheKey=()=>(ck?ck.call(m):'')+'wS';m.needsUpdate=true;}
 
 /* ---------- 땅 그림: 강둑·산책로, 안벽 면, 분수 자리, 시골 광장·마당 ---------- */
-{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||G.camp)return;try{wGroundTex(g,P);}catch(e){console.error(e);}};}
+{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||campPlain())return;try{wGroundTex(g,P);}catch(e){console.error(e);}};}
 function wGroundTex(g,P){const M=G.map,f=wRiver(),R=mulberry(((G.seed|0)^0x3a7e)>>>0);const at=(r,c)=>inb(r,c)?M[r][c]:null;
   const cl=typeof bmClime==='function'?bmClime():'temp',L=G.feat&&G.feat.layout;
   const GRASS={temp:'#56603f',autumn:'#6b6240',winter:'#d6dade',desert:'#a8946e'}[cl]||'#56603f';
@@ -98,7 +98,7 @@ function wRibbon(pts,hw,y){const T=V3.T,P=[],I=[];
     if(i){const o=(i-1)*2;I.push(o,o+2,o+1,o+1,o+2,o+3);}}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setIndex(I);geo.computeVertexNormals();
   const n=geo.attributes.normal;for(let i=0;i<n.count;i++)n.setXYZ(i,0,1,0);return geo;}
-{const _bt=v3BuildTerrain;v3BuildTerrain=function(g){_bt(g);if(!G||G.camp)return;try{wBuildRiver(g);}catch(e){console.error(e);}};}
+{const _bt=v3BuildTerrain;v3BuildTerrain=function(g){_bt(g);if(!G||campPlain())return;try{wBuildRiver(g);}catch(e){console.error(e);}};}
 function wBuildRiver(g){const f=wRiver();if(!f||!WS.on)return;const T=V3.T,M=wMats(),TM=V3.terrM;const at=(r,c)=>inb(r,c)?G.map[r][c]:null;
   // 칸마다 네모 수면을 걷고 꺾은선 띠 수면 하나로
   for(const o of g.children.slice())if(o.isInstancedMesh&&TM&&o.material===TM.water){g.remove(o);o.geometry.dispose();}
@@ -157,7 +157,7 @@ function wBuildEdge(g){if(!WS.on)return;const T=V3.T,M=wMats(),wall=[];
   for(let i=0;i<N;i++)for(const [r,c,ax] of [[0,i,'z0'],[N-1,i,'z1'],[i,0,'x0'],[i,N-1,'x1']]){const x=G.map[r][c];if(!(x.rv||x.sea||x.pier))continue;
     const [cx,cz]=v3x(r,c);if(ax[0]==='z')wall.push({x:cx,y:-WS.D/2,z:ax==='z0'?0:N,sx:1,sy:WS.D,sz:.02});else wall.push({x:ax==='x0'?0:N,y:-WS.D/2,z:cz,sx:.02,sy:WS.D,sz:1});}
   v3Inst(g,new T.BoxGeometry(1,1,1),M.dark,wall,{noShadow:1});}
-{const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();if(!G||G.camp)return;try{wAfterWorld();}catch(e){console.error(e);}};}
+{const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();if(!G||campPlain())return;try{wAfterWorld();}catch(e){console.error(e);}};}
 function wAfterWorld(){const T=V3.T,g=V3.G.world;
   if(WS.on){// 땅 판을 촘촘하게(낮춘 물길이 매끈하게) 바꾸고, 바깥 땅은 지도 자리를 비운다
     for(const o of g.children){if(!o.isMesh||o.isInstancedMesh)continue;
@@ -171,5 +171,5 @@ function wAfterWorld(){const T=V3.T,g=V3.G.world;
 function wSinkUpd(){const T=V3.T;if(WS.u.t.value&&WS.u.t.value!==WS.dummy)WS.u.t.value.dispose();WS.on=false;
   if(!WS.u.p.value)WS.u.p.value=new T.Vector2(1,0);WS.u.p.value.set(N,0);
   if(!WS.dummy){WS.dummy=new T.DataTexture(new Uint8Array(4),1,1);WS.dummy.needsUpdate=true;}WS.u.t.value=WS.dummy;
-  if(!G||G.camp)return;const tx=wSinkTex();if(!tx)return;
+  if(!G||campPlain())return;const tx=wSinkTex();if(!tx)return;
   WS.u.t.value=tx;WS.u.p.value.set(N,WS.D);WS.on=true;wTerrMat();}

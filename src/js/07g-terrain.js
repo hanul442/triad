@@ -66,7 +66,7 @@ function v3TerrMats(){if(V3.terrM)return V3.terrM;const T=V3.T;
     stripe:new T.MeshStandardMaterial({color:'#c9c4b8',roughness:.6}),red:new T.MeshStandardMaterial({color:'#9c3128',roughness:.6}),
     canopy:new T.MeshStandardMaterial({color:'#7b7f80',roughness:.7,metalness:.3})};
   for(const k in M)if(k!=='water')v3FowMat(M[k]);v3FowMat(M.water);V3.terrM=M;return M;}
-function v3BuildTerrain(g){const f=G.feat;if(!f||G.camp)return;const T=V3.T,M=v3TerrMats();const at=(r,c)=>inb(r,c)?G.map[r][c]:null;
+function v3BuildTerrain(g){const f=G.feat;if(!f||campPlain())return;const T=V3.T,M=v3TerrMats();const at=(r,c)=>inb(r,c)?G.map[r][c]:null;
   const water=[],deck=[],rails=[],piers=[],gird=[],poles=[],arms=[],wag=[],wtop=[],xing=[],xbar=[],can=[],canP=[];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(!x.rv)continue;const [cx,cz]=v3x(r,c);
     water.push({x:cx,y:.016,z:cz,rx:-Math.PI/2,sx:1.002,sy:1.002});

@@ -41,7 +41,7 @@ function natTerrMat(){const m=V3.M&&V3.M.terr;if(!m||m.userData.nat)return;m.use
   m.customProgramCacheKey=()=>'fowNnat';m.needsUpdate=true;}
 
 /* ---------- 땅 그림: 무른 땅 경계 번지기, 풀 포기, 바다 깊이·물거품 ---------- */
-{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||G.camp)return;try{natGround(g,P);}catch(e){console.error(e);}};}
+{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||campPlain())return;try{natGround(g,P);}catch(e){console.error(e);}};}
 function natGround(g,P){const M=G.map,R=mulberry(((G.seed|0)^0x7a11)>>>0),cl=natCl();const at=(r,c)=>inb(r,c)?M[r][c]:null;
   // 칸마다 평균색: 작은 캔버스로 줄여 읽는다
   const sm=document.createElement('canvas');sm.width=sm.height=N;const sg=sm.getContext('2d');sg.imageSmoothingEnabled=true;sg.imageSmoothingQuality='high';sg.drawImage(g.canvas,0,0,N,N);
@@ -123,7 +123,7 @@ function natWildTrees(r,c,x,out){const k=key(r,c),cl=natCl(),pal=NAT_PAL[cl]||NA
 /* ---------- 지면 그룹: 숲·덤불·지도 밖 풍경 ---------- */
 {const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();try{natTerrMat();natWorld(V3.G.world);}catch(e){console.error(e);}};}
 function natWorld(g){const T=V3.T,M=G.map,cl=natCl(),pal=NAT_PAL[cl]||NAT_PAL.temp,G3=natGeos(),MT=natMats();
-  if(!G.camp){const out={spruce:[],pine:[],bush:[]};
+  if(!campPlain()){const out={spruce:[],pine:[],bush:[]};
     for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c],k=key(r,c),H=s=>v3Hash(k,s);
       if(x.t==='park'&&x.wild&&!x.orch)natWildTrees(r,c,x,out);
       // 목초지·공원·밭 가장자리 덤불(숲과 맞닿은 곳에 더)
@@ -142,7 +142,7 @@ function natOuter(g){const T=V3.T,cl=natCl(),L=natLay(),pal=NAT_PAL[cl]||NAT_PAL
         sh.vertexShader='varying vec2 vNatW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvNatW=(modelMatrix*vec4(transformed,1.)).xz;');
         sh.fragmentShader='uniform sampler2D natN;varying vec2 vNatW;\n'+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n{float a=texture2D(natN,vNatW*.04).r,b=texture2D(natN,vNatW*.19).g,c=texture2D(natN,vNatW*1.7).b;diffuseColor.rgb*=(.78+.44*a)*(.9+.2*b)*(.9+.2*c);}');};
       m.customProgramCacheKey=()=>'natOut';m.needsUpdate=true;}}
-  if(G.camp)return;
+  if(campPlain())return;
   const dens={forest:2.4,country:.5,port:.12,river:.25,sym:.18}[L]??.2;const n=NAT_LO?dens*.6:dens;const far=[];const R=mulberry(((G.seed|0)^0x0a7e)>>>0);
   const band=10,A=-band,B=N+band;const area=(B-A)*(B-A)-N*N;const cnt=Math.min(9000,Math.round(area*n));
   for(let i=0;i<cnt;i++){let x=A+R()*(B-A),z=A+R()*(B-A);if(x>-.3&&x<N+.3&&z>-.3&&z<N+.3)continue;
