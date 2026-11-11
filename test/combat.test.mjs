@@ -79,6 +79,9 @@ test('전술 AI: 접적하면 기관총은 화력 기반, 소총은 옆으로 �
   const p = G.plat.find(q => q.mem.includes(mg.id));
   assert.ok(p, '소대 편성'); assert.equal(p.st, 'contact');
   assert.equal(p.roles[mg.id], 'bof');
+  // 교범(BD1): 화력 기반이 자리 잡고 쏘기 시작할 때까지 측면조는 기다린다(06c3-drills)
+  assert.ok([r1, r2].every(u => p.roles[u.id] !== 'man' || !u.dest), '화력 기반이 서기 전에는 측면조가 출발하지 않음');
+  mg.path = []; mg.firedT = G.time = 7; F(T, 'tacThink')(0);
   const man = [r1, r2].filter(u => p.roles[u.id] === 'man');
   assert.ok(man.length >= 1, '측면조 있음');
   const moved = man.filter(u => u.dest);
