@@ -95,7 +95,7 @@ function v3LeafTreeG(){if(V3.leafG)return V3.leafG;const T=V3.T;const parts=[];c
 function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
   const park=(r,c)=>inb(r,c)&&!G.map[r][c].yard&&(G.map[r][c].t==='park'||G.map[r][c].t==='water'&&!G.map[r][c].rv&&!G.map[r][c].sea);
   const trees=[],trunks=[],bench=[],paths=[],plamp=[];const LEAF=['#6e6a4c','#7a7353','#5f5d43','#76704f','#665f45'];
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='park')continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='park'||G.map[r][c].alm)continue;const k=key(r,c);const [cx,cz]=v3x(r,c);   // 고산 초지·눈밭(04g alm)엔 활엽수 없음
     // 산책로: 이웃 공원 칸으로 이어지는 흙길, 칸 가운데서 만난다
     const yard=G.map[r][c].yard||G.map[r][c].wild;// 주택 마당·숲(03c)은 길·벤치 없이 나무만
     const nb=yard?[]:[[0,1],[1,0]].filter(([a,b])=>park(r+a,c+b));
