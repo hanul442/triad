@@ -7,7 +7,7 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import { cpus } from 'node:os';
 import { appendFileSync } from 'node:fs';
 
-const ALL = ['free', 'free3', 'scn:assault', 'scn:hold', 'camp:evac', 'camp:bridge', 'camp:station', 'camp:omaha', 'camp:incheon'];
+const ALL = ['free', 'free3', 'scn:assault', 'scn:hold', 'camp:evac', 'camp:bridge', 'camp:station', 'camp:omaha', 'camp:incheon', 'camp:pavlov', 'camp:arnhem', 'camp:bastogne', 'camp:seoul', 'camp:mogadishu', 'camp:easting'];
 if (isMainThread) {
   const GAMES = +(process.argv[2] || 4), MAPS = (process.argv[3] && process.argv[3] !== 'all') ? process.argv[3].split(',') : ALL, OUT = process.argv[4];
   const jobs = []; const seed0 = +(process.env.SEED || 500);
@@ -53,7 +53,7 @@ if (isMainThread) {
         if (ok) S.near++; }
     }
     const g = G(); S.len = g.time; S.win = g.over ? g.over.win : null; S.why = g.over ? g.over.why : 'none'; S.errs = (g.errs || []).length; if (S.errs) S.err0 = String(g.errs[0]).slice(0, 300);
-    if (g.camp) { const st = g.camp.st; S.camp = {}; for (const k of ['saved', 'lost', 'disarmed', 'blown', 'hold', 'relay', 'taken', 'landed', 'sunk', 'clr']) if (st[k] != null) S.camp[k] = typeof st[k] === 'number' ? Math.round(st[k]) : st[k];
+    if (g.camp) { const st = g.camp.st; S.camp = {}; for (const k of ['saved', 'lost', 'disarmed', 'blown', 'hold', 'relay', 'taken', 'landed', 'sunk', 'clr', 'link', 'rec', 'drop', 'relief', 'grDone']) if (st[k] != null) S.camp[k] = typeof st[k] === 'number' ? Math.round(st[k]) : st[k];
       S.objOwn = owner(); }
     return S;
   }

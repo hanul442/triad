@@ -14,7 +14,8 @@ const CLIMES={temp:{n:'온대 (기본)'},autumn:{n:'가을'},winter:{n:'겨울 (
 const BM_LAYOUTS=['sym','river','country','forest','port'];
 /* 씨앗으로 고르기: 가중치 목록 [[값, 무게]] */
 function bmPick(seed,salt,ws){const tot=ws.reduce((s,w)=>s+w[1],0);const x=propHash((seed>>>0)%2147483647,salt)*tot;let a=0;for(const [k,w] of ws){a+=w;if(x<a)return k;}return ws[ws.length-1][0];}
-const pickLayout=seed=>bmPick(seed,911,[['sym',.22],['river',.18],['country',.22],['forest',.15],['port',.23]]);
+// 알프스 산악(03d)은 따로 뽑는다: 다른 지도의 씨앗→지도 짝이 그대로 남게
+const pickLayout=seed=>propHash((seed>>>0)%2147483647,914)<.1&&typeof genAlpine==='function'?'alpine':bmPick(seed,911,[['sym',.22],['river',.18],['country',.22],['forest',.15],['port',.23]]);
 const pickRelief=(seed,lay)=>bmPick(seed,912,lay==='forest'?[['hills',.6],['steep',.4]]:lay==='port'?[['flat',.55],['hills',.45]]:lay==='country'?[['flat',.35],['hills',.65]]:[['flat',.5],['hills',.35],['steep',.15]]);
 const pickClime=(seed,lay)=>bmPick(seed,913,lay==='forest'||lay==='country'?[['temp',.4],['autumn',.3],['winter',.3]]:[['temp',.38],['autumn',.12],['winter',.22],['desert',.28]]);
 /* 무작위·기후를 풀어 배치별 생성기로 보낸다. 바깥에서 05l-objs가 거점 이름을 붙이고, 05l2가 그 이름을 땅에 맞게 바꾼다 */
