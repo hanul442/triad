@@ -125,13 +125,14 @@ function menToLos(u,d){const L=(u._men||[]).filter(menAct);if(!L.length)return;c
 function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
   // 사상자는 체력에서 거꾸로 셈하지 않고, 맞을 때마다 병사 한 명씩 정한다(05g-casualty의 hurtMen)
   menTrail(u);const moving=!!(u.path&&u.path.length)&&!u.climb;
-  const pe=moving?u.path[u.path.length-1].join(','):'';if(moving&&u._pe!==pe)menNewOrder(u,M);u._pe=pe;
+  const pe=moving?u.path[u.path.length-1].join(','):'';if(moving&&u._pe!==pe&&!u._pe)menNewOrder(u,M);u._pe=pe;   // 서 있다가 출발할 때만 줄을 새로 세운다(가는 중에 목적지만 바뀌면 줄·출발 순서를 그대로: 길을 고칠 때마다 다시 늦게 출발해 뒤처지던 것)
   const thr=menThreat(u);const L=M.filter(menAct);
   if(!moving){if(!u._plan||(thr&&Math.abs(Math.atan2(Math.sin(menThreatDir(u)-u._planF),Math.cos(menThreatDir(u)-u._planF)))>.8)||t-(u._planT||0)>15||u._planK!==key(u.r,u.c)){menPlan(u,M);u._planK=key(u.r,u.c);}}
   else u._plan=0;
   // 번갈아 이동: 위협 속에서 움직이면 앞조·뒷조가 교대로 멈춘다
   const bound=moving&&thr&&L.length>=4;const ph=Math.floor(t/MEN.bound)%2;
   const base=UT[u.type].mv*SPD_K*(u.supp>0?.65:1);const sorted=moving?L.slice().sort((a,b)=>(a.rank??a.i)-(b.rank??b.i)):L;
+  const far=moving?2.2+MEN.gapW*L.length*.6:2.2;   // 가는 중이면 줄 길이(9명 약 20m)만큼 더 떨어져도 붙이지 않는다
   sorted.forEach((m,k)=>{if(m.rl>0)m.rl-=dt;if(m.rl<=0&&m.mag<=0){m.mag=MEN.mag[u.type]||4;m.rl=0;}if(m.pr>0)m.pr-=dt;if(m.lag>0){m.lag-=dt;if(moving){m.spd=0;return;}}
     let gx,gz,dash=1;
     if(moving){[gx,gz]=menMoveSpot(u,m,k);const team=k<Math.ceil(L.length/2)?0:1;
@@ -146,14 +147,18 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
     if(d>.3)dash=Math.max(dash,1.7);else if(d>.12)dash=Math.max(dash,1.25);
     const crawl=m.pr>0&&!moving;m.crawl=crawl;let sp=base*(crawl?.35:dash)*(m.rl>0&&!moving?.6:1);
     if(d>.006){const st=Math.min(d,sp*dt);let nx=m.x+dx/d*st,nz=m.z+dz/d*st;
-      if(!menClear(u,m.x,m.z,nx,nz)){m.stk+=dt;nx=m.x;nz=m.z;m.wp=null;// 막혔으면 서서 다음 틱에 발자국 길을 다시 찾는다(벽은 절대 통과하지 않는다)
-        if(m.stk>2.5){const P=menTrailNear(u,m);if(P){nx=P[0];nz=P[1];}m.stk=0;}}   // 오래 끼어 있으면 가장 가까운 발자국 자리로 옮긴다
+      if(!menClear(u,m.x,m.z,nx,nz)){// 바로 앞이 막혔으면(주차 차 모서리·생울타리 끝) 옆으로 비껴 돌아간다: ±30°·±60°·±90° 중 처음 트인 쪽
+        let sl=null;const a0=Math.atan2(dz,dx),sd=m.i%2?1:-1;
+        for(const k of [1,2,3])for(const sg of [sd,-sd]){if(sl)break;const a=a0+sg*k*Math.PI/6,qx=m.x+Math.cos(a)*st,qz=m.z+Math.sin(a)*st;if(menClear(u,m.x,m.z,qx,qz))sl=[qx,qz];}
+        if(sl){nx=sl[0];nz=sl[1];m.stk=Math.max(0,m.stk-dt*.5);}
+        else{m.stk+=dt;nx=m.x;nz=m.z;m.wp=null;// 막혔으면 서서 다음 틱에 발자국 길을 다시 찾는다(벽은 절대 통과하지 않는다)
+        if(m.stk>2.5){const P=menTrailNear(u,m);if(P){nx=P[0];nz=P[1];}m.stk=0;}}}   // 오래 끼어 있으면 가장 가까운 발자국 자리로 옮긴다
       else m.stk=0;
       if(typeof vegStep==='function')[nx,nz]=vegStep(u,m,nx,nz);
       m.spd=Math.hypot(nx-m.x,nz-m.z)/dt;m.x=nx;m.z=nz;if(m.spd>.02)m.f=Math.atan2(dz,dx);}
     else m.spd=0;
     // 너무 멀리 떨어지면(밀려나거나 막힘) 분대장 곁으로 붙인다
-    if(Math.hypot(m.x-u.x,m.z-u.z)>2.2){const P=menTrailAt(u,.1);m.x=P.x;m.z=P.z;}
+    if(Math.hypot(m.x-u.x,m.z-u.z)>far){const P=menTrailAt(u,.1);m.x=P.x;m.z=P.z;}
     if(m.spd<=.02){const aim=t-m.ft<1.2&&m.aim;m.f=aim?Math.atan2(m.aim[1]-m.z,m.aim[0]-m.x):(m.sec??m.f)+Math.sin(t*.5+m.i*1.7)*.18;}});
   // 서로 겹치지 않게
   for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++){const a=L[i],b=L[j];const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),R=moving?.05:.07;if(d>=R)continue;
