@@ -27,7 +27,7 @@ const SEE={
 const WXK={snow:{n:'눈',m:'눈이 내립니다 · 시정 약 200m'},blizzard:{n:'눈보라',m:'눈보라 · 시정 약 60m, 드론·헬기 비행 불가'},
   dust:{n:'먼지 연무',m:'먼지 연무가 깔립니다 · 시정 약 120m, 드론 시야 제한'},sand:{n:'모래폭풍',m:'모래폭풍 · 시정 약 40m, 드론·헬기 비행 불가'},haze:{n:'아지랑이',m:''}};
 /* 날씨가 땅 위에서 보이는 모습: 기후를 따른다. 규칙(드론·헬기·명중)은 바탕 날씨(G.wx)를 그대로 쓴다 */
-function wxKind(){const w=(G&&G.wx)||'clear';const cl=typeof climeOf==='function'&&G&&!G.camp?climeOf():'temp';
+function wxKind(){const w=(G&&G.wx)||'clear';const cl=typeof climeOf==='function'&&G&&!campPlain()?climeOf():'temp';
   if(cl==='winter')return w==='rain'?'snow':w==='storm'?'blizzard':w;
   if(cl==='desert'){if(w==='fog')return 'dust';if(w==='storm')return 'sand';if(w==='clear'&&typeof dayH==='function'){const h=dayH();if(h>=11&&h<=16.5)return 'haze';}}
   return w;}

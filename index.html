@@ -486,12 +486,15 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <h3 class="sec">역사 캠페인 · 상륙 작전</h3>
     <p class="csub">노르망디 오마하 해변과 인천 월미도. 바다에서 상륙정으로 들어와 해안 진지를 뚫으세요. 두 임무는 순서 없이 고를 수 있고, 부대는 이 게임의 현대 부대로 재현합니다.</p>
     <div class="clist" id="camp-land"></div>
+    <h3 class="sec">역사 캠페인 · 역사 전투</h3>
+    <p class="csub">스탈린그라드에서 73 이스팅까지, 실제 전투 여섯. 그날의 지형·계절·날씨·병력과 증원이 오는 때를 따릅니다. 순서 없이 고를 수 있고, 부대는 이 게임의 현대 부대로 재현합니다.</p>
+    <div class="clist" id="camp-hist"></div>
     <h3 class="sec">훈련과 시나리오</h3>
     <div class="grid" id="scn-list"></div>
     <h3 class="sec">자유 전투</h3>
     <div id="slots" style="display:flex;flex-direction:column;gap:8px"></div>
     <div class="slot"><span></span><label for="opt-size">지도 크기</label><select id="opt-size"><option value="s">소형 36×36 (거점 4)</option><option value="m" selected>중형 52×52 (거점 12)</option><option value="l">대형 64×64 (거점 16)</option></select></div>
-    <div class="slot"><span></span><label for="opt-layout">지도 종류</label><select id="opt-layout"><option value="rand" selected>무작위 (판마다 다른 지도)</option><option value="sym">대칭 도시 (4세력 공정)</option><option value="river">강이 흐르는 도시 (비대칭: 강·다리·철도·역)</option><option value="country">농촌 · 보카주 (생울타리 들판과 마을)</option><option value="forest">숲 (벌목길·호수·산골 마을)</option><option value="port">항구 도시 (가운데 내항·부두·컨테이너)</option></select></div>
+    <div class="slot"><span></span><label for="opt-layout">지도 종류</label><select id="opt-layout"><option value="rand" selected>무작위 (판마다 다른 지도)</option><option value="sym">대칭 도시 (4세력 공정)</option><option value="river">강이 흐르는 도시 (비대칭: 강·다리·철도·역)</option><option value="country">농촌 · 보카주 (생울타리 들판과 마을)</option><option value="forest">숲 (벌목길·호수·산골 마을)</option><option value="port">항구 도시 (가운데 내항·부두·컨테이너)</option><option value="alpine">알프스 산악 (바위벽·산길: 전차는 골짜기 길로만, 산악보병은 바위벽도 오름)</option></select></div>
     <div class="slot"><span></span><label for="opt-relief">지형 고저차</label><select id="opt-relief"><option value="rand" selected>무작위 (지도에 맞게)</option><option value="flat">평지</option><option value="hills">완만한 언덕 (최고 약 10m)</option><option value="steep">가파른 구릉 (최고 약 18m)</option></select></div>
     <div class="slot"><span></span><label for="opt-clime">계절 · 기후</label><select id="opt-clime"><option value="rand" selected>무작위</option><option value="temp">온대 (기본)</option><option value="autumn">가을</option><option value="winter">겨울 (눈: 길 밖 이동 느림)</option><option value="desert">사막 (모래빛 도시)</option></select></div>
     <div class="slot"><span></span><label for="opt-fog">전장의 안개</label><select id="opt-fog"><option value="1">켜기</option><option value="0">끄기</option></select></div>
@@ -523,7 +526,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
 </div>
 <script>
 /* ---- updates ---- */
-var UPDATES=[{"d":"2026-11-11","t":"업데이트 로그 (#134)","b":["시작 화면에 [업데이트 로그] 버튼이 생겼어요. 날짜별로 무엇이 바뀌었는지 볼 수 있어요.","새 업데이트가 나오면 버튼에 '새 소식' 표시가 붙어요."]},{"d":"2026-11-11","t":"지휘·연락 차량: 코란도·렉스턴·타스만 (#144)","b":["국군이 실제로 쓰는 민수 4륜 지휘차 세 대가 증원 메뉴 '지휘·연락' 묶음에 생겼어요. 무장과 장갑은 없어요.","코란도 스포츠 연락차(2점): 앞선 아군 바로 뒤까지 올라가 적을 살펴요. 이 차가 본 적은 포병이 바로 쏴요. 적이 가까우면 물러나요.","렉스턴 스포츠 지휘차(3점): 전선 뒤에 서서 지휘해요. 둘레 아군의 사기가 빨리 돌아오고, 분대장이 쓰러져도 지휘가 빨리 이어져요. 4명까지 작은 조를 태워 줘요.","타스만 이동 지휘소(4점): 짐칸에 통신 모듈을 실은 신형 지휘차예요. 더 넓게 지휘하고, 범위 안 아군이 본 적은 포병이 바로 쏴요.","상대편은 같은 자리에 UAZ-469·UAZ 패트리엇·하이럭스 지휘차를 써요. AI도 부대가 늘면 알아서 불러요."]},{"d":"2026-11-11","t":"렉과 조작 딜레이 줄임 (#137)","b":["큰 전투에서 화면이 덜 끊기고, 누르면 더 빨리 반응해요. 전투 결과는 그대로예요."]},{"d":"2026-11-11","t":"저사양 모드 (#135)","b":["휴대폰이나 느린 컴퓨터에서 화면이 끊기면 저사양 모드를 켜세요. 그림만 가벼워지고 전투 규칙과 결과는 똑같습니다.","그림자·색보정을 끄고, 해상도·연기·나무를 줄이고, 화면을 초당 30번까지만 다시 그립니다.","시작 화면의 '그래픽' 줄(자동·저사양·보통), 지도 버튼 [저사양], PC는 L 키로 켜고 끕니다.","자동으로 두면 기기가 느릴 때 알아서 켜고 알려 줍니다."]},{"d":"2026-11-11","t":"새 지도 5종과 더 큰 지도 (#130)","b":["교외·공업 지대·성곽 구시가지·운하 도시·비행장 지도가 생겼어요.","특대형(80칸)·초대형(96칸) 크기를 고를 수 있어요."]},{"d":"2026-11-11","t":"전차가 나무를 쓰러뜨리며 숲을 지나감 (#125)","b":[]},{"d":"2026-11-11","t":"오마하 상륙이 더 어려워짐 (#129)","b":[]},{"d":"2026-11-11","t":"보병이 생울타리·덤불·모래주머니를 뚫지 않게 (#128)","b":[]},{"d":"2026-11-11","t":"관전 연출 3차 (#127)","b":["붕괴 장면을 쫓아가지 않고, 먼 샷과 잦은 화면 전환을 줄였어요."]},{"d":"2026-11-11","t":"교범대로 싸우는 습관 9가지 (#126)","b":["기관총은 끊어 쏘고 오래 쏘면 총열을 갈아요. 매복에 걸리면 맞서 돌파해요.","분대장이 쓰러지면 다음 사람이 지휘를 이어받고, 거점을 잡으면 탄약을 나누고 재정비해요."]},{"d":"2026-11-11","t":"장갑차·분대 움직임 다듬기 (#139)","b":["장갑차가 맵 끝 주차장 차 사이에 갇혀 몇 분씩 서 있던 문제를 고쳤어요. 막히면 뒤로 빼고 차를 밀어붙여 빠져나와요.","차륜형 장갑차(스트라이커·BTR)가 이제 바퀴 차량답게 움직여요. 전차처럼 제자리에서 돌지 않고 돌아 나가요.","분대원이 주차 차·울타리 모서리에 걸리면 옆으로 비껴 돌아가요. 분대 곁으로 갑자기 튀어 오르는 일이 크게 줄었어요.","오마하·인천 거점도 영어 무전에서 제 이름으로 불러요."]},{"d":"2026-11-11","t":"포격은 맞은 자리만 부숨 (#136)","b":["건물이 통째로 무너지지 않고 맞은 벽·모서리·지붕에만 구멍이 나요. 불은 그을음만 남겨요."]},{"d":"2026-11-10","t":"공성전 (#120)","b":["부대가 알아서 개인호·진지·구호소를 짓고, 대전차호·관측소·지휘소 같은 야전 시설 7종이 생겼어요."]},{"d":"2026-11-10","t":"상륙 출구 막힘 해결 (#119)","b":["해변 출구를 넓히고, 공병이 절벽에 길을 내요."]},{"d":"2026-11-10","t":"승리 조건 새로 (#123)","b":["거점 3분의 2를 90초 지키거나 적 전선이 무너지면 이겨요. 캠페인 난이도도 맞췄어요."]},{"d":"2026-11-10","t":"나무·덤불·언덕을 뚫던 문제 고침 (#121, #122, #124)","b":["보병이 나무 줄기를, 차량이 언덕·다리 속을 지나가지 않아요. 바리케이드·잔해는 다시 길을 막아요."]},{"d":"2026-11-09","t":"부관(AI)에게 맡기는 쉬운 지휘 (#60, #65)","b":["공격·방어 목표만 정하면 부관이 부대를 움직여요. 지원 부대는 알아서 할 일을 찾아요."]},{"d":"2026-11-09","t":"미니맵과 알아보기 쉬운 전장 (#61, #62)","b":["작은 지도가 생기고, 세력 색 고리와 병종 칩으로 누가 누군지 잘 보여요."]},{"d":"2026-11-09","t":"전황 보고 (#66)","b":["부대들이 상황을 보고하고 증원과 화력 지원을 요청해요."]},{"d":"2026-11-09","t":"중대·소대 자동 편성 (#67, #93)","b":["부대가 중대·소대로 묶이고, 중대에 목표와 증원을 줄 수 있어요."]},{"d":"2026-11-09","t":"지도 다양화 (#69, #90)","b":["농촌·숲·항구 도시 지도와 계절·기후, 무작위 지도가 생겼어요. 강 석축·부두·분수도 놓였어요."]},{"d":"2026-11-09","t":"상륙 작전 캠페인 (#70, #88, #106)","b":["노르망디 오마하와 인천 상륙. 해변을 뚫고 올라가요."]},{"d":"2026-11-09","t":"부대 대형 이동 (#73)","b":["종대·쐐기 대형으로 움직이고, 보병이 전차 뒤를 따라가요."]},{"d":"2026-11-09","t":"더 쉬운 조작 (#74, #93, #99)","b":["휴대폰은 한 손으로, PC는 마우스로 편하게. 왼쪽 끌기는 화면 이동이에요."]},{"d":"2026-11-09","t":"분대 전투 동작 (#75)","b":["엄폐 자세, 적을 만나면 반응, 손신호, 재장전과 부상자 자세가 생겼어요."]},{"d":"2026-11-09","t":"실제처럼 생긴 차량·항공기·병사 (#76, #78, #81)","b":[]},{"d":"2026-11-09","t":"지형과 자연, 도시 디테일 (#77, #80)","b":["숲·땅 질감·물결·궤도 자국·하늘, 외벽·옥상·거리 소품·전투 흔적."]},{"d":"2026-11-09","t":"총격·포격 효과 (#79)","b":[]},{"d":"2026-11-09","t":"수송헬기 도어거너 (#83)","b":[]},{"d":"2026-11-09","t":"소리: 지지직 잡음 제거, 긴장 배경음악 (#84)","b":[]},{"d":"2026-11-09","t":"교전 거리와 사거리를 실제처럼 (#85, #95)","b":["적 코앞까지 걸어가지 않고, 무기마다 실제 최소·최대 사거리에서 싸워요."]},{"d":"2026-11-09","t":"명령이 바로 닿음 (#89)","b":["무전 지연을 없앴어요."]},{"d":"2026-11-09","t":"민간인 없애기 (#91)","b":[]},{"d":"2026-11-09","t":"무기 피해를 실제처럼 (#92, #94)","b":["관통과 장갑, 광역 무기 반경. 건물과 지형지물이 무기 위력만큼 부서져요."]},{"d":"2026-11-09","t":"호송 (#96, #103)","b":["보급·구난·구급 차량을 호위하고, 위협받으면 흩어져 숨어요."]},{"d":"2026-11-09","t":"멈추거나 장애물을 뚫던 문제 고침 (#97)","b":[]},{"d":"2026-11-09","t":"AI가 목표를 이해하고 싸움 (#98)","b":["작전 계획을 세우고, 모든 지상 부대가 거점을 점령할 수 있어요."]},{"d":"2026-11-09","t":"다리 폭파·임시 다리 (#100)","b":[]},{"d":"2026-11-09","t":"시야를 실제처럼 (#102)","b":["날씨 시정, 밤과 달빛, 열상, 역광, 소리로 적을 찾아요."]},{"d":"2026-11-09","t":"관전 자동 연출 감독 (#104, #118)","b":["다큐·중계처럼 카메라가 알아서 장면을 잡아요."]},{"d":"2026-11-09","t":"지형지물로 숨기 (#105)","b":["병사마다 엄폐하고 엎드리며, 포격을 피하고 연막 뒤에 숨어요."]},{"d":"2026-11-09","t":"창으로 쏘고 창으로 맞기 (#107)","b":[]},{"d":"2026-11-09","t":"차량·병종 확대 (#108)","b":["장갑차 타고 내리기가 자동이 되고, 병과별 증원 메뉴가 생겼어요."]},{"d":"2026-11-09","t":"대공팀이 헬기를 잡음 (#109)","b":[]},{"d":"2026-11-09","t":"아군 오사 피하기 (#110, #113)","b":[]},{"d":"2026-11-09","t":"전체 점검 (#101, #112, #114, #115, #116)","b":["가끔 실패하던 시험을 고치고, 탄약이 바닥난 분대는 물러나요. 공병 폭약 설치 시간 버그도 고쳤어요."]},{"d":"2026-11-09","t":"자세한 게임 설명서 (#117)","b":["시작 화면과 작전 메뉴에서 볼 수 있어요."]},{"d":"2026-11-08","t":"전투 판정을 실제처럼 (#33)","b":["폭발 피해가 병사마다 따로 들어가고, 직접 봐야 조준하며, 제압 사격이 생겼어요."]},{"d":"2026-11-08","t":"똑똑해진 AI 전술 (#34, #36)","b":["AI가 화력 기반을 깔고 측면으로 돌고, 엄호하며 움직이고, 불리하면 물러나요.","부대를 묶어 공격·방어·정찰·지원 사격 임무만 줄 수도 있어요."]},{"d":"2026-11-08","t":"건물 안 전투 (#35)","b":["층마다 분대가 들어가고, 돌입·소탕·계단 싸움이 벌어져요."]},{"d":"2026-11-08","t":"특별 거점 12종과 구호소 (#37)","b":["거점마다 모습과 쓰임이 다르고 지뢰·벙커·건물 요새화·구호소가 생겼어요. 치료받은 병사는 돌아오고 구급차가 다녀요."]},{"d":"2026-11-08","t":"언덕·강·다리·철도 (#38)","b":["땅에 높낮이가 생기고, 강이 흐르는 비대칭 도시가 나왔어요."]},{"d":"2026-11-08","t":"보이는 대로 규칙이 맞게 (#39)","b":["박공지붕·계단실·병사별 시야, 건물 점유 표시, 층별 붕괴가 들어왔어요."]},{"d":"2026-11-08","t":"병종별 시야와 광학 장비 (#40)","b":["멈추면 광학 장비로 더 멀리 보고, 해치 닫은 차는 좁게 봐요. 곡사포는 관측자가 본 곳만 쏴요."]},{"d":"2026-11-08","t":"화면 질감 (#41)","b":["회녹색 톤, 대기 안개, 벽돌 외벽으로 화면이 영상처럼 보여요."]},{"d":"2026-11-08","t":"시가전 요소 (#42)","b":["쥐구멍·지하실·땅굴·저격수·건물 폭파·자폭 차량이 생겼어요."]},{"d":"2026-11-08","t":"차량·헬기 움직임 (#43, #49)","b":["포탑이 따로 돌고, 가속·회전 반경·후진, 차끼리 부딪힘이 생겼어요."]},{"d":"2026-11-08","t":"공습 장면 (#44, #53)","b":["편대가 들어와 폭탄을 떨어뜨리고, 세 발 연속 탄착과 버섯구름·먼지 벽이 일어나요."]},{"d":"2026-11-08","t":"연기와 폭발을 사실적으로 (#45)","b":[]},{"d":"2026-11-08","t":"관전 모드 강화 (#32, #46)","b":["AI 명령도 무전으로 들리고, 관전 1000판에서 찾은 어색한 움직임을 고쳤어요."]},{"d":"2026-11-08","t":"구급차 보호와 제네바 협약 (#50)","b":[]},{"d":"2026-11-08","t":"영어 군 무전 음성 (#51)","b":[]},{"d":"2026-11-08","t":"최후 생존 승리 방식 (#54)","b":["마지막까지 살아남은 세력이 이기는 방식을 고를 수 있어요."]},{"d":"2026-11-08","t":"문·계단에서 줄 서기 (#55)","b":["아군 분대가 문과 계단에서 차례로 들어가고, 뒤따를 때 간격을 둬요."]},{"d":"2026-11-08","t":"게임이 더 가볍게 (#58)","b":[]},{"d":"2026-11-07","t":"3D 시가전 게임으로 새로 태어남 (#1)","b":["판 위의 말 대신 입체 도시에서 분대·전차·헬기가 실시간으로 싸웁니다.","건물 안 엄폐, 빌딩에 가린 시야, 건물째 무너뜨리기가 들어왔어요."]},{"d":"2026-11-07","t":"전장의 안개와 방향 엄폐 (#2)","b":["칸이 아니라 실제 거리와 각도로 보이고 가려집니다. 적이 보이는 쪽에서만 엄폐가 통해요."]},{"d":"2026-11-07","t":"현대 부대와 도시 소품 (#3)","b":["험비·자주포, 방탄복 차림 보병이 생겼고 도시에 주차된 차·신호등·상가·공원·연못이 놓였어요."]},{"d":"2026-11-07","t":"병사 차림과 장비가 다양해짐 (#4)","b":["정규군과 민병대 차림이 달라지고, 분대 인원이 늘고, 기관총을 단 픽업트럭(테크니컬)이 나와요."]},{"d":"2026-11-07","t":"미국식 대도시 지도 (#5, #9)","b":["대로·골목·주차장·구역이 있는 큰 도시. 대각선 대로·순환로·원형 광장으로 바둑판 느낌을 깼어요."]},{"d":"2026-11-07","t":"문으로 드나들고 계단으로 오르기 (#6, #8, #15)","b":["보병은 문으로 건물에 들어가 계단으로 옥상까지 오릅니다. 벽을 뚫고 지나가던 문제도 고쳤어요."]},{"d":"2026-11-07","t":"분대 병사가 한 명씩 움직임 (#7)","b":["분대가 한 덩어리로 미끄러지지 않고, 병사들이 각자 걸어 자리를 잡아요."]},{"d":"2026-11-07","t":"바리케이드 쌓기 (#10)","b":["길을 막는 바리케이드를 세울 수 있고, 차량은 장애물을 넘지 못하고 돌아갑니다."]},{"d":"2026-11-07","t":"공중 지원과 드론전 (#12, #13, #16)","b":["공격헬기·전투기·FPV 드론과 대공 무기, 격추가 생겼어요. 드론팀은 차에서 내려 드론을 띄워요."]},{"d":"2026-11-07","t":"부상자 수습 고침 (#14)","b":["출혈·수습이 멈추거나 부상자 수가 음수가 되던 문제를 고쳤어요."]},{"d":"2026-11-07","t":"새 기능 한꺼번에 (#17–#30)","b":["분대 경험치와 이름 붙은 베테랑, 대전차 미사일·다연장 로켓·탄도미사일이 생겼어요.","전투가 끝나면 폐허 지도·리플레이·항공 사진·통계를 볼 수 있어요.","거리와 메아리가 실린 총소리, 폭발, 헬기·드론 소리가 들려요.","탄약이 닳고 보급 트럭이 채워 주며, 구난차가 부서진 차를 끌고 가 고쳐요.","밤 전투(야간투시경·조명탄)와 비·안개·폭우 날씨가 생겼어요.","캠페인 '하령 작전', 종군기자 카메라, AI끼리 싸우는 관전 모드가 생겼어요.","AI가 장갑차·자주포·공중 지원을 섞어 싸우고, 큰 지도가 2~3배 빨라졌어요."]}];
+var UPDATES=[{"d":"2026-11-11","t":"업데이트 로그 (#134)","b":["시작 화면에 [업데이트 로그] 버튼이 생겼어요. 날짜별로 무엇이 바뀌었는지 볼 수 있어요.","새 업데이트가 나오면 버튼에 '새 소식' 표시가 붙어요."]},{"d":"2026-11-11","t":"지휘·연락 차량: 코란도·렉스턴·타스만 (#144)","b":["국군이 실제로 쓰는 민수 4륜 지휘차 세 대가 증원 메뉴 '지휘·연락' 묶음에 생겼어요. 무장과 장갑은 없어요.","코란도 스포츠 연락차(2점): 앞선 아군 바로 뒤까지 올라가 적을 살펴요. 이 차가 본 적은 포병이 바로 쏴요. 적이 가까우면 물러나요.","렉스턴 스포츠 지휘차(3점): 전선 뒤에 서서 지휘해요. 둘레 아군의 사기가 빨리 돌아오고, 분대장이 쓰러져도 지휘가 빨리 이어져요. 4명까지 작은 조를 태워 줘요.","타스만 이동 지휘소(4점): 짐칸에 통신 모듈을 실은 신형 지휘차예요. 더 넓게 지휘하고, 범위 안 아군이 본 적은 포병이 바로 쏴요.","상대편은 같은 자리에 UAZ-469·UAZ 패트리엇·하이럭스 지휘차를 써요. AI도 부대가 늘면 알아서 불러요."]},{"d":"2026-11-11","t":"렉과 조작 딜레이 줄임 (#137)","b":["큰 전투에서 화면이 덜 끊기고, 누르면 더 빨리 반응해요. 전투 결과는 그대로예요."]},{"d":"2026-11-11","t":"저사양 모드 (#135)","b":["휴대폰이나 느린 컴퓨터에서 화면이 끊기면 저사양 모드를 켜세요. 그림만 가벼워지고 전투 규칙과 결과는 똑같습니다.","그림자·색보정을 끄고, 해상도·연기·나무를 줄이고, 화면을 초당 30번까지만 다시 그립니다.","시작 화면의 '그래픽' 줄(자동·저사양·보통), 지도 버튼 [저사양], PC는 L 키로 켜고 끕니다.","자동으로 두면 기기가 느릴 때 알아서 켜고 알려 줍니다."]},{"d":"2026-11-11","t":"저사양 모드에서 병사가 안 보이던 문제 고침 (#141)","b":["저사양 모드가 켜지면(느린 기기에서는 자동으로 켜짐) 병사 모습이 화면에 하나도 그려지지 않았습니다. 이제 저사양 모드에서도 병사가 보입니다."]},{"d":"2026-11-11","t":"새 지도 5종과 더 큰 지도 (#130)","b":["교외·공업 지대·성곽 구시가지·운하 도시·비행장 지도가 생겼어요.","특대형(80칸)·초대형(96칸) 크기를 고를 수 있어요."]},{"d":"2026-11-11","t":"전차가 나무를 쓰러뜨리며 숲을 지나감 (#125)","b":[]},{"d":"2026-11-11","t":"오마하 상륙이 더 어려워짐 (#129)","b":[]},{"d":"2026-11-11","t":"보병이 생울타리·덤불·모래주머니를 뚫지 않게 (#128)","b":[]},{"d":"2026-11-11","t":"관전 연출 3차 (#127)","b":["붕괴 장면을 쫓아가지 않고, 먼 샷과 잦은 화면 전환을 줄였어요."]},{"d":"2026-11-11","t":"교범대로 싸우는 습관 9가지 (#126)","b":["기관총은 끊어 쏘고 오래 쏘면 총열을 갈아요. 매복에 걸리면 맞서 돌파해요.","분대장이 쓰러지면 다음 사람이 지휘를 이어받고, 거점을 잡으면 탄약을 나누고 재정비해요."]},{"d":"2026-11-11","t":"역사 전투 캠페인 6임무 (#131)","b":["시작 화면에 역사 전투가 생겼어요: 파블로프의 집, 아른헴 다리, 바스토뉴, 서울 수복, 모가디슈, 73 이스팅.","임무마다 그날의 지형·계절·날씨·시각과 양쪽 병력, 증원이 오는 때와 방향을 따라요."]},{"d":"2026-11-11","t":"장갑차·분대 움직임 다듬기 (#139)","b":["장갑차가 맵 끝 주차장 차 사이에 갇혀 몇 분씩 서 있던 문제를 고쳤어요. 막히면 뒤로 빼고 차를 밀어붙여 빠져나와요.","차륜형 장갑차(스트라이커·BTR)가 이제 바퀴 차량답게 움직여요. 전차처럼 제자리에서 돌지 않고 돌아 나가요.","분대원이 주차 차·울타리 모서리에 걸리면 옆으로 비껴 돌아가요. 분대 곁으로 갑자기 튀어 오르는 일이 크게 줄었어요.","오마하·인천 거점도 영어 무전에서 제 이름으로 불러요."]},{"d":"2026-11-11","t":"포격은 맞은 자리만 부숨 (#136)","b":["건물이 통째로 무너지지 않고 맞은 벽·모서리·지붕에만 구멍이 나요. 불은 그을음만 남겨요."]},{"d":"2026-11-11","t":"알프스 산악 지도 (#133)","b":["골짜기·고개·봉우리·바위벽이 있는 산악 지도가 생겼어요. 전차와 장갑차는 골짜기 길로만 다녀요.","새 병종 산악보병이 바위벽을 오르고 고정 로프를 걸면 다른 보병도 그 길을 쓸 수 있어요.","눈밭에서는 느려지고, 궂은 날엔 구름이 봉우리를 덮어 시야가 짧아져요."]},{"d":"2026-11-10","t":"공성전 (#120)","b":["부대가 알아서 개인호·진지·구호소를 짓고, 대전차호·관측소·지휘소 같은 야전 시설 7종이 생겼어요."]},{"d":"2026-11-10","t":"상륙 출구 막힘 해결 (#119)","b":["해변 출구를 넓히고, 공병이 절벽에 길을 내요."]},{"d":"2026-11-10","t":"승리 조건 새로 (#123)","b":["거점 3분의 2를 90초 지키거나 적 전선이 무너지면 이겨요. 캠페인 난이도도 맞췄어요."]},{"d":"2026-11-10","t":"나무·덤불·언덕을 뚫던 문제 고침 (#121, #122, #124)","b":["보병이 나무 줄기를, 차량이 언덕·다리 속을 지나가지 않아요. 바리케이드·잔해는 다시 길을 막아요."]},{"d":"2026-11-09","t":"부관(AI)에게 맡기는 쉬운 지휘 (#60, #65)","b":["공격·방어 목표만 정하면 부관이 부대를 움직여요. 지원 부대는 알아서 할 일을 찾아요."]},{"d":"2026-11-09","t":"미니맵과 알아보기 쉬운 전장 (#61, #62)","b":["작은 지도가 생기고, 세력 색 고리와 병종 칩으로 누가 누군지 잘 보여요."]},{"d":"2026-11-09","t":"전황 보고 (#66)","b":["부대들이 상황을 보고하고 증원과 화력 지원을 요청해요."]},{"d":"2026-11-09","t":"중대·소대 자동 편성 (#67, #93)","b":["부대가 중대·소대로 묶이고, 중대에 목표와 증원을 줄 수 있어요."]},{"d":"2026-11-09","t":"지도 다양화 (#69, #90)","b":["농촌·숲·항구 도시 지도와 계절·기후, 무작위 지도가 생겼어요. 강 석축·부두·분수도 놓였어요."]},{"d":"2026-11-09","t":"상륙 작전 캠페인 (#70, #88, #106)","b":["노르망디 오마하와 인천 상륙. 해변을 뚫고 올라가요."]},{"d":"2026-11-09","t":"부대 대형 이동 (#73)","b":["종대·쐐기 대형으로 움직이고, 보병이 전차 뒤를 따라가요."]},{"d":"2026-11-09","t":"더 쉬운 조작 (#74, #93, #99)","b":["휴대폰은 한 손으로, PC는 마우스로 편하게. 왼쪽 끌기는 화면 이동이에요."]},{"d":"2026-11-09","t":"분대 전투 동작 (#75)","b":["엄폐 자세, 적을 만나면 반응, 손신호, 재장전과 부상자 자세가 생겼어요."]},{"d":"2026-11-09","t":"실제처럼 생긴 차량·항공기·병사 (#76, #78, #81)","b":[]},{"d":"2026-11-09","t":"지형과 자연, 도시 디테일 (#77, #80)","b":["숲·땅 질감·물결·궤도 자국·하늘, 외벽·옥상·거리 소품·전투 흔적."]},{"d":"2026-11-09","t":"총격·포격 효과 (#79)","b":[]},{"d":"2026-11-09","t":"수송헬기 도어거너 (#83)","b":[]},{"d":"2026-11-09","t":"소리: 지지직 잡음 제거, 긴장 배경음악 (#84)","b":[]},{"d":"2026-11-09","t":"교전 거리와 사거리를 실제처럼 (#85, #95)","b":["적 코앞까지 걸어가지 않고, 무기마다 실제 최소·최대 사거리에서 싸워요."]},{"d":"2026-11-09","t":"명령이 바로 닿음 (#89)","b":["무전 지연을 없앴어요."]},{"d":"2026-11-09","t":"민간인 없애기 (#91)","b":[]},{"d":"2026-11-09","t":"무기 피해를 실제처럼 (#92, #94)","b":["관통과 장갑, 광역 무기 반경. 건물과 지형지물이 무기 위력만큼 부서져요."]},{"d":"2026-11-09","t":"호송 (#96, #103)","b":["보급·구난·구급 차량을 호위하고, 위협받으면 흩어져 숨어요."]},{"d":"2026-11-09","t":"멈추거나 장애물을 뚫던 문제 고침 (#97)","b":[]},{"d":"2026-11-09","t":"AI가 목표를 이해하고 싸움 (#98)","b":["작전 계획을 세우고, 모든 지상 부대가 거점을 점령할 수 있어요."]},{"d":"2026-11-09","t":"다리 폭파·임시 다리 (#100)","b":[]},{"d":"2026-11-09","t":"시야를 실제처럼 (#102)","b":["날씨 시정, 밤과 달빛, 열상, 역광, 소리로 적을 찾아요."]},{"d":"2026-11-09","t":"관전 자동 연출 감독 (#104, #118)","b":["다큐·중계처럼 카메라가 알아서 장면을 잡아요."]},{"d":"2026-11-09","t":"지형지물로 숨기 (#105)","b":["병사마다 엄폐하고 엎드리며, 포격을 피하고 연막 뒤에 숨어요."]},{"d":"2026-11-09","t":"창으로 쏘고 창으로 맞기 (#107)","b":[]},{"d":"2026-11-09","t":"차량·병종 확대 (#108)","b":["장갑차 타고 내리기가 자동이 되고, 병과별 증원 메뉴가 생겼어요."]},{"d":"2026-11-09","t":"대공팀이 헬기를 잡음 (#109)","b":[]},{"d":"2026-11-09","t":"아군 오사 피하기 (#110, #113)","b":[]},{"d":"2026-11-09","t":"전체 점검 (#101, #112, #114, #115, #116)","b":["가끔 실패하던 시험을 고치고, 탄약이 바닥난 분대는 물러나요. 공병 폭약 설치 시간 버그도 고쳤어요."]},{"d":"2026-11-09","t":"자세한 게임 설명서 (#117)","b":["시작 화면과 작전 메뉴에서 볼 수 있어요."]},{"d":"2026-11-08","t":"전투 판정을 실제처럼 (#33)","b":["폭발 피해가 병사마다 따로 들어가고, 직접 봐야 조준하며, 제압 사격이 생겼어요."]},{"d":"2026-11-08","t":"똑똑해진 AI 전술 (#34, #36)","b":["AI가 화력 기반을 깔고 측면으로 돌고, 엄호하며 움직이고, 불리하면 물러나요.","부대를 묶어 공격·방어·정찰·지원 사격 임무만 줄 수도 있어요."]},{"d":"2026-11-08","t":"건물 안 전투 (#35)","b":["층마다 분대가 들어가고, 돌입·소탕·계단 싸움이 벌어져요."]},{"d":"2026-11-08","t":"특별 거점 12종과 구호소 (#37)","b":["거점마다 모습과 쓰임이 다르고 지뢰·벙커·건물 요새화·구호소가 생겼어요. 치료받은 병사는 돌아오고 구급차가 다녀요."]},{"d":"2026-11-08","t":"언덕·강·다리·철도 (#38)","b":["땅에 높낮이가 생기고, 강이 흐르는 비대칭 도시가 나왔어요."]},{"d":"2026-11-08","t":"보이는 대로 규칙이 맞게 (#39)","b":["박공지붕·계단실·병사별 시야, 건물 점유 표시, 층별 붕괴가 들어왔어요."]},{"d":"2026-11-08","t":"병종별 시야와 광학 장비 (#40)","b":["멈추면 광학 장비로 더 멀리 보고, 해치 닫은 차는 좁게 봐요. 곡사포는 관측자가 본 곳만 쏴요."]},{"d":"2026-11-08","t":"화면 질감 (#41)","b":["회녹색 톤, 대기 안개, 벽돌 외벽으로 화면이 영상처럼 보여요."]},{"d":"2026-11-08","t":"시가전 요소 (#42)","b":["쥐구멍·지하실·땅굴·저격수·건물 폭파·자폭 차량이 생겼어요."]},{"d":"2026-11-08","t":"차량·헬기 움직임 (#43, #49)","b":["포탑이 따로 돌고, 가속·회전 반경·후진, 차끼리 부딪힘이 생겼어요."]},{"d":"2026-11-08","t":"공습 장면 (#44, #53)","b":["편대가 들어와 폭탄을 떨어뜨리고, 세 발 연속 탄착과 버섯구름·먼지 벽이 일어나요."]},{"d":"2026-11-08","t":"연기와 폭발을 사실적으로 (#45)","b":[]},{"d":"2026-11-08","t":"관전 모드 강화 (#32, #46)","b":["AI 명령도 무전으로 들리고, 관전 1000판에서 찾은 어색한 움직임을 고쳤어요."]},{"d":"2026-11-08","t":"구급차 보호와 제네바 협약 (#50)","b":[]},{"d":"2026-11-08","t":"영어 군 무전 음성 (#51)","b":[]},{"d":"2026-11-08","t":"최후 생존 승리 방식 (#54)","b":["마지막까지 살아남은 세력이 이기는 방식을 고를 수 있어요."]},{"d":"2026-11-08","t":"문·계단에서 줄 서기 (#55)","b":["아군 분대가 문과 계단에서 차례로 들어가고, 뒤따를 때 간격을 둬요."]},{"d":"2026-11-08","t":"게임이 더 가볍게 (#58)","b":[]},{"d":"2026-11-07","t":"3D 시가전 게임으로 새로 태어남 (#1)","b":["판 위의 말 대신 입체 도시에서 분대·전차·헬기가 실시간으로 싸웁니다.","건물 안 엄폐, 빌딩에 가린 시야, 건물째 무너뜨리기가 들어왔어요."]},{"d":"2026-11-07","t":"전장의 안개와 방향 엄폐 (#2)","b":["칸이 아니라 실제 거리와 각도로 보이고 가려집니다. 적이 보이는 쪽에서만 엄폐가 통해요."]},{"d":"2026-11-07","t":"현대 부대와 도시 소품 (#3)","b":["험비·자주포, 방탄복 차림 보병이 생겼고 도시에 주차된 차·신호등·상가·공원·연못이 놓였어요."]},{"d":"2026-11-07","t":"병사 차림과 장비가 다양해짐 (#4)","b":["정규군과 민병대 차림이 달라지고, 분대 인원이 늘고, 기관총을 단 픽업트럭(테크니컬)이 나와요."]},{"d":"2026-11-07","t":"미국식 대도시 지도 (#5, #9)","b":["대로·골목·주차장·구역이 있는 큰 도시. 대각선 대로·순환로·원형 광장으로 바둑판 느낌을 깼어요."]},{"d":"2026-11-07","t":"문으로 드나들고 계단으로 오르기 (#6, #8, #15)","b":["보병은 문으로 건물에 들어가 계단으로 옥상까지 오릅니다. 벽을 뚫고 지나가던 문제도 고쳤어요."]},{"d":"2026-11-07","t":"분대 병사가 한 명씩 움직임 (#7)","b":["분대가 한 덩어리로 미끄러지지 않고, 병사들이 각자 걸어 자리를 잡아요."]},{"d":"2026-11-07","t":"바리케이드 쌓기 (#10)","b":["길을 막는 바리케이드를 세울 수 있고, 차량은 장애물을 넘지 못하고 돌아갑니다."]},{"d":"2026-11-07","t":"공중 지원과 드론전 (#12, #13, #16)","b":["공격헬기·전투기·FPV 드론과 대공 무기, 격추가 생겼어요. 드론팀은 차에서 내려 드론을 띄워요."]},{"d":"2026-11-07","t":"부상자 수습 고침 (#14)","b":["출혈·수습이 멈추거나 부상자 수가 음수가 되던 문제를 고쳤어요."]},{"d":"2026-11-07","t":"새 기능 한꺼번에 (#17–#30)","b":["분대 경험치와 이름 붙은 베테랑, 대전차 미사일·다연장 로켓·탄도미사일이 생겼어요.","전투가 끝나면 폐허 지도·리플레이·항공 사진·통계를 볼 수 있어요.","거리와 메아리가 실린 총소리, 폭발, 헬기·드론 소리가 들려요.","탄약이 닳고 보급 트럭이 채워 주며, 구난차가 부서진 차를 끌고 가 고쳐요.","밤 전투(야간투시경·조명탄)와 비·안개·폭우 날씨가 생겼어요.","캠페인 '하령 작전', 종군기자 카메라, AI끼리 싸우는 관전 모드가 생겼어요.","AI가 장갑차·자주포·공중 지원을 섞어 싸우고, 큰 지도가 2~3배 빨라졌어요."]}];
 /* ---- 01-data.js ---- */
 /* ===================== DATA =====================
    TRIAD 시가전: 도시 한 곳을 두고 분대 단위로 싸우는 턴제 전략 게임.
@@ -1252,7 +1255,8 @@ const CLIMES={temp:{n:'온대 (기본)'},autumn:{n:'가을'},winter:{n:'겨울 (
 const BM_LAYOUTS=['sym','river','country','forest','port'];
 /* 씨앗으로 고르기: 가중치 목록 [[값, 무게]] */
 function bmPick(seed,salt,ws){const tot=ws.reduce((s,w)=>s+w[1],0);const x=propHash((seed>>>0)%2147483647,salt)*tot;let a=0;for(const [k,w] of ws){a+=w;if(x<a)return k;}return ws[ws.length-1][0];}
-const pickLayout=seed=>bmPick(seed,911,[['sym',.22],['river',.18],['country',.22],['forest',.15],['port',.23]]);
+// 알프스 산악(03d)은 따로 뽑는다: 다른 지도의 씨앗→지도 짝이 그대로 남게
+const pickLayout=seed=>propHash((seed>>>0)%2147483647,914)<.1&&typeof genAlpine==='function'?'alpine':bmPick(seed,911,[['sym',.22],['river',.18],['country',.22],['forest',.15],['port',.23]]);
 const pickRelief=(seed,lay)=>bmPick(seed,912,lay==='forest'?[['hills',.6],['steep',.4]]:lay==='port'?[['flat',.55],['hills',.45]]:lay==='country'?[['flat',.35],['hills',.65]]:[['flat',.5],['hills',.35],['steep',.15]]);
 const pickClime=(seed,lay)=>bmPick(seed,913,lay==='forest'||lay==='country'?[['temp',.4],['autumn',.3],['winter',.3]]:[['temp',.38],['autumn',.12],['winter',.22],['desert',.28]]);
 /* 무작위·기후를 풀어 배치별 생성기로 보낸다. 바깥에서 05l-objs가 거점 이름을 붙이고, 05l2가 그 이름을 땅에 맞게 바꾼다 */
@@ -1470,6 +1474,139 @@ function bmProps(P,Hh){const M=G.map,at=(r,c)=>inb(r,c)?M[r][c]:null;
 /* 지금 지도 이름: '농촌 · 겨울 · 완만한 언덕' */
 function bmMapName(){const f=G&&G.feat;if(!f)return '';const L={sym:'대칭 도시',river:'강 도시',country:'농촌',forest:'숲',port:'항구 도시'}[f.layout]||'도시';
   const c=f.clime&&f.clime!=='temp'?' · '+{autumn:'가을',winter:'겨울',desert:'사막'}[f.clime]:'';const r=f.relief&&f.relief!=='flat'&&RELIEF[f.relief]?' · '+RELIEF[f.relief].n:'';return L+c+r;}
+
+/* ---- 03d-alpine.js ---- */
+/* ===================== 알프스 산악 지형 =====================
+   "산악병만 가고 전차는 못 가는 길". 지도 한가운데 고개(분지) 마을로 네 골짜기가 모이고, 골짜기 사이는 봉우리와 바위 능선이다.
+   네 세력은 저마다 자기 골짜기 입구(가장자리)에서 출발한다. 지형은 90도 회전 대칭이라 공정하다.
+   - 골짜기: U자(빙하 골짜기) 바닥은 완만해서 도로가 고개까지 오르고 차량이 다닌다(경사 약 10~20%).
+   - 골짜기 벽과 능선: 숲 → 숲 한계선 위 고산 초지·너덜지대 → 설선 위 눈밭. 높은 비탈은 계단처럼 평평한 턱과 바위벽(절벽)이 번갈아 난다.
+   - 봉우리: 골짜기 둘을 내려다보는 피라미드 봉우리, 꼭대기에 작은 평지(관측소).
+   - 산길: 골짜기 도로에서 산장을 지나 봉우리를 넘어 옆 골짜기로 가는 좁은 길. 보병만 다닌다(차량 불가).
+   경사(칸 기울기, 높이차/거리) 기준은 미 육군 지형 분석(FM 5-33)과 산악전 교범(ATP 3-90.97)을 따른다:
+     바퀴 차량은 30% 넘는 비탈, 궤도 차량은 45% 넘는 비탈을 길 밖으로 못 오른다. 45°(100%) 넘는 바위벽은 등반(로프)이 있어야 오른다.
+   규칙(이동·시야·산악병)은 04g-alpine.js, 3D 모습은 07g5-alpine.js.
+   칸 표시: sl(기울기), cliff(바위벽), scree(너덜지대), snow(눈밭), alm(고산 초지), mtr(산길), summit(봉우리 꼭대기), hut(산장),
+   alpRole(거점 역할: pass 고개 · summit 봉우리 · valley 골짜기 마을 · hut 산장), hospice(고개 구호소), chalet(목조 산장집). */
+LAYOUTS.alpine={n:'알프스 산악 (고개·봉우리·바위벽, 산악병만 오르는 길)'};
+RELIEF.alpine={n:'알프스 산악',h:0};
+const ALP_CHALET=['#d6cbb5','#c9b89a','#b59a74','#e0d8c8','#a88a62','#9c7b55'];   // 샬레: 흰 회벽·밝은 나무
+const ALPG={tree:.42,snow:{temp:.78,autumn:.62,winter:.08},T:3};
+/* 지도 크기에 맞춘 치수(칸·층). H: 지도 반쪽, Rb: 고개 분지 반지름, Hp: 고개 높이, Hm: 능선 덩어리, Hpk: 봉우리, pk: 봉우리 자리(가운데에서 축마다), w0·wW: 골짜기 바닥 반폭·벽 폭 */
+function alpDims(){const H=N/2;return {H,Rb:Math.max(3.4,H*.26),Hp:H*.3,Hm:H*.36,Hpk:H*.56,pk:H*.5,Rm:H*.44,w0:Math.max(1.7,H*.085),wW:Math.max(2.6,H*.13)};}
+/* 값 잡음(0~1), 부드러움 */
+function alpNoise(x,z,salt){const i=Math.floor(x),j=Math.floor(z),u=x-i,v=z-j;const h=(a,b)=>propHash(((a+4096)*7919+(b+4096))|0,salt);const s=t=>t*t*(3-2*t);const su=s(u),sv=s(v);
+  return (h(i,j)*(1-su)+h(i+1,j)*su)*(1-sv)+(h(i,j+1)*(1-su)+h(i+1,j+1)*su)*sv;}
+const alpFbm=(x,z,salt)=>alpNoise(x/4.3,z/4.3,salt)*.55+alpNoise(x/2.1,z/2.1,salt+1)*.3+alpNoise(x,z,salt+2)*.15;
+/* 높이(층). a, b = 지도 가운데에서 두 축까지 거리(칸). a·b를 맞바꿔도 같아서 90도 회전 대칭이 된다 */
+function alpH(a,b,D,salt){const H=D.H,s=Math.max(a,b),d=Math.min(a,b);
+  const t=Math.max(0,Math.min(1,(s-D.Rb)/(H-2.2-D.Rb)));let h=D.Hp*Math.pow(1-t,1.1);              // 골짜기 바닥: 입구 0 → 고개 Hp
+  const vm=sstep(D.w0,D.w0+D.wW,d),bm=sstep(D.Rb-.3,D.Rb+2.2,s),em=sstep(1.2,4.5,H-s);            // 골짜기 바닥·고개 분지·가장자리 집결지는 0
+  const da=a-D.pk,db=b-D.pk;const q=Math.max(Math.abs(da),Math.abs(db))*.6+Math.hypot(da,db)*.4;   // 피라미드 봉우리(모서리 능선이 선다)
+  const cone=D.Hpk*Math.max(0,1-q/D.Rm);
+  const n=alpFbm(d,s,salt),rg=1-Math.abs(alpNoise(d/3.1,s/3.1,salt+5)*2-1);                       // 잡음, 능선 모양 잡음(골짜기·리지)
+  const mass=D.Hm*(.75+.5*n)*(1-sstep(H*.5,H*.97,s));                                              // 골짜기 사이 능선 덩어리(가장자리 쪽 산자락은 낮다)
+  let m=mass+cone+(rg-.5)*H*.12;
+  h+=Math.max(0,m)*vm*bm*em;
+  // 바위 띠: 고개보다 높은 비탈은 평평한 턱과 가파른 바위벽이 번갈아 난다
+  const T=ALPG.T,tf=sstep(D.Hp+.5,D.Hp+3,h)*(.6+.4*alpNoise(d*.6,s*.6,salt+9));const k=Math.floor(h/T),f=h/T-k;const ht=(k+sstep(.5,.84,f))*T;
+  h+=(ht-h)*tf;
+  return Math.min(h,D.top==null?1e9:D.top);}
+/* 꼭짓점 높이 전체 (N+1)² */
+function alpElev(D,salt){const W=N+1,H=D.H;D.top=null;D.top=alpH(D.pk+1.2,D.pk,D,salt);const E=new Array(W*W);
+  for(let j=0;j<W;j++)for(let i=0;i<W;i++)E[j*W+i]=alpH(Math.abs(i-H),Math.abs(j-H),D,salt);return E;}
+const alpTileEl=(E,r,c)=>{const W=N+1;return (E[r*W+c]+E[r*W+c+1]+E[(r+1)*W+c]+E[(r+1)*W+c+1])/4;};
+/* 칸 기울기(높이차/거리): 1층 3m, 1칸 12m */
+function alpTileSl(E,r,c){const W=N+1;const e00=E[r*W+c],e01=E[r*W+c+1],e10=E[(r+1)*W+c],e11=E[(r+1)*W+c+1];
+  const gx=(e01-e00+e11-e10)/2,gz=(e10-e00+e11-e01)/2;return Math.hypot(gx,gz)*.25;}
+const ALP_CLIFF=1,ALP_STEEP=.55;
+function genAlpine(seed,objPer,opt){const rnd=mulberry((seed^0xa1b5)>>>0);const H=N/2,mid=(N-1)/2;const can=bmGrid(H);const D=alpDims();const salt=(seed%9973)+11;
+  const E=alpElev(D,salt);const cl=CLIMES[opt&&opt.clime]?opt.clime:'temp';
+  const tl=D.Hp+D.Hpk*ALPG.tree,sn=cl==='winter'?D.Hp*.55:D.top-(cl==='autumn'?D.H*.24:D.H*.13);   // 설선: 여름엔 봉우리 꼭대기만, 가을엔 더 아래, 겨울엔 골짜기 위 전부
+  const el=(r,c)=>alpTileEl(E,r,c),sl=(r,c)=>alpTileSl(E,r,c);
+  const ab=(r,c)=>[H-c-.5,H-r-.5];const sOf=(r,c)=>{const [a,b]=ab(r,c);return Math.max(a,b);},dOf=(r,c)=>{const [a,b]=ab(r,c);return Math.min(a,b);};
+  const hyp=(r,c)=>Math.hypot(r-mid,c-mid);const isRd=(r,c)=>r>=0&&c>=0&&r<H&&c<H&&!!can[r][c]&&can[r][c].t==='road';
+  // 1) 땅: 높이·기울기로 정한다
+  const nat=(r,c)=>{const e=el(r,c),g=sl(r,c),d=dOf(r,c);
+    if(g>ALP_CLIFF)return {t:'rubble',rock:1,cliff:1,...(e>=sn?{snow:1}:{})};
+    if(e>=sn)return g>ALP_STEEP?{t:'rubble',rock:1,scree:1,snow:1}:{t:'park',yard:1,mead:1,snow:1,alm:1};
+    if(e>=tl)return g>ALP_STEEP?{t:'rubble',rock:1,scree:1}:{t:'park',yard:1,mead:1,alm:1};
+    if(d<D.w0+.6||g<.1)return {t:'park',yard:1,mead:1};
+    // 숲. 가끔 눈사태 길·빈터(풀밭)
+    return alpNoise(r*.7,c*.7,salt+31)<.18?{t:'park',yard:1,mead:1}:{t:'park',wild:1};};
+  for(let r=0;r<H;r++)for(let c=0;c<H;c++){
+    if(r<2||c<2){const p=rnd();can[r][c]=p<.6?{t:'park',yard:1,mead:1}:p<.9?{t:'plaza',grav:1}:{t:'park',wild:1};}
+    else can[r][c]=nat(r,c);}
+  // 2) 골짜기 도로: 입구에서 고개 분지 가운데까지 (네 벌이 바람개비 모양 십자)
+  for(let c=0;c<H;c++)can[H-1][c]={t:'road',ro:'h',rw:1,rural:1};
+  // 3) 고개 분지 마을: 가운데 광장, 고리길, 목조 산장집(샬레), 구호소(호스피스)와 예배당
+  const R1=Math.max(1.9,D.Rb*.6);let bid=0;
+  for(let r=2;r<H;r++)for(let c=2;c<H;c++){if(sOf(r,c)>D.Rb-.2)continue;const h=hyp(r,c);
+    if(h<=1.6)can[r][c]={t:'plaza',sq:1,grav:1,dist:'mid'};else if(Math.abs(h-R1-.6)<=.72&&can[r][c].t!=='road')can[r][c]={t:'road',ro:'x',rw:1,rural:1};else if(can[r][c].t!=='road')can[r][c]=null;}
+  let hosp=null,chapel=false;
+  for(const comp of bmComps(can,H,(r,c)=>sOf(r,c)<=D.Rb-.2))for(const P of bmGrow(rnd,comp,H,1,3)){const id=(++bid)*64;const near=P.some(([r,c])=>BM_NB.some(([a,b])=>isRd(r+a,c+b)));
+    if(!hosp&&P.length>=2&&near){hosp=P;P.forEach(([r,c])=>can[r][c]={t:'bldg',f:3,blk:id,ks:'villa',lkc:'#cbc3b2',hospice:1,dist:'mid'});continue;}
+    if(!chapel&&P.length>=2&&near){chapel=true;let ti=0,bd=-1;P.forEach(([r,c],i)=>{const d=hyp(r,c);if(d>bd){bd=d;ti=i;}});
+      P.forEach(([r,c],i)=>can[r][c]={t:'bldg',f:i===ti?4:2,blk:id,ks:'villa',lkc:'#d8d2c4',church:1,dist:'mid'});continue;}
+    if(!near&&rnd()<.6||rnd()<.28){P.forEach(([r,c])=>can[r][c]={t:'park',yard:1,mead:1,dist:'res'});continue;}
+    const col=ALP_CHALET[Math.floor(rnd()*ALP_CHALET.length)],f=rnd()<.6?2:1;P.forEach(([r,c])=>can[r][c]={t:'bldg',f,blk:id,ks:'house',lkc:col,cabin:1,chalet:1,dist:'res'});}
+  for(let r=0;r<H;r++)for(let c=0;c<H;c++)if(!can[r][c])can[r][c]={t:'park',yard:1,mead:1};
+  // 4) 골짜기 마을: 도로 북쪽 두 줄에 여관·농가·헛간, 둘레는 건초 풀밭
+  const vc0=Math.max(3,Math.round(H*.2)),vL=Math.max(3,Math.round(H*.17));let inn=null;
+  for(let c=vc0;c<vc0+vL&&c<H-D.Rb-1;c++)for(const r of [H-2,H-3]){if(r<2)continue;const x=can[r][c];if(x.t==='road'||x.cliff||sl(r,c)>.3)continue;
+    const q=propHash(r*97+c,salt+41);if(!inn&&r===H-2&&c<vc0+vL-1){const id=(++bid)*64;inn=[r,c];for(const cc of [c,c+1])can[r][cc]={t:'bldg',f:2,blk:id,ks:'house',lkc:'#d9cdb4',chalet:1,inn:1,dist:'res'};c++;continue;}
+    if(q<.5)can[r][c]={t:'bldg',f:q<.25?2:1,blk:(++bid)*64,ks:'house',lkc:q<.2?BM_WOOD[Math.floor(q*20)%BM_WOOD.length]:ALP_CHALET[Math.floor(q*40)%ALP_CHALET.length],cabin:1,chalet:1,barn:q<.2?1:undefined,dist:'res'};
+    else can[r][c]={t:'park',yard:1,mead:1};}
+  // 풀밭 군데군데 건초 헛간
+  for(let r=2;r<H-1;r++)for(let c=2;c<H;c++){const x=can[r][c];if(!x.mead||x.alm||sOf(r,c)<D.Rb+1||propHash(r*131+c,salt+43)>.045)continue;if(BM_NB.some(([a,b])=>isRd(r+a,c+b)))continue;
+    can[r][c]={t:'bldg',f:1,blk:(++bid)*64,ks:'house',lkc:BM_WOOD[(r+c)%BM_WOOD.length],cabin:1,barn:1,hay:1,dist:'res'};}
+  // 5) 봉우리 꼭대기: 3×3 평지(관측소 자리)
+  const pr=Math.round(H-D.pk-.5),pc=pr;const top=[];
+  for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const r=pr+a,c=pc+b;if(r<2||c<2||r>=H||c>=H)continue;can[r][c]={t:'plaza',grav:1,summit:1,...(el(r,c)>=sn?{snow:1}:{})};top.push([r,c]);}
+  // 6) 산길: 보병이 오르기 쉬운 길을 찾는다(바위벽은 피하고, 가파른 오르막일수록 비싸다). 도로 → 산장 → 봉우리 → 옆 골짜기
+  const trail=(sr,sc,tr,tc,hard)=>{const K=(r,c)=>r*H+c;const Dd=new Map([[K(sr,sc),0]]),Pv=new Map();const q=[[0,sr,sc]];
+    while(q.length){let bi=0;for(let i=1;i<q.length;i++)if(q[i][0]<q[bi][0])bi=i;const [d0,r,c]=q.splice(bi,1)[0];if(d0>(Dd.get(K(r,c))??1e9))continue;if(r===tr&&c===tc)break;
+      for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){if(!a&&!b)continue;const R=r+a,C=c+b;if(R<2||C<2||R>=H||C>=H)continue;const y=can[R][C];if(y.t==='bldg'||y.t==='water'||y.cliff&&!hard)continue;
+        if(a&&b&&(can[r][C].cliff||can[R][c].cliff))continue;
+        const L=a&&b?1.414:1,gr=Math.abs(el(R,C)-el(r,c))*.25/L;if(gr>.8&&!hard)continue;
+        const nd=d0+L*(1+Math.pow(gr*3.2,2)+(y.t==='road'&&!y.mtr?.4:0)+(y.snow?.3:0)+(y.wild?.15:0)+(y.cliff?12:0));if(nd<(Dd.get(K(R,C))??1e9)){Dd.set(K(R,C),nd);Pv.set(K(R,C),K(r,c));q.push([nd,R,C]);}}}
+    const out=[];let k=K(tr,tc);if(!Dd.has(k))return out;while(k!=null){out.push([Math.floor(k/H),k%H]);k=Pv.get(k);}return out.reverse();};
+  const mk=(r,c)=>{const x=can[r][c];if(x.t==='road'&&!x.mtr||x.summit||x.t==='bldg')return;can[r][c]={t:'road',rw:1,dirt:1,mtr:1,...(x.snow?{snow:1}:{}),...(x.alm?{alm:1}:{})};};
+  const ts=Math.max(D.w0+3,Math.round(H*.42));
+  // 작은 지도는 봉우리가 바위벽에 둘러싸이기도 한다: 길이 없으면 바위벽을 깎아 지그재그 턱길을 낸다(그 칸은 바위벽이 아니다)
+  const route=(a,b,c,d)=>{const p=trail(a,b,c,d);return p.length?p:trail(a,b,c,d,1);};
+  const up=route(H-1,ts,pr+1,pc);up.forEach(([r,c])=>mk(r,c));
+  const down=route(pr,pc+1,ts,H-1);down.forEach(([r,c])=>mk(r,c));
+  // 산장: 오르는 길 가운데쯤, 숲 한계선 언저리의 평평한 자리 옆
+  let hut=null;{let bs=1e9;for(let i=2;i<up.length-3;i++){const [r,c]=up[i];for(const [a,b] of BM_NB){const R=r+a,C=c+b;if(R<2||C<2||R>=H||C>=H)continue;const y=can[R][C];if(y.t==='road'||y.cliff||y.t==='bldg'||y.summit||sl(R,C)>.6)continue;
+        const s2=Math.abs(el(R,C)-(tl-1))+sl(R,C)*4;if(s2<bs){bs=s2;hut=[R,C];}}}
+    if(hut)can[hut[0]][hut[1]]={t:'bldg',f:2,blk:(++bid)*64,ks:'house',lkc:'#6b5038',cabin:1,chalet:1,hut:1,dist:'res'};}
+  bmRoadDirs(can,H);bmOpenBldgs(can,H);
+  // 7) 거점: 고개 → 봉우리 → 골짜기 마을 → 산장 순으로 objPer개
+  const objs=[];const take=(p,role)=>{if(!p||objs.length>=objPer)return;const [r,c]=p;const x=can[r][c];if(x.t!=='bldg')x.t=x.t==='road'?x.t:'plaza';x.lm=1;x.alpRole=role;objs.push([r,c]);};
+  if(hosp){let best=hosp[0],bd=-1;for(const [r,c] of hosp){const d=hyp(r,c);if(d>bd){bd=d;best=[r,c];}}take(best,'pass');}
+  take([pr,pc],'summit');if(inn)take(inn,'valley');if(hut)take(hut,'hut');
+  while(objs.length<objPer){const r=2+Math.floor(rnd()*(H-3)),c=2+Math.floor(rnd()*(H-3));const x=can[r][c];if(x.t==='road'||x.cliff||x.t==='water'||objs.some(([a,b])=>dist(a,b,r,c)<4))continue;take([r,c],'pass');}
+  const out=bmAssemble(can,objs,H,rnd);
+  // 건물 칸은 블록마다 평평하게(경사는 둘레 땅이 받는다)
+  {const W=N+1,m=out.map;const B=new Map();for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=m[r][c];if(x.t!=='bldg')continue;const k=x.blk;if(!B.has(k))B.set(k,[]);B.get(k).push([r,c]);}
+    const flat=cells=>{const vs=new Set();for(const [r,c] of cells)for(const [a,b] of [[0,0],[0,1],[1,0],[1,1]])vs.add((r+a)*W+c+b);let s=0;for(const v of vs)s+=E[v];s/=vs.size;for(const v of vs)E[v]=s;};
+    for(let it=0;it<2;it++)for(const cells of B.values())flat(cells);
+    for(let q=0;q<E.length;q++)E[q]=Math.round(Math.max(0,E[q])*100)/100;
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=m[r][c];const v=Math.round(alpTileEl(E,r,c)*100)/100;if(v>0)x.el=v;else delete x.el;x.sl=Math.round(alpTileSl(E,r,c)*100)/100;}}
+  out.feat={layout:'alpine',alp:{tl:+tl.toFixed(2),sn:+sn.toFixed(2),pass:+D.Hp.toFixed(2),peak:+D.top.toFixed(2)}};out._E=E;return out;}
+BM_GEN.alpine=genAlpine;
+/* 고저차 마무리: 알프스는 genAlpine이 만든 높이를 그대로 쓴다 */
+{const _tf=terrFinish;terrFinish=function(out,seed,opt){if(!out||!out.feat||out.feat.layout!=='alpine')return _tf(out,seed,opt);
+  out.feat.relief='alpine';out.elv=out._E;delete out._E;return out;};}
+/* 무작위 지도에서 알프스가 뽑히면 기후는 사막을 빼고 고른다 */
+const pickAlpClime=seed=>bmPick(seed,914,[['temp',.45],['autumn',.2],['winter',.35]]);
+{const _gm=genMap;genMap=function(seed,objPer,opt){opt=Object.assign({},opt||{});if(opt.layout==='rand')opt.layout=pickLayout(seed);
+  if(opt.layout==='alpine'&&(opt.clime==='rand'||opt.clime==='desert'))opt.clime=pickAlpClime(seed);return _gm(seed,objPer,opt);};}
+{const _mn=bmMapName;bmMapName=function(){const f=G&&G.feat;if(!f||f.layout!=='alpine')return _mn();const c=f.clime&&f.clime!=='temp'?' · '+{autumn:'가을',winter:'겨울'}[f.clime]:' · 여름';return '알프스 산악'+c;};}
+/* 산길·바위·눈밭·꼭대기에는 도시 소품(차·가로등·벤치…)을 두지 않는다 */
+{const _gp=genProps;genProps=function(){const P=_gp();if(!G||!G.map||!G.feat||G.feat.layout!=='alpine')return P;
+  return P.filter(p=>{const r=Math.floor(p.z),c=Math.floor(p.x);if(!inb(r,c))return true;const x=G.map[r][c];return !(x.mtr||x.cliff||x.scree||x.summit||x.snow||x.alm);});};}
 
 /* ---- 03d-maps2.js ---- */
 /* ===================== 지도 더 늘리기: 교외 신도시·공업 단지·성곽 구시가지·운하 도시·비행장 =====================
@@ -2122,8 +2259,8 @@ const FORT_KS=Object.keys(FORT);
 Object.assign(COVK,{trench:{n:'참호',v:.5},nest:{n:'기관총 진지',v:.45},sandbag:{n:'모래주머니',v:.4},jersey:{n:'콘크리트 방벽',v:.35},hedgehog:{n:'대전차 장애물',v:.1}});
 /* 누가 무엇을 지을 수 있나: 공병은 전부, 소총·기관총은 모래주머니·철조망, 나머지 보병은 모래주머니 */
 function fortKinds(type){const t=UT[type];if(!t||t.cls!=='inf')return [];if(type==='eng')return FORT_KS.slice();if(type==='mg')return ['sandbag','wire','trench','nest'];if(type==='rifle')return ['sandbag','wire','trench'];return ['sandbag','trench'];}
-const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return u.type==='eng'?'eng':'inf';return u.type==='cev'?'dz':u.type==='tank'||u.type==='spg'||u.type==='bmp'||u.type==='spaa'?'trk':'veh';};
-const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15,dz:.16};   // dz 공병전차(규칙은 09e-fleet). 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
+const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return u.type==='eng'?'eng':t.mtn?'mtn':'inf';return u.type==='cev'?'dz':u.type==='tank'||u.type==='spg'||u.type==='bmp'||u.type==='spaa'?'trk':'veh';};
+const NAV_CLR={inf:.03,eng:.03,mtn:.03,veh:.14,trk:.15,dz:.16};   // dz 공병전차(규칙은 09e-fleet). 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
   car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:2,eng:2,veh:2,trk:1},hedgegap:{inf:0,eng:0,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 틈(hedgegap)으로만 지나가고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘
@@ -2160,7 +2297,7 @@ function inBox(o,px,pz,c){const dx=px-o.x,dz=pz-o.z,cs=Math.cos(o.ry),sn=Math.si
 const NAV={g:null,grids:{},base:{}};
 const navWreckN=()=>{let n=0;for(const c of G.covers||[])if(c.kind==='wreck'&&c.cov!=null&&!c.fort)n++;return n;};
 function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // mask: 이 큰 칸들 안의 작은 칸만 찍는다(navBase 부분 갱신)
-  for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
+  for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls==='mtn'?'inf':cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
     const j0=Math.max(0,Math.floor((o.x-R)*NAV_R)),j1=Math.min(W-1,Math.floor((o.x+R)*NAV_R)),i0=Math.max(0,Math.floor((o.z-R)*NAV_R)),i1=Math.min(W-1,Math.floor((o.z+R)*NAV_R));
     // inBox를 풀어 쓴다: cos·sin을 상자마다 한 번만 구한다(계산 순서가 같아 결과도 똑같다)
     const ox=o.x,oz=o.z,co=Math.cos(o.ry),sn=Math.sin(o.ry),hl=o.hl+clr,hw=o.hw+clr;
@@ -2173,7 +2310,7 @@ function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // 
 const NAVB={};
 const navObsKey=o=>o.k+'|'+o.x+'|'+o.z+'|'+o.ry+'|'+o.hl+'|'+o.hw;
 function navBase(cls){if(NAV.base[cls])return NAV.base[cls];
-  const W=N*NAV_R,clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':cls==='trk'||cls==='dz'?'tank':'ifv';   // 궤도 차량은 바퀴 차량이 못 가는 땅(상륙 절벽 숲)도 오른다
+  const W=N*NAV_R,clr=NAV_CLR[cls];const ty=cls==='mtn'?'alp':cls==='inf'||cls==='eng'?'rifle':cls==='trk'||cls==='dz'?'tank':'ifv';   // 궤도 차량은 바퀴 차량이 못 가는 땅(상륙 절벽 숲)도 오른다
   const TC=new Uint8Array(N*N);for(let r=0;r<N;r++)for(let c=0;c<N;c++){const m=mcost(ty,G.map[r][c]);TC[r*N+c]=m===Infinity?0:Math.min(250,m);}
   let C=NAVB[cls];
   const tc=(x,z)=>{if(x<0||z<0||x>=N||z>=N)return 0;return TC[(z|0)*N+(x|0)];};const d=clr+.08;
@@ -2267,7 +2404,7 @@ function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(
   const hk=S.hk,hf=S.hf;let hn=0;
   const push=(k,f)=>{let i=hn++;while(i>0){const p=(i-1)>>1;if(hf[p]<=f)break;hk[i]=hk[p];hf[i]=hf[p];i=p;}hk[i]=k;hf[i]=f;};
   const pop=()=>{const k=hk[0];hn--;if(hn>0){const lk=hk[hn],lf=hf[hn];let i=0;for(;;){const l=2*i+1,r=l+1;let m=i,mf=lf;if(l<hn&&hf[l]<mf){m=l;mf=hf[l];}if(r<hn&&hf[r]<mf)m=r;if(m===i)break;hk[i]=hk[m];hf[i]=hf[m];i=m;}hk[i]=lk;hf[i]=lf;}return k;};
-  const walls=(cls==='inf'||cls==='eng')&&typeof edgePass==='function';
+  const walls=(cls==='inf'||cls==='eng'||cls==='mtn')&&typeof edgePass==='function';
   // 칸 경계를 지날 수 있는지(navWallOk)는 이번 길찾기 동안 지도가 그대로라 칸 쌍마다 한 번만 계산한다
   const wok=walls?navWallMemo(S,gen):null;
   D[s]=0;P[s]=-1;st[s]=gen*2;push(s,H(s));let best=s,bh=H(s),n=0;
@@ -2336,7 +2473,7 @@ function fortTick(dt){if(!G.forts)G.forts=[];
       // 방어물 자리에 걸친 부대는 살짝 밀어낸다
       for(const o of G.units)if(!navOk(o,o.x,o.z)&&o.path&&!o.path.length){const p=navPath(o,o.x,o.z);if(p&&p.length)o.path=[p[0]];}}}}
 /* 차량이 가벼운 방어물을 깔고 지나가면 부서진다. 공병은 철조망을 끊는다 */
-function fortCrush(u){const cls=navCls(u);if(!cls||cls==='inf'||!G.forts||!G.forts.length)return;
+function fortCrush(u){const cls=navCls(u);if(!cls||cls==='inf'||cls==='mtn'||!G.forts||!G.forts.length)return;
   for(const f of G.forts.slice()){if(f.prog<1)continue;const r=NAV_RULE[f.k][cls];if(r!==1)continue;
     if(!inBox(fortShape(f),u.x,u.z,NAV_CLR[cls]*.8))continue;
     if(cls==='eng'){f.hp-=.25;if(f.hp>0)continue;}
@@ -2505,6 +2642,45 @@ Object.assign(NAV_RULE,{bocage:{inf:2,eng:2,veh:2,trk:1},bocgap:{inf:0,eng:0,veh
 const climeOf=()=>G&&G.feat&&G.feat.clime||'temp';
 {const _sk=slopeK;slopeK=function(u,dx,dz){const k=_sk(u,dx,dz);if(climeOf()!=='winter'||UT[u.type].fly)return k;const t=tileAt(u.x,u.z);
   return t&&t.t!=='road'?k*(UT[u.type].cls==='veh'?.82:.9):k;};}
+
+/* ---- 04g-alpine.js ---- */
+/* ===================== 알프스 산악: 규칙 (이동·등반·눈·높이) =====================
+   지도 모양은 03d-alpine.js. 칸 기울기 sl = 높이차/거리(1층 3m, 1칸 12m).
+   근거: 미 육군 FM 5-33 지형 분석(기동 가능 경사), ATP 3-90.97 산악·혹한기 작전(지형 등급, 고정 로프, 산악 훈련병),
+        FM 3-97.6 산악 작전(골짜기·고개가 기동로를 묶고, 고지가 길을 지배한다).
+   - 차량: 길 밖에서 바퀴 차량은 30%, 궤도 차량은 45% 넘는 비탈을 못 오른다. 바위벽·너덜지대·산길은 어떤 차량도 못 간다.
+     도로(골짜기 길)는 비탈과 상관없이 다닌다.
+   - 보병: 45°(100%) 넘는 바위벽(cliff)은 등반 장비가 있어야 오른다. 다른 비탈은 느리게 걸어서 오른다(slopeK).
+   - 산악보병(alp): 바위벽을 오른다(느리게). 오르는 동안 고정 로프를 걸어 두면, 그 바위벽은 다른 보병도 로프를 잡고 오를 수 있다
+     (교범의 '선등조가 로프를 설치하고 본대가 따라 오른다'). 로프는 적도 쓸 수 있다.
+     비탈 오르막에서 덜 지치고, 눈밭에서 스키·설피로 거의 느려지지 않는다.
+   - 눈밭(설선 위): 보병 30%, 차량 40% 느리다. 산악보병은 5%.
+   - 높은 곳: 숲 한계선 위에서는 앞이 트여 시야 +2, 봉우리 꼭대기는 +1 더. */
+const ALP={veh:.3,trk:.45,climb:4,rope:5,snowInf:.7,snowVeh:.6,snowMtn:.95,ropeT:6};
+const ALP_TRK={tank:1,spg:1,bmp:1,spaa:1,cev:1};
+const alpOn=()=>!!(G&&G.feat&&G.feat.layout==='alpine');
+/* 산악보병: 소총분대와 같은 화력, 등반 장비와 스키. 비싸다(교육·장비) */
+UT.alp={n:'산악보병',cls:'inf',mv:4,vis:5,rng:[1,4],atk:{inf:5,veh:1,air:3},cost:4,cap:1,mtn:1,
+  desc:'등반·스키 훈련을 받은 산악 소총분대. 다른 부대가 못 오르는 바위벽을 로프로 오르고, 오른 바위벽에는 고정 로프를 걸어 다른 보병도 따라오게 함. 눈밭·비탈에서 덜 느려짐'};
+if(!TYPES.includes('alp'))TYPES.push('alp');
+/* 이동 비용 */
+{const _mc=mcost;mcost=function(type,x){const m=_mc(type,x);if(m===Infinity||!x||(x.sl==null&&!x.cliff&&!x.mtr))return m;const t=UT[type];if(!t||t.fly)return m;
+  if(t.cls==='veh'){if(x.cliff||x.scree||x.mtr||x.summit)return Infinity;if(x.t!=='road'&&x.sl>(ALP_TRK[type]?ALP.trk:ALP.veh))return Infinity;return m;}
+  if(x.cliff)return t.mtn?ALP.climb:x.rope?ALP.rope:Infinity;
+  return m;};}
+/* 비탈·눈 속도 */
+{const _sk=slopeK;slopeK=function(u,dx,dz){let k=_sk(u,dx,dz);if(!G||!G.feat||G.feat.layout!=='alpine')return k;const t=UT[u.type];if(t.fly)return k;
+  if(t.mtn&&k<1)k=Math.pow(k,.65);                                     // 산악보병: 오르막에서 덜 느려진다
+  const x=tileAt(u.x,u.z);if(x&&x.snow&&x.t!=='road')k*=t.mtn?ALP.snowMtn:t.cls==='veh'?ALP.snowVeh:ALP.snowInf;
+  return k;};}
+/* 높은 곳은 멀리 본다 */
+{const _vr=visRange;visRange=function(u){let v=_vr(u);if(!alpOn()||UT[u.type].fly)return v;const x=cell(u.r,u.c),A=G.feat.alp;
+  if(A&&x&&x.el>=A.tl&&x.t!=='bldg')v+=2;if(x&&x.summit)v+=1;return v;};}
+/* 고정 로프: 산악보병이 바위벽 칸에 ALP.ropeT초 머물며 오르면 건다. 칸 표시 x.rope = 건 세력+1. 이동 격자를 다시 만든다 */
+function alpRopeTick(dt){if(!alpOn())return;G.ropes=G.ropes||[];
+  for(const u of G.units){if(!UT[u.type].mtn)continue;const x=tileAt(u.x,u.z);if(!x||!x.cliff||x.rope){u._clT=0;continue;}
+    u._clT=(u._clT||0)+dt;if(u._clT<ALP.ropeT)continue;u._clT=0;x.rope=u.nat+1;G.ropes.push({r:Math.floor(u.z),c:Math.floor(u.x),nat:u.nat,t:G.time||0});
+    G.navV=(G.navV||0)+1;bump();if(!isAI(u.nat)||!G.fog)L(`${natName(u.nat)} 산악보병이 바위벽에 고정 로프를 걸었습니다`);}}
 
 /* ---- 04g-maps2.js ---- */
 /* ===================== 지도 더 늘리기: 규칙 (03d-maps2) =====================
@@ -3851,7 +4027,7 @@ function vegClime(){return typeof bmClime==='function'?bmClime():'temp';}
 function vegBuild(){const M=G.map,O=[],cl=vegClime(),benches=[];const add=(x,z,r,t,p)=>O.push({x,z,r:r+VEG.body,t,p,fv:-1,fell:0});
   const bush=s=>.066*s;   // 팔면체 두 덩이(긴 쪽 .07)
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];if(!x)continue;const k=key(r,c),H=s=>vegH(k,s);
-    if(!G.camp&&typeof natWildTrees==='function'){
+    if(!campPlain()&&typeof natWildTrees==='function'){
       if(x.t==='park'&&x.wild&&!x.orch){let i=0;   // 숲: 3×3 격자
         for(let a=0;a<3;a++)for(let b=0;b<3;b++){i++;if(H(1100+i)>.86)continue;
           const px=c+(b+.5)/3+(H(1120+i)-.5)*.3,pz=r+(a+.5)/3+(H(1140+i)-.5)*.3;const big=H(1160+i),s=.62+big*big*.75,sy=s*(.85+H(1240+i)*.45);
@@ -5582,6 +5758,25 @@ for(const [ko,k,en] of OBJ_EXTRA){OBJ_KIND[ko]=k;OBJ_LOCAL_EN[ko]=en;}
 const CAPW={rifle:1,eng:1,mg:.75,at:.75,tb:.75,atgm:.5,aa:.5,ew:.5,dteam:.5,sniper:.4,mortar:.4,ifv:.7,bmp:.7,tank:.5,hmv:.5,zu:.4,spaa:.4};
 for(const k in CAPW)if(UT[k])UT[k].cap=CAPW[k];
 const capW=t=>{const u=UT[t];return u&&!u.fly?(u.cap||0):0;};
+
+/* ---- 05l4-alpine-objs.js ---- */
+/* ===================== 알프스 산악: 거점 =====================
+   03d-alpine이 거점 자리를 땅 모양(alpRole)으로 골라 둔다: 고개 분지(pass) · 봉우리 꼭대기(summit) · 골짜기 마을(valley) · 산장(hut).
+   - 자리를 옮기지 않는다(05l-objs objRelocate는 넓은 곳을 찾아 옮기는데, 봉우리 관측소가 산 아래로 내려가면 안 된다).
+   - 이름과 쓰임은 역할에 맞춘다. 같은 역할 네 벌(세력마다 하나)은 이름·쓰임이 다르지만 모두 그 땅다운 것이다.
+     봉우리는 감시(내려다봄) 쓰임이 많다: 산 위 관측소가 골짜기를 지배한다(FM 3-97.6). [한국어, 영어 무전, 쓰임] */
+const ALP_OBJ={
+  pass:[['고개 구호소','the hospice','hosp'],['국경 세관','the customs house','gov'],['고개 호텔','the pass hotel','bank'],['우편·전신소','the post office','comm']],
+  summit:[['정상 관측소','the summit lookout','comm'],['기상 관측소','the weather station','comm'],['산정 중계소','the summit relay','bcast'],['정상 레이더 기지','the summit radar','comm']],
+  valley:[['골짜기 여관','the inn','gov'],['산골 장터','the village market','supply'],['수력 발전소','the hydro plant','power'],['케이블카 역','the cable car station','rail']],
+  hut:[['산악 구조대 산장','the rescue hut','hosp'],['대피 산장','the refuge','supply'],['산악 헬기장','the mountain helipad','air'],['국경 경비 초소','the border post','police']]};
+const ALP_OBJ_EN={};
+for(const r in ALP_OBJ)for(const [ko,en,k] of ALP_OBJ[r]){OBJ_KIND[ko]=k;ALP_OBJ_EN[ko]=en;}
+{const _or=objRelocate;objRelocate=function(map,objs,GS){if(objs&&objs.length&&map[objs[0].r]&&map[objs[0].r][objs[0].c].alpRole)return;return _or(map,objs,GS);};}
+{const _gm=genMap;genMap=function(seed,...a){const out=_gm(seed,...a);if(!out.feat||out.feat.layout!=='alpine')return out;
+  const k={};for(const o of out.objs){const x=out.map[o.r][o.c];const role=x.alpRole;const L=ALP_OBJ[role];if(!L)continue;const i=k[role]=(k[role]||0);k[role]++;const [ko,,kind]=L[i%L.length];
+    o.name=ko;x.lk=kind;const col=OBJK[kind]&&OBJK[kind].col;if(col){x.lkc=col;if(x.t==='bldg'&&x.blk!=null)for(let r=Math.max(0,o.r-3);r<=Math.min(N-1,o.r+3);r++)for(let c=Math.max(0,o.c-3);c<=Math.min(N-1,o.c+3);c++){const y=out.map[r][c];if(y.t==='bldg'&&y.blk===x.blk){y.lkc=col;y.lk=kind;}}}}
+  return out;};}
 
 /* ---- 05m-lts.js ---- */
 /* ===================== 최후 생존: 승점 대신 마지막까지 남은 세력이 이긴다 =====================
@@ -8902,6 +9097,34 @@ function winLine(){const t=G.time||0;const W=G.winS||{hold:{},col:{}};const need
 {const _o=typeof scnObjective==='function'?scnObjective:null;if(_o){scnObjective=function(){if(!winOn())return _o.apply(this,arguments);
    return {t:'작전 목표',m:'',html:`<span>${winLine()}</span>`};};}}
 
+/* ---- 06k-alpine.js ---- */
+/* ===================== 알프스 산악: 병종·AI·헬기 =====================
+   - 산악보병(alp)을 증원 메뉴 보병 칸에 넣고, 실제 부대 이름을 붙인다. 아직 없는 표 값은 소총분대 것을 빌린다(09e-fleet, 09f-alpine).
+   - 알프스 지도에서 시작 부대: 소총분대 둘을 산악보병으로.
+   - AI 구성(산악전 교리, FM 3-97.6·ATP 3-90.97): 경보병·산악보병 중심, 박격포(곡사는 능선 뒤 사각을 친다)와 저격·관측을 늘리고,
+     길에 묶이는 전차·차륜 장갑차·자주포는 줄인다.
+   - 헬기 착륙지: 비탈 12%(약 7°) 넘는 땅, 바위벽·너덜지대에는 내리지 않는다(헬기 착륙지 선정 기준).
+   - 고정 로프(04g alpRopeTick)는 실시간 틱마다 돈다. */
+FLEET_BASE.alp=['rifle'];
+FLEET_REAL.alp=['산악보병 분대 (미 제10산악사단·한국군 산악여단)','산악소총 분대 (러시아 제34산악여단)'];
+{const b=BRANCH.find(x=>x.k==='inf');if(b&&!b.ts.includes('alp'))b.ts.splice(b.ts.indexOf('rifle')+1,0,'alp');}
+Object.assign(COOL,{alp:COOL.rifle});
+if(typeof CAPW==='object')CAPW.alp=1;
+const ALP_START=['alp','alp','rifle','mg','at','sniper','mortar','ifv'];
+{const _ng=newGame;newGame=function(cfg){cfg=Object.assign({},cfg||{});
+  if(!cfg.force&&!cfg.scn&&!cfg.camp&&(cfg.layout==='alpine'||cfg.layout==='rand')){if(cfg.seed==null)cfg.seed=Math.floor(Math.random()*1e9);
+    const lay=cfg.layout==='rand'?pickLayout(cfg.seed):cfg.layout;if(lay==='alpine')cfg.force=ALP_START.slice();}
+  return _ng(cfg);};}
+/* AI 증원 가중치 */
+const ALP_MIX={alp:.2,rifle:.5,mortar:1.5,sniper:1.4,tank:.35,ifv:.45,bmp:.5,hmv:.6,spg:.55,mlrs:.6,cev:.3};
+{const _aw=aiArmsW;aiArmsW=function(n,E,cnt,total){const w=_aw(n,E,cnt,total);if(!alpOn())return w;
+  for(const t in ALP_MIX)if(t!=='alp'&&w[t]!=null)w[t]*=ALP_MIX[t];
+  const want=ALP_MIX.alp*unitCap(),lack=want-cnt('alp');w.alp=ALP_MIX.alp*(lack>0?1+lack*.9:.15)*(total<6?1.6:1);return w;};}
+/* 헬기 착륙지 */
+{const _hc=heliCanLand;heliCanLand=function(n,r,c){if(!_hc(n,r,c))return false;if(!alpOn())return true;const x=G.map[r][c];return !(x.cliff||x.scree||(x.sl||0)>.12);};}
+/* 실시간 틱 */
+{const _t=rtTick;rtTick=function(dt){_t(dt);if(!G||!G.units||G.over||!alpOn())return;try{alpRopeTick(dt);}catch(err){(G.errs=G.errs||[]).push(String(err&&err.stack||err));}};}
+
 /* ---- 06x-ff.js ---- */
 /* ===================== 아군 오사 회피: 모든 무기가 쏘기 전에 아군을 확인한다 =====================
    예전에는 사선 위에 아군이 서 있어도, 표적 바로 옆에 아군이 붙어 있어도 그냥 쐈다. 이제는 실제 교범처럼:
@@ -9137,7 +9360,7 @@ const SEE={
 const WXK={snow:{n:'눈',m:'눈이 내립니다 · 시정 약 200m'},blizzard:{n:'눈보라',m:'눈보라 · 시정 약 60m, 드론·헬기 비행 불가'},
   dust:{n:'먼지 연무',m:'먼지 연무가 깔립니다 · 시정 약 120m, 드론 시야 제한'},sand:{n:'모래폭풍',m:'모래폭풍 · 시정 약 40m, 드론·헬기 비행 불가'},haze:{n:'아지랑이',m:''}};
 /* 날씨가 땅 위에서 보이는 모습: 기후를 따른다. 규칙(드론·헬기·명중)은 바탕 날씨(G.wx)를 그대로 쓴다 */
-function wxKind(){const w=(G&&G.wx)||'clear';const cl=typeof climeOf==='function'&&G&&!G.camp?climeOf():'temp';
+function wxKind(){const w=(G&&G.wx)||'clear';const cl=typeof climeOf==='function'&&G&&!campPlain()?climeOf():'temp';
   if(cl==='winter')return w==='rain'?'snow':w==='storm'?'blizzard':w;
   if(cl==='desert'){if(w==='fog')return 'dust';if(w==='storm')return 'sand';if(w==='clear'&&typeof dayH==='function'){const h=dayH();if(h>=11&&h<=16.5)return 'haze';}}
   return w;}
@@ -10426,7 +10649,7 @@ function v3SiegeMesh(f){const T=V3.T,M=v3FortMats(),S=v3SgMats(),d=FORT[f.k];con
    - v3TY(x,z): 땅의 화면 높이. 화면 좌표로 투영하는 코드(라벨·부대 고르기)가 더한다. */
 const TERR3={u:{map:{value:null},p:{value:null}},on:false};
 const v3TY=(x,z)=>G&&G.elv?elAt(x,z)*FLOOR_H:0;
-const TERR_GLSL='uniform sampler2D terrHM;uniform vec4 terrHP;\nfloat terrH(vec2 p){if(terrHP.x<=0.)return 0.;return texture2D(terrHM,(p+.5)/terrHP.y).r*terrHP.x;}\n';
+const TERR_GLSL='uniform sampler2D terrHM;uniform vec4 terrHP;\nfloat terrH(vec2 p){if(terrHP.x<=0.)return 0.;vec4 t=texture2D(terrHM,(p+.5)/terrHP.y);return (t.r+t.g/256.)*terrHP.x;}\n';   // 높이 16비트(r 위·g 아래): 알프스처럼 높은 지형도 계단 없이
 const TERR_SPRITE='vec4 mvPosition = modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 );';
 function v3TerrHook(sh,mat){const T=V3.T;if(!T)return;let vs=sh.vertexShader;
   const hasP=vs.includes('#include <project_vertex>'),hasS=vs.includes(TERR_SPRITE);if(!hasP&&!hasS)return;
@@ -10443,8 +10666,9 @@ function v3TerrUpd(){const T=V3.T;v3TerrInstall();if(!TERR3.u.p.value)TERR3.u.p.
   if(V3.M&&V3.M.terr)V3.M.terr.userData.terrN=1;
   if(!G.elv){TERR3.u.p.value.set(0,W,0,0);return;}
   let tx=TERR3.tex;if(!tx||tx.image.width!==W){if(tx)tx.dispose();tx=new T.DataTexture(new Uint8Array(W*W*4),W,W);tx.magFilter=tx.minFilter=T.LinearFilter;tx.wrapS=tx.wrapT=T.ClampToEdgeWrapping;TERR3.tex=tx;}
-  const d=tx.image.data;for(let i=0;i<W*W;i++){d[i*4]=Math.round(Math.max(0,Math.min(1,G.elv[i]/EL_MAX))*255);d[i*4+3]=255;}tx.needsUpdate=true;
-  TERR3.u.map.value=tx;TERR3.u.p.value.set(EL_MAX*FLOOR_H,W,0,0);}
+  let em=EL_MAX;for(let i=0;i<W*W;i++)if(G.elv[i]>em)em=G.elv[i];TERR3.em=em;   // 눈금 범위: 보통 8층, 더 높은 지도(알프스)는 가장 높은 곳까지
+  const d=tx.image.data;for(let i=0;i<W*W;i++){const v=Math.round(Math.max(0,Math.min(1,G.elv[i]/em))*65280);d[i*4]=v>>8;d[i*4+1]=v&255;d[i*4+3]=255;}tx.needsUpdate=true;
+  TERR3.u.map.value=tx;TERR3.u.p.value.set(em*FLOOR_H,W,0,0);}
 
 /* ---------- 지면 그림: 강, 철길 ---------- */
 function v3TerrTex(g,P){const f=G.feat;if(!f)return;const R=mulberry((G.seed^0x41f)>>>0);
@@ -10484,7 +10708,7 @@ function v3TerrMats(){if(V3.terrM)return V3.terrM;const T=V3.T;
     stripe:new T.MeshStandardMaterial({color:'#c9c4b8',roughness:.6}),red:new T.MeshStandardMaterial({color:'#9c3128',roughness:.6}),
     canopy:new T.MeshStandardMaterial({color:'#7b7f80',roughness:.7,metalness:.3})};
   for(const k in M)if(k!=='water')v3FowMat(M[k]);v3FowMat(M.water);V3.terrM=M;return M;}
-function v3BuildTerrain(g){const f=G.feat;if(!f||G.camp)return;const T=V3.T,M=v3TerrMats();const at=(r,c)=>inb(r,c)?G.map[r][c]:null;
+function v3BuildTerrain(g){const f=G.feat;if(!f||campPlain())return;const T=V3.T,M=v3TerrMats();const at=(r,c)=>inb(r,c)?G.map[r][c]:null;
   const water=[],deck=[],rails=[],piers=[],gird=[],poles=[],arms=[],wag=[],wtop=[],xing=[],xbar=[],can=[],canP=[];
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(!x.rv)continue;const [cx,cz]=v3x(r,c);
     water.push({x:cx,y:.016,z:cz,rx:-Math.PI/2,sx:1.002,sy:1.002});
@@ -10540,7 +10764,7 @@ v3Pick=(o=>function(cx,cy,rad){const k=o(cx,cy,rad);if(!G||!G.elv||V3.pickId!=nu
    - 건물(v3BuildCity 뒤): 겨울엔 지붕에 눈. 외벽·지붕 색표(KSTY·ROOFC)와 하늘·안개 색(ENVP)은 기후마다 바꿔 끼운다.
    캠페인 지도(G.camp)는 07c-camp가 직접 그리므로 건드리지 않는다. */
 const BM3={orig:null,cl:null};
-const bmClime=()=>G&&!G.camp&&G.feat&&G.feat.clime||'temp';
+const bmClime=()=>G&&!campPlain()&&G.feat&&G.feat.clime||'temp';
 function bmClimeApply(){const cl=bmClime();
   if(!BM3.orig)BM3.orig={ksty:JSON.parse(JSON.stringify(KSTY)),roof:ROOFC.slice(),env:JSON.parse(JSON.stringify(ENVP))};
   if(BM3.cl===cl)return;BM3.cl=cl;const O=BM3.orig;
@@ -10554,7 +10778,7 @@ const BM_PINE={temp:['#34402e','#3d4a34','#2e3a2a','#46513a'],autumn:['#34402e',
 const BM_HEDGE={temp:['#3f4a30','#46512f','#3a442c'],autumn:['#5a4a2a','#6b5530','#4f4a2c'],winter:['#c9cfd2','#b9c0c3','#d6dadc'],desert:['#6e6a44','#7a7450']};
 
 /* ---------- 땅 그림 ---------- */
-{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||G.camp)return;try{bmGroundTex(g,P);}catch(e){console.error(e);}};}
+{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||campPlain())return;try{bmGroundTex(g,P);}catch(e){console.error(e);}};}
 function bmGroundTex(g,P){const R=mulberry(((G.seed|0)^0xb10e)>>>0);const M=G.map,cl=bmClime();const at=(r,c)=>inb(r,c)?M[r][c]:null;
   const blot=(X,Y,n,cols,r0,r1)=>{for(let i=0;i<n;i++){g.fillStyle=cols[Math.floor(R()*cols.length)];g.beginPath();g.arc(X+R()*P,Y+R()*P,r0+R()*(r1-r0),0,7);g.fill();}};
   const along=(X,Y,ro,o,w,col)=>{g.fillStyle=col;if(ro==='v')g.fillRect(X+o,Y,w,P);else if(ro==='h')g.fillRect(X,Y+o,P,w);else{g.fillRect(X+o,Y,w,P);g.fillRect(X,Y+o,P,w);}};
@@ -10630,8 +10854,8 @@ function bmGeos(){if(V3.bmG)return V3.bmG;const T=V3.T;const G3={};
   V3.bmG=G3;return G3;}
 // 소품 기준 좌표계(앞 = +x, ry만큼 돈다)의 한 점
 const bmAt=(p,lx,ly,lz,o)=>{const cs=Math.cos(p.ry||0),sn=Math.sin(p.ry||0);return Object.assign({x:p.x+lx*cs+lz*sn,y:ly,z:p.z-lx*sn+lz*cs,ry:p.ry||0},o||{});};
-{const _bw=v3BuildWorld;v3BuildWorld=function(){bmClimeApply();_bw();if(!G||G.camp)return;try{bmBuildWorld(V3.G.world);}catch(e){console.error(e);}};}
-{const _bc=v3BuildCity;v3BuildCity=function(){bmClimeApply();_bc();if(!G||G.camp)return;try{bmCityTint();}catch(e){console.error(e);}};}
+{const _bw=v3BuildWorld;v3BuildWorld=function(){bmClimeApply();_bw();if(!G||campPlain())return;try{bmBuildWorld(V3.G.world);}catch(e){console.error(e);}};}
+{const _bc=v3BuildCity;v3BuildCity=function(){bmClimeApply();_bc();if(!G||campPlain())return;try{bmCityTint();}catch(e){console.error(e);}};}
 function bmBuildWorld(g){const T=V3.T,pm=v3PropMats(),M3=bmMats(),G3=bmGeos(),cl=bmClime();const M=G.map;
   const pal=(a,k,s)=>a[Math.floor(v3Hash(k,s)*a.length)];
   // 연못: 겨울엔 언 얼음
@@ -10731,7 +10955,7 @@ function natTerrMat(){const m=V3.M&&V3.M.terr;if(!m||m.userData.nat)return;m.use
   m.customProgramCacheKey=()=>'fowNnat';m.needsUpdate=true;}
 
 /* ---------- 땅 그림: 무른 땅 경계 번지기, 풀 포기, 바다 깊이·물거품 ---------- */
-{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||G.camp)return;try{natGround(g,P);}catch(e){console.error(e);}};}
+{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||campPlain())return;try{natGround(g,P);}catch(e){console.error(e);}};}
 function natGround(g,P){const M=G.map,R=mulberry(((G.seed|0)^0x7a11)>>>0),cl=natCl();const at=(r,c)=>inb(r,c)?M[r][c]:null;
   // 칸마다 평균색: 작은 캔버스로 줄여 읽는다
   const sm=document.createElement('canvas');sm.width=sm.height=N;const sg=sm.getContext('2d');sg.imageSmoothingEnabled=true;sg.imageSmoothingQuality='high';sg.drawImage(g.canvas,0,0,N,N);
@@ -10813,7 +11037,7 @@ function natWildTrees(r,c,x,out){const k=key(r,c),cl=natCl(),pal=NAT_PAL[cl]||NA
 /* ---------- 지면 그룹: 숲·덤불·지도 밖 풍경 ---------- */
 {const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();try{natTerrMat();natWorld(V3.G.world);}catch(e){console.error(e);}};}
 function natWorld(g){const T=V3.T,M=G.map,cl=natCl(),pal=NAT_PAL[cl]||NAT_PAL.temp,G3=natGeos(),MT=natMats();
-  if(!G.camp){const out={spruce:[],pine:[],bush:[]};
+  if(!campPlain()){const out={spruce:[],pine:[],bush:[]};
     for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c],k=key(r,c),H=s=>v3Hash(k,s);
       if(x.t==='park'&&x.wild&&!x.orch)natWildTrees(r,c,x,out);
       // 목초지·공원·밭 가장자리 덤불(숲과 맞닿은 곳에 더)
@@ -10832,7 +11056,7 @@ function natOuter(g){const T=V3.T,cl=natCl(),L=natLay(),pal=NAT_PAL[cl]||NAT_PAL
         sh.vertexShader='varying vec2 vNatW;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvNatW=(modelMatrix*vec4(transformed,1.)).xz;');
         sh.fragmentShader='uniform sampler2D natN;varying vec2 vNatW;\n'+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n{float a=texture2D(natN,vNatW*.04).r,b=texture2D(natN,vNatW*.19).g,c=texture2D(natN,vNatW*1.7).b;diffuseColor.rgb*=(.78+.44*a)*(.9+.2*b)*(.9+.2*c);}');};
       m.customProgramCacheKey=()=>'natOut';m.needsUpdate=true;}}
-  if(G.camp)return;
+  if(campPlain())return;
   const dens={forest:2.4,country:.5,port:.12,river:.25,sym:.18}[L]??.2;const n=(NAT_LO?dens*.6:dens)*(natLite()?.35:1);const far=[];const R=mulberry(((G.seed|0)^0x0a7e)>>>0);
   const band=10,A=-band,B=N+band;const area=(B-A)*(B-A)-N*N;const cnt=Math.min(9000,Math.round(area*n));
   for(let i=0;i<cnt;i++){let x=A+R()*(B-A),z=A+R()*(B-A);if(x>-.3&&x<N+.3&&z>-.3&&z<N+.3)continue;
@@ -10904,7 +11128,7 @@ function natSky(){natSkyInit();const T=V3.T,u=NAT.sky.material.uniforms,s=V3.cs;
    캠페인(G.camp)은 07c-camp가 따로 그리므로 건드리지 않는다. */
 const WS={D:.3,lv:-.19,on:false,u:{t:{value:null},p:{value:null}}};
 const wLv=()=>WS.on?WS.lv:0;   // 물 높이(화면)
-const wRiver=()=>G&&!G.camp&&G.feat&&G.feat.river&&G.feat.river.pts?G.feat.river:null;
+const wRiver=()=>G&&!campPlain()&&G.feat&&G.feat.river&&G.feat.river.pts?G.feat.river:null;
 const wFount=(r,c)=>{if(!inb(r,c))return false;const x=G.map[r][c];return x.t==='water'&&!x.rv&&!x.sea&&[[-1,0],[1,0],[0,-1],[0,1]].some(([a,b])=>inb(r+a,c+b)&&G.map[r+a][c+b].sq);};
 // 물길 띠의 바깥 가장자리: 강 가운데선에서 이만큼이 둑 꼭대기
 const wBank=()=>{const f=wRiver();return f?f.w/2:0;};
@@ -10935,7 +11159,7 @@ function wTerrMat(){const m=V3.M&&V3.M.terr;if(!m||m.userData.wsink)return;m.use
   const ck=m.customProgramCacheKey;m.customProgramCacheKey=()=>(ck?ck.call(m):'')+'wS';m.needsUpdate=true;}
 
 /* ---------- 땅 그림: 강둑·산책로, 안벽 면, 분수 자리, 시골 광장·마당 ---------- */
-{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||G.camp)return;try{wGroundTex(g,P);}catch(e){console.error(e);}};}
+{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||campPlain())return;try{wGroundTex(g,P);}catch(e){console.error(e);}};}
 function wGroundTex(g,P){const M=G.map,f=wRiver(),R=mulberry(((G.seed|0)^0x3a7e)>>>0);const at=(r,c)=>inb(r,c)?M[r][c]:null;
   const cl=typeof bmClime==='function'?bmClime():'temp',L=G.feat&&G.feat.layout;
   const GRASS={temp:'#56603f',autumn:'#6b6240',winter:'#d6dade',desert:'#a8946e'}[cl]||'#56603f';
@@ -10993,7 +11217,7 @@ function wRibbon(pts,hw,y){const T=V3.T,P=[],I=[];
     if(i){const o=(i-1)*2;I.push(o,o+2,o+1,o+1,o+2,o+3);}}
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(P,3));geo.setIndex(I);geo.computeVertexNormals();
   const n=geo.attributes.normal;for(let i=0;i<n.count;i++)n.setXYZ(i,0,1,0);return geo;}
-{const _bt=v3BuildTerrain;v3BuildTerrain=function(g){_bt(g);if(!G||G.camp)return;try{wBuildRiver(g);}catch(e){console.error(e);}};}
+{const _bt=v3BuildTerrain;v3BuildTerrain=function(g){_bt(g);if(!G||campPlain())return;try{wBuildRiver(g);}catch(e){console.error(e);}};}
 function wBuildRiver(g){const f=wRiver();if(!f||!WS.on)return;const T=V3.T,M=wMats(),TM=V3.terrM;const at=(r,c)=>inb(r,c)?G.map[r][c]:null;
   // 칸마다 네모 수면을 걷고 꺾은선 띠 수면 하나로
   for(const o of g.children.slice())if(o.isInstancedMesh&&TM&&o.material===TM.water){g.remove(o);o.geometry.dispose();}
@@ -11052,7 +11276,7 @@ function wBuildEdge(g){if(!WS.on)return;const T=V3.T,M=wMats(),wall=[];
   for(let i=0;i<N;i++)for(const [r,c,ax] of [[0,i,'z0'],[N-1,i,'z1'],[i,0,'x0'],[i,N-1,'x1']]){const x=G.map[r][c];if(!(x.rv||x.sea||x.pier))continue;
     const [cx,cz]=v3x(r,c);if(ax[0]==='z')wall.push({x:cx,y:-WS.D/2,z:ax==='z0'?0:N,sx:1,sy:WS.D,sz:.02});else wall.push({x:ax==='x0'?0:N,y:-WS.D/2,z:cz,sx:.02,sy:WS.D,sz:1});}
   v3Inst(g,new T.BoxGeometry(1,1,1),M.dark,wall,{noShadow:1});}
-{const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();if(!G||G.camp)return;try{wAfterWorld();}catch(e){console.error(e);}};}
+{const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();if(!G||campPlain())return;try{wAfterWorld();}catch(e){console.error(e);}};}
 function wAfterWorld(){const T=V3.T,g=V3.G.world;
   if(WS.on){// 땅 판을 촘촘하게(낮춘 물길이 매끈하게) 바꾸고, 바깥 땅은 지도 자리를 비운다
     for(const o of g.children){if(!o.isMesh||o.isInstancedMesh)continue;
@@ -11066,8 +11290,117 @@ function wAfterWorld(){const T=V3.T,g=V3.G.world;
 function wSinkUpd(){const T=V3.T;if(WS.u.t.value&&WS.u.t.value!==WS.dummy)WS.u.t.value.dispose();WS.on=false;
   if(!WS.u.p.value)WS.u.p.value=new T.Vector2(1,0);WS.u.p.value.set(N,0);
   if(!WS.dummy){WS.dummy=new T.DataTexture(new Uint8Array(4),1,1);WS.dummy.needsUpdate=true;}WS.u.t.value=WS.dummy;
-  if(!G||G.camp)return;const tx=wSinkTex();if(!tx)return;
+  if(!G||campPlain())return;const tx=wSinkTex();if(!tx)return;
   WS.u.t.value=tx;WS.u.p.value.set(N,WS.D);WS.on=true;wTerrMat();}
+
+/* ---- 07g5-alpine.js ---- */
+/* ===================== 3D: 알프스 산악 =====================
+   - 지면 셰이더: 기울기가 가파른 곳은 바위(지층 줄무늬), 설선(feat.alp.sn)보다 높은 곳은 눈. 칸 경계가 아니라 높이·기울기로 번진다.
+     바위벽엔 눈이 덜 붙는다.
+   - 땅 그림: 바위벽(금), 너덜지대(자갈), 고산 초지(짧은 풀·돌), 눈밭, 봉우리 꼭대기 자갈, 산길(좁은 오솔길).
+   - 바위: 너덜지대·바위벽·고산 초지에 크고 작은 바윗덩이. 눈밭은 눈 덮인 바위.
+   - 봉우리: 돌탑(케른)과 나무 정상 십자가.
+   - 고정 로프: 산악보병이 건 로프(G.ropes)를 바위벽 비탈을 따라 주황색 줄로.
+   - 먼 산맥: 지도 밖 둘레에 눈 덮인 봉우리들(안개에 묻혀 흐릿하게).
+   - 구름: 안개·비 날씨에는 구름 밑동(09f alpCloud)보다 높은 봉우리에 구름 덩이가 걸린다.
+   - 카메라: 산 위를 볼 때 바라보는 높이를 땅 높이에 맞춘다(관전 감독이 잡을 때는 감독 값을 따른다).
+   - 산악보병 모형: 큰 배낭, 헬멧. 겨울이면 흰 위장복. */
+const ALP3={u:{value:null},rope:-1,cloudOn:null};
+function alpTerrMat(){const m=V3.M&&V3.M.terr;if(!m||m.userData.alp)return;m.userData.alp=1;const ob=m.onBeforeCompile;const T=V3.T;if(!ALP3.u.value)ALP3.u.value=new T.Vector4(0,99,1.15,99);
+  m.onBeforeCompile=function(sh,ren){ob.call(this,sh,ren);sh.uniforms.alpP=ALP3.u;
+    if(!sh.vertexShader.includes('float terrH('))return;
+    sh.vertexShader='varying float vAlpH;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvAlpH=terrH((modelMatrix*vec4(position,1.)).xz);');
+    const nat=sh.fragmentShader.includes('uniform sampler2D natN');
+    sh.fragmentShader='uniform vec4 alpP;varying float vAlpH;\n'+(nat?'':'uniform sampler2D natN;varying float vNatSl;\n')+sh.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+{if(alpP.x>.5){vec2 wp=vFowW;float n1=texture2D(natN,wp*.11).r,n2=texture2D(natN,wp*.55).g,n3=texture2D(natN,wp*2.3).b;
+ vec3 c=diffuseColor.rgb;
+ float rk=smoothstep(alpP.z*.72,alpP.z*1.02,vNatSl+(n1-.5)*.3);                                   // 바위
+ vec3 rock=vec3(.37,.35,.32)*(.72+.5*n2)*(.86+.28*n3);rock*=.88+.12*sin(vAlpH*7.+n1*4.);            // 지층 줄무늬
+ c=mix(c,rock,rk*.88);
+ float hi=smoothstep(alpP.w-.4,alpP.w+.6,vAlpH+(n2-.5)*.8);c=mix(c,c*vec3(1.08,1.05,.82),hi*(1.-rk)*.6); // 숲 한계선 위 마른 고산 풀
+ float sn=smoothstep(alpP.y+.05,alpP.y+.5,vAlpH+(n1-.5)*.45)*(1.-rk*.7);
+ c=mix(c,vec3(.91,.93,.96)*(.9+.12*n3),sn);
+ diffuseColor.rgb=c;}}`);};
+  const ck=m.customProgramCacheKey;m.customProgramCacheKey=()=>(ck?ck.call(m):'')+'alp';m.needsUpdate=true;}
+function alpTerrUpd(){if(!ALP3.u.value)return;const A=G&&G.feat&&G.feat.layout==='alpine'&&!G.camp?G.feat.alp:null;
+  if(!A){ALP3.u.value.set(0,99,1.15,99);return;}ALP3.u.value.set(1,A.sn*FLOOR_H,1.15,A.tl*FLOOR_H);}
+
+/* ---------- 땅 그림 ---------- */
+{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||G.camp||!G.feat||G.feat.layout!=='alpine')return;try{alpGround(g,P);}catch(e){console.error(e);}};}
+function alpGround(g,P){const M=G.map,R=mulberry(((G.seed|0)^0xa1e5)>>>0),win=G.feat.clime==='winter';const at=(r,c)=>inb(r,c)?M[r][c]:null;
+  const dots=(X,Y,n,cols,r0,r1)=>{for(let i=0;i<n;i++){g.fillStyle=cols[Math.floor(R()*cols.length)];g.beginPath();g.arc(X+R()*P,Y+R()*P,r0+R()*(r1-r0),0,7);g.fill();}};
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c],X=c*P,Y=r*P;
+    const base=()=>{if(x.cliff){g.fillStyle='#67645e';g.fillRect(X,Y,P,P);g.strokeStyle='rgba(30,28,26,.45)';g.lineWidth=1.4;for(let i=0;i<4;i++){g.beginPath();let px=X+R()*P,py=Y;g.moveTo(px,py);for(let k=0;k<4;k++){px+=(R()-.5)*P*.35;py+=P/4;g.lineTo(px,py);}g.stroke();}
+        dots(X,Y,10,['rgba(150,146,138,.35)','rgba(40,38,34,.3)'],1.5,4);if(x.snow||win)dots(X,Y,6,['rgba(235,238,242,.75)'],2,5);return true;}
+      if(x.scree){g.fillStyle=win||x.snow?'#c9ccd0':'#7a766c';g.fillRect(X,Y,P,P);dots(X,Y,40,['rgba(55,52,48,.45)','rgba(170,165,155,.45)','rgba(110,105,96,.5)'],1,3);return true;}
+      if(x.summit){g.fillStyle=win||x.snow?'#d9dce0':'#8a8578';g.fillRect(X,Y,P,P);dots(X,Y,30,['rgba(60,56,50,.4)','rgba(200,195,185,.4)'],1,2.5);return true;}
+      if(x.snow){g.fillStyle='#e7eaee';g.fillRect(X,Y,P,P);dots(X,Y,10,['rgba(170,182,195,.3)','rgba(255,255,255,.5)'],3,9);return true;}
+      if(x.alm){g.fillStyle=win?'#dfe3e7':'#6e7148';g.fillRect(X,Y,P,P);dots(X,Y,16,win?['rgba(160,170,180,.3)']:['rgba(150,140,90,.35)','rgba(60,62,40,.35)','rgba(130,128,120,.45)'],1.5,4);
+        if(!win)dots(X,Y,5,['rgba(225,215,120,.5)','rgba(220,220,230,.5)','rgba(160,110,170,.45)'],.8,1.4);return true;}
+      return false;};
+    if(x.mtr){// 산길: 아래 땅을 칠하고 이웃 길(산길·도로·꼭대기·산장)로 좁은 오솔길
+      if(!base()){g.fillStyle=win?'#e3e6ea':x.wild?'#2f3526':'#58613c';g.fillRect(X,Y,P,P);dots(X,Y,10,['rgba(110,120,70,.3)','rgba(60,50,35,.3)'],2,6);}
+      const w=Math.max(3,P*.13),cx=X+P/2,cy=Y+P/2;g.strokeStyle=win||x.snow?'rgba(150,140,125,.85)':'#806e52';g.lineWidth=w;g.lineCap='round';
+      let any=false;for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){if(!a&&!b)continue;const y=at(r+a,c+b);if(!y||!(y.mtr||y.t==='road'||y.summit||y.hut))continue;if(a&&b){const p=at(r+a,c),q=at(r,c+b);if(p&&(p.mtr||p.t==='road')||q&&(q.mtr||q.t==='road'))continue;}
+        any=true;g.beginPath();g.moveTo(cx,cy);g.quadraticCurveTo(cx+b*P*.25+(R()-.5)*P*.2,cy+a*P*.25+(R()-.5)*P*.2,cx+b*P*.5,cy+a*P*.5);g.stroke();}
+      if(!any){g.beginPath();g.arc(cx,cy,w,0,7);g.fillStyle=g.strokeStyle;g.fill();}
+      continue;}
+    if(x.t==='road'||x.t==='bldg'||x.t==='water')continue;
+    base();}}
+
+/* ---------- 바위·정상 십자가·먼 산맥 ---------- */
+function alpGeos(){if(V3.alpG)return V3.alpG;const T=V3.T;const rock=new T.IcosahedronGeometry(1,0);const p=rock.attributes.position;const R=mulberry(0x40c4);
+  for(let i=0;i<p.count;i++){const k=.75+R()*.5;p.setXYZ(i,p.getX(i)*k,p.getY(i)*k*.7,p.getZ(i)*k);}rock.computeVertexNormals();
+  return V3.alpG={rock,box:new T.BoxGeometry(1,1,1)};}
+function alpMats(){if(V3.alpM)return V3.alpM;const T=V3.T;const S=(c,o)=>{const m=new T.MeshStandardMaterial(Object.assign({color:c,roughness:.95,flatShading:true},o||{}));v3FowMat(m);return m;};
+  const far=new T.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true});
+  return V3.alpM={rock:S('#ffffff'),wood:S('#5a4632'),rope:S('#e0782a',{roughness:.7}),far};}
+{const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();try{alpTerrMat();alpTerrUpd();alpWorld(V3.G.world);}catch(e){console.error(e);}};}
+function alpWorld(g){ALP3.rope=-1;ALP3.cloudOn=null;if(V3.alpRope){V3.alpRope.parent&&V3.alpRope.parent.remove(V3.alpRope);V3.alpRope=null;}if(V3.alpCloud){V3.alpCloud.parent&&V3.alpCloud.parent.remove(V3.alpCloud);V3.alpCloud=null;}
+  if(!G||G.camp||!G.feat||G.feat.layout!=='alpine')return;const T=V3.T,M=G.map,G3=alpGeos(),MT=alpMats(),win=G.feat.clime==='winter';
+  for(const o of g.children)if(o.isMesh&&o.geometry.parameters&&o.geometry.parameters.width===N+120)o.material.color.set(win?'#c9ced3':'#3d4730');
+  const rocks=[],wood=[];const RC=['#8a867e','#77736b','#9a958b','#6c6862'];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c],k=key(r,c),H=s=>v3Hash(k,s);const snow=x.snow||win;
+    const add=(n,s0,s1,pr)=>{for(let i=0;i<n;i++){if(H(2000+i)>pr)continue;const s=s0+H(2010+i)*(s1-s0);rocks.push({x:c+.1+H(2020+i)*.8,y:s*.25,z:r+.1+H(2030+i)*.8,sx:s,sy:s*(.7+H(2040+i)*.6),sz:s*(.8+H(2050+i)*.4),ry:H(2060+i)*6.28,rx:(H(2070+i)-.5)*.6,col:snow&&H(2080+i)<.6?'#e6e9ec':RC[Math.floor(H(2090+i)*RC.length)]});}};
+    if(x.cliff)add(4,.07,.2,.8);else if(x.scree)add(7,.03,.09,.85);else if(x.alm)add(3,.03,.1,.45);else if(x.summit)add(2,.03,.06,.5);else if(x.wild&&x.el>2)add(1,.05,.12,.25);
+    if(x.summit&&x.obj!=null){// 돌탑과 정상 십자가(꼭대기 칸 모서리)
+      const px=c+.82,pz=r+.2;for(let i=0;i<4;i++)rocks.push({x:px,y:.02+i*.035,z:pz,s:.06-i*.011,sy:.045-i*.006,ry:i*1.3,col:RC[i%RC.length]});
+      wood.push({x:px+.12,y:.22,z:pz+.08,sx:.025,sy:.44,sz:.025});wood.push({x:px+.12,y:.33,z:pz+.08,sx:.18,sy:.025,sz:.025});}}
+  v3Inst(g,G3.rock,MT.rock,rocks);v3Inst(g,G3.box,MT.wood,wood);
+  // 먼 산맥: 지도 밖 둘레. 정점 색은 아래 바위 → 위 눈
+  const R=mulberry(((G.seed|0)^0xfa1)>>>0),pos=[],col=[];const C=new T.Color(),cR=new T.Color('#5b5d5c'),cF=new T.Color('#34402e'),cS=new T.Color('#eef1f4');
+  const peak=(cx,cz,rad,h)=>{const n=7,ring=[];const top=[cx+(R()-.5)*rad*.2,h,cz+(R()-.5)*rad*.2];
+    for(let i=0;i<n;i++){const a=i/n*6.283+R()*.4,rr=rad*(.75+R()*.45);ring.push([cx+Math.cos(a)*rr,-.5,cz+Math.sin(a)*rr]);}
+    const mid=ring.map(p=>[p[0]+(top[0]-p[0])*.45+(R()-.5)*rad*.15,h*(.38+R()*.12),p[2]+(top[2]-p[2])*.45+(R()-.5)*rad*.15]);
+    const cv=y=>{const t=y/h;if(t>.62)C.copy(cS);else if(t>.3)C.copy(cR).lerp(cS,Math.max(0,(t-.45)*2));else C.copy(cF).lerp(cR,t/.3);if(win)C.lerp(cS,.75);return C;};
+    const tri=(a,b,c)=>{for(const p of [a,b,c]){pos.push(p[0],p[1],p[2]);const k=cv(p[1]);col.push(k.r,k.g,k.b);}};
+    for(let i=0;i<n;i++){const j=(i+1)%n;tri(ring[i],ring[j],mid[j]);tri(ring[i],mid[j],mid[i]);tri(mid[i],mid[j],top);}};
+  const Cn=N/2;for(let i=0;i<34;i++){const a=i/34*6.283+R()*.12;const d=N*.9+R()*N*.5;const rad=11+R()*12;peak(Cn+Math.cos(a)*d,Cn+Math.sin(a)*d,rad,6+R()*8+(d-N*.9)*.18);}
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setAttribute('color',new T.Float32BufferAttribute(col,3));geo.computeVertexNormals();
+  const far=new T.Mesh(geo,MT.far);far.receiveShadow=false;far.castShadow=false;g.add(far);}
+
+/* ---------- 고정 로프·구름·카메라 높이 (매 프레임) ---------- */
+function alpRopes(){const T=V3.T,MT=alpMats(),G3=alpGeos();if(V3.alpRope){V3.alpRope.parent&&V3.alpRope.parent.remove(V3.alpRope);V3.alpRope=null;}const L=G.ropes||[];if(!L.length)return;
+  const list=[];for(const p of L){const x0=p.c+.5,z0=p.r+.5;const e=.35;const gx=elAt(x0+e,z0)-elAt(x0-e,z0),gz=elAt(x0,z0+e)-elAt(x0,z0-e);const gl=Math.hypot(gx,gz)||1;const ux=gx/gl,uz=gz/gl;   // 오르막 방향
+    for(let s=-.45;s<.45;s+=.15)list.push({x:x0+ux*(s+.075),y:.03,z:z0+uz*(s+.075),sx:.16,sy:.012,sz:.014,ry:-Math.atan2(uz,ux)});   // 땅에 붙은 줄(지형 높이는 셰이더가 정점마다 더한다)
+    list.push({x:x0-ux*.45,y:.06,z:z0-uz*.45,sx:.03,sy:.08,sz:.03});list.push({x:x0+ux*.45,y:.06,z:z0+uz*.45,sx:.03,sy:.08,sz:.03});}
+  const g=new T.Group();v3Inst(g,G3.box,MT.rope,list,{noShadow:1});V3.G.world.add(g);V3.alpRope=g;}
+function alpClouds(on){const T=V3.T;if(V3.alpCloud){V3.alpCloud.parent&&V3.alpCloud.parent.remove(V3.alpCloud);V3.alpCloud=null;}if(on==null)return;
+  const g=new T.Group();const R=mulberry(((G.seed|0)^0xc10d)>>>0);const spots=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if((x.el||0)>=on)spots.push([r,c]);}
+  const n=Math.min(70,Math.round(spots.length*.35));for(let i=0;i<n&&spots.length;i++){const [r,c]=spots[Math.floor(R()*spots.length)];
+    const s=new T.Sprite(new T.SpriteMaterial({map:V3.puff,color:i%3?'#e8eaec':'#c9cdd1',transparent:true,depthWrite:false,opacity:.42+R()*.2}));
+    s.position.set(c+R(),.25+R()*1.1,r+R());const k=2.2+R()*3.2;s.scale.set(k*1.6,k,1);s.userData.v=(R()-.5)*.08;g.add(s);}
+  V3.G.world.add(g);V3.alpCloud=g;}
+{const _ef=v3EnvFrame;v3EnvFrame=function(now,dt){_ef(now,dt);if(!G||!V3.on||G.camp||!G.feat||G.feat.layout!=='alpine')return;try{
+    const n=(G.ropes||[]).length;if(n!==ALP3.rope){ALP3.rope=n;alpRopes();}
+    const cb=typeof alpCloud==='function'?alpCloud():null;if(cb!==ALP3.cloudOn){ALP3.cloudOn=cb;alpClouds(cb);}
+    if(V3.alpCloud)for(const s of V3.alpCloud.children){s.position.x+=s.userData.v*dt;}
+    const s=V3.cs;const want=elAt(s.x,s.z)*FLOOR_H*.85;if(s.ly==null||s.ly===0||s.ly===ALP3.ly){s.ly=ALP3.ly=(s.ly||0)+(want-(s.ly||0))*Math.min(1,dt*4);}
+  }catch(e){console.error(e);}};}
+/* ---------- 산악보병 모형 ---------- */
+{const _sk=v3SolKind;v3SolKind=function(ty,i,n){if(ty!=='alp')return _sk(ty,i,n);return G&&G.feat&&G.feat.clime==='winter'?'alpw':'alp';};}
+{const _ss=solSpec;solSpec=function(n,kind,vi){const s=_ss(n,kind,vi);if(kind==='alp'||kind==='alpw'){s.pack='big';s.head='helm';s.radio=vi===0?1:s.radio;
+    if(kind==='alpw'){s.top=s.pants=s.helm='#e3e6e9';s.topC=s.pantsC=s.helmC=0;s.plate='#d5d8db';}}return s;};}
 
 /* ---- 07g5-maps2.js ---- */
 /* ===================== 지도 더 늘리기: 화면 (03d-maps2) =====================
@@ -11996,7 +12329,7 @@ function v3LeafTreeG(){if(V3.leafG)return V3.leafG;const T=V3.T;const parts=[];c
 function v3BuildPark(g){const T=V3.T,pm=v3PropMats(),m=MU;
   const park=(r,c)=>inb(r,c)&&!G.map[r][c].yard&&(G.map[r][c].t==='park'||G.map[r][c].t==='water'&&!G.map[r][c].rv&&!G.map[r][c].sea);
   const trees=[],trunks=[],bench=[],paths=[],plamp=[];const LEAF=['#6e6a4c','#7a7353','#5f5d43','#76704f','#665f45'];
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='park')continue;const k=key(r,c);const [cx,cz]=v3x(r,c);
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(G.map[r][c].t!=='park'||G.map[r][c].alm)continue;const k=key(r,c);const [cx,cz]=v3x(r,c);   // 고산 초지·눈밭(04g alm)엔 활엽수 없음
     // 산책로: 이웃 공원 칸으로 이어지는 흙길, 칸 가운데서 만난다
     const yard=G.map[r][c].yard||G.map[r][c].wild;// 주택 마당·숲(03c)은 길·벤치 없이 나무만
     const nb=yard?[]:[[0,1],[1,0]].filter(([a,b])=>park(r+a,c+b));
@@ -14406,7 +14739,7 @@ void main(){vec3 c=texture2D(tCol,vUv).rgb;float d=texture2D(tDep,vUv).x;
   const raw=ren.render.bind(ren);ren.info.autoReset=false;
   Object.assign(GRADE,{rt,mat,sc,cam:new T.OrthographicCamera(-1,1,1,-1,0,1),raw,v2:new T.Vector2(),dir:new T.Vector3()});
   ren.render=function(scene,cam){ren.info.reset();
-    if(!grOn()||scene!==V3.scene||ren.getRenderTarget()!==null||!cam.isPerspectiveCamera)return raw(scene,cam);
+    if(!grOn()||GRADE.skip||scene!==V3.scene||ren.getRenderTarget()!==null||!cam.isPerspectiveCamera)return raw(scene,cam);
     const s=ren.getDrawingBufferSize(GRADE.v2);if(rt.width!==s.x||rt.height!==s.y)rt.setSize(s.x,s.y);
     ren.setRenderTarget(rt);raw(scene,cam);ren.setRenderTarget(null);
     const U=mat.uniforms;U.near.value=cam.near;U.far.value=cam.far;U.res.value.copy(s);
@@ -14591,8 +14924,9 @@ function liteHook(){const ren=V3.ren;if(!ren||ren.userData_lite)return;ren.userD
     if(now-LITE.lastR<1000/LITE.fps-4&&!V3.press){V3.liteSkip=true;return;}   // 기자 카메라는 셔터 순간이 있으니 거르지 않는다
     LITE.lastR=now;
     const fog=scene.fog;if(cam===V3.cam&&fog&&fog.far>0){const f=Math.min(LITE.far0,fog.far+4);if(Math.abs(cam.far-f)>2){cam.far=f;cam.updateProjectionMatrix();}}
-    if(typeof GRADE==='object'&&GRADE.raw){ren.info.reset();return GRADE.raw(scene,cam);}
-    return prev.call(ren,scene,cam);};}
+    // 후처리만 건너뛴다. GRADE.raw를 바로 부르면 그 바깥 겹(07z-inst 병사 묶음 그리기)까지 건너뛰어 병사가 안 보인다
+    if(typeof GRADE!=='object')return prev.call(ren,scene,cam);
+    GRADE.skip=true;try{return prev.call(ren,scene,cam);}finally{GRADE.skip=false;}};}
 
 if(typeof startView==='function'){const f=startView;startView=async function(){const r=await f.apply(this,arguments);try{if(V3.ren){if(V3.cam)LITE.far0=V3.cam.far;liteHook();liteApply();}}catch(e){console.warn('lite',e);}return r;};}
 if(typeof pfxInit==='function'){const f=pfxInit;pfxInit=function(){const was=PFX.on;const r=f.apply(this,arguments);if(!was&&PFX.on){LITE.pfx0=PFX.qMax;liteApply();}return r;};}
@@ -17077,6 +17411,7 @@ if(typeof document!=='undefined'){
 
 /* 배치하면 스스로 하는 일 (병종 도감에 붙는다) */
 const MAN_AUTO={
+  alp:'소총분대처럼 싸우고, 바위벽이 돌아가는 길보다 빠르면 바위벽을 오릅니다. 오르는 바위벽에는 고정 로프를 걸어 뒤따르는 보병이 쓰게 합니다.',
   rifle:'보이는 적을 알아서 쏘고, 총격을 받으면 엎드리거나 가까운 엄폐로 붙습니다. 건물에 멈추면 꼭대기 층까지 올라가 창가에 늘어섭니다. 분대 안 대전차 사수는 3칸 안 차량에 일회용 로켓을 쏩니다. 다친 전우는 끌어서 지혈하고 업어 후송합니다. 멀리 가야 하면 근처 빈 장갑차를 타고 갑니다.',
   mg:'보이는 적에게 제압 사격을 하고, 안 보여도 방금 본 자리에 묶어 두는 사격을 합니다. 소대에서는 화력 기반이 되어 다른 분대가 돌아가는 동안 적을 누릅니다.',
   at:'적 차량을 먼저 노립니다. 건물 안에 숨은 적 보병이 보이거나 방금 쏘아 들키면 그 층 외벽을 쏘아 구멍을 내고 안의 적을 크게 다치게 합니다.',
@@ -17186,7 +17521,7 @@ function manualHtml(){const D=typeof DEMO==='object'?DEMO:{plant:6,plantR:10,cos
   h+=manSec('cp','지휘점수와 특별 거점',manL([
     `지휘점수는 ${rs}초마다 기본 +3, 거점 하나당 +2가 들어옵니다. 증원·화력 지원·방어물·폭약에 씁니다.`,
     '증원은 집결지나 우리 거점 바로 옆(적이 2칸 안에 없을 때)에 내립니다. 증원 메뉴는 위 칩으로 병과(보병·기갑·기계화·포병·방공·드론·지원)를 고릅니다.',
-    '거점은 이름마다 쓰임이 있습니다(농촌·숲·항구에서는 그 땅다운 이름으로 바뀌지만 쓰임은 같음):',
+    '거점은 이름마다 쓰임이 있습니다(농촌·숲·항구·산악에서는 그 땅다운 이름으로 바뀌지만 쓰임은 같음):',
     '종합병원: 후송된 중상자를 치료해 60%를 45초 뒤 분대로 돌려보내고 둘레 경상자를 치료 · 방송국: 우리 보병 사기가 빨리 오르고 차지하는 순간 적 보병 사기가 떨어짐 · 통신탑: 둘레 4칸 재밍이 안 먹히고 5칸 감시',
     '발전소: 지휘 +2 · 증권거래소: 지휘 +1, 차지할 때마다 +4 · 시청·법원·의회: 승점 +1 · 중앙역: 둘레 2칸에서 증원, 비용 1 환급 · 공항·스타디움: 둘레 2칸에서 항공·드론 증원, 비용 1 환급',
     '중앙시장·항만청: 둘레 2칸 탄약 보충·차량 정비 · 경찰청: 둘레 보병 탄약 보충, 둘레에서 증원한 보병은 숙련으로 시작 · 대성당: 둘레 7칸 감시 · 국립도서관: 둘레 4칸 건물 속까지 보임',
@@ -17201,6 +17536,16 @@ function manualHtml(){const D=typeof DEMO==='object'?DEMO:{plant:6,plantR:10,cos
     '<b>날씨</b>는 몇 라운드씩 이어지며 바뀝니다(설정에서 고정 가능). 보이는 거리 상한: 짙은 안개·눈보라 약 60m, 모래폭풍 약 40m, 먼지 연무 약 120m, 폭우 약 150m, 눈 약 200m. 열상 장비는 조금 더 봅니다. 비·폭우·모래폭풍은 소리도 묻습니다.',
     '비에는 드론이 느려지고, 안개·모래엔 드론이 땅을 거의 못 봅니다. 폭우(눈보라·모래폭풍)에는 드론·헬기·전투기가 뜨지 못하고 떠 있던 드론은 떨어집니다.',
     '겨울에는 눈 덮인 길 밖에서 보병 10%, 차량 18% 느립니다. 생울타리(보카주)는 바퀴 차량을 막고, 보병은 울타리마다 난 틈으로만 지나갑니다. 궤도 차량은 뚫고 지나가며, 그렇게 쓰러진 자리로는 보병도 넘어갑니다. 병사들은 나무·덤불·통나무 더미를 비켜 돌아갑니다.']));
+  h+=manSec('alpine','알프스 산악 지도',manL([
+    '골짜기 길과 고개 마을, 바위벽에 둘러싸인 봉우리 넷으로 된 지도입니다(시작 화면 지도 종류에서 고르거나 무작위로 나옴). 거점은 고개 마을·봉우리 꼭대기·골짜기 마을·산장에 있습니다.',
+    '<b>차량</b>: 길 밖에서 바퀴 차량은 30%, 궤도 차량(전차·자주포·BMP 등)은 45% 넘는 비탈을 못 오릅니다. 바위벽·너덜지대·산길·봉우리 꼭대기에는 어떤 차량도 못 갑니다. 골짜기 도로는 비탈과 상관없이 다닙니다.',
+    '<b>바위벽</b>(45° 넘는 절벽): 보통 보병은 못 오릅니다. <b>산악보병</b>은 등반 장비로 느리게 오르고, 바위벽에 6초 머물면 <b>고정 로프</b>(주황 줄)를 겁니다. 로프가 걸린 바위벽은 다른 보병도 잡고 오를 수 있습니다. 적도 쓸 수 있으니 조심하세요.',
+    '<b>비탈·눈</b>: 오르막은 모두 느립니다(산악보병은 덜 느림). 설선 위 눈밭에서는 보병 30%, 차량 40% 느리고, 스키·설피를 쓰는 산악보병은 5%만 느립니다.',
+    '<b>높은 곳</b>: 숲 한계선 위에서는 앞이 트여 시야 +2칸, 봉우리 꼭대기는 +1칸 더. 봉우리 관측소는 골짜기를 내려다봅니다.',
+    '<b>구름</b>: 안개·비·폭우·눈 날씨에는 구름이 봉우리를 덮습니다. 구름 속에서는 3칸(약 36m)밖에 못 보고, 구름 속 부대는 3칸 밖에서 보이지 않습니다.',
+    '<b>흰 위장복</b>: 눈밭에 멈춰 있는 산악보병은 더 가까이 와야 보입니다.',
+    '<b>헬기</b>는 비탈 12%(약 7°) 넘는 땅이나 바위벽·너덜지대에 내리지 않습니다.',
+    'AI는 산에서 산악보병·소총분대·박격포·저격을 늘리고, 길에 묶이는 전차·장갑차·자주포는 줄입니다. 이 지도에서는 시작 부대 중 소총분대 둘이 산악보병입니다.']));
   h+=manSec('cover','엄폐 · 은폐 · 제압',manL([
     '엄폐는 병사 한 명 한 명이 쏘는 쪽을 향해 무엇 뒤에 있는지로 정해지고 분대 평균이 명중률을 깎습니다. 옆이나 뒤에서 쏘면 벽·차량 엄폐는 없습니다.',
     '건물 안 55%(창가로만 맞음, 폭발물은 절반만 막음) · 외벽에 붙음 35%(차량 20%) · 잔해 25% · 쓰러진 나무 35% · 공원(나무) 15% · 연막 +15% · 요새화한 건물 70% · 벙커 60% · 참호·구덩이 안은 사방 엄폐. 2층 이상에서 내려 쏘면 낮은 엄폐는 절반.',
@@ -17263,7 +17608,7 @@ function manualHtml(){const D=typeof DEMO==='object'?DEMO:{plant:6,plantR:10,cos
     '모든 무기는 쏘기 전에 아군을 확인합니다: 사선·표적 너머·표적 둘레에 아군이 있으면 쏘지 않고, 오래 막히면 옆으로 몇 걸음 옮겨 사선을 엽니다. 대전차 로켓·미사일은 뒤쪽 후폭풍 구역에 아군이 있으면 쏘지 않습니다.',
     '제네바 협약(설정): 구급차·구호소·환자집결지는 보호 대상입니다. 일부러 쏘면 승점 −2, 쏜 쪽 보병 사기 −4, 맞은 쪽 사기 +3. 구호소 둘레에서 사격하면 30초 동안 보호를 잃습니다. 기본 설정에선 민병대 AI가 협약을 무시합니다.']));
   h+=manSec('modes','모드 · 기록 · 카메라',manL([
-    '<b>캠페인 하령 작전</b>: 대사관 철수 → 다리 확보 → 방송국 탈환이 차례로 열립니다. <b>상륙 작전</b>: 노르망디 오마하·인천 월미도. 상륙정으로만 들어오고, 해변에 연막을 치거나 적을 제압하면 덜 맞습니다. 인천은 썰물 때 상륙정이 못 옵니다.',
+    '<b>캠페인 하령 작전</b>: 대사관 철수 → 다리 확보 → 방송국 탈환이 차례로 열립니다. <b>상륙 작전</b>: 노르망디 오마하·인천 월미도. 상륙정으로만 들어오고, 해변에 연막을 치거나 적을 제압하면 덜 맞습니다. 인천은 썰물 때 상륙정이 못 옵니다. <b>역사 전투</b>: 파블로프의 집·아른헴 다리·바스토뉴·서울 수복·블랙호크 다운·73 이스팅. 지키는 임무는 제한 시간까지 핵심 거점을 지키면 성공이고, 공격 임무는 브리핑의 목표를 이루면 성공입니다.',
     '<b>AI 관전</b>: 모든 세력을 AI가 지휘합니다. 자동 연출이 가장 뜨거운 교전을 여러 각도로 찍고, 배속은 일시정지~8×입니다.',
     '<b>전투 기록</b>: 전투가 끝나면 폐허가 된 도시 지도, 리플레이, 전·후 항공 사진, 통계를 봅니다. 시작 화면 [지난 전투 기록]에서 다시 볼 수 있습니다.',
     '<b>종군기자 카메라</b>(V): 아군 부대 하나를 따라 눈높이로 걷습니다. Enter/X 셔터, N 다른 부대, B 흑백/컬러, Esc 나가기. 사진은 사진첩(이 기기)에 남습니다.',
@@ -17948,6 +18293,39 @@ if(typeof document!=='undefined'&&!document.getElementById('fleet-css')){const s
 @media (max-width:760px){.ulist.bl{grid-template-columns:repeat(2,minmax(0,1fr))}.bbr{top:-14px}}`;
   document.head.appendChild(st);}
 
+/* ---- 09f-alpine.js ---- */
+/* ===================== 알프스 산악: 표 채우기·구름·이름 =====================
+   1) 산악보병(alp)이 아직 없는 표(탄약·사거리·소리·총구·무전 호출부호…)는 소총분대 값을 빌린다(모든 표가 만들어진 뒤라 09번대).
+   2) 산 위 구름: 안개·비·폭우 날씨에는 구름이 봉우리를 덮는다. 구름 밑동(feat.alp.cloud, 숲 한계선 근처)보다 높은 곳에 있으면
+      맨눈 시정이 3칸(약 36m)으로 줄고, 구름 속 부대는 밖에서 3칸 넘게 떨어지면 보이지 않는다. 열상 장비도 구름은 잘 못 뚫는다.
+   3) 눈밭의 산악보병은 흰 위장복이라 멈춰 있으면 더 가까이 와야 보인다. */
+{const fill=tb=>{if(tb&&typeof tb==='object'&&('rifle' in tb)&&!('alp' in tb)){const v=tb.rifle;tb.alp=Array.isArray(v)?v.slice():v&&typeof v==='object'?JSON.parse(JSON.stringify(v)):v;}};
+  const L=[typeof VOLLEY==='object'&&VOLLEY,typeof COOL==='object'&&COOL,typeof AIR_ACC==='object'&&AIR_ACC,typeof MEN_N==='object'&&MEN_N,typeof AMMO==='object'&&AMMO,typeof LOAD==='object'&&LOAD,
+    typeof SUPF==='object'&&SUPF,typeof CAPW==='object'&&CAPW,typeof ESC_PREF==='object'&&ESC_PREF,typeof SQUAD==='object'&&SQUAD,typeof WPN==='object'&&WPN,typeof GFXW==='object'&&GFXW,
+    typeof PEN==='object'&&PEN,typeof KIT==='object'&&KIT,typeof READ==='object'&&READ.ty,typeof VOX_CS==='object'&&VOX_CS,typeof VOX_CS_EN==='object'&&VOX_CS_EN,typeof VOX_TN_EN==='object'&&VOX_TN_EN];
+  if(typeof MEN==='object')L.push(MEN.mag,MEN.rl);if(typeof REAL==='object')L.push(...Object.values(REAL).filter(v=>v&&typeof v==='object'&&!Array.isArray(v)));
+  if(typeof OPT==='object')L.push(...Object.values(OPT).filter(v=>v&&typeof v==='object'&&!Array.isArray(v)));
+  if(typeof RANGE==='object')L.push(...Object.values(RANGE).filter(v=>v&&typeof v==='object'&&!Array.isArray(v)));
+  if(typeof FF==='object')L.push(...Object.values(FF).filter(v=>v&&typeof v==='object'&&!Array.isArray(v)));
+  if(typeof SEE==='object')L.push(SEE.hear);if(typeof TAC==='object')L.push(TAC.types);if(typeof AA==='object')L.push(...Object.values(AA).filter(v=>v&&typeof v==='object'&&!Array.isArray(v)));
+  if(typeof UG==='object')L.push(UG.mhT);
+  L.forEach(fill);
+  if(typeof READ==='object'&&READ.ty)READ.ty.alp='산악';
+  if(typeof VOX_CS==='object')VOX_CS.alp='산악 #분대';if(typeof VOX_CS_EN==='object')VOX_CS_EN.alp='Alpine #';if(typeof VOX_TN_EN==='object')VOX_TN_EN.alp='mountain infantry';
+  if(typeof VOX_OBJ_EN==='object')Object.assign(VOX_OBJ_EN,ALP_OBJ_EN);
+  UT.alp.desc=`[${FLEET_REAL.alp.join(' / ')}] `+UT.alp.desc.replace(/^\[[^\]]*\] /,'');}
+/* ---------- 산 위 구름 ---------- */
+const ALP_CLOUD={wx:{fog:1,rain:1,storm:1,snow:1,blizzard:1},see:3};
+function alpCloud(){if(!alpOn()||!G.feat.alp)return null;const k=typeof wxKind==='function'?wxKind():G.wx;if(!ALP_CLOUD.wx[k]&&!ALP_CLOUD.wx[G.wx])return null;
+  const A=G.feat.alp;return A.tl-(k==='fog'||k==='blizzard'?3:1);}   // 구름 밑동(층). 짙은 안개·눈보라는 더 낮게 깔린다
+const alpInCloud=(u,cb)=>{if(cb==null||UT[u.type].fly)return false;const x=cell(u.r,u.c);return !!x&&(x.el||0)>=cb;};
+{const _sc=seeCap;seeCap=function(u){const c=_sc(u);const cb=alpCloud();return alpInCloud(u,cb)?Math.min(c,ALP_CLOUD.see):c;};}
+{const _sp=spots;spots=function(u,e){const r=_sp(u,e);if(!r||!alpOn())return r;const cb=alpCloud();
+  if(cb!=null&&alpInCloud(e,cb)&&udist(u,e)>ALP_CLOUD.see)return false;
+  // 흰 위장복: 눈밭에 멈춰 있는 산악보병
+  if(UT[e.type].mtn&&cell(e.r,e.c).snow&&typeof seeStill==='function'&&seeStill(e)&&udist(u,e)>visRange(u)*.6)return false;
+  return r;};}
+
 /* ---- 09f-rokcar.js ---- */
 /* ===================== 지휘·연락 차량 2: 표·행동·AI (렉스턴·타스만·코란도) =====================
    수치와 실제 근거는 05c4-rokcar. 09e-fleet가 표를 빌려 채운 뒤에 고쳐야 해서 09번대.
@@ -18160,6 +18538,9 @@ const CAMP={
     stars:['임무 성공','송신 중계소 점령','8분 안에 끝내기']},
 };
 
+/* 캠페인 지도를 07c-camp가 따로 그리는가(하령·상륙). 역사 전투(M.bio)는 자유 전투처럼 기후·지형·숲을 그린다 */
+function campPlain(){return !!(G&&G.camp)&&!(typeof CAMP!=='undefined'&&CAMP[G.camp.id]&&CAMP[G.camp.id].bio);}
+
 /* ---------- 진행 기록 ---------- */
 function campLoad(){try{if(typeof localStorage==='undefined')return {};const o=JSON.parse(localStorage.getItem(CAMP_K)||'{}');return o&&typeof o==='object'?o:{};}catch(e){return {};}}
 function campRecord(id,stars){const s=campLoad();s[id]=Math.max(s[id]||0,stars);try{localStorage.setItem(CAMP_K,JSON.stringify(s));}catch(e){}return s;}
@@ -18181,13 +18562,15 @@ function campObjs(list){for(const row of G.map)for(const x of row){x.obj=null;x.
 function campFort(n,k,x,z,ry){G.forts=G.forts||[];if(fortCanPlace(n,k,x,z))return null;const f={id:FORT_ID++,k,nat:n,x,z,ry:ry??Math.PI/2,hp:FORT[k].hp,prog:1,paid:0};G.forts.push(f);return f;}
 function campCell(r,c,o){const x=G.map[r][c];G.map[r][c]={...o,owner:null,obj:null,smoke:0,dist:x.dist};}
 /* 지도 가장자리에서 들어오는 적 증원 자리 */
-function campEdge(side,i){const m=campMid();
-  if(side==='n')return [0,m+2+((i*3)%12)];if(side==='s')return [N-1,m+2+((i*3)%12)];return [m-8+((i*5)%17),N-1];}
+/* span=[a,b]: 그 가장자리에서 들어오는 칸의 범위(n·s는 열, e·w는 행). 없으면 예전 자리 */
+function campEdge(side,i,span){const m=campMid();
+  if(span){const [a,b]=span,k=a+((i*3)%(b-a+1));if(side==='n')return [0,k];if(side==='s')return [N-1,k];if(side==='w')return [k,0];return [k,N-1];}
+  if(side==='n')return [0,m+2+((i*3)%12)];if(side==='s')return [N-1,m+2+((i*3)%12)];if(side==='w')return [m-8+((i*5)%17),0];return [m-8+((i*5)%17),N-1];}
 function campMsg(m){if(G.camp)(G.camp.log=G.camp.log||[]).unshift(m);L(m);}
-function campWave(w){let i=0;const out=[];for(const t of w.u){const [r,c]=campEdge(w.side,i++);const u=campPut(1,t,r,c,{bldg:false});if(u)out.push(u);}
+function campWave(w){let i=0;const out=[];for(const t of w.u){const [r,c]=campEdge(w.side,i++,w.span);const u=campPut(1,t,r,c,{bldg:false});if(u)out.push(u);}
   if(w.msg)campMsg(w.msg);return out;}
 /* 아군 증원: 서쪽 가장자리 가운데쯤에 내린다 */
-function campBlueWave(w){const m=campMid();const out=[];w.u.forEach((t,i)=>{const u=campPut(0,t,m+((i%2)?1:-1)*(1+Math.floor(i/2)*2),1,{bldg:false});if(u)out.push(u);});
+function campBlueWave(w){const m=campMid();const r0=w.at?w.at[0]:m,c0=w.at?w.at[1]:1;const out=[];w.u.forEach((t,i)=>{const u=campPut(0,t,r0+((i%2)?1:-1)*(1+Math.floor(i/2)*2),c0,{bldg:false});if(u)out.push(u);});
   if(w.msg)campMsg(w.msg);return out;}
 const campDist=(u,o)=>Math.hypot(u.x-(o.c+.5),u.z-(o.r+.5));
 
@@ -18277,7 +18660,8 @@ CAMP.station.income=n=>n===0?4:0;
 
 /* ---------- 시작 ---------- */
 function campStart(id){const M=CAMP[id];if(!M)return null;
-  newGame({slots:['human','ai','none','none'],size:'m',fog:true,speed:0,scn:'camp',seed:M.seed,force:[],maxR:Math.ceil(M.limit/ROUND_S),vpWin:9999,hour:M.hour});
+  // 역사 전투(10e)는 지도 종류·기후·고저차·날씨를 정한다(M.layout·clime·relief·wx). 하령·상륙 임무는 예전처럼 온대 평지 도시
+  newGame({slots:['human','ai','none','none'],size:M.size||'m',fog:true,speed:0,scn:'camp',seed:M.seed,force:[],maxR:Math.ceil(M.limit/ROUND_S),vpWin:9999,hour:M.hour,layout:M.layout,clime:M.clime,relief:M.relief,wx:M.wx,tflow:M.tflow});
   G.camp={id,st:{},log:[]};G.wx=M.wx||'clear';campNames(M.nats);
   M.setup();
   G.navV=(G.navV||0)+1;if(typeof propCovers==='function')propCovers();
@@ -18293,7 +18677,8 @@ function campTick(dt){const C=G.camp;if(!C||G.over)return;const M=CAMP[C.id];if(
   C.st.bw=C.st.bw||{};for(const w of M.bw||[]){if(C.st.bw[w.t]||G.time<w.t)continue;C.st.bw[w.t]=1;campBlueWave(w);}
   if(M.land&&typeof landTick==='function')landTick(C,dt);
   CAMP_TICK[C.id](C,C.st,dt);
-  if(!G.over&&G.time>=M.limit)G.over={win:1,why:'작전 시간 초과'};
+  // 버티기 임무(M.surv): 시간이 다 되도록 버티면 성공
+  if(!G.over&&G.time>=M.limit)G.over=M.surv?{win:0,why:M.surv}:{win:1,why:'작전 시간 초과'};
   if(G.over)campEnd();}
 const CAMP_TICK={
   evac(C,S,dt){const lz=C.lz;
@@ -18815,6 +19200,353 @@ function lxFree(j){if(j.e==null)return;const e=G.units.find(o=>o.id===j.e);if(e&
 /* 5) 일감을 맡은 공병은 10c landClearTick(3.5칸 안 가장 가까운 장애물)이 다른 곳으로 끌고 가지 않게 뺀다 */
 {const _lc=landClearTick;landClearTick=function(dt){const J=(G.camp&&G.camp._lxJobs)||[];if(!J.length)return _lc(dt);
   const units=G.units;G.units=units.filter(u=>!u._lxJob);try{_lc(dt);}finally{G.units=units;}};}
+
+/* ---- 10e-history.js ---- */
+/* ===================== CAMPAIGN: 역사 전투 =====================
+   실제 전투 여섯을 이 게임의 지도와 부대로 다시 짠 임무. 순서 없이 모두 열려 있다.
+   임무마다 그때의 지형(도시·마을·사막·강), 계절과 날씨, 시각, 양쪽 병력 구성과 전개(증원·반격이 오는 때와 방향)를 따른다.
+   - 지키는 임무(M.surv)는 제한 시간까지 버티면 성공, 핵심 거점을 오래 빼앗기면 실패.
+   - 공격 임무는 브리핑의 목표를 이루면 성공.
+   부대는 시대 장비 대신 이 게임의 현대 부대로 재현한다(브리핑에 적는다). 레드는 민병대 규칙(04e militia)을 따라 열상·야간 장비가 없다.
+   M.bio=1: 자유 전투처럼 기후·지형·숲을 그린다(10b campPlain). 아른헴만 하령 '다리 확보'처럼 강을 직접 판다. */
+const HIST_IDS=['pavlov','arnhem','bastogne','seoul','mogadishu','easting'];
+CAMP_IDS.push(...HIST_IDS);
+CAMP_OPS.push({id:'history',n:'역사 전투',ids:HIST_IDS,free:1,end:'역사 전투를 모두 마쳤습니다.'});
+
+/* ---------- 도구 ---------- */
+const hFoeNear=(o,R)=>G.units.some(u=>u.nat!==0&&!UT[u.type].fly&&u.hp>0&&campDist(u,o)<R);
+const hMineNear=(o,R,f)=>G.units.some(u=>u.nat===0&&!UT[u.type].fly&&u.hp>0&&campDist(u,o)<R&&(!f||f(u)));
+/* 건물 한 덩어리(같은 blk)의 층수를 바꾼다 */
+function hFloors(r,c,f){const x0=G.map[r][c];const k=x0.blk;for(let a=0;a<N;a++)for(let b=0;b<N;b++){const x=G.map[a][b];if(x.t!=='bldg'||(k!=null?x.blk!==k:!(a===r&&b===c)))continue;x.f=f;x.bmax=8+f*3;x.bhp=x.bmax;}}
+const hBldg=(r,c,f,R)=>campNear(r,c,(a,b,x)=>x.t==='bldg'&&(x.f||1)>=(f||1),R||8);
+const hOpen=(r,c,R)=>campNear(r,c,(a,b,x)=>(x.t==='road'||x.t==='plaza')&&!x.br,R||8);
+/* 부대 여럿: [[종류, r, c, 옵션]] */
+function hPut(n,list){const out=[];for(const [t,r,c,o] of list){const u=campPut(n,t,Math.max(0,Math.min(N-1,Math.round(r))),Math.max(0,Math.min(N-1,Math.round(c))),{bldg:false,...(o||{})});if(u)out.push(u);}return out;}
+/* 거점 i를 잃은 채로 몇 초 지났나(되찾으면 0). 처음 잃을 때 한 번 알린다 */
+function hLost(S,i,dt,msg){S.lost=S.lost||{};if(ownObj(i)){S.lost[i]=0;return 0;}if(!S.lost[i]){if(msg)campMsg(msg);S.ever=S.ever||{};S.ever[i]=1;}S.lost[i]=(S.lost[i]||0)+dt;return S.lost[i];}
+/* 탄약을 다시 채운다(보급 투하) */
+function hResupply(pred){let k=0;for(const u of G.units){if(u.nat!==0||!pred(u))continue;if(typeof amMax==='function'&&amMax(u)){u.am=amMax(u);k++;}if(u.cargo!=null&&typeof CARGO!=='undefined')u.cargo=CARGO;}return k;}
+/* 아군 화력 지원(포병·항공) 막기: 이번 틱부터 몇 초 */
+const hNoSup=(n,s)=>{G.nats[n].supT=Math.max(G.nats[n].supT||0,(G.time||0)+(s||2));};
+const hSecs=s=>`${Math.max(0,Math.ceil(s))}초`;
+/* 시작할 때 부대 수(별: 잃은 차량 등) */
+function hIds(pred){return G.units.filter(pred).map(u=>u.id);}
+const hGone=ids=>(ids||[]).filter(id=>!G.units.some(u=>u.id===id)).length;
+/* 길을 넓힌다(건물을 헐어 도로): 행 r들, 열 c0~c1 */
+function hRoad(rows,c0,c1,o){for(const r of rows)for(let c=c0;c<=c1;c++){if(!inb(r,c))continue;campCell(r,c,{t:'road',ro:'h',rw:rows.length,...(o||{})});}
+  G.props=(G.props||[]).filter(p=>!(rows.includes(Math.floor(p.z))&&p.x>=c0&&p.x<c1+1));}
+
+/* ===================== 1. 파블로프의 집 ===================== */
+CAMP.pavlov={no:1,op:'history',bio:1,n:'파블로프의 집',kind:'건물 사수',when:'1942년 10월 · 스탈린그라드 1월 9일 광장',seed:42927,limit:13*60,hour:15,clime:'autumn',wx:'clear',
+  surv:'파블로프의 집 사수',
+  nats:[{name:'소련군',full:'소련군 제13근위소총사단'},{name:'독일군',full:'독일군 제6군'}],
+  brief:['1942년 9월 말, 스탈린그라드 시내 1월 9일 광장. 야코프 파블로프 중사의 분대가 광장을 내려다보는 4층 아파트를 빼앗아 들어앉았습니다. 볼가강까지는 몇 백 미터, 이 집을 내주면 독일군이 강가 나루터를 직접 쏠 수 있습니다.',
+    '수비대는 광장 쪽에 지뢰와 철조망을 깔고, 창마다 기관총과 대전차총을 걸고, 뒤쪽 제분소(대대 지휘소)까지 참호를 팠습니다. 광장을 건너오는 적은 사방이 트인 곳에서 십자 사격을 받습니다.',
+    '13분을 버티세요. 집을 60초 넘게 빼앗기면 실패입니다. 4분 30초와 9분에 볼가강을 건너온 증원이 제분소 쪽으로 옵니다.'],
+  goals:['파블로프의 집을 13분 지키기','집을 빼앗기면 60초 안에 되찾기','(선택) 제분소 지휘소도 지키기'],
+  intel:'독일군은 광장 동쪽 건물에 보병·기관총·박격포와 돌격포를 두고, 1분 30초마다 동·북·남에서 보병 중대·공병·전차를 번갈아 보냅니다. 공병은 벽을 폭파해 길을 내려 합니다. 광장의 지뢰는 차량만 터뜨립니다. 전차는 창가 기관총을 노리니 대전차팀을 위층에 두세요.',
+  force:'집 안: 소총분대 3 · 기관총팀 2 · 대전차팀(대전차총). 제분소와 참호: 소총분대 2 · 기관총팀 · 공병 · 박격포. 실제 수비대는 25명 남짓, 나중에 아파나시예프 중위의 기관총 소대가 더해졌습니다. 부대는 이 게임의 현대 부대로 재현합니다.',
+  stars:['임무 성공','집을 한 번도 빼앗기지 않기','제분소도 끝까지 지키기'],
+  income:n=>n===0?2:0};
+CAMP.pavlov.setup=function(){const m=campMid();
+  // 파블로프의 집: 도심 서쪽, 4층으로. 동쪽 앞은 1월 9일 광장(트인 곳)
+  const h=hBldg(m-1,m-4,3,8)||hBldg(m-1,m-4,1,10)||[m-1,m-4];hFloors(h[0],h[1],4);
+  for(let r=h[0]-4;r<=h[0]+4;r++)for(let c=h[1]+2;c<=h[1]+7;c++){if(!inb(r,c))continue;const x=G.map[r][c];if(x.t==='bldg'&&x.blk===G.map[h[0]][h[1]].blk)continue;campCell(r,c,{t:'plaza',sq:1});}
+  G.props=(G.props||[]).filter(p=>!(p.z>=h[0]-4&&p.z<h[0]+5&&p.x>=h[1]+2&&p.x<h[1]+8));
+  const mill=hBldg(h[0]+5,h[1]-6,2,7)||hBldg(h[0]+5,h[1]-6,1,9)||[h[0]+5,h[1]-6];hFloors(mill[0],mill[1],3);
+  campObjs([{r:h[0],c:h[1],name:'파블로프의 집',owner:0},{r:mill[0],c:mill[1],name:'제분소 (대대 지휘소)',owner:0}]);
+  G.camp.sq={r0:h[0]-4,r1:h[0]+4,c0:h[1]+2,c1:h[1]+7};
+  G.camp.st={};};
+CAMP.pavlov.units=function(){const H=G.objs[0],Ml=G.objs[1],q=G.camp.sq;
+  hPut(0,[['mg',H.r,H.c,{bldg:true,post:1}],['mg',H.r,H.c,{bldg:true,post:1}],['at',H.r,H.c,{bldg:true,post:1}],['rifle',H.r,H.c,{bldg:true,post:1}],['rifle',H.r,H.c,{bldg:true,post:1}],['rifle',H.r,H.c,{bldg:true}],
+    ['rifle',Ml.r,Ml.c,{bldg:true,post:1}],['mg',Ml.r,Ml.c,{bldg:true,post:1}],['eng',Ml.r-1,Ml.c+1,{}],['mortar',Ml.r+1,Ml.c-2,{post:1}],['rifle',(H.r+Ml.r)/2,(H.c+Ml.c)/2,{}]]);
+  // 광장 쪽 방어: 지뢰(차량용)·철조망 두 줄, 집 앞 모래주머니
+  for(let r=q.r0+1;r<=q.r1-1;r+=2)campFort(0,'mine',q.c0+2.5,r+.5,0);
+  for(let r=q.r0;r<=q.r1;r++)if(r%3!==1)campFort(0,'wire',q.c0+1.4,r+.5,Math.PI/2);
+  for(const dz of [-1.4,-.4,.6,1.6])campFort(0,'sandbag',q.c0+.4,H.r+.5+dz,Math.PI/2);
+  // 집 ↔ 제분소 참호
+  const n=Math.ceil(Math.hypot(Ml.c-H.c,Ml.r-H.r)/.45);for(let i=1;i<n;i++){const t=i/n;campFort(0,'trench',H.c+.5+(Ml.c-H.c)*t,H.r+.5+(Ml.r-H.r)*t,Math.atan2(Ml.r-H.r,Ml.c-H.c));}
+  // 광장 건너 독일군
+  hPut(1,[['rifle',H.r-3,q.c1+2,{bldg:true,post:1}],['mg',H.r+2,q.c1+2,{bldg:true,post:1}],['rifle',H.r+4,q.c1+3,{bldg:true}],['mortar',H.r,q.c1+6,{post:1}],['tank',H.r,q.c1+5,{}],['rifle',H.r-6,q.c1+1,{}],['eng',H.r+1,q.c1+4,{}]]);
+  G.nats[0].cp=4;G.nats[1].cp=0;};
+{const m=26,sp=[m-12,m+12];
+ CAMP.pavlov.waves=[{t:50,side:'e',span:sp,u:['rifle','rifle','mg'],msg:'독일군 보병이 광장 건너편에서 공격해 옵니다'},
+  {t:150,side:'n',span:[m-14,m+6],u:['rifle','tank'],msg:'북쪽에서 돌격포를 앞세운 보병이 다가옵니다'},
+  {t:230,side:'e',span:sp,u:['rifle','rifle','mg','mortar']},
+  {t:320,side:'s',span:[m-14,m+6],u:['tank','rifle','at']},
+  {t:410,side:'e',span:sp,u:['rifle','eng','rifle','mg'],msg:'독일군 공병이 폭약을 들고 다가옵니다'},
+  {t:500,side:'e',span:sp,u:['tank','tank','rifle']},
+  {t:590,side:'n',span:[m-14,m+6],u:['rifle','rifle','mg','eng']},
+  {t:680,side:'e',span:sp,u:['rifle','tank','rifle','at'],msg:'독일군의 마지막 대공세입니다'}];}
+CAMP.pavlov.bw=[{t:270,at:[30,3],u:['mg','rifle','at'],msg:'볼가강을 건너온 증원: 아파나시예프 중위의 기관총 소대'},{t:540,at:[30,3],u:['rifle','rifle','at'],msg:'밤사이 볼가강을 건너온 증원이 제분소에 닿았습니다'}];
+CAMP_TICK.pavlov=function(C,S,dt){if(hLost(S,0,dt,'파블로프의 집이 넘어갔습니다! 60초 안에 되찾으세요')>=60)G.over={win:1,why:'파블로프의 집 함락'};};
+CAMP.pavlov.stars2=(C,S,win)=>[win,win&&!(S.ever&&S.ever[0]),win&&ownObj(1)];
+CAMP.pavlov.obj=function(C,S,li){const l=(S.lost&&S.lost[0])||0;
+  return `<ul class="cobj">${[li(l>0?'bad':'ok',l>0?`집을 되찾기: ${hSecs(60-l)} 남음`:'파블로프의 집 지키기'),li(ownObj(1)?'ok':'bad','(선택) 제분소 지휘소')].join('')}</ul>`;};
+
+/* ===================== 2. 아른헴 다리 ===================== */
+CAMP.arnhem={no:2,op:'history',river:1,n:'머나먼 다리',kind:'교두보 사수',when:'1944년 9월 18일 09:00 · 네덜란드 아른헴 라인강 다리',seed:44917,limit:12*60,hour:9,
+  surv:'다리 북단 사수',
+  nats:[{name:'영국군',full:'영국군 제1공수사단 제2대대'},{name:'독일군',full:'독일군 제2SS기갑군단'}],
+  brief:['마켓 가든 작전. 공수부대가 네덜란드의 다리들을 잡고, 지상의 30군단이 그 길을 따라 라인강까지 올라올 계획입니다. 존 프로스트 중령의 제2공수대대는 아른헴 다리 북단에 닿아 다리 옆 집들을 차지했습니다. 사단의 나머지는 시내에서 막혀 오지 못했습니다.',
+    '아침 9시, 남쪽 나이메헌 쪽으로 갔던 그레브너 대위의 SS 정찰대대가 다리를 건너 돌아옵니다. 장갑차와 반궤도 차량이 좁은 다리 위로 줄지어 달려올 겁니다. 그 뒤로 SS 기갑척탄병과 전차가 시내 쪽에서 둘러쌉니다.',
+    '대전차팀과 기관총을 다리 진입로를 내려다보는 집에 두고 12분을 버티세요. 3분 20초쯤 제3대대 C중대 일부, 7분쯤 여단 본부 병력이 다리에 닿습니다. 다리 북단을 90초 넘게 빼앗기면 실패입니다. 공병이 램프에 대전차 지뢰를 깔아 두었습니다. 실제로 프로스트 대대는 사흘 밤낮을 버텼지만 30군단은 끝내 오지 못했습니다.'],
+  goals:['다리 북단을 12분 지키기','다리 북단을 빼앗기면 90초 안에 되찾기','(선택) 대대 본부와 학교를 끝까지 지키기'],
+  intel:'45초 뒤 정찰대대(장갑차·반궤도 차량 7대)가 다리를 건너 돌진합니다. 2분 30초부터 북쪽·남쪽 시내에서 SS 보병이, 5분부터 전차와 돌격포가 옵니다. 강은 건널 수 없어 동쪽 적은 다리로만 옵니다. 공수부대라 차량이 없고 증원도 거의 없습니다. 탄약을 아끼세요.',
+  force:'소총분대 5 · 기관총팀 2 · 대전차팀 3(PIAT·6파운드 대전차포) · 공병 2 · 박격포 1. 차량 없음. 3분 20초에 C중대 일부(소총분대 2 · 대전차팀), 7분에 여단 본부 병력(소총분대 · 기관총팀 · 대전차팀)이 합류합니다. 부대는 이 게임의 현대 부대로 재현합니다.',
+  stars:['임무 성공','대대 본부와 학교를 끝까지 지키기','정찰대대 차량 5대 이상 격파'],
+  income:n=>n===0?1:0};
+const ARN={W:m=>[m-2,m-1,m,m+1]};
+CAMP.arnhem.setup=function(){const m=campMid();const W=ARN.W(m);
+  for(let r=0;r<N;r++)for(const c of W)campCell(r,c,{t:'water'});
+  for(const r of [m-1,m]){for(const c of W)campCell(r,c,{t:'road',ro:'h',rw:2,br:1});
+    for(const dir of [-1,1]){let c=dir<0?W[0]-1:W[3]+1;let k=0;while(inb(r,c)&&k++<8&&G.map[r][c].t!=='road'){campCell(r,c,{t:'road',ro:'h',rw:2});c+=dir;}}}
+  // 다리 진입로(램프) 양옆 집: 대대 본부(북쪽 집)와 학교(남쪽)
+  const hq=hBldg(m-4,W[0]-3,2,6)||[m-4,W[0]-3],sc=hBldg(m+3,W[0]-3,2,6)||[m+3,W[0]-3];hFloors(hq[0],hq[1],3);hFloors(sc[0],sc[1],3);
+  campObjs([{r:m-1,c:W[0]-4,name:'다리 북단',owner:0},{r:hq[0],c:hq[1],name:'대대 본부',owner:0},{r:sc[0],c:sc[1],name:'학교 (공병 거점)',owner:0}]);
+  G.camp.st={gr:[]};};
+CAMP.arnhem.units=function(){const m=campMid();const W=ARN.W(m);const B=G.objs[0],HQ=G.objs[1],SC=G.objs[2];
+  hPut(0,[['at',HQ.r,HQ.c,{bldg:true,post:1}],['mg',HQ.r,HQ.c,{bldg:true,post:1}],['rifle',HQ.r,HQ.c,{bldg:true,post:1}],
+    ['eng',SC.r,SC.c,{bldg:true,post:1}],['eng',SC.r,SC.c,{bldg:true,post:1}],['at',SC.r,SC.c,{bldg:true,post:1}],
+    ['mg',B.r-2,B.c+1,{bldg:true,post:1}],['at',B.r+3,B.c+1,{bldg:true,post:1}],['rifle',B.r,B.c,{post:1}],['rifle',B.r+1,B.c-1,{post:1}],['rifle',B.r-3,B.c-3,{bldg:true}],['rifle',B.r+5,B.c-3,{bldg:true}],['mortar',B.r,B.c-5,{post:1}]]);
+  for(const dz of [-.6,.6])campFort(0,'sandbag',W[0]-3.4,m+dz,Math.PI/2);
+  // 영국군 공병이 다리 진입로(램프)에 깐 대전차 지뢰
+  for(const [dx,dz] of [[-.8,-.7],[-.8,.3],[-1.6,-.3],[-1.6,.7]])campFort(0,'mine',W[0]+dx,m+dz,0);
+  // 남단(동쪽 강변)의 독일군
+  hPut(1,[['rifle',m-3,W[3]+3,{bldg:true,post:1}],['mg',m+2,W[3]+3,{bldg:true,post:1}],['mortar',m+1,W[3]+7,{post:1}]]);
+  G.nats[0].cp=4;G.nats[1].cp=0;};
+{const m=26,wb=[2,21];
+ CAMP.arnhem.waves=[{t:150,side:'n',span:wb,u:['rifle','rifle','mg'],msg:'북쪽 시내에서 SS 기갑척탄병이 다가옵니다'},
+  {t:210,side:'s',span:wb,u:['rifle','mg','mortar']},
+  {t:300,side:'n',span:wb,u:['tank','rifle','rifle'],msg:'독일군 전차가 시내 쪽에서 들어옵니다'},
+  {t:390,side:'s',span:wb,u:['rifle','eng','mg']},
+  {t:480,side:'e',span:[m-1,m],u:['rifle','rifle','mg'],msg:'다리 남단에서 SS 보병이 다시 건너옵니다'},
+  {t:570,side:'n',span:wb,u:['spg','rifle','mg'],msg:'돌격포가 집을 하나씩 직사로 무너뜨립니다'},
+  {t:660,side:'s',span:wb,u:['tank','rifle','at']}];}
+CAMP.arnhem.bw=[{t:200,at:[18,1],u:['rifle','rifle','at'],msg:'제3대대 C중대 일부가 시내를 뚫고 다리에 닿았습니다'},{t:420,at:[30,1],u:['rifle','mg','at'],msg:'여단 본부 방위소대와 공병 일부가 다리 쪽 집들로 들어왔습니다'}];
+CAMP_TICK.arnhem=function(C,S,dt){
+  // 그레브너 정찰대대: 45초에 남쪽에서 다리 위로 한 줄로 돌진한다
+  if(!S.grDone&&G.time>=45){S.grDone=1;const m=campMid();const W=ARN.W(m);const us=[];['hmv','hmv','ifv','hmv','ifv','hmv','hmv'].forEach((t,i)=>{const u=campPut(1,t,m-1+(i%2),N-2-Math.floor(i/2),{bldg:false});if(u){us.push(u);u.face=180;}});
+    S.gr=us.map(u=>u.id);campMsg('SS 정찰대대가 다리 남단에서 돌진합니다! 다리 위 차량을 노리세요');
+    const ob=G.objs[0];for(const u of us)try{orderMoveTo(u,ob.c+.5,ob.r+.5+((u.id%2)?.5:0));}catch(e){}}
+  if(S.grDone&&!S.grEnd){const k=hGone(S.gr);if(k>=5){S.grEnd=1;campMsg(`정찰대대 차량 ${k}대 격파: 다리 위가 불타는 잔해로 막혔습니다`);}}
+  if(hLost(S,0,dt,'다리 북단을 빼앗겼습니다! 90초 안에 되찾으세요')>=90)G.over={win:1,why:'다리 북단 함락'};};
+CAMP.arnhem.stars2=(C,S,win)=>[win,win&&ownObj(1)&&ownObj(2),win&&hGone(S.gr)>=5];
+CAMP.arnhem.obj=function(C,S,li){const l=(S.lost&&S.lost[0])||0;const k=hGone(S.gr);
+  return `<ul class="cobj">${[li(l>0?'bad':'ok',l>0?`다리 북단 되찾기: ${hSecs(90-l)} 남음`:'다리 북단 지키기'),li(ownObj(1)&&ownObj(2)?'ok':'bad','(선택) 대대 본부·학교'),li(k>=5?'ok':'',S.grDone?`정찰대대 차량 격파 ${k}/${S.gr.length}`:'정찰대대가 곧 다리를 건너옵니다')].join('')}</ul>`;};
+
+/* ===================== 3. 바스토뉴 ===================== */
+CAMP.bastogne={no:3,op:'history',bio:1,n:'포위된 바스토뉴',kind:'포위 방어',when:'1944년 12월 22일 09:00 · 벨기에 아르덴 바스토뉴',seed:44122,limit:16*60,hour:9,layout:'country',clime:'winter',relief:'hills',wx:'fog',tflow:'fixed',
+  nats:[{name:'미군',full:'미군 제101공수사단'},{name:'독일군',full:'독일군 제47기갑군단'}],
+  brief:['벌지 전투. 아르덴 숲을 뚫고 나온 독일군이 일곱 갈래 길이 모이는 마을 바스토뉴를 에워쌌습니다. 안에는 제101공수사단과 제10기갑사단의 전투단 몇이 갇혀 있습니다. 탄약과 의약품이 모자라고, 짙은 겨울 안개 탓에 비행기가 뜨지 못합니다.',
+    '독일군이 항복을 권했고, 매콜리프 준장은 한 마디로 답했습니다. "NUTS!(어림없다)". 이제 사방에서 공격이 옵니다. 시내 교차로를 지키고, 바깥 마을 샹과 마르비에서 적을 늦추세요.',
+    '7분쯤 날씨가 개면 수송기가 탄약을 떨어뜨리고 포병·항공 지원을 부를 수 있습니다. 11분쯤 패튼의 제4기갑사단 선봉이 남쪽에서 포위망을 뚫고 들어옵니다. 그 선봉이 시내 교차로에 닿을 때 교차로가 우리 손에 있으면 성공입니다.'],
+  goals:['바스토뉴 시내 교차로 지키기 (45초 넘게 빼앗기면 실패)','날씨가 갤 때까지 버티기: 보급 투하','제4기갑사단 선봉과 시내 교차로에서 만나기'],
+  intel:'독일군 국민척탄병과 기갑교도사단이 동·북·남·서 모든 방향에서 번갈아 옵니다. 8분 40초쯤 크리스마스 공세: 기갑척탄병사단 전차가 북서쪽 샹으로 들어옵니다. 눈 덮인 들판은 길 밖 이동이 느리고, 안개 속에선 60m 앞도 잘 안 보입니다. 날씨가 개기 전엔 포병·항공 지원을 부를 수 없습니다(포탄을 아껴야 했습니다).',
+  force:'공수 소총분대 4 · 기관총팀 2 · 대전차팀 2 · 박격포 2 · 공병 · 자주포 1, 제10기갑사단 전투단 전차 2 · 장갑차 1. 바깥 마을에 소총·기관총·대전차팀. 부대는 이 게임의 현대 부대로 재현합니다.',
+  stars:['임무 성공','샹·마르비를 끝까지 지키기','잃은 부대 6개 이하'],
+  income:n=>n===0?(G.camp&&G.camp.st.drop?3:1):0};
+CAMP.bastogne.setup=function(){const m=campMid();
+  // 시내 교차로: 가운데 마을에서 길이 가장 많이 만나는 칸
+  let best=null,bs=-1;for(let r=m-6;r<=m+6;r++)for(let c=m-6;c<=m+6;c++){const x=G.map[r][c];if(x.t!=='road')continue;let s=0;for(const [a,b] of [[0,1],[0,-1],[1,0],[-1,0]])if(inb(r+a,c+b)&&G.map[r+a][c+b].t==='road')s++;s=s*10-Math.hypot(r-m,c-m);if(s>bs){bs=s;best=[r,c];}}
+  const X=best||[m,m];
+  const pick=(r,c)=>campNear(r,c,(a,b,x)=>x.t==='bldg',6)?(campNear(r,c,(a,b,x)=>(x.t==='road'||x.t==='plaza')&&[[0,1],[0,-1],[1,0],[-1,0]].some(([p,q])=>inb(a+p,b+q)&&G.map[a+p][b+q].t==='bldg'),6)||campNear(r,c,(a,b,x)=>x.t!=='water'&&x.t!=='bldg',6)):campNear(r,c,(a,b,x)=>x.t!=='water'&&x.t!=='bldg',6);
+  const ch=pick(m-11,m-11)||[m-11,m-11],mv=pick(m+11,m+11)||[m+11,m+11];
+  campObjs([{r:X[0],c:X[1],name:'바스토뉴 시내 교차로',owner:0},{r:ch[0],c:ch[1],name:'샹 (북서쪽 마을)',owner:0},{r:mv[0],c:mv[1],name:'마르비 (남동쪽 마을)',owner:0}]);
+  G.camp.st={};};
+CAMP.bastogne.units=function(){const X=G.objs[0],Ch=G.objs[1],Mv=G.objs[2];
+  hPut(0,[['rifle',X.r-1,X.c-1,{bldg:true,post:1}],['rifle',X.r+1,X.c+1,{bldg:true}],['rifle',X.r-2,X.c+2,{}],['rifle',X.r+2,X.c-2,{}],['mg',X.r,X.c+1,{bldg:true,post:1}],['mg',X.r+1,X.c-1,{bldg:true}],
+    ['at',X.r-1,X.c+2,{}],['at',X.r+2,X.c+1,{}],['mortar',X.r,X.c-3,{post:1}],['mortar',X.r+1,X.c-4,{post:1}],['eng',X.r-1,X.c-2,{}],['spg',X.r+3,X.c-4,{post:1}],
+    ['tank',X.r-2,X.c,{}],['tank',X.r+2,X.c,{}],['ifv',X.r,X.c-2,{}],
+    ['rifle',Ch.r,Ch.c,{bldg:true,post:1}],['mg',Ch.r+1,Ch.c+1,{post:1}],['rifle',Mv.r,Mv.c,{bldg:true,post:1}],['at',Mv.r-1,Mv.c-1,{post:1}]]);
+  for(const o of [Ch,Mv])for(const [dx,dz] of [[-.8,-.8],[.8,.8],[.8,-.8]])campFort(0,'trench',o.c+.5+dx,o.r+.5+dz,Math.PI/4);   // 언 땅에 판 개인호
+  // 포위망: 동쪽 숲 가장자리의 독일군
+  hPut(1,[['rifle',X.r-3,N-6,{}],['mg',X.r+2,N-5,{post:1}],['mortar',X.r,N-4,{post:1}],['rifle',4,X.c+4,{}],['rifle',N-5,X.c-3,{}],['spg',X.r+3,N-2,{post:1}]]);
+  G.nats[0].cp=4;G.nats[1].cp=0;};
+CAMP.bastogne.waves=[{t:40,side:'e',u:['rifle','rifle','mg'],msg:'동쪽 비조리 쪽에서 국민척탄병이 공격합니다'},
+  {t:110,side:'n',span:[10,40],u:['rifle','rifle','mg','mortar']},
+  {t:180,side:'w',span:[10,40],u:['rifle','rifle','at'],msg:'서쪽도 막혔습니다: 독일군이 사방에서 옵니다'},
+  {t:250,side:'s',span:[10,40],u:['tank','tank','rifle','rifle'],msg:'남쪽에서 기갑교도사단 전차가 다가옵니다'},
+  {t:330,side:'e',u:['tank','rifle','mg','at']},
+  {t:420,side:'n',span:[10,40],u:['rifle','rifle','mg']},
+  {t:520,side:'w',span:[2,20],u:['tank','tank','tank','rifle','rifle','rifle'],msg:'크리스마스 공세: 독일 전차가 북서쪽 샹으로 밀고 들어옵니다'},
+  {t:600,side:'s',span:[10,40],u:['rifle','mg','at']},
+  {t:680,side:'e',u:['tank','tank','rifle','rifle']}];
+const BAST={drop:420,relief:660};
+CAMP.bastogne.bw=[{t:BAST.relief,at:[48,2],u:['tank','tank','tank','ifv','rifle','rifle'],msg:'제4기갑사단 선봉(에이브럼스 중령)이 남쪽 아스누아에서 포위망을 뚫고 들어옵니다'}];
+CAMP_TICK.bastogne=function(C,S,dt){const t=G.time||0;
+  if(!S.nuts&&t>=200){S.nuts=1;campMsg('독일군의 항복 권고에 매콜리프 준장이 답했습니다: "NUTS!"');}
+  if(!S.drop){hNoSup(0);if(t>=BAST.drop){S.drop=1;G.wx='clear';const k=hResupply(()=>true);G.nats[0].cp+=10;G.nats[0].supT=0;
+    campMsg(`날씨가 갰습니다: C-47 수송기가 낙하산으로 탄약을 떨어뜨립니다(${k}개 부대 재보급) · 포병·항공 지원 가능`);try{sfx('build');}catch(e){}bump();}}
+  if(t>=BAST.relief&&!S.relief){S.relief=1;S.rel=G.units.filter(u=>u.nat===0&&(u.type==='tank'||u.type==='ifv')&&u.c<=4&&u.r>=N-10).map(u=>u.id);}
+  const X=G.objs[0];
+  if(S.relief&&ownObj(0)&&G.units.some(u=>S.rel.includes(u.id)&&campDist(u,X)<4))G.over={win:0,why:'포위 돌파: 제4기갑사단과 연결'};
+  else if(hLost(S,0,dt,'시내 교차로를 빼앗겼습니다! 45초 안에 되찾으세요')>=45)G.over={win:1,why:'바스토뉴 함락'};};
+// 선봉은 곧장 시내 교차로로 간다(직접 지휘라도: 실제로 에이브럼스는 멈추지 않고 밀고 들어왔다)
+{const _t=CAMP_TICK.bastogne;CAMP_TICK.bastogne=function(C,S,dt){_t(C,S,dt);if(!S.rel||G.over)return;S.relT=(S.relT||0)+dt;if(S.relT<3)return;S.relT=0;const X=G.objs[0];
+  for(const u of G.units)if(S.rel.includes(u.id)&&!(u.path&&u.path.length)&&campDist(u,X)>3)try{orderMoveTo(u,X.c+.5,X.r+.5);}catch(e){}};}
+CAMP.bastogne.stars2=(C,S,win,t,loss)=>[win,win&&ownObj(1)&&ownObj(2),win&&loss<=6];
+CAMP.bastogne.obj=function(C,S,li){const t=G.time||0;const l=(S.lost&&S.lost[0])||0;
+  return `<ul class="cobj">${[li(l>0?'bad':'ok',l>0?`시내 교차로 되찾기: ${hSecs(45-l)} 남음`:'시내 교차로 지키기'),
+    li(S.drop?'ok':'',S.drop?'보급 투하 완료 · 화력 지원 가능':`날씨가 갤 때까지 ${fmtT(BAST.drop-t)} (지원 사격 불가)`),
+    li('',S.relief?'제4기갑사단 선봉을 시내 교차로에서 맞기':`제4기갑사단 도착까지 ${fmtT(BAST.relief-t)}`),li(ownObj(1)&&ownObj(2)?'ok':'bad','(선택) 샹·마르비 지키기')].join('')}</ul>`;};
+
+/* ===================== 4. 서울 수복 ===================== */
+CAMP.seoul={no:4,op:'history',bio:1,n:'서울 수복',kind:'시가지 돌파',when:'1950년 9월 25일 07:00 · 서울 마포에서 중앙청까지',seed:50925,limit:16*60,hour:7,clime:'autumn',wx:'clear',tflow:'fixed',
+  nats:[{name:'유엔군',full:'미 제1해병사단 · 국군 제17연대'},{name:'북한군',full:'북한군 제25여단 · 제78연대'}],
+  brief:['인천에 상륙한 해병대가 한강을 건너 서울로 들어갑니다. 북한군은 마포에서 서울역, 중앙청으로 이어지는 큰길을 200m마다 바리케이드로 막았습니다. 쌀가마니와 흙자루를 사람 키만큼 쌓고, 그 뒤에 대전차포와 기관총을 두고, 앞에는 지뢰를 묻었습니다.',
+    '해병대의 방식은 바리케이드 하나씩입니다. 박격포와 전차포로 바리케이드 뒤를 두드리고, 공병이 지뢰를 걷고, 전차가 자루 더미를 밀어 무너뜨리는 동안 보병이 양옆 건물을 한 채씩 쓸어 나갑니다. 큰길 한가운데로만 몰려가면 대전차포에 당합니다.',
+    '마포 바리케이드와 서울역 바리케이드를 넘어 중앙청을 점령하고, 둘레를 쓸어 60초를 지키면 중앙청에 다시 국기가 오릅니다.'],
+  goals:['마포 바리케이드 돌파','서울역 바리케이드 돌파','중앙청 점령 뒤 60초 지키기 (둘레 3칸 안에 적이 있으면 멈춤)'],
+  intel:'바리케이드마다 기관총 진지·대전차팀·소총분대가 있고 양옆 건물에 저격수가 숨습니다. 중앙청엔 수비대와 박격포, 전차(T-34)가 있습니다. 3분·6분·9분쯤 북한군이 북쪽·남쪽 골목과 동쪽에서 역습합니다. 밤에는 전차를 앞세운 역습도 왔습니다.',
+  force:'해병 소총분대 6 · 공병 2 · 전차 3(M26) · 공병전차(불도저) · 기관총팀 2 · 박격포 2. 5분·10분에 해병 증원이 서쪽에서 옵니다. 부대는 이 게임의 현대 부대로 재현합니다.',
+  stars:['임무 성공','두 바리케이드를 끝까지 쥐고 있기','12분 안에 끝내기'],
+  income:n=>n===0?3:0};
+const SEOUL={bar:m=>[m-9,m+1],gov:m=>[m-4,m+16]};
+CAMP.seoul.setup=function(){const m=campMid();
+  hRoad([m-1,m],2,N-3);   // 마포대로: 서쪽 끝에서 동쪽 끝까지 넓은 큰길
+  const [cA,cB]=SEOUL.bar(m);const gv=SEOUL.gov(m);
+  const g=hBldg(gv[0],gv[1],3,7)||hBldg(gv[0],gv[1],1,9)||gv;hFloors(g[0],g[1],4);
+  // 거점은 중앙청 건물 바로 앞마당(건물 칸이면 보병이 둘레에만 몰려 끝내 못 잡는 판이 나왔다: 오마하 마을과 같은 까닭)
+  const yd=campNear(g[0],g[1],(r,c,x)=>x.t!=='bldg'&&x.t!=='water'&&[[0,1],[0,-1],[1,0],[-1,0]].some(([a,b])=>inb(r+a,c+b)&&G.map[r+a][c+b].blk!=null&&G.map[r+a][c+b].blk===G.map[g[0]][g[1]].blk),4)||g;
+  campObjs([{r:m,c:cA+1,name:'마포 바리케이드',owner:1},{r:m,c:cB+1,name:'서울역 바리케이드',owner:1},{r:yd[0],c:yd[1],name:'중앙청',owner:1}]);
+  G.camp.gov=g;
+  G.camp.st={hold:0};};
+CAMP.seoul.units=function(){const m=campMid();const [cA,cB]=SEOUL.bar(m);const Gv=G.objs[2];
+  for(const c of [cA,cB]){
+    for(let z=m-1+.2;z<m+1;z+=.32)campFort(1,'sandbag',c+.5,z,Math.PI/2);   // 쌀가마니·흙자루 바리케이드(바퀴 차량을 막고 전차는 밀고 지나간다)
+    for(const z of [m-.6,m+.4])campFort(1,'mine',c-.6,z,0);
+    for(const dz of [-1.6,1.6]){const f=campFort(1,'nest',c+1.4,m+dz,Math.PI/2);if(f)landPutAt(1,dz<0?'mg':'at',f.x,f.z,{post:1});}
+    hPut(1,[['rifle',m-2,c+1,{bldg:true,post:1}],['rifle',m+1,c+2,{bldg:true,post:1}],['at',m,c+2,{post:1}],['sniper',m-3,c+3,{bldg:true,post:1}]]);}
+  hPut(1,[['rifle',Gv.r,Gv.c,{bldg:true,post:1}],['mg',Gv.r,Gv.c,{bldg:true,post:1}],['rifle',Gv.r,Gv.c-1,{bldg:true,post:1}],['mortar',Gv.r-1,Gv.c+3,{post:1}],['mortar',Gv.r+2,Gv.c+3,{post:1}],['tank',m,Gv.c-2,{}],['at',m+1,Gv.c-3,{post:1}],['rifle',m-1,cB+6,{bldg:true}]]);
+  hPut(0,[['rifle',m-3,2],['rifle',m-2,3],['rifle',m+1,3],['rifle',m+2,2],['rifle',m-4,4],['rifle',m+3,4],['eng',m-1,4],['eng',m,4],['tank',m-1,2],['tank',m,2],['tank',m,5],['cev',m-1,5],['mg',m-5,2],['mg',m+4,2],['mortar',m-6,1],['mortar',m+5,1]]);
+  G.nats[0].cp=6;G.nats[1].cp=0;};
+CAMP.seoul.waves=[{t:180,side:'n',span:[18,40],u:['rifle','rifle','mg'],msg:'북한군이 북쪽 골목에서 역습합니다'},
+  {t:360,side:'s',span:[18,40],u:['tank','rifle','rifle'],msg:'북한군 전차(T-34)가 남쪽에서 역습합니다'},
+  {t:540,side:'e',u:['rifle','mg','at']},
+  {t:720,side:'n',span:[24,44],u:['tank','rifle','rifle','mg'],msg:'북한군 전차가 중앙청 쪽에서 역습합니다'},
+  {t:880,side:'s',span:[24,44],u:['rifle','rifle','at']}];
+CAMP.seoul.bw=[{t:300,u:['rifle','rifle','tank','eng'],msg:'해병 증원: 제1해병연대 3대대가 마포로 들어옵니다'},{t:600,u:['rifle','rifle','mg','at'],msg:'제7해병연대가 서쪽에서 합류합니다'}];
+CAMP_TICK.seoul=function(C,S,dt){
+  if(typeof landClearTick==='function')landClearTick(dt);   // 공병은 바리케이드 앞 지뢰·철조망을 스스로 걷는다(상륙 작전과 같은 규칙)
+  for(const i of [0,1])if(ownObj(i)&&!(S.got&&S.got[i])){(S.got=S.got||{})[i]=1;campMsg(`${G.objs[i].name} 돌파! ${i===0?'다음은 서울역 바리케이드':'중앙청이 보입니다'}`);}
+  const g=G.objs[2];const own=ownObj(2);const near=hFoeNear(g,3);S.near=near?1:0;
+  if(own&&!S.taken){S.taken=1;campMsg('중앙청 점령! 둘레를 쓸고 60초를 지키세요');for(const u of G.units)if(u.nat===1)u.post=0;}
+  if(!own)S.hold=0;else if(!near){S.hold+=dt;if(S.hold>=60)G.over={win:0,why:'중앙청에 다시 국기가 올랐습니다'};}};
+CAMP.seoul.stars2=(C,S,win,t)=>[win,win&&ownObj(0)&&ownObj(1),win&&t<=720];
+CAMP.seoul.obj=function(C,S,li){const own=ownObj(2);
+  return `<ul class="cobj">${[li(ownObj(0)?'ok':'','마포 바리케이드 돌파'),li(ownObj(1)?'ok':'','서울역 바리케이드 돌파'),li(own?'ok':'','중앙청 점령'),
+    li(own&&S.near?'bad':'',own?`중앙청 지키기 ${Math.floor(S.hold)}/60초${S.near?' · 둘레 3칸에 적이 있어 멈춤':''}`:'점령 뒤 60초 지키기')].join('')}</ul>`;};
+
+/* ===================== 5. 모가디슈 ===================== */
+CAMP.mogadishu={no:5,op:'history',bio:1,n:'블랙호크 다운',kind:'추락 지점 구출',when:'1993년 10월 3일 16:30 · 소말리아 모가디슈 바카라 시장',seed:93103,limit:16*60,hour:16.5,clime:'desert',wx:'clear',tflow:'normal',
+  nats:[{name:'미군',full:'미군 태스크포스 레인저 · 제10산악사단'},{name:'민병대',full:'아이디드파 민병대(SNA)'}],
+  brief:['고딕 서펜트 작전. 레인저와 델타가 올림픽 호텔 근처에서 아이디드파 간부들을 붙잡은 직후, 블랙호크 "슈퍼 6-1"이 RPG를 맞고 시장 골목에 떨어졌습니다. 가까이 있던 레인저 몇 분대가 추락 지점으로 달려가 둘레를 지키고 있습니다.',
+    '도시 전체가 들고일어났습니다. 골목마다 민병대가 RPG와 소총을 들고 몰려오고, 길은 불타는 타이어와 잔해로 막혔습니다. 제10산악사단과 말레이시아·파키스탄군의 구출 호송대가 서쪽 경기장에서 출발합니다.',
+    '추락 지점을 지키며 호송대를 그곳까지 데려가세요. 호송대 차량이 닿으면 조종사들을 꺼내는 동안(2분 30초, 둘레 2칸에 적이 있으면 멈춤. 부서진 기체에 낀 조종사를 꺼내는 데 실제로는 밤새 걸렸습니다) 버티면 성공입니다. 추락 지점을 45초 넘게 빼앗기면 실패입니다.'],
+  goals:['추락 지점 지키기 (45초 넘게 빼앗기면 실패)','구출 호송대를 추락 지점까지','조종사 수습 2분 30초 버티기'],
+  intel:'민병대 소총·RPG(대전차팀)·기관총과 기관총 트럭(험비)이 1분마다 사방 골목에서 몰려옵니다. 시장 쪽 건물 지붕엔 RPG 사수가 숨어 있습니다. 길막이(모래주머니)는 바퀴 차량을 막으니 전차를 앞세우거나 돌아가세요. 곧 해가 집니다. 민병대는 야간 장비가 없지만, 이날 낮 작전이라 레인저도 야간투시경을 두고 나왔습니다. 리틀버드 공격헬기가 2분 30초마다 교대로 와서 추락 지점 위를 돕니다.',
+  force:'추락 지점: 레인저·델타 소총분대 4 · 기관총팀 · 저격수(델타), 위에 리틀버드 공격헬기. 호송대: 험비 4 · 장갑차 3(말레이시아) · 전차 1(파키스탄) · 소총분대 3 · 대전차팀. 부대는 이 게임의 현대 부대로 재현합니다.',
+  stars:['임무 성공','8분 안에 호송대 연결','잃은 부대 4개 이하'],
+  income:n=>n===0?2:0};
+CAMP.mogadishu.setup=function(){const m=campMid();
+  // 모가디슈는 1~3층 돌집과 흰 회벽 가게가 빽빽한 낮은 도시(올림픽 호텔만 5층)
+  landVillage(0,()=>3,(x)=>x.f<=2?'villa':'shop');
+  const cs=campNear(m-3,m+9,(r,c,x)=>x.t==='road'&&[[0,1],[0,-1],[1,0],[-1,0]].some(([a,b])=>inb(r+a,c+b)&&G.map[r+a][c+b].t==='bldg'),8)||hOpen(m-3,m+9,10)||[m-3,m+9];
+  const ht=hBldg(m+4,m+5,3,7)||[m+4,m+5];hFloors(ht[0],ht[1],5);
+  const st=campNear(m,3,(r,c,x)=>x.t==='plaza'||x.t==='road',6)||[m,3];
+  campObjs([{r:cs[0],c:cs[1],name:'슈퍼 6-1 추락 지점',owner:0},{r:ht[0],c:ht[1],name:'올림픽 호텔',owner:1},{r:st[0],c:st[1],name:'국립 경기장',owner:0}]);
+  G.camp.st={rec:0,gsN:0};};
+CAMP.mogadishu.units=function(){const m=campMid();const Cs=G.objs[0],Ht=G.objs[1];
+  hPut(0,[['rifle',Cs.r,Cs.c,{post:1}],['rifle',Cs.r-1,Cs.c+1,{bldg:true,post:1}],['rifle',Cs.r+1,Cs.c-1,{bldg:true}],['mg',Cs.r+1,Cs.c+1,{bldg:true,post:1}],['sniper',Cs.r-1,Cs.c-1,{bldg:true,post:1}],['rifle',Cs.r,Cs.c+1,{post:1}]]);
+  hPut(0,[['tank',m,3],['ifv',m-1,2],['ifv',m+1,2],['ifv',m-2,3],['hmv',m+2,3],['hmv',m-3,2],['hmv',m+3,2],['hmv',m-4,3],['rifle',m-5,2],['rifle',m+4,2],['rifle',m+5,3],['at',m-6,2]]);
+  // 길막이: 서쪽에서 추락 지점으로 가는 큰길 몇 곳에 타이어·잔해 더미(바퀴 차량을 막는다)
+  let k=0;for(let c=m-6;c<=m+5&&k<4;c+=4){for(let r=2;r<N-2;r++){const x=G.map[r][c];if(x.t!=='road'||x.ro!=='h'||Math.abs(r-Cs.r)>9||(r*7+c)%3)continue;campFort(1,'sandbag',c+.5,r+.3,Math.PI/2);campFort(1,'sandbag',c+.5,r+.7,Math.PI/2);k++;break;}}
+  // 민병대: 시장 둘레와 호송대 길목의 건물들
+  hPut(1,[['mg',Cs.r,Cs.c+5,{bldg:true}],['rifle',Cs.r-4,Cs.c+3,{bldg:true}],['at',Cs.r+4,Cs.c+3,{bldg:true,post:1}],['rifle',Cs.r+5,Cs.c-4,{}],['at',Cs.r-5,Cs.c-3,{bldg:true,post:1}],
+    ['rifle',Ht.r,Ht.c,{bldg:true,post:1}],['at',Ht.r+1,Ht.c-2,{bldg:true}],['hmv',Cs.r+5,Cs.c+4,{}],
+    ['rifle',m-4,m-3,{bldg:true,post:1}],['at',m+3,m-1,{bldg:true,post:1}],['rifle',m+1,m-6,{bldg:true}],['mg',m-2,m+2,{bldg:true,post:1}],['hmv',m+6,m,{}],['at',m-7,m+2,{bldg:true,post:1}]]);
+  G.nats[0].cp=4;G.nats[1].cp=0;};
+CAMP.mogadishu.waves=[{t:45,side:'e',u:['rifle','at','rifle'],msg:'민병대가 시장 골목에서 추락 지점으로 몰려옵니다'},
+  {t:100,side:'n',span:[14,44],u:['rifle','at','mg']},{t:160,side:'s',span:[14,44],u:['rifle','rifle','at','hmv'],msg:'기관총 트럭(테크니컬)이 다가옵니다'},
+  {t:220,side:'e',u:['rifle','at','rifle','mg']},{t:280,side:'n',span:[8,40],u:['rifle','rifle','at']},{t:340,side:'s',span:[8,40],u:['at','rifle','hmv']},
+  {t:400,side:'e',u:['rifle','at','rifle','rifle'],msg:'밤이 깊어 갑니다: 민병대가 더 모여듭니다'},{t:470,side:'n',span:[14,44],u:['rifle','at','mg','hmv']},
+  {t:540,side:'s',span:[14,44],u:['rifle','rifle','at']},{t:620,side:'e',u:['rifle','at','mg','rifle']},{t:700,side:'n',span:[14,44],u:['rifle','at','rifle']},{t:780,side:'s',span:[14,44],u:['rifle','hmv','at']}];
+const MOG={gs:150,rec:150};   // 리틀버드 두 대씩 교대로 추락 지점 위를 돈다(한 번에 45초, 2분 30초마다)
+CAMP_TICK.mogadishu=function(C,S,dt){const cs=G.objs[0];
+  if(G.time>=(S.gsT??2)&&typeof callGunship==='function'&&!WX[G.wx].noAir){S.gsT=G.time+MOG.gs;try{callGunship(0,cs.r,cs.c);campMsg(S.gsN++?'리틀버드가 교대해 추락 지점 위로 돌아왔습니다':'리틀버드(AH-6)가 추락 지점 위를 돌며 엄호합니다');}catch(e){}}
+  if(hLost(S,0,dt,'추락 지점을 빼앗겼습니다! 45초 안에 되찾으세요')>=45){G.over={win:1,why:'추락 지점 함락'};return;}
+  if(!S.link&&hMineNear(cs,2.5,u=>UT[u.type].cls==='veh')){S.link=1;S.linkT=G.time;campMsg('호송대가 추락 지점에 닿았습니다! 조종사들을 꺼내는 동안 2분 30초 버티세요');}
+  S.near=hFoeNear(cs,2)?1:0;
+  if(S.link&&ownObj(0)&&!S.near){S.rec+=dt;if(S.rec>=MOG.rec)G.over={win:0,why:'조종사 수습 완료: 경기장으로 철수'};}};
+CAMP.mogadishu.stars2=(C,S,win,t,loss)=>[win,win&&S.linkT!=null&&S.linkT<=480,win&&loss<=4];
+CAMP.mogadishu.obj=function(C,S,li){const l=(S.lost&&S.lost[0])||0;
+  return `<ul class="cobj">${[li(l>0?'bad':'ok',l>0?`추락 지점 되찾기: ${hSecs(45-l)} 남음`:'추락 지점 지키기'),li(S.link?'ok':'',S.link?`호송대 연결 (${fmtT(S.linkT)})`:'구출 호송대를 추락 지점까지'),
+    li(S.link&&S.near?'bad':'',S.link?`조종사 수습 ${Math.floor(S.rec)}/${MOG.rec}초${S.near?' · 둘레 2칸에 적이 있어 멈춤':''}`:`조종사 수습 ${MOG.rec}초`)].join('')}</ul>`;};
+
+/* ===================== 6. 73 이스팅 ===================== */
+CAMP.easting={no:6,op:'history',bio:1,n:'73 이스팅',kind:'사막 기갑전',when:'1991년 2월 26일 16:10 · 이라크 남부 사막',seed:91226,limit:15*60,hour:16.2,layout:'country',clime:'desert',relief:'flat',wx:'fog',tflow:'fixed',
+  nats:[{name:'미군',full:'미 제2기갑수색연대 E중대'},{name:'이라크군',full:'이라크 공화국수비대 타와칼나 사단'}],
+  brief:['사막의 폭풍 작전 지상전 셋째 날. 모래바람에 시야가 수백 미터로 줄어든 사막에서, 맥매스터 대위의 E중대(이글 트룹)가 지도 위 남북 좌표선 73 이스팅을 향해 동쪽으로 나아갑니다. 앞에는 공화국수비대 타와칼나 사단의 여단 진지가 있습니다.',
+    '이라크군 전차와 장갑차는 모래 둑을 쌓은 진지(헐다운)에 들어앉아 서쪽을 보고 있습니다. 그러나 그들의 조준경은 모래바람을 뚫지 못합니다. 아군 전차·장갑차의 열상 조준경은 먼지 너머를 봅니다. 먼저 보고 먼저 쏘세요.',
+    '70 이스팅 전초를 걷어 내고 73 이스팅 주진지와 뒤쪽 보급 집적소를 점령하면 성공입니다. 진지에 정면으로 붙기 전에 멈춰서 쏘고, 장갑차 대전차미사일과 전차가 서로 엄호하며 나아가세요.'],
+  goals:['70 이스팅 전초 점령','73 이스팅 주진지 점령','보급 집적소 점령'],
+  intel:'주진지에 전차 5대가 모래 둑 뒤에, 보병전투차 4대와 보병이 참호에 있습니다. 뒤엔 자주포가 있고, 5분·8분·11분쯤 사단 예비대 전차가 반격해 옵니다. 먼지 연무: 맨눈 시정 약 120m, 열상 약 170m. 이라크군은 열상 장비가 없어 맨눈으로만 봅니다. 날씨 탓에 항공 지원은 없습니다.',
+  force:'전차 6(M1A1) · 장갑차 6(M3 브래들리) · 박격포 차량 · 자주포 · 정찰 소총분대 2. 6분에 옆 중대(전차 2 · 장갑차 2)가 합류합니다. 실제 E중대는 23분 만에 전차 28대 등을 부수고 한 대도 잃지 않았습니다. 부대는 이 게임의 현대 부대로 재현합니다.',
+  stars:['임무 성공','전차를 한 대도 잃지 않기','10분 안에 끝내기'],
+  income:n=>n===0?3:0};
+CAMP.easting.setup=function(){const m=campMid();
+  // 사막: 생울타리·밭·숲을 걷어 내고 트인 모래땅으로. 건물은 동쪽 농가 몇 채만 남긴다
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(x.t==='road'&&!x.br)continue;if(x.br){campCell(r,c,{t:'plaza',sand:1});continue;}if(x.t==='bldg'&&c>=m+6&&Math.abs(r-m)<14){x.pc=null;continue;}if(x.t==='water'){campCell(r,c,{t:'plaza',sand:1});continue;}
+    if(x.t==='bldg'||x.t==='park'||x.t==='plaza'||x.t==='rubble')campCell(r,c,{t:'plaza',sand:1});}   // 모래땅: 생울타리·덤불·밭이 생기지 않는다
+  const ob=(r,c)=>campNear(r,c,(a,b,x)=>x.t!=='bldg'&&x.t!=='water',6)||[r,c];
+  const o0=ob(m,m-5),o1=ob(m,m+8),o2=ob(m+5,m+16);
+  campObjs([{r:o0[0],c:o0[1],name:'70 이스팅 전초',owner:1},{r:o1[0],c:o1[1],name:'73 이스팅 주진지',owner:1},{r:o2[0],c:o2[1],name:'보급 집적소',owner:1}]);
+  G.camp.st={};};
+CAMP.easting.units=function(){const m=campMid();const O0=G.objs[0],O1=G.objs[1],O2=G.objs[2];
+  // 주진지: 남북으로 늘어선 전차 진지(모래 둑 두 개) + 참호
+  const C1=O1.c;for(let i=0;i<5;i++){const r=m-8+i*4;campFort(1,'sandbag',C1-.2,r+.35,Math.PI/2);campFort(1,'sandbag',C1-.2,r+.65,Math.PI/2);landPutAt(1,'tank',C1+.35,r+.5,{});}
+  for(let i=0;i<4;i++){const r=m-6+i*4;campFort(1,'sandbag',C1+1.3,r+.5,Math.PI/2);landPutAt(1,'bmp',C1+1.8,r+.5,{});}
+  for(const dr of [-5,-1,3,7]){campFort(1,'trench',C1+.6,m+dr+.5,Math.PI/2);}
+  hPut(1,[['rifle',m-5,C1+1,{post:1}],['rifle',m+3,C1+1,{post:1}],['mg',m-1,C1+1,{post:1}],['at',m+7,C1+1,{post:1}],['at',m-8,C1+2,{post:1}],
+    ['bmp',O0.r-1,O0.c,{}],['rifle',O0.r+1,O0.c,{post:1}],['mg',O0.r,O0.c+1,{post:1}],
+    ['spg',O2.r,O2.c+3,{post:1}],['spg',O2.r-3,O2.c+3,{post:1}],['rifle',O2.r,O2.c,{bldg:false,post:1}],['mortar',O2.r+2,O2.c-1,{post:1}]]);
+  hPut(0,[['tank',m-3,2],['tank',m-1,2],['tank',m+1,2],['tank',m+3,2],['tank',m-5,2],['tank',m+5,2],['ifv',m-2,1],['ifv',m,1],['ifv',m+2,1],['ifv',m-4,1],['ifv',m+4,1],['ifv',m-6,1],['mortv',m-7,1],['spg',m+7,1],['rifle',m-8,1],['rifle',m+6,1]]);
+  G.camp.st.tk=hIds(u=>u.nat===0&&u.type==='tank');
+  G.nats[0].cp=4;G.nats[1].cp=0;};
+CAMP.easting.waves=[{t:300,side:'e',u:['tank','bmp'],msg:'타와칼나 사단 예비대 전차가 반격해 옵니다'},{t:480,side:'e',u:['bmp','tank','rifle']},{t:660,side:'n',span:[30,48],u:['tank','bmp','rifle'],msg:'북동쪽에서 이라크군 전차가 옆을 칩니다'}];
+CAMP.easting.bw=[{t:360,u:['tank','tank','ifv','ifv'],msg:'옆 중대(아이언 트룹)가 합류합니다'}];
+CAMP_TICK.easting=function(C,S,dt){hNoSup(0,2);   // 모래바람: 항공 지원 없음(포병은 아래에서 따로 허용)
+  if(!S.o0&&ownObj(0)){S.o0=1;campMsg('70 이스팅 전초 점령: 주진지가 열상 조준경에 잡힙니다');}
+  // 새로 온 전차도 '잃지 않기'에 센다
+  for(const u of G.units)if(u.nat===0&&u.type==='tank'&&!S.tk.includes(u.id))S.tk.push(u.id);
+  if(ownObj(1)&&ownObj(2))G.over={win:0,why:'73 이스팅 돌파'};};
+CAMP.easting.stars2=(C,S,win,t)=>[win,win&&hGone(S.tk)===0,win&&t<=600];
+CAMP.easting.obj=function(C,S,li){const k=hGone(S.tk);
+  return `<ul class="cobj">${[li(ownObj(0)?'ok':'','70 이스팅 전초'),li(ownObj(1)?'ok':'','73 이스팅 주진지'),li(ownObj(2)?'ok':'','보급 집적소'),li(k?'bad':'ok',`잃은 전차 ${k}`)].join('')}</ul>`;};
+/* 73 이스팅: 아군 포병(자주포·박격포 차량의 자체 사격)은 쏠 수 있게 항공·포병 요청만 막는다 → hNoSup은 지휘점수로 부르는 지원만 막는다(부대 사격과 무관) */
+
+/* ---------- AI가 아는 임무(06i-plan) ---------- */
+if(typeof PLAN_M==='object'){
+  PLAN_M.pavlov={side:{0:{objs:()=>[{i:0,v:40,atk:3,def:4},{i:1,v:14,atk:1,def:1.5}]},1:{objs:()=>[{i:0,v:40,atk:3,def:1},{i:1,v:14,atk:1.2,def:.5}]}}};
+  PLAN_M.arnhem={side:{0:{objs:()=>[{i:0,v:40,atk:3,def:4},{i:1,v:12,atk:1,def:1.5},{i:2,v:12,atk:1,def:1.5}]},1:{objs:()=>[{i:0,v:40,atk:3,def:1},{i:1,v:12,atk:1.2,def:.5},{i:2,v:12,atk:1.2,def:.5}]}}};
+  PLAN_M.bastogne={side:{0:{objs:()=>[{i:0,v:40,atk:3,def:4},{i:1,v:10,atk:.8,def:1},{i:2,v:10,atk:.8,def:1}]},1:{objs:()=>[{i:0,v:40,atk:3,def:1},{i:1,v:12,atk:1.5,def:.5},{i:2,v:12,atk:1.5,def:.5}]}}};
+  PLAN_M.seoul={side:{0:{objs:()=>{const a=ownObj(0),b=ownObj(1);
+      if(!a)return [{i:0,v:40,atk:3,def:0},{i:1,v:4,atk:.3,def:0},{i:2,v:2,atk:0,def:0}];
+      if(!b)return [{i:0,v:8,atk:1,def:.8},{i:1,v:40,atk:3,def:0},{i:2,v:4,atk:.3,def:0}];
+      return [{i:0,v:6,atk:1,def:.5},{i:1,v:8,atk:1,def:.8},{i:2,v:50,atk:3,def:2.5}];}},
+    1:{objs:()=>[{i:0,v:16,atk:.6,def:1.5},{i:1,v:20,atk:.8,def:1.5},{i:2,v:40,atk:1.5,def:2.5}]}}};
+  PLAN_M.mogadishu={side:{0:{objs:()=>[{i:0,v:50,atk:3,def:4},{i:1,v:2,atk:0,def:0},{i:2,v:4,atk:.5,def:.3}]},1:{objs:()=>[{i:0,v:50,atk:3,def:.5},{i:1,v:10,atk:.5,def:1.5},{i:2,v:4,atk:.4,def:0}]}}};
+  PLAN_M.easting={side:{0:{objs:()=>{const a=ownObj(0);return [{i:0,v:a?6:40,atk:2,def:.5},{i:1,v:a?40:12,atk:a?3:.6,def:1},{i:2,v:a&&ownObj(1)?40:10,atk:a?1.5:.3,def:.5}];}},
+    1:{objs:()=>[{i:0,v:10,atk:.4,def:1},{i:1,v:30,atk:1,def:2.5},{i:2,v:20,atk:.8,def:1.5}]}}};
+}
+
+/* ---------- 73 이스팅: 열상 조준경이 먼지를 뚫는다 ----------
+   먼지 연무 속 명중 보정(날씨 ×.88)은 아군 열상 장비(전차·장갑차)에겐 거의 없다. 시정 상한은 06y2-sight가 이미 열상과 맨눈을 나눈다. */
+{const _eh=envHit;envHit=function(a,d){const k=_eh(a,d);if(G&&G.camp&&G.camp.id==='easting'&&a&&a.nat===0&&(a.type==='tank'||a.type==='ifv'))return Math.max(k,.97);return k;};}
+
+/* ---------- 설정 화면: 역사 전투 목록 ---------- */
+if(typeof showSetup==='function'){const _ss=showSetup;showSetup=function(){const r=_ss.apply(this,arguments);const el=typeof document!=='undefined'&&document.getElementById('camp-hist');if(el)el.innerHTML=campList('history');return r;};}
 
 /* ---- 98-cellsync.js ---- */
 /* ===================== 칸 맞추기 (2026-11-09 점검) =====================

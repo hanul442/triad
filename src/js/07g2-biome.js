@@ -5,7 +5,7 @@
    - 건물(v3BuildCity 뒤): 겨울엔 지붕에 눈. 외벽·지붕 색표(KSTY·ROOFC)와 하늘·안개 색(ENVP)은 기후마다 바꿔 끼운다.
    캠페인 지도(G.camp)는 07c-camp가 직접 그리므로 건드리지 않는다. */
 const BM3={orig:null,cl:null};
-const bmClime=()=>G&&!G.camp&&G.feat&&G.feat.clime||'temp';
+const bmClime=()=>G&&!campPlain()&&G.feat&&G.feat.clime||'temp';
 function bmClimeApply(){const cl=bmClime();
   if(!BM3.orig)BM3.orig={ksty:JSON.parse(JSON.stringify(KSTY)),roof:ROOFC.slice(),env:JSON.parse(JSON.stringify(ENVP))};
   if(BM3.cl===cl)return;BM3.cl=cl;const O=BM3.orig;
@@ -19,7 +19,7 @@ const BM_PINE={temp:['#34402e','#3d4a34','#2e3a2a','#46513a'],autumn:['#34402e',
 const BM_HEDGE={temp:['#3f4a30','#46512f','#3a442c'],autumn:['#5a4a2a','#6b5530','#4f4a2c'],winter:['#c9cfd2','#b9c0c3','#d6dadc'],desert:['#6e6a44','#7a7450']};
 
 /* ---------- 땅 그림 ---------- */
-{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||G.camp)return;try{bmGroundTex(g,P);}catch(e){console.error(e);}};}
+{const _tt=v3TerrTex;v3TerrTex=function(g,P){_tt(g,P);if(!G||campPlain())return;try{bmGroundTex(g,P);}catch(e){console.error(e);}};}
 function bmGroundTex(g,P){const R=mulberry(((G.seed|0)^0xb10e)>>>0);const M=G.map,cl=bmClime();const at=(r,c)=>inb(r,c)?M[r][c]:null;
   const blot=(X,Y,n,cols,r0,r1)=>{for(let i=0;i<n;i++){g.fillStyle=cols[Math.floor(R()*cols.length)];g.beginPath();g.arc(X+R()*P,Y+R()*P,r0+R()*(r1-r0),0,7);g.fill();}};
   const along=(X,Y,ro,o,w,col)=>{g.fillStyle=col;if(ro==='v')g.fillRect(X+o,Y,w,P);else if(ro==='h')g.fillRect(X,Y+o,P,w);else{g.fillRect(X+o,Y,w,P);g.fillRect(X,Y+o,P,w);}};
@@ -95,8 +95,8 @@ function bmGeos(){if(V3.bmG)return V3.bmG;const T=V3.T;const G3={};
   V3.bmG=G3;return G3;}
 // 소품 기준 좌표계(앞 = +x, ry만큼 돈다)의 한 점
 const bmAt=(p,lx,ly,lz,o)=>{const cs=Math.cos(p.ry||0),sn=Math.sin(p.ry||0);return Object.assign({x:p.x+lx*cs+lz*sn,y:ly,z:p.z-lx*sn+lz*cs,ry:p.ry||0},o||{});};
-{const _bw=v3BuildWorld;v3BuildWorld=function(){bmClimeApply();_bw();if(!G||G.camp)return;try{bmBuildWorld(V3.G.world);}catch(e){console.error(e);}};}
-{const _bc=v3BuildCity;v3BuildCity=function(){bmClimeApply();_bc();if(!G||G.camp)return;try{bmCityTint();}catch(e){console.error(e);}};}
+{const _bw=v3BuildWorld;v3BuildWorld=function(){bmClimeApply();_bw();if(!G||campPlain())return;try{bmBuildWorld(V3.G.world);}catch(e){console.error(e);}};}
+{const _bc=v3BuildCity;v3BuildCity=function(){bmClimeApply();_bc();if(!G||campPlain())return;try{bmCityTint();}catch(e){console.error(e);}};}
 function bmBuildWorld(g){const T=V3.T,pm=v3PropMats(),M3=bmMats(),G3=bmGeos(),cl=bmClime();const M=G.map;
   const pal=(a,k,s)=>a[Math.floor(v3Hash(k,s)*a.length)];
   // 연못: 겨울엔 언 얼음
