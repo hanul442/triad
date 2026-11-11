@@ -118,9 +118,8 @@ function wrkCollapse(r,c,f0){const x=G.map[r][c];x.rf=f0||1;const sz=.12+.035*Ma
     else if(cls==='trk'&&p.k==='bin'&&Math.hypot(p.x-u.x,p.z-u.z)<.13){if(wrkPropSet(p,'dead'))nav=true;}
     else if((p.k==='lamp'||p.k==='light')&&Math.hypot(p.x-u.x,p.z-u.z)<(cls==='trk'?.1:.07))wrkPropSet(p,'dead');
     else if(cls==='trk'&&(p.k==='hedge'||p.k==='bocage')&&inBox({x:p.x,z:p.z,ry:p.ry?Math.PI/2:0,hl:p.k==='hedge'?.5:.5,hw:.06},u.x,u.z,.05))wrkPropSet(p,'dead');}
-  // 숲을 헤치고 가면 나무를 쓰러뜨린다
-  if(cls==='trk'){const t=cell(u.r,u.c);if(t&&t.t==='park'&&!t.yard){const L=u._wfl;if(!L||Math.hypot(L[0]-u.x,L[1]-u.z)>.22){u._wfl=[u.x,u.z];wrkInit();
-      t.tl=Math.min(1,Math.round(((t.tl||0)+.04)*100)/100);if(G.fellZ.length<WRK.maxFell)G.fellZ.push({x:Math.round(u.x*100)/100,z:Math.round(u.z*100)/100,r:.08,tk:1});G.wrkV=(G.wrkV||0)+1;}}}
+  // 숲을 헤치고 가면 나무를 쓰러뜨린다: 나무 하나하나는 05o3-trample. 그쪽이 모르는 숲(나무 목록이 없는 칸)만 여기서 칸 단위로
+  if(cls==='trk'&&typeof wrkForestFallback==='function')wrkForestFallback(u);
   if(nav)wrkNav();};}
 /* ---------- 이동 격자에 넣기 ---------- */
 {const _o=navObstacles;navObstacles=function(){const P=G.props;let O;

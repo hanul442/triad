@@ -6560,9 +6560,8 @@ function wrkCollapse(r,c,f0){const x=G.map[r][c];x.rf=f0||1;const sz=.12+.035*Ma
     else if(cls==='trk'&&p.k==='bin'&&Math.hypot(p.x-u.x,p.z-u.z)<.13){if(wrkPropSet(p,'dead'))nav=true;}
     else if((p.k==='lamp'||p.k==='light')&&Math.hypot(p.x-u.x,p.z-u.z)<(cls==='trk'?.1:.07))wrkPropSet(p,'dead');
     else if(cls==='trk'&&(p.k==='hedge'||p.k==='bocage')&&inBox({x:p.x,z:p.z,ry:p.ry?Math.PI/2:0,hl:p.k==='hedge'?.5:.5,hw:.06},u.x,u.z,.05))wrkPropSet(p,'dead');}
-  // 숲을 헤치고 가면 나무를 쓰러뜨린다
-  if(cls==='trk'){const t=cell(u.r,u.c);if(t&&t.t==='park'&&!t.yard){const L=u._wfl;if(!L||Math.hypot(L[0]-u.x,L[1]-u.z)>.22){u._wfl=[u.x,u.z];wrkInit();
-      t.tl=Math.min(1,Math.round(((t.tl||0)+.04)*100)/100);if(G.fellZ.length<WRK.maxFell)G.fellZ.push({x:Math.round(u.x*100)/100,z:Math.round(u.z*100)/100,r:.08,tk:1});G.wrkV=(G.wrkV||0)+1;}}}
+  // 숲을 헤치고 가면 나무를 쓰러뜨린다: 나무 하나하나는 05o3-trample. 그쪽이 모르는 숲(나무 목록이 없는 칸)만 여기서 칸 단위로
+  if(cls==='trk'&&typeof wrkForestFallback==='function')wrkForestFallback(u);
   if(nav)wrkNav();};}
 /* ---------- 이동 격자에 넣기 ---------- */
 {const _o=navObstacles;navObstacles=function(){const P=G.props;let O;
@@ -6711,6 +6710,75 @@ function brAuto(){for(const u of G.units){if(u.type!=='eng'||u.brFix||u.demo||u.
   catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 /* 다른 명령을 받으면 복구를 그만둔다 */
 {const _m=orderMoveTo;orderMoveTo=function(u){if(u&&u.brFix)u.brFix=null;return _m.apply(this,arguments);};}
+
+/* ---- 05o3-trample.js ---- */
+/* ===================== 차량이 나무·덤불을 쓰러뜨리며 지나간다 =====================
+   나무 하나하나(05f4-veg가 화면과 같은 자리로 계산한 원)를 차체 사각형으로 훑는다.
+   차량마다 넘어뜨릴 수 있는 줄기 굵기(가슴높이 지름, cm)가 다르다. 미 육군 지형 분석 교범(FM 5-33)은
+   궤도 차량이 지름 20cm 안팎의 나무까지 밀어 넘기고, 그보다 굵은 나무가 빽빽한 숲은 전차에도 장애물이라고 본다.
+   주력전차(50–60t)는 40cm, 공병전차(배토판)는 55cm, 자주포·보병전투차 25–30cm, 바퀴 장갑차 15cm,
+   트럭·험비 같은 가벼운 바퀴 차량은 어린나무(6cm)만 넘기고 덤불만 깔아뭉갠다.
+   - 넘길 수 있는 나무: 진행 방향으로 쓰러진다(G.fellZ에 그 나무 자리만 적는다 → 07zw가 눕혀 그림, 05f4 vegDown이 길을 열어 줌).
+     굵을수록 차가 잠깐 더 느려진다. 숲 칸의 x.tl이 올라 많이 쓰러진 숲은 시야를 덜 가린다(04b).
+     굵은 줄기(15cm 이상)는 땅에 누운 통나무 엄폐(G.covers kind 'log')가 된다.
+   - 못 넘기는 굵은 나무: 차체 앞에 걸리면 옆으로 비켜 가며 크게 느려진다. 계속 밀면(2.5초) 1.6배 굵기까지는 결국 넘어간다.
+   - 덤불: 모든 지상 차량이 깔아뭉갠다(G.tramp). 깔린 덤불은 병사가 그냥 지나간다.
+   - 바퀴 차량은 숲(야생림) 칸에서 더 느리다(이동 비용 2 → 3). 궤도 차량은 그대로. */
+const TRP={cap:{tank:40,cev:55,spg:30,bmp:25,spaa:28,ifv:20,rec:12,mlrs:10,mortv:8,zu:6,hmv:6,sup:6,amb:6,vbied:6},
+  logCm:15,maxLog:700,maxFell:3000,push:2.5,forceK:1.6,tlTree:.07};
+WRK.maxFell=Math.max(WRK.maxFell,TRP.maxFell);
+COVK.log=COVK.log||{n:'쓰러진 나무',v:.35};
+const trpCap=u=>TRP.cap[u.type]??(VEH[u.type]&&VEH[u.type].trk?25:6);
+/* 나무 줄기 지름(cm): 원 반지름에서 어림하고 자리마다 ±15% 다르게 */
+function trpCm(o){if(o.t!=='tree')return 0;if(o.p)return 35;const r=o.r-VEG.body;const j=.85+vegFallH(Math.round(o.x*733),Math.round(o.z*739))*.3;
+  return Math.round((r<.045?r*1200:r*300)*j);}
+const trpKey=o=>Math.round(o.x*1000)+'|'+Math.round(o.z*1000);
+function trpInit(){if(!G)return;if(!G.tramp)G.tramp=[];if(!G._trK||G._trK.ref!==G.tramp){const s=new Set(G.tramp.map(trpKey));Object.defineProperty(G,'_trK',{value:{ref:G.tramp,s},writable:true,configurable:true,enumerable:false});}return G._trK.s;}
+/* 깔린 덤불은 병사를 막지 않는다 */
+{const _d=vegDown;vegDown=function(o){if(o.t==='bush'&&G.tramp&&G.tramp.length&&trpInit().has(trpKey(o)))return true;return _d(o);};}
+/* 나무 하나 쓰러뜨리기. dir = 쓰러지는 방향(라디안, x→z) */
+function trpFell(o,dir,cm){wrkInit();G.fellZ.push({x:Math.round(o.x*1e4)/1e4,z:Math.round(o.z*1e4)/1e4,r:.02,tk:1,fd:Math.round(dir*100)/100});
+  o.fv=-1;G.wrkV=(G.wrkV||0)+1;
+  const r=Math.floor(o.z),c=Math.floor(o.x),t=inb(r,c)?G.map[r][c]:null;
+  if(t&&t.t==='park'){const was=t.tl||0;t.tl=Math.min(1,Math.round((was+TRP.tlTree)*100)/100);if(was<.6&&t.tl>=.6)bump();}
+  // 누운 줄기: 통나무 엄폐(쓰러진 방향으로 줄기 가운데쯤)
+  if(cm>=TRP.logCm&&Array.isArray(G.covers)){const n=G._trLog=(G._trLog||0);if(n<TRP.maxLog){G._trLog=n+1;const L=Math.min(.12,.03+cm*.002);
+    G.covers.push({x:Math.round((o.x+Math.cos(dir)*L)*1000)/1000,z:Math.round((o.z+Math.sin(dir)*L)*1000)/1000,r:.07,kind:'log',cov:cm>=30?.4:.3,h:Math.min(.05,.015+cm*.0008),trp:1});}}
+  if(FXH.treeFall)FXH.treeFall(o.x,o.z,cm,dir);}
+function trpBush(o){const s=trpInit();const k=trpKey(o);if(s.has(k))return;s.add(k);G.tramp.push({x:Math.round(o.x*1000)/1000,z:Math.round(o.z*1000)/1000});G.trampV=(G.trampV||0)+1;}
+/* 차 한 대가 지금 자리에서 훑는다 */
+function trpTick(u){const cls=navCls(u);if(cls!=='trk'&&cls!=='veh'&&cls!=='dz')return;if(typeof vegNear!=='function')return;
+  const L0=u._trp;if(L0&&Math.hypot(L0[0]-u.x,L0[1]-u.z)<.035)return;u._trp=[u.x,u.z];
+  const s=vSpec(u),a=(u.hd??u.face??0)*Math.PI/180,cs=Math.cos(a),sn=Math.sin(a),cap=trpCap(u),now=G.time||0;
+  const R=Math.hypot(s.hl,s.hw)+.06;const seen=new Set();let slow=1,push=0,hit=null;
+  for(let rr=Math.floor(u.z-R);rr<=Math.floor(u.z+R);rr++)for(let cc=Math.floor(u.x-R);cc<=Math.floor(u.x+R);cc++){const Lc=vegNear(cc+.5,rr+.5);if(!Lc)continue;
+    for(const o of Lc){if(seen.has(o))continue;seen.add(o);const dx=o.x-u.x,dz=o.z-u.z;if(dx*dx+dz*dz>R*R)continue;
+      const lx=dx*cs+dz*sn,lz=-dx*sn+dz*cs;   // 차체 좌표: lx 앞, lz 옆
+      if(o.t==='bush'){const br=(o.r-VEG.body)*.5;if(Math.abs(lx)<=s.hl+br&&Math.abs(lz)<=s.hw+br&&!vegDown(o))trpBush(o);continue;}
+      if(o.p)continue;   // 보카주 나무는 생울타리째(05o-wreck)
+      const tr=.012;if(Math.abs(lx)>s.hl+tr||Math.abs(lz)>s.hw+tr)continue;if(vegDown(o))continue;
+      const cm=trpCm(o);
+      if(cm<=cap){const side=(vegFallH(Math.round(o.x*577),Math.round(o.z*613))-.5)*.8+(lz>0?.25:-.25);   // 앞으로, 걸린 쪽으로 조금 비껴
+        trpFell(o,a+(u.vs<0?Math.PI:0)+side,cm);slow=Math.min(slow,1-.45*cm/Math.max(cap,1));continue;}
+      // 너무 굵다: 앞쪽에 걸렸을 때만 비킨다(뒤로 빼는 중이면 무시)
+      if(lx<s.hl*.2||u.vs<0)continue;
+      const c=u._trC;if(c&&c.k===trpKey(o)){if(now-c.t>TRP.push){if(cm<=cap*TRP.forceK){trpFell(o,a,cm);u._trC=null;slow=Math.min(slow,.35);}else c.pass=1;continue;}if(c.pass)continue;}
+      else u._trC={k:trpKey(o),t:now};
+      slow=Math.min(slow,.45);const need=s.hw+tr-Math.abs(lz);if(need>Math.abs(push)){push=(lz>0?-1:1)*need;hit=o;}}}
+  if(slow<1){if(!(u._trT>now))u._trS=1;u._trS=Math.min(u._trS,slow);u._trT=now+.4;}
+  if(hit){const st=Math.min(Math.abs(push),.012)*Math.sign(push);const nx=u.x-sn*st,nz=u.z+cs*st;   // 옆(lz 방향)으로
+    if(walkable(u,nx,nz)&&!wallCross(u,u.x,u.z,nx,nz)){u.x=nx;u.z=nz;}}}
+/* 나무 목록이 없는 숲 칸(캠페인 지도 등): 예전처럼 지나간 자리 둘레를 칸 단위로 쓰러뜨린다 */
+function wrkForestFallback(u){const t=cell(u.r,u.c);if(!t||t.t!=='park'||t.yard)return;const L=vegNear(u.x,u.z);if(L&&L.some(o=>o.t==='tree'))return;
+  const P=u._wfl;if(P&&Math.hypot(P[0]-u.x,P[1]-u.z)<=.22)return;u._wfl=[u.x,u.z];wrkInit();
+  t.tl=Math.min(1,Math.round(((t.tl||0)+.04)*100)/100);if(G.fellZ.length<WRK.maxFell)G.fellZ.push({x:Math.round(u.x*100)/100,z:Math.round(u.z*100)/100,r:.08,tk:1,fd:Math.round((u.hd||0)*Math.PI/180*100)/100});G.wrkV=(G.wrkV||0)+1;}
+/* 05o-wreck이 감싼 fortCrush 위에 덧댄다(차가 움직인 틱마다 불린다) */
+{const _c=fortCrush;fortCrush=function(u){_c(u);try{trpTick(u);}catch(e){}};}
+/* 나무를 밀어 넘기는 동안 잠깐 느려진다 */
+{const _mv=rtMove;rtMove=function(u,dt){if(u._trT!=null){const now=G.time||0;if(u._trT>now&&isGV(u))return _mv(u,dt*(u._trS||1));u._trT=null;u._trS=1;}return _mv(u,dt);};}
+/* 바퀴 차량은 숲에서 더 느리다 */
+{const _mc=mcost;mcost=function(type,x){const v=_mc(type,x);if(v===2&&x&&x.t==='park'&&x.wild&&!x.orch){const t=UT[type];if(t&&t.cls==='veh'&&!t.fly&&!(VEH[type]&&VEH[type].trk)&&(TRP.cap[type]??6)<15&&type!=='cev')return 3;}return v;};}
+{const _n=newGame;newGame=function(){const v=_n.apply(this,arguments);if(G){G.tramp=[];G.trampV=0;G._trLog=0;}return v;};}
 
 /* ---- 05z-drill.js ---- */
 /* ===================== DRILL: 분대 안 병사들의 전투 동작 =====================
@@ -15260,7 +15328,7 @@ function wrvTrees(){const W=WRV.meshes;const Z=G.fellZ||[];const zg=new Map();
       const was=M.o.userData.wf&&M.o.userData.wf[i];
       if(!f){if(was){M.o.setMatrixAt(i,W.tmp.m.fromArray(A,i*16));M.o.userData.wf[i]=0;ch=true;}continue;}
       if(was)continue;const h=wrvHash(Math.round(x*577),Math.round(z*613));let dx=x-f.x,dz=z-f.z;const dl=Math.hypot(dx,dz);
-      if(f.tk||dl<.02){const a=h*6.283;dx=Math.cos(a);dz=Math.sin(a);}else{dx/=dl;dz/=dl;}
+      if(f.fd!=null){const a=f.fd+(h-.5)*.5;dx=Math.cos(a);dz=Math.sin(a);}else if(f.tk||dl<.02){const a=h*6.283;dx=Math.cos(a);dz=Math.sin(a);}else{dx/=dl;dz/=dl;}   // fd: 차가 밀어 넘긴 방향
       // 쓰러지는 방향(dx,dz)에 수직인 축으로 눕힌다
       wrvTilt(M,i,x,0,z,dz,-dx,1.3+h*.25);(M.o.userData.wf||(M.o.userData.wf=new Uint8Array(n)))[i]=1;ch=true;}
     if(ch)M.o.instanceMatrix.needsUpdate=true;}}
@@ -15318,6 +15386,34 @@ Object.assign(FXH,{
   floorFall(r,c,rf0,rf1){if(typeof V3==='undefined'||!V3.on)return;const [x,z]=v3x(r,c);const y=(rf1+.5)*FLOOR_H;
     if(typeof v3Debris==='function')v3Debris(x,y,z,10+(rf0-rf1)*6,1);if(typeof dsDust==='function')dsDust(x,z,1.1,12000,8,null,y*.6);
     if(typeof v3Burst==='function')v3Burst(x,y,z,.8,'#cbb79a',2,0);V3.shake=Math.max(V3.shake||0,.07);if(typeof sfx==='function')sfx('boom',.9,x,z);}});
+
+/* ---- 07zw2-trample.js ---- */
+/* ===================== 3D: 차량에 깔린 덤불·쓰러지는 나무 (05o3-trample의 화면 쪽) =====================
+   - 깔린 덤불(G.tramp): 납작하게 눌리고 옆으로 퍼진다.
+   - 나무가 넘어갈 때: 흙먼지·잎 부스러기와 "우지끈" 꺾이는 소리. 눕는 모양은 07zw wrvTrees(fd 방향). */
+const TRV={v:-1,t:0,list:null,done:null};
+{const _w=v3BuildWorld;v3BuildWorld=function(){const v=_w.apply(this,arguments);TRV.list=null;TRV.v=-1;TRV.done=null;return v;};}
+function trvIndex(){const g=V3.G&&V3.G.world;const geo=typeof NAT==='object'&&NAT.geo&&NAT.geo.bush;if(!g||!geo)return TRV.list=[];const L=[];
+  for(const o of g.children)if(o.isInstancedMesh&&o.geometry===geo){const n=o.count,A=o.instanceMatrix.array.slice(0,n*16);const grid=new Map();
+    for(let i=0;i<n;i++){const k=Math.floor(A[i*16+14])*N+Math.floor(A[i*16+12]);let a=grid.get(k);if(!a)grid.set(k,a=[]);a.push(i);}L.push({o,m0:A,grid});}
+  TRV.done=new Set();return TRV.list=L;}
+function trvBushes(){const L=TRV.list||trvIndex();if(!L.length)return;const T=V3.T;const m=new T.Matrix4(),s=new T.Matrix4(),t=new T.Matrix4(),t2=new T.Matrix4();
+  for(const p of G.tramp||[]){const key=p.x+'|'+p.z;if(TRV.done.has(key))continue;TRV.done.add(key);
+    for(const M of L){const I=M.grid.get(Math.floor(p.z)*N+Math.floor(p.x));if(!I)continue;let ch=false;
+      for(const i of I){const x=M.m0[i*16+12],z=M.m0[i*16+14];if(Math.hypot(x-p.x,z-p.z)>.03)continue;
+        m.fromArray(M.m0,i*16);const y=M.m0[i*16+13];s.makeScale(1.25,.22,1.25);t.makeTranslation(x,y,z);t2.makeTranslation(-x,-y,-z);t.multiply(s).multiply(t2).multiply(m);M.o.setMatrixAt(i,t);ch=true;}
+      if(ch)M.o.instanceMatrix.needsUpdate=true;}}}
+function trvFrame(now){if(!V3.on||!G||!V3.G||!V3.G.world)return;if(now-TRV.t<300)return;TRV.t=now;const v=G.trampV||0;if(v===TRV.v&&TRV.list)return;
+  if(!TRV.list)trvIndex();TRV.v=v;try{trvBushes();}catch(e){console.warn(e);}}
+if(typeof dsFrame==='function'){const _f=dsFrame;dsFrame=function(now,dt){_f(now,dt);trvFrame(now);};}
+/* 나무가 꺾여 넘어가는 소리: 줄기가 쪼개지는 딱딱 소리 → 가지가 쓸리는 소리 → 땅에 닿는 쿵 */
+function sndTreeFall(x,z,cm){if(typeof sndVoice!=='function')return;const V=sndVoice(x,z,{vol:.55+Math.min(.5,cm/80),dur:2.2});if(!V)return;const t=V.t;
+  for(let i=0;i<5;i++)sndNz(V,t+i*.035+Math.random()*.03,.03+Math.random()*.03,'bandpass',900+Math.random()*1600,1.4,.35,.001);
+  sndNz(V,t+.25,1.1,'lowpass',2600,.7,.18,.15,600);
+  sndTn(V,t+1.05,.45,70,38,.5,'sine',.01);sndNz(V,t+1.05,.4,'lowpass',260,.8,.4,.005);}
+FXH.treeFall=function(x,z,cm,dir){if(typeof V3==='undefined'||!V3.on)return;const L=.06+cm*.003;
+  if(typeof dsDust==='function')dsDust(x+Math.cos(dir)*L,z+Math.sin(dir)*L,.18+cm*.004,2200,3,'#6f6248');
+  const n=FXH._tfN=(FXH._tfN||0)+1;if(cm>=12||n%3===0)try{sndTreeFall(x,z,cm);}catch(e){}};
 
 /* ---- 07zx-bridge.js ---- */
 /* ===================== 3D·조작: 무너진 다리와 임시 다리 (05o2-bridge의 화면 쪽) =====================
@@ -16622,7 +16718,7 @@ function manualHtml(){const D=typeof DEMO==='object'?DEMO:{plant:6,plantR:10,cos
     '겨울에는 눈 덮인 길 밖에서 보병 10%, 차량 18% 느립니다. 생울타리(보카주)는 바퀴 차량을 막고, 보병은 울타리마다 난 틈으로만 지나갑니다. 궤도 차량은 뚫고 지나가며, 그렇게 쓰러진 자리로는 보병도 넘어갑니다. 병사들은 나무·덤불·통나무 더미를 비켜 돌아갑니다.']));
   h+=manSec('cover','엄폐 · 은폐 · 제압',manL([
     '엄폐는 병사 한 명 한 명이 쏘는 쪽을 향해 무엇 뒤에 있는지로 정해지고 분대 평균이 명중률을 깎습니다. 옆이나 뒤에서 쏘면 벽·차량 엄폐는 없습니다.',
-    '건물 안 55%(창가로만 맞음, 폭발물은 절반만 막음) · 외벽에 붙음 35%(차량 20%) · 잔해 25% · 공원(나무) 15% · 연막 +15% · 요새화한 건물 70% · 벙커 60% · 참호·구덩이 안은 사방 엄폐. 2층 이상에서 내려 쏘면 낮은 엄폐는 절반.',
+    '건물 안 55%(창가로만 맞음, 폭발물은 절반만 막음) · 외벽에 붙음 35%(차량 20%) · 잔해 25% · 쓰러진 나무 35% · 공원(나무) 15% · 연막 +15% · 요새화한 건물 70% · 벙커 60% · 참호·구덩이 안은 사방 엄폐. 2층 이상에서 내려 쏘면 낮은 엄폐는 절반.',
     '병사들은 명령 없이 알아서 엄폐합니다: 맨땅에서 위협받으면 엎드리고(엎드린 병사는 덜 맞음), 총격을 받는데 엄폐가 없으면 1.4칸 안의 벽 모서리·차·잔해로 붙고, 포탄이 떨어지기 직전 휘파람 소리에 엎드리고, 포격이 이어지면 2~3.5칸 떨어진 건물·구덩이로 옮깁니다.',
     '연막 속 부대는 바깥에서 보이지 않습니다(바로 옆 제외). 열상 장비는 보병 연막 수류탄 너머를 짧게 보지만 차량 연막탄·포병 연막은 못 봅니다.',
     '<b>제압</b>: 총알이 날아오거나 스치면 쌓이고(기관총은 더 많이) 조용하면 풀립니다. 조금 쌓이면 느려지고 공격이 약해지며, 많이 쌓이면 엎드려 꼼짝 못 합니다. 먼 거리 사격은 잘 안 맞지만 적을 묶어 둡니다.']));
@@ -16674,6 +16770,7 @@ function manualHtml(){const D=typeof DEMO==='object'?DEMO:{plant:6,plantR:10,cos
     '차량은 방벽·대전차 장애물·벙커·주차된 차를 넘지 못하고 돌아갑니다. 바퀴 차량은 모래주머니에도 막히지만 전차는 모래주머니·철조망을 짓밟습니다. 공병은 철조망을 끊고, 포격·폭발물은 방어물을 부숩니다.']));
   h+=manSec('wreck','부서지는 도시',manL([
     '폭발은 무기 위력(TNT 환산)만큼 땅을 파고, 나무를 꺾고, 차를 태우거나 뒤집고, 가로등·생울타리를 쓰러뜨립니다. 큰 구덩이는 바퀴 차량을 막고, 안에 엎드린 보병에게는 참호가 됩니다. 많이 부서진 숲은 시야를 가리지 못합니다.',
+    '차량은 숲을 밀고 지나가며 나무를 진행 방향으로 쓰러뜨립니다. 주력전차는 지름 40cm, 보병전투차·자주포는 25–30cm까지 넘기고, 더 굵은 나무는 비켜 갑니다. 트럭·험비 같은 가벼운 바퀴 차량은 덤불만 깔아뭉개고 나무 사이로 돌아가며 숲에서 느립니다. 쓰러진 굵은 줄기는 보병의 통나무 엄폐(35%)가 되고, 많이 쓰러진 숲은 시야가 트입니다.',
     '건물은 재질마다 강도가 다릅니다(주택·창고는 약하고 철근 콘크리트 고층은 강함). 위층이 무너지면 그 층 병사가 떨어져 다치고, 다 무너지면 잔해가 되며, 안의 부대는 다치거나 죽어 잔해 위에 떨어집니다. 잔해는 옆 길로 쏟아지고, 높은 건물이 무너진 자리는 차량이 못 넘는 잔해 언덕이 됩니다.',
     '폭발은 건물에 불을 붙이기도 합니다. 불은 위층과 옆 칸으로 번지며 건물과 안의 보병을 상하게 하고, 타는 둘레는 밤에도 밝습니다.',
     '다리는 155mm 포탄으로는 거의 안 무너지지만 항공 폭탄 두 발이나 탄도미사일 한 발이면 끊깁니다. 길이 바뀌면 부대는 길을 다시 찾습니다.']));
