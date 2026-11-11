@@ -422,6 +422,7 @@ select{font:inherit;padding:8px;border-radius:4px;border:1px solid var(--line);b
     <button class="ib x" data-act="press" id="b-press" aria-label="종군기자 카메라 (V)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
     <button class="ib x" data-act="grid" id="b-grid" aria-label="격자 표시" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h16M12 4v16"/></svg></button>
     <button class="ib x" data-act="look" id="b-look" aria-label="화면 질감 (P)" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 14h6v6h-6zM14 4h6v6h-6z" opacity=".55"/><path d="M4 14h6v6H4z"/></svg></button>
+    <button class="ib x" data-act="lite" id="b-lite" aria-label="저사양 모드 (L)" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l-4-5"/><circle cx="12" cy="17" r="1.2"/></svg></button>
     <button class="ib x" data-act="snd" id="b-snd" aria-label="소리 설정 (M 음소거)" aria-pressed="true" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button>
     <button class="ib x" data-act="fs" id="b-fs" aria-label="전체화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="ib more" data-act="more" id="b-more" aria-label="지도 버튼 더 보기" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg></button>
@@ -10607,6 +10608,7 @@ function bmCityTint(){const W=V3.M.walls||[V3.M.wall];for(const m of W){if(m.use
    캠페인 지도(G.camp)는 07c-camp가 따로 그리므로 땅 무늬와 숲만 건너뛴다. */
 const NAT={tr:null,trN:0,trI:0,trSeed:null,last:new Map(),t:0};
 const NAT_LO=typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches;   // 휴대폰: 나무를 조금 덜
+const natLite=()=>typeof LITE==='object'&&LITE.on;   // 저사양 모드(07z-lite): 보이는 나무만 더 줄인다
 const natCl=()=>typeof bmClime==='function'?bmClime():'temp';
 const natLay=()=>G&&G.feat&&G.feat.layout||'sym';
 // 무른 땅(경계를 번지게 하고 자국이 남는 땅)
@@ -10706,7 +10708,7 @@ const NAT_PAL={
 /* 숲 칸의 나무들 — 07g2 bmBuildWorld가 숲 칸(x.wild)에 원래 놓던 큰 원뿔 대신 */
 function natWildTrees(r,c,x,out){const k=key(r,c),cl=natCl(),pal=NAT_PAL[cl]||NAT_PAL.temp;const H=(s)=>v3Hash(k,s);
   // 3×3 칸 격자에서 흔들어 놓고 몇 개는 뺀다 → 칸 경계에서도 숲이 이어져 보인다
-  const keep=NAT_LO?.62:.86;let i=0;
+  const keep=natLite()?.45:NAT_LO?.62:.86;let i=0;
   for(let a=0;a<3;a++)for(let b=0;b<3;b++){i++;if(H(1100+i)>keep)continue;
     const px=c+(b+.5)/3+(H(1120+i)-.5)*.3,pz=r+(a+.5)/3+(H(1140+i)-.5)*.3;
     const big=H(1160+i),s=.62+big*big*.75;   // 대부분 중간, 가끔 큰 나무
@@ -10714,7 +10716,7 @@ function natWildTrees(r,c,x,out){const k=key(r,c),cl=natCl(),pal=NAT_PAL[cl]||NA
     const pl=pine?pal.pi:pal.sp;const col=dead?pal.dead:pl[Math.floor(H(1220+i)*pl.length)];
     (pine?out.pine:out.spruce).push({x:px,y:0,z:pz,s,sy:s*(.85+H(1240+i)*.45),ry:H(1260+i)*6.28,rx:(H(1280+i)-.5)*.08,rz:(H(1300+i)-.5)*.08,col,k});}
   // 숲 바닥 덤불
-  const nb=NAT_LO?1:2+Math.floor(H(1320)*2);for(let j=0;j<nb;j++)out.bush.push({x:c+.1+H(1330+j)*.8,y:0,z:r+.1+H(1340+j)*.8,s:.8+H(1350+j)*.8,ry:H(1360+j)*6,col:pal.bu[Math.floor(H(1370+j)*pal.bu.length)],k});}
+  const nb=natLite()?(H(1321)<.5?1:0):NAT_LO?1:2+Math.floor(H(1320)*2);for(let j=0;j<nb;j++)out.bush.push({x:c+.1+H(1330+j)*.8,y:0,z:r+.1+H(1340+j)*.8,s:.8+H(1350+j)*.8,ry:H(1360+j)*6,col:pal.bu[Math.floor(H(1370+j)*pal.bu.length)],k});}
 
 /* ---------- 지면 그룹: 숲·덤불·지도 밖 풍경 ---------- */
 {const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();try{natTerrMat();natWorld(V3.G.world);}catch(e){console.error(e);}};}
@@ -10739,7 +10741,7 @@ function natOuter(g){const T=V3.T,cl=natCl(),L=natLay(),pal=NAT_PAL[cl]||NAT_PAL
         sh.fragmentShader='uniform sampler2D natN;varying vec2 vNatW;\n'+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n{float a=texture2D(natN,vNatW*.04).r,b=texture2D(natN,vNatW*.19).g,c=texture2D(natN,vNatW*1.7).b;diffuseColor.rgb*=(.78+.44*a)*(.9+.2*b)*(.9+.2*c);}');};
       m.customProgramCacheKey=()=>'natOut';m.needsUpdate=true;}}
   if(G.camp)return;
-  const dens={forest:2.4,country:.5,port:.12,river:.25,sym:.18}[L]??.2;const n=NAT_LO?dens*.6:dens;const far=[];const R=mulberry(((G.seed|0)^0x0a7e)>>>0);
+  const dens={forest:2.4,country:.5,port:.12,river:.25,sym:.18}[L]??.2;const n=(NAT_LO?dens*.6:dens)*(natLite()?.35:1);const far=[];const R=mulberry(((G.seed|0)^0x0a7e)>>>0);
   const band=10,A=-band,B=N+band;const area=(B-A)*(B-A)-N*N;const cnt=Math.min(9000,Math.round(area*n));
   for(let i=0;i<cnt;i++){let x=A+R()*(B-A),z=A+R()*(B-A);if(x>-.3&&x<N+.3&&z>-.3&&z<N+.3)continue;
     // 들판 지도는 띠 모양 수림(밭 사이 방풍림)이 되도록 줄무늬 잡음으로 거른다
@@ -10764,7 +10766,7 @@ function natWaterMat(m,sea){if(!m||m.userData.natW)return;m.userData.natW=1;cons
   }catch(e){console.error(e);}};}
 
 /* ---------- 궤도·바퀴 자국 ---------- */
-function natTrackInit(){if(NAT.tr)return;const T=V3.T;const CAP=NAT_LO?1500:3500;
+function natTrackInit(){if(NAT.tr)return;const T=V3.T;const CAP=NAT_LO||natLite()?1500:3500;
   const tex=v3Tex(32,32,(g,w,h)=>{g.clearRect(0,0,w,h);for(const x0 of [3,21]){g.fillStyle='rgba(255,255,255,.75)';g.fillRect(x0,0,8,h);g.fillStyle='rgba(255,255,255,1)';for(let y=0;y<h;y+=4)g.fillRect(x0,y,8,2);}});
   tex.colorSpace=T.NoColorSpace;
   const mat=new T.MeshStandardMaterial({color:'#2e271e',roughness:1,transparent:true,opacity:.62,alphaMap:tex,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});v3FowMat(mat);
@@ -14435,6 +14437,85 @@ if(typeof startView==='function'){const f=startView;startView=async function(){c
 function instSet(on){INST.on=!!on;for(const m of INST.set)m.layers.set(on?INST.L:0);if(INST.root)INST.root.visible=!!on;}
 
 
+/* ---- 07z-lite.js ---- */
+/* ===================== 3D: 저사양 모드 =====================
+   느린 휴대폰·노트북에서 화면이 끊기지 않게 그래픽만 가볍게 한다. 게임 규칙·판정·결과는 하나도 바꾸지 않는다
+   (시뮬레이션은 그대로 돌고, 그리는 양만 줄인다).
+   켜면:
+   - 해상도: 화면 픽셀 배율을 ¾로(낮아도 .3, 많아야 .7)
+   - 그림자: 해 그림자를 끈다(그리기 호출이 절반 가까이 준다)
+   - 색보정·대기 안개 후처리(07z-grade)를 건너뛰고 바로 화면에 그린다(장면 안개는 그대로)
+   - 연기·불꽃·파편 입자 수를 절반 아래로
+   - 지도 밖 풍경 나무를 ⅓로, 숲 칸 나무·덤불을 줄인다(숲 칸 자체·시야·엄폐 판정은 그대로, 다음 판부터 적용)
+   - 그리기 거리: 안개가 다 덮는 곳(fog.far) 너머는 아예 그리지 않는다
+   - 화면은 초당 30번까지만 다시 그린다(움직임·시뮬레이션은 매 프레임 그대로)
+   - 작은 지도는 덜 자주 다시 그린다
+   설정: 시작 화면 '그래픽' 줄(자동/저사양/보통), 지도 버튼 [저사양](L 키). 값은 localStorage triad-lite.
+   자동: 처음 실행하는 기기가 느려 보이면(메모리 2GB 이하·코어 2개 이하) 바로 켜고, 게임 중 5초 동안 평균 22fps 아래가
+   두 번 이어지면 켜고 알린다. 한 번 자동으로 켜지면 다음 실행부터 처음부터 켠다(triad-lite-auto). */
+const LITE={mode:'auto',on:false,key:'triad-lite',autoKey:'triad-lite-auto',fps:30,
+  m:{t0:0,n:0,last:0,bad:0,warm:0},lastR:0,far0:400,pfx0:null};
+const liteOn=()=>LITE.on;
+function liteSlowHw(){if(typeof navigator==='undefined')return false;const mem=navigator.deviceMemory,cores=navigator.hardwareConcurrency;
+  return (mem>0&&mem<=2)||(cores>0&&cores<=2);}
+try{if(typeof localStorage!=='undefined'){const v=localStorage.getItem(LITE.key);if(v==='on'||v==='off'||v==='auto')LITE.mode=v;
+  LITE.on=LITE.mode==='on'||(LITE.mode==='auto'&&(localStorage.getItem(LITE.autoKey)==='1'||liteSlowHw()));}}catch(e){}
+
+/* 해상도: 07z-grade가 덮은 v3PixelRatio를 한 번 더 감싼다 */
+if(typeof v3PixelRatio==='function'){const f=v3PixelRatio;v3PixelRatio=function(){const p=f.apply(this,arguments);return LITE.on?Math.max(.3,Math.min(.7,p*.75)):p;};}
+
+/* 지금 상태를 화면에 반영한다(언제 불러도 된다) */
+function liteApply(){
+  if(typeof V3==='object'&&V3.ren){
+    if(V3.sun)V3.sun.castShadow=!LITE.on;
+    if(!LITE.on&&V3.cam&&V3.cam.far!==LITE.far0){V3.cam.far=LITE.far0;V3.cam.updateProjectionMatrix();}
+    if(typeof v3Size==='function')v3Size();}
+  if(typeof PFX==='object'&&PFX.on){if(LITE.pfx0==null)LITE.pfx0=PFX.qMax;PFX.qMax=LITE.on?Math.min(LITE.pfx0,.4):LITE.pfx0;PFX.q=Math.min(PFX.q,PFX.qMax);}
+  if(typeof MM==='object')MM.iv=LITE.on?400:180;
+  if(typeof document!=='undefined'){const b=document.getElementById('b-lite');if(b){b.setAttribute('aria-pressed',LITE.on?'true':'false');b.setAttribute('aria-label',`저사양 모드: ${LITE.on?'켜짐':'꺼짐'} (L)`);}
+    const s=document.getElementById('opt-lite');if(s&&s.value!==LITE.mode)s.value=LITE.mode;}}
+
+/* mode: 'on'|'off'|'auto'. auto로 둘 때 on을 같이 주면(자동 감지) 그 값을 쓴다 */
+function liteSet(mode,on,why){LITE.mode=mode;LITE.on=mode==='on'?true:mode==='off'?false:on!=null?!!on:LITE.on;
+  try{localStorage.setItem(LITE.key,mode);if(mode==='off')localStorage.removeItem(LITE.autoKey);if(mode==='auto'&&LITE.on&&why==='auto')localStorage.setItem(LITE.autoKey,'1');}catch(e){}
+  LITE.m.bad=0;LITE.m.t0=0;liteApply();
+  if(typeof toast==='function'&&why)toast(why==='auto'?'화면이 느려서 저사양 모드를 켰습니다 · 끄려면 [저사양] 버튼이나 L 키':`저사양 모드 ${LITE.on?'켜짐':'꺼짐'}`);}
+
+/* 느린지 재기: 게임 화면이 그려질 때마다 부른다. 처음 4초(셰이더 준비)는 빼고 5초씩 평균을 낸다 */
+function liteMeasure(now){const m=LITE.m;if(LITE.on||LITE.mode!=='auto')return;
+  if(typeof document!=='undefined'&&document.visibilityState==='hidden'){m.t0=0;return;}
+  if(!m.warm){m.warm=now+4000;}if(now<m.warm)return;
+  if(m.last&&now-m.last>400){m.t0=0;}m.last=now;   // 탭 전환·멈춤으로 생긴 큰 틈은 재지 않는다
+  if(!m.t0){m.t0=now;m.n=0;return;}m.n++;
+  if(now-m.t0>=5000){const fps=m.n*1000/(now-m.t0);m.t0=now;m.n=0;m.bad=fps<22?m.bad+1:0;if(m.bad>=2)liteSet('auto',true,'auto');}}
+
+/* 그리기: 07z-grade의 렌더 감싸기 위에 한 겹 더. 저사양이면 후처리를 건너뛰고, 초당 30번까지만, 안개 너머는 자른다 */
+function liteHook(){const ren=V3.ren;if(!ren||ren.userData_lite)return;ren.userData_lite=1;const prev=ren.render;
+  ren.render=function(scene,cam){
+    const main=scene===V3.scene&&ren.getRenderTarget()===null&&cam&&cam.isPerspectiveCamera;
+    if(!main)return prev.call(ren,scene,cam);
+    const now=performance.now();if(G&&!G.boot)liteMeasure(now);
+    if(!LITE.on)return prev.call(ren,scene,cam);
+    if(now-LITE.lastR<1000/LITE.fps-4&&!V3.press){V3.liteSkip=true;return;}   // 기자 카메라는 셔터 순간이 있으니 거르지 않는다
+    LITE.lastR=now;
+    const fog=scene.fog;if(cam===V3.cam&&fog&&fog.far>0){const f=Math.min(LITE.far0,fog.far+4);if(Math.abs(cam.far-f)>2){cam.far=f;cam.updateProjectionMatrix();}}
+    if(typeof GRADE==='object'&&GRADE.raw){ren.info.reset();return GRADE.raw(scene,cam);}
+    return prev.call(ren,scene,cam);};}
+
+if(typeof startView==='function'){const f=startView;startView=async function(){const r=await f.apply(this,arguments);try{if(V3.ren){if(V3.cam)LITE.far0=V3.cam.far;liteHook();liteApply();}}catch(e){console.warn('lite',e);}return r;};}
+if(typeof pfxInit==='function'){const f=pfxInit;pfxInit=function(){const was=PFX.on;const r=f.apply(this,arguments);if(!was&&PFX.on){LITE.pfx0=PFX.qMax;liteApply();}return r;};}
+
+/* 시작 화면: 그래픽 줄 */
+function liteSetupRow(){const sz=document.getElementById('opt-size');if(!sz||document.getElementById('opt-lite'))return;const row=sz.closest('.slot');if(!row)return;
+  const d=document.createElement('div');d.className='slot';
+  d.innerHTML='<span></span><label for="opt-lite">그래픽</label><select id="opt-lite"><option value="auto">자동 (느리면 저사양으로)</option><option value="on">저사양 (휴대폰·느린 기기, 부드럽게)</option><option value="off">보통 (그림자·색보정 모두)</option></select>';
+  row.parentNode.appendChild(d);const sel=d.querySelector('select');sel.value=LITE.mode;
+  sel.addEventListener('change',()=>{let a=liteSlowHw();try{a=a||localStorage.getItem(LITE.autoKey)==='1';}catch(e){}liteSet(sel.value,sel.value==='auto'?a:null);});}
+if(typeof document!=='undefined'){
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{liteSetupRow();liteApply();});else{liteSetupRow();liteApply();}
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-act="lite"]');if(b)liteSet(LITE.on?'off':'on',null,'btn');});
+  document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,select,textarea'))return;if((e.key==='l'||e.key==='L')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&V3.on&&!V3.press)liteSet(LITE.on?'off':'on',null,'btn');});}
+
 /* ---- 07z-perf.js ---- */
 /* ===================== 3D: 큰 지도 성능 =====================
    지형·소품·잔해는 종류마다 지도 전체를 덮는 인스턴스 메시 하나로 그린다. 그러면 메시 하나가 지도 전체 크기라서
@@ -14467,7 +14548,7 @@ if(typeof v3BuildCity==='function'){const f=v3BuildCity;v3BuildCity=function(){c
 function perfHud(){if(typeof document==='undefined'||!/[?&]fps\b/.test(location.search)||!V3.ren||V3.hud)return;
   const el=document.createElement('div');el.style.cssText='position:fixed;left:8px;bottom:8px;z-index:99;font:600 11px/1.4 "IBM Plex Mono",monospace;color:#e8e4da;background:rgba(13,18,23,.78);padding:4px 7px;border-radius:4px;pointer-events:none;white-space:pre';document.body.appendChild(el);
   const H=V3.hud={el,n:0,t0:performance.now(),calls:0,tris:0,sim:0,ticks:0};const R=V3.ren,r0=R.render.bind(R);
-  R.render=(s,c)=>{r0(s,c);H.n++;H.calls+=R.info.render.calls;H.tris+=R.info.render.triangles;const now=performance.now();
+  R.render=(s,c)=>{V3.liteSkip=false;r0(s,c);if(V3.liteSkip)return;H.n++;H.calls+=R.info.render.calls;H.tris+=R.info.render.triangles;const now=performance.now();
     if(now-H.t0>=1000){const k=H.n||1;el.textContent=`${(H.n*1000/(now-H.t0)).toFixed(0)} fps  ${Math.round(H.calls/k)} draws  ${Math.round(H.tris/k/1000)}k tris\nsim ${(H.sim/Math.max(1,H.ticks)).toFixed(1)} ms/tick  ${G?G.units.length:0} units`;H.n=H.calls=H.tris=H.sim=H.ticks=0;H.t0=now;}};
   const tk=rtTick;rtTick=function(dt){const t=performance.now();const r=tk.apply(this,arguments);H.sim+=performance.now()-t;H.ticks++;return r;};}
 if(typeof startView==='function'){const f=startView;startView=async function(){const r=await f.apply(this,arguments);try{perfHud();}catch(e){}return r;};}
@@ -15797,7 +15878,7 @@ function mmInit(){if(typeof document==='undefined'||MM.el)return;mmLoad();
   MM.cv.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();MM.drag=true;try{MM.cv.setPointerCapture(e.pointerId);}catch(_){}const [x,z]=at(e);if(mmPick(x,z,true)===false)MM.drag=false;mmDraw();});
   MM.cv.addEventListener('pointermove',e=>{if(!MM.drag)return;e.preventDefault();const [x,z]=at(e);mmPick(x,z,false);});
   const up=()=>{MM.drag=false;};MM.cv.addEventListener('pointerup',up);MM.cv.addEventListener('pointercancel',up);
-  const loop=now=>{requestAnimationFrame(loop);if(now-MM.lastT<180&&!MM.drag)return;MM.lastT=now;try{mmDraw();}catch(e){}};requestAnimationFrame(loop);}
+  const loop=now=>{requestAnimationFrame(loop);if(now-MM.lastT<(MM.iv||180)&&!MM.drag)return;MM.lastT=now;try{mmDraw();}catch(e){}};requestAnimationFrame(loop);}
 if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mmInit);else setTimeout(mmInit,0);}
 
 /* ---- 08o-auto.js ---- */
@@ -16810,7 +16891,7 @@ function manualHtml(){const D=typeof DEMO==='object'?DEMO:{plant:6,plantR:10,cos
     '한 손가락 끌기: 화면 이동(튕기면 미끄러짐) · 두 손가락: 확대·회전·기울기 · 두 손가락 톡: 선택 취소',
     '아래 부대 목록의 칩을 탭하면 그 부대를 고르고 카메라가 따라갑니다. 맨 앞 편성 칩([전체]·[1중대]·[본부])은 그 묶음 전체를 고릅니다.',
     '오른쪽 아래 [범위 선택](점선 네모)을 누르고 끌면 그 안의 아군을 한꺼번에 고릅니다(한 번 쓰면 꺼짐). 길게 누른 채 끌어도 됩니다.',
-    '길게 누르기(끌지 않음): 그 지점 정보 · 오른쪽 아래 지도 버튼: 회전·집결지로·[⋯](확대·낮은 시점·기자 카메라·격자·화면 질감·소리·전체화면)',
+    '길게 누르기(끌지 않음): 그 지점 정보 · 오른쪽 아래 지도 버튼: 회전·집결지로·[⋯](확대·낮은 시점·기자 카메라·격자·화면 질감·저사양·소리·전체화면)',
     '부대를 고르면 하단 바에 지금 바로 쓸 버튼(돌입·하차·옥상으로·보급·부관에게 돌려주기·소대·정지·✕)만 보이고, 고수·축성·임무·건물 사격·벽 뚫기·폭약 같은 드문 명령은 [⋯]에 있습니다.',
     '왼쪽 위 작은 지도: 누르면 그 자리로 가고, 편성 칩을 고른 상태면 그곳이 목표가 됩니다. 작은 지도 아래 카드는 부대들이 올린 전황 보고입니다.']));
   h+=manSec('pc','조작: PC',manL([
@@ -16818,8 +16899,14 @@ function manualHtml(){const D=typeof DEMO==='object'?DEMO:{plant:6,plantR:10,cos
     '오른쪽 클릭: 고른 부대에 명령(땅이면 이동, 적이면 공격). 중대·전체를 골랐으면 그곳이 목표. 배치·지원 고르는 중이면 취소',
     '오른쪽 끌기 또는 Ctrl/Alt+끌기: 회전·기울기 · 휠: 확대 · 가운데 끌기·WASD·화살표·화면 가장자리: 이동 · Q/E 회전 · R/F 기울기',
     '아군 더블클릭: 그 소대 전체 · Ctrl+A: 전체 · Ctrl+숫자: 번호 붙이기 · 숫자: 그 번호 고르기(두 번이면 카메라 이동) · Shift+숫자: 더하기',
-    'Space 일시정지 · H 집결지로 · C 낮은 시점 · V 종군기자 카메라 · N 야간투시경(밤) · K 작은 지도 접기 · P 화면 질감 · M 소리 끄기 · Esc 취소·메뉴 닫기',
+    'Space 일시정지 · H 집결지로 · C 낮은 시점 · V 종군기자 카메라 · N 야간투시경(밤) · K 작은 지도 접기 · P 화면 질감 · L 저사양 모드 · M 소리 끄기 · Esc 취소·메뉴 닫기',
     '하단 바 [속도]는 1× → 2× → 0.5× 차례로 바뀝니다.']));
+  h+=manSec('gfx','그래픽과 저사양 모드',manL([
+    '<b>저사양 모드</b>: 휴대폰이나 느린 컴퓨터에서 화면이 끊기면 켜세요. 그림만 가벼워지고 <b>규칙·판정·결과는 똑같습니다</b>(보이는 나무가 줄어도 숲 칸의 시야·엄폐는 그대로).',
+    '켜면 해상도를 ¾로 낮추고, 그림자와 색보정·대기 안개 후처리를 끄고, 연기·불꽃 입자를 절반 아래로, 지도 밖 풍경 나무와 숲 칸 나무·덤불을 줄이고(다음 판부터), 안개 너머는 그리지 않고, 화면은 초당 30번까지만 다시 그립니다.',
+    '<b>켜고 끄기</b>: 시작 화면 <b>그래픽</b> 줄(자동·저사양·보통), 또는 게임 중 지도 버튼 [저사양](휴대폰은 [⋯] 안, PC는 L 키).',
+    '<b>자동</b>(기본): 기기가 느려 보이면(메모리 2GB 이하·코어 2개 이하) 처음부터 켜고, 게임 중 5초 평균 22fps 아래가 두 번 이어지면 알아서 켜고 알려 줍니다. 한 번 자동으로 켜지면 다음에도 처음부터 켭니다. 보통으로 고르면 다시는 자동으로 켜지지 않습니다.',
+    '<b>화면 질감</b>(P): 거칠게·보통·선명은 픽셀 크기와 색보정 단계입니다. 저사양 모드와 함께 쓸 수 있습니다.']));
   h+=manSec('cmd','부관과 편성',manL([
     '<b>자동 편성</b>: 전투 부대는 저절로 소대(최대 4개 부대), 소대는 중대(최대 3개 소대)로 묶입니다. 전차는 전차소대, 장갑차·험비는 보병과 함께 기계화 소대(차량 둘까지)가 됩니다. 손실로 반 넘게 줄어든 소대는 가까운 같은 갈래 소대와 합칩니다.',
     '<b>본부</b>: 보급·구급·구난·박격포·포병·저격·드론·대공·전자전·공병전차는 소대에 들지 않고 본부에서 제 일을 스스로 합니다(직접 지휘여도 마찬가지, 고수·직접 명령 중일 때만 멈춤).',
