@@ -111,7 +111,7 @@ function stXing(P,t){const R=P.R;let X=R._xg;
   let r=1,lag=0;for(const f of P.veh.concat(P.inf)){r=Math.min(r,formSpd(f)/formSpd(L)*(f.supp>0?.65:1));if((f._fLag||0)>lag)lag=f._fLag||0;}
   let k=Math.min(1,r*FORM.pace);if(lag>FORM.lagWait)k=0;else if(lag>FORM.lagSlow)k*=.4;
   // 교전 가능: 앞장선 보병이 자리를 잡을 때까지 차량은 엄호하며 천천히(보병 걸음보다 느리게)
-  if(P.th&&P.geo.street&&P.side){const ld=[P.side[1][0],P.side[-1][0]].filter(Boolean);if(ld.some(f=>(f._fLag||0)>.5))k*=.45;else k*=.85;}
+  if(P.th&&P.geo.street&&P.side){const ld=[P.side[1][0],P.side[-1][0]].filter(Boolean);if(ld.some(f=>(f._fLag||0)>.5))k*=.35;else k*=.85;}   // .35: 예전에는 전차가 옆 보병을 밀어 앞으로 내보냈다(05b 부대 밀어내기). 이제 차체 모양만큼만 밀어 보병이 제 발로 앞서도록 차량이 더 기다린다
   return k;};}
 // 교차로 앞에 선 선두는 따르는 부대가 없어도 서야 한다(05o-form rtMove 래퍼는 따르는 부대가 있을 때만 걸음을 바꾼다)
 {const _mv=rtMove;rtMove=function(u,dt){if(!u.path||!u.path.length||formLead.has(u.id)||!stG.has(u.id))return _mv(u,dt);const k=formPace(u);if(k<=0){u._pg=null;return;}return _mv(u,dt*k);};}
