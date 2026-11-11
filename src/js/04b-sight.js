@@ -131,8 +131,8 @@ function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.r
 const FOVT=new Map();const fovT=t=>{let k=FOVT.get(t);if(k===undefined)FOVT.set(t,k=FOVT.size);return k;};
 const fovN=v=>v==null?-1:typeof v==='boolean'?(v?1:0):v;
 function fovSnap(r0,r1,c0,c1){r0=Math.max(0,r0-1);r1=Math.min(N-1,r1+1);c0=Math.max(0,c0-1);c1=Math.min(N-1,c1+1);
-  const a=new Float64Array((r1-r0+1)*(c1-c0+1)*9+4);a[0]=r0;a[1]=r1;a[2]=c0;a[3]=c1;let q=4;
-  for(let r=r0;r<=r1;r++){const row=G.map[r];for(let c=c0;c<=c1;c++){const x=row[c];a[q++]=fovT(x.t);a[q++]=fovN(x.blk);a[q++]=fovN(x.bhp);a[q++]=fovN(x.bmax);a[q++]=fovN(x.f);a[q++]=x.smoke>0?1:0;a[q++]=fovN(x.el);a[q++]=x.yard?1:0;a[q++]=fovN(x.tl);}}
+  const a=new Float64Array((r1-r0+1)*(c1-c0+1)*10+4);a[0]=r0;a[1]=r1;a[2]=c0;a[3]=c1;let q=4;
+  for(let r=r0;r<=r1;r++){const row=G.map[r];for(let c=c0;c<=c1;c++){const x=row[c];a[q++]=fovT(x.t);a[q++]=fovN(x.blk);a[q++]=fovN(x.bhp);a[q++]=fovN(x.bmax);a[q++]=fovN(x.f);a[q++]=x.smoke>0?1:0;a[q++]=fovN(x.el);a[q++]=x.yard?1:0;a[q++]=fovN(x.tl);a[q++]=fovN(x.lost);}}
   return a;}
 function fovSnapEq(a,b){if(a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;}
 /* 세력 n의 시야: 칸 집합(예전 호환) + 잘게 나눈 안개 점(.fine). 위치가 계속 바뀌므로 0.25초마다 갱신 */

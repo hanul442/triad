@@ -54,8 +54,9 @@ function pickGridPatch(T){const MP=T&&T.Mesh&&T.Mesh.prototype;if(!MP||MP._pkGri
       // 칸 모서리를 스칠 때 옆 칸도 넣는다(반올림으로 놓치지 않게)
       if(Math.abs(tx-tz)<1e-9){if(i+si>=0&&i+si<GX)cells.push(j*GX+i+si);if(j+sj>=0&&j+sj<GZ)cells.push((j+sj)*GX+i);}
       if(tx<tz){if(tx>tb)break;i+=si;tx+=tdx;}else{if(tz>tb)break;j+=sj;tz+=tdz;}if(i<0||j<0||i>=GX||j>=GZ)break;}
-    const seen=new Set(),tmp=[];this.geometry=Gd.pg;
+    const seen=new Set(),tmp=[],got=[];this.geometry=Gd.pg;
     try{for(const q of cells){const a=Gd.st[q],z=Gd.st[q+1];if(a===z)continue;Gd.pg.drawRange.start=a*3;Gd.pg.drawRange.count=(z-a)*3;C0.call(this,rc,tmp,ray);
-        for(const h of tmp){const f=Gd.map[h.faceIndex];if(seen.has(f))continue;seen.add(f);h.faceIndex=f;out.push(h);}tmp.length=0;}}
-    finally{this.geometry=g;Gd.pg.drawRange.start=0;Gd.pg.drawRange.count=Infinity;}};}
+        for(const h of tmp){const f=Gd.map[h.faceIndex];if(seen.has(f))continue;seen.add(f);h.faceIndex=f;got.push(h);}tmp.length=0;}}
+    finally{this.geometry=g;Gd.pg.drawRange.start=0;Gd.pg.drawRange.count=Infinity;}
+    got.sort((a,b)=>a.faceIndex-b.faceIndex);for(const h of got)out.push(h);};}   // 원래처럼 면 번호 순서로 넣는다(거리가 같은 면이 여럿일 때 같은 면을 고르게)
 if(typeof v3Init==='function'){const _i=v3Init;v3Init=function(){try{pickGridPatch(V3.T);}catch(e){}return _i.apply(this,arguments);};}
