@@ -185,7 +185,7 @@ function v3Hover(e){if(v3HovRaf)return;const x=e.clientX,y=e.clientY;v3HovRaf=re
 function v3Clear(g){for(const o of [...g.children]){g.remove(o);o.traverse(x=>{if(x.geometry)x.geometry.dispose();});}}
 
 /* ---------- 지면 ---------- */
-function v3GroundTex(){const P=48,W=N*P;const cv=document.createElement('canvas');cv.width=cv.height=W;const g=cv.getContext('2d');V3.gcv=cv;V3.gctx=g;V3.gP=P;const R=mulberry((G.seed|0)^0x5151);
+function v3GroundTex(){const P=48,W=N*P;const cv=document.createElement('canvas');const PX=Math.min(P,Math.floor(4096/N));cv.width=cv.height=N*PX;const g=cv.getContext('2d');if(PX<P)g.scale(PX/P,PX/P);/* 초대형 지도: 휴대폰 캔버스 한도(4096) 안으로 줄여 그린다 */V3.gcv=cv;V3.gctx=g;V3.gP=P;const R=mulberry((G.seed|0)^0x5151);
   const t=(r,c)=>inb(r,c)?G.map[r][c].t:'void';const rd=(r,c)=>t(r,c)==='road';const open=(r,c)=>{const q=t(r,c);return q==='road'||q==='plaza'||q==='void';};
   const BASE={road:'#353637',plaza:'#7d7a72',park:'#4a4c38',rubble:'#5a564f',bldg:'#4f5040',water:'#22303a'};
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const q=t(r,c),X=c*P,Y=r*P;const cx0=G.map[r][c];g.fillStyle=cx0.lot?'#3b3c3d':cx0.al?'#4a4945':cx0.yard?'#525638':BASE[q]||'#555';g.fillRect(X,Y,P,P);

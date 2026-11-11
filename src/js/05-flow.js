@@ -1,5 +1,7 @@
 /* ===================== FLOW: 새 게임·승패·저장 ===================== */
 const START_FORCE=['rifle','rifle','rifle','mg','at','sniper','mortar','ifv'];
+// 특대형·초대형 지도는 넓은 땅을 맡을 부대를 조금 더 주고 시작한다
+const startForce=size=>size==='xxl'?START_FORCE.concat(['rifle','rifle','mg','ifv']):size==='xl'?START_FORCE.concat(['rifle','mg']):START_FORCE;
 function zoneSpots(n){const o=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(inZone(n,r,c))o.push([r,c]);
   const m=(N-1)/2;o.sort((a,b)=>(Math.abs(a[0]-m)+Math.abs(a[1]-m))-(Math.abs(b[0]-m)+Math.abs(b[1]-m)));return o;}
 function newGame(cfg){cfg=cfg||{};const size=SIZES[cfg.size||'m']?cfg.size||'m':'m';N=SIZES[size].c;
@@ -9,7 +11,7 @@ function newGame(cfg){cfg=cfg||{};const size=SIZES[cfg.size||'m']?cfg.size||'m':
     maxR:cfg.maxR||24,h0:START_HOURS[cfg.hour]??(typeof cfg.hour==='number'?cfg.hour:7),wxLock:!!(cfg.wx&&cfg.wx!=='auto'),tflow:TIME_FLOW[cfg.tflow]?cfg.tflow:'normal',flares:[],vpWin:cfg.vpWin||objs.length*6+12,hist:[],errs:[],scn:cfg.scn||null,
     nats:NATS.map((_,i)=>({ctrl:slots[i]||'none',cp:6,vp:0,alive:slots[i]&&slots[i]!=='none',kills:0,losses:0,used:0,dmg:0}))};
   const act=G.nats.map((x,i)=>x.alive?i:-1).filter(i=>i>=0);G.order=act;
-  for(const n of act){const sp=zoneSpots(n);const force=cfg.force||START_FORCE;let i=0;
+  for(const n of act){const sp=zoneSpots(n);const force=cfg.force||startForce(size);let i=0;
     for(const t of force){while(i<sp.length&&mcost(t,G.map[sp[i][0]][sp[i][1]])===Infinity)i++;if(i>=sp.length)break;mkUnit(n,t,sp[i][0],sp[i][1]);i++;}}
   if(typeof propCovers==='function')propCovers();
   if(cfg.wx&&WX[cfg.wx])G.wx=cfg.wx;else if(cfg.wx==='auto')G.wx=rollWx();
