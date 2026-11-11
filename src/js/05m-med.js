@@ -96,7 +96,7 @@ function ambTick(a,dt,t){a.load=a.load||[];const moving=a.path&&a.path.length;co
 /* ---------- AI: 부상자가 쌓이면 구급차 ---------- */
 {const _ai=aiThink;aiThink=function(n){if(!G.over)try{aiMedBuy(n);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}return _ai(n);};}
 function aiMedBuy(n){const N2=G.nats[n];const mine=G.units.filter(u=>u.nat===n);const amb=mine.filter(u=>u.type==='amb').length;const hurt=mine.reduce((a,u)=>a+(u.ws?u.ws.filter(w=>w.s==='hw'&&!w.y).length:0),0)+(G.evac||[]).filter(p=>p.nat===n&&p.ph==='out').length+(G.cas||[]).filter(o=>o.nat===n).length;
-  const want=(G.size==='l'?2:1)+(hurt>=8?1:0);if(amb>=want)return;
+  const want=(sizeBig(G.size)?2:1)+(hurt>=8?1:0);if(amb>=want)return;
   if(hurt<3||N2.cp<UT.amb.cost+3)return;const sp=deploySpots(n,'amb');if(!sp.length)return;const b=ccpBase(n);
   sp.sort((p,q)=>Math.hypot(kc(p)+.5-b.x,kr(p)+.5-b.z)-Math.hypot(kc(q)+.5-b.x,kr(q)+.5-b.z));buy(n,'amb',kr(sp[0]),kc(sp[0]));}
 
