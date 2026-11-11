@@ -36,7 +36,7 @@ function nightK(){if(!G)return 0;const h=dayH();return h>=12?smooth(17.5,20,h):1
 function duskK(){if(!G)return 0;const h=dayH();const k=Math.max(1-Math.abs(h-18.4)/1.6,1-Math.abs(h-5.4)/1.4,0);return k;}
 
 /* ---------- 빛 ---------- */
-const militia=n=>n%2===1;
+const militia=n=>natEast(n);   // 홀수 세력이면서 국군(05c3-rok)이 아닌 세력
 function gearOf(u){const t=UT[u.type];if(t.fly)return NIGHT_PEN[u.type]?u.type:t.heli?'gunship':'drone';if(u.type==='sniper')return 'sniper';return t.cls==='veh'?'veh':'inf';}
 /* 지금 빛나는 것들: 떠 있는 조명탄과 불타는 건물. 0.5초마다 다시 모은다 */
 function lights(){const tq=Math.floor(((G&&G.time)||0)*2);const c=G._lit;if(c&&c.tq===tq&&c.ver===G.ver)return c;
