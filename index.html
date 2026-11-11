@@ -1836,15 +1836,25 @@ const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return
 const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15,dz:.16};   // dz 공병전차(규칙은 09e-fleet). 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
-  car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 헤치고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘
+  car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:2,eng:2,veh:2,trk:1},hedgegap:{inf:0,eng:0,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 틈(hedgegap)으로만 지나가고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘
   barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
   sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2},
   trench:{inf:0,eng:0,veh:2,trk:0},nest:{inf:0,eng:0,veh:2,trk:1}};
+/* 생울타리 틈: 울타리마다 한 곳(가운데 또는 ±.2칸, 나무가 선 울타리는 가운데를 피한다)에 사람 지나갈 틈(약 2.6m)이 있다.
+   이동 격자(작은 칸 .2) 칸 가운데에 맞춰야 틈 한 줄이 열린다. 화면(07p·07g2)도 같은 값으로 두 토막을 그린다 */
+const HEDGE_GAP=.11;
+function hedgeGap(p){const h=Math.abs(Math.sin(p.x*91.7+p.z*47.3)*43758.5453)%1;return p.tr?(h<.5?-.2:.2):h<.34?-.2:h<.67?0:.2;}
+/* 울타리의 두 토막 [가운데 위치(울타리 방향), 반 길이] */
+function hedgeParts(p){const g=hedgeGap(p),a=g-HEDGE_GAP,b=g+HEDGE_GAP;return [[(-.5+a)/2,(a+.5)/2],[(b+.5)/2,(.5-b)/2]];}
+/* 쓰러진 울타리(p.dead)는 05o-wreck이 목록에서 뺀다: 그 자리는 누구나 넘는다 */
+function hedgeObs(O,p,k,kg,hw){const cs=Math.cos(p.ry),sn=Math.sin(p.ry);
+  for(const [t,hl] of hedgeParts(p))O.push({k,x:p.x+cs*t,z:p.z-sn*t,ry:p.ry,hl,hw});
+  O.push({k:kg,x:p.x+cs*hedgeGap(p),z:p.z-sn*hedgeGap(p),ry:p.ry,hl:HEDGE_GAP,hw});}
 /* 길을 막는 물체 목록 (방향 있는 상자) */
 function navObstacles(){const O=[];
   for(const p of G.props||[]){
     if(p.k==='car'){const fl=p.flip?1.05:1;O.push({k:'car',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2*fl,hw:CAR_KIND_W[p.kind]/2*fl,p});}
-    else if(p.k==='hedge')O.push({k:'hedge',x:p.x,z:p.z,ry:p.ry,hl:.5,hw:.04});          // 공원 둘레 생울타리(길이 12m)
+    else if(p.k==='hedge')hedgeObs(O,p,'hedge','hedgegap',.04);          // 공원 둘레 생울타리(길이 12m): 틈 하나를 뺀 두 토막
     else if(p.k==='wagon')O.push({k:'wagon',x:p.x,z:p.z,ry:p.ry,hl:.25,hw:.085});       // 철길 위 화차
     else if(p.k==='barrier')O.push({k:'barrier',x:p.x,z:p.z,ry:p.ry,hl:.135,hw:.026});
     else if(p.k==='bin')O.push({k:'bin',x:p.x,z:p.z,ry:p.ry+Math.PI/2,hl:.08,hw:.045});}
@@ -2180,10 +2190,10 @@ function envTag(){const w=WX[G.wx]||WX.clear;const nk=nightK();const s=[w.n];if(
    - 겨울: 눈 덮인 길 밖에서는 보병 10%, 차량 18% 느리다. */
 Object.assign(COVK,{bocage:{n:'생울타리',v:.3},bale:{n:'건초더미',v:.25},cont:{n:'컨테이너',v:.4},hull:{n:'선체',v:.4},logs:{n:'통나무 더미',v:.35}});
 Object.assign(PROP_LOS,{bocage:1,cont:1,hull:1});
-Object.assign(NAV_RULE,{bocage:{inf:1,eng:1,veh:2,trk:1},cont:{inf:2,eng:2,veh:2,trk:2},logs:{inf:0,eng:0,veh:2,trk:2}});
+Object.assign(NAV_RULE,{bocage:{inf:2,eng:2,veh:2,trk:1},bocgap:{inf:0,eng:0,veh:2,trk:1},cont:{inf:2,eng:2,veh:2,trk:2},logs:{inf:0,eng:0,veh:2,trk:2}});
 {const _no=navObstacles;navObstacles=function(){const O=_no();
   for(const p of G.props||[]){
-    if(p.k==='bocage')O.push({k:'bocage',x:p.x,z:p.z,ry:p.ry,hl:.5,hw:.05});
+    if(p.k==='bocage')hedgeObs(O,p,'bocage','bocgap',.085);   // 보병은 틈으로만(04d hedgeGap)
     else if(p.k==='cont')O.push({k:'cont',x:p.x,z:p.z,ry:p.ry,hl:.47,hw:.1});
     else if(p.k==='logs')O.push({k:'logs',x:p.x,z:p.z,ry:p.ry,hl:.2,hw:.09});}
   return O;};}
@@ -3157,7 +3167,7 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
       if(u.supp>0&&!m.pr)m.pr=.6+Math.random()*.6;}            // 제압: 엎드린다
     // 곧장 못 가면(벽·건물 경계) 분대장이 지나간 발자국을 거꾸로 따라간다: 지금 자리에서 곧게 보이는 가장 앞쪽 발자국으로
     if(Math.hypot(gx-m.x,gz-m.z)>.006&&!menClear(u,m.x,m.z,gx,gz)){const w=menVia(u,m,t,gx,gz);if(w){gx=w[0];gz=w[1];}}
-    if(typeof vegPush==='function'){const q=vegPush(gx,gz,m.x,m.z);if(menClear(u,gx,gz,q[0],q[1])){gx=q[0];gz=q[1];}}   // 설 자리가 나무·덤불 안이면 바깥으로(05f4-veg)
+    if(typeof vegPush==='function'){const q=vegPush(gx,gz,m.x,m.z);if(q&&menClear(u,gx,gz,q[0],q[1])){gx=q[0];gz=q[1];}}   // 설 자리가 나무·덤불 안이면 바깥으로(05f4-veg)
     let dx=gx-m.x,dz=gz-m.z,d=Math.hypot(dx,dz);
     if(d>.006&&typeof vegSteer==='function'){const s=vegSteer(m.x,m.z,dx/d,dz/d,Math.min(d,.12));dx=s[0]*d;dz=s[1]*d;}   // 앞에 줄기가 있으면 돌아간다
     if(d>.3)dash=Math.max(dash,1.7);else if(d>.12)dash=Math.max(dash,1.25);
@@ -3166,7 +3176,7 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
       if(!menClear(u,m.x,m.z,nx,nz)){m.stk+=dt;nx=m.x;nz=m.z;m.wp=null;// 막혔으면 서서 다음 틱에 발자국 길을 다시 찾는다(벽은 절대 통과하지 않는다)
         if(m.stk>2.5){const P=menTrailNear(u,m);if(P){nx=P[0];nz=P[1];}m.stk=0;}}   // 오래 끼어 있으면 가장 가까운 발자국 자리로 옮긴다
       else m.stk=0;
-      if(typeof vegPush==='function'){const q=vegPush(nx,nz,m.x,m.z);if(menClear(u,nx,nz,q[0],q[1])){nx=q[0];nz=q[1];}}
+      if(typeof vegStep==='function')[nx,nz]=vegStep(u,m,nx,nz);
       m.spd=Math.hypot(nx-m.x,nz-m.z)/dt;m.x=nx;m.z=nz;if(m.spd>.02)m.f=Math.atan2(dz,dx);}
     else m.spd=0;
     // 너무 멀리 떨어지면(밀려나거나 막힘) 분대장 곁으로 붙인다
@@ -3441,7 +3451,9 @@ function aaThreatNear(n,x,z,R){for(const e of G.units){if(e.nat===n||!isAAT(e.ty
    병사(05f-men)는 그 둘레 원 안으로 들어가지 않는다: 줄기를 향해 걸으면 옆으로 비켜 돌아가고,
    설 자리·엄폐 자리가 나무 안이면 바깥으로 민다. 차량은 그대로 숲을 밀고 나간다(05o-wreck, 10d-landexit).
    포격·전차에 쓰러진 나무(G.fellZ, 07zw-wreck과 같은 규칙)와 부서진 보카주는 막지 않는다.
-   생울타리(hedge·bocage 줄)는 보병이 헤치고 지나가는 규칙(04d NAV_RULE inf:1)이라 그대로 둔다. */
+   생울타리(hedge·bocage 줄)는 틈으로만 지나간다(04d hedgeGap, NAV_RULE inf:2). 전차가 밟거나 포탄에 쓰러지면 누구나 넘는다.
+   분대 길찾기는 막지 않지만 병사가 안에 서면 안 되는 낮은 물체도 같은 원으로 다룬다:
+     통나무 더미(logs), 쓰레기 컨테이너(bin), 공원 벤치, 거점 둘레 모래주머니(07 v3BuildWorld가 그리는 것) */
 const VEG={body:.02,   // 병사 몸 반지름(약 0.25m)
   head:.15};           // 선 병사 키(1.8m): 이보다 높은 가지는 걸리지 않는다
 const vegH=(k,s)=>typeof v3Hash==='function'?v3Hash(k,s):0;
@@ -3449,12 +3461,12 @@ const vegFallH=(a,b)=>{let h=Math.imul((a|0)^0x9e3779b9,2654435761)^Math.imul(b|
 /* 가문비 원뿔 층(07g3 natGeos와 같은 값): [밑 높이, 반지름, 높이] */
 const VEG_SPR=[[.15,.12,.34],[.36,.105,.3],[.56,.08,.26],[.74,.05,.26]];
 /* 가문비: 줄기와, 밑면이 병사 키보다 낮은 가지 층 중 가장 넓은 것 */
-function vegSpruceR(s,sy){let r=.018*s;for(const [y,rad] of VEG_SPR)if(y*sy<VEG.head-.01)r=Math.max(r,rad*s*.85);return r;}
-function vegPineR(s,sy){let r=.017*s;if(.37*sy<VEG.head-.01)r=Math.max(r,.085*s*.8);return r;}
+function vegSpruceR(s,sy){let r=.018*s;for(const [y,rad] of VEG_SPR)if(y*sy<VEG.head+.005)r=Math.max(r,rad*s*.95);return r;}
+function vegPineR(s,sy){let r=.017*s;if(.37*sy<VEG.head+.005)r=Math.max(r,.085*s*.9);return r;}
 function vegClime(){return typeof bmClime==='function'?bmClime():'temp';}
 /* 지도 전체의 나무·덤불 원 목록 {x,z,r,t:'tree'|'bush',p?} */
-function vegBuild(){const M=G.map,O=[],cl=vegClime();const add=(x,z,r,t,p)=>O.push({x,z,r:r+VEG.body,t,p,fv:-1,fell:0});
-  const bush=s=>.05*s*.85;
+function vegBuild(){const M=G.map,O=[],cl=vegClime(),benches=[];const add=(x,z,r,t,p)=>O.push({x,z,r:r+VEG.body,t,p,fv:-1,fell:0});
+  const bush=s=>.066*s;   // 팔면체 두 덩이(긴 쪽 .07)
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];if(!x)continue;const k=key(r,c),H=s=>vegH(k,s);
     if(!G.camp&&typeof natWildTrees==='function'){
       if(x.t==='park'&&x.wild&&!x.orch){let i=0;   // 숲: 3×3 격자
@@ -3471,6 +3483,7 @@ function vegBuild(){const M=G.map,O=[],cl=vegClime();const add=(x,z,r,t,p)=>O.pu
     if(x.t==='park'){const cx=c+.5,cz=r+.5;
       // 공원·마당·숲의 활엽수(07p): 가지는 높고 줄기만 걸린다
       for(let i=0;i<2;i++)if(H(410+i)<(x.wild&&typeof natWildTrees==='function'?.08:.3)){const a=H(420+i)*6.28,rr=.26+H(430+i)*.16,s=.8+H(440+i)*.5;add(cx+Math.cos(a)*rr,cz+Math.sin(a)*rr,.021*s,'tree');}
+      if(!x.yard&&!x.wild&&H(470)<.45){const side=H(471)<.5;benches.push([cx+(side?.12:0),cz+(side?0:.12),side]);}   // 공원 벤치(07p)
       // 마른 나무(07 v3BuildWorld)
       if(!x.wild&&!x.mead)for(let s=0;s<(x.yard?1:3);s++)if(H(50+s)<(x.yard?.45:.75))add(cx+(H(60+s)-.5)*.7,cz+(H(70+s)-.5)*.7,.03*(.7+H(80+s)*.6),'tree');}}
   // 대로 가로수(07w cxBuildStreet와 같은 자리)
@@ -3482,31 +3495,55 @@ function vegBuild(){const M=G.map,O=[],cl=vegClime();const add=(x,z,r,t,p)=>O.pu
         for(const t of [-.27,.27]){if(vegH(sk,1350+(t>0))>.5)continue;add(cx+b*.44+(a?t:0),cz+a*.44+(b?t:0),.012,'tree');}});}}
   // 보카주 위 나무(07g2)
   for(const p of G.props||[])if(p.k==='bocage'&&p.tr)add(p.x,p.z,.025,'tree',p);
+  // 상자 모양: (x,z) 가운데, (ax,az) 긴 쪽 단위 방향, hl 반 길이, hw 반 폭
+  const bar=(x,z,ax,az,hl,hw,t,p)=>O.push({x,z,r:Math.hypot(hl+VEG.body,hw+VEG.body),b:{ax,az,hl:hl+VEG.body,hw:hw+VEG.body},t,p,fv:-1,fell:0});
+  for(const [x,z,side] of benches)bar(x,z,side?0:1,side?1:0,.075,.025,'prop');
+  for(const p of G.props||[]){const cs=Math.cos(p.ry||0),sn=Math.sin(p.ry||0);
+    if(p.k==='logs')bar(p.x,p.z,cs,-sn,.2,.08,'prop',p);                 // 통나무 더미(길이 약 5m)
+    else if(p.k==='bin')bar(p.x,p.z,sn,cs,.08,.045,'prop',p);}           // 쓰레기 컨테이너
+  // 거점 둘레 모래주머니(07 v3BuildWorld와 같은 자리)
+  for(const o of G.objs||[])for(const [a,b] of [[-1,0],[1,0],[0,-1],[0,1]]){const r=o.r+a,c=o.c+b;if(!inb(r,c)||M[r][c].t==='bldg'||M[r][c].t==='water')continue;
+    bar(c+.5-a*.38,r+.5-b*.38,b?1:0,b?0:1,.3,.06,'prop');}
   return O;}
 /* 칸별 색인. 지도·소품이 바뀌면 다시 만든다 */
-function vegIdx(){if(!G||!G.map)return null;const V=G._veg;if(V&&V.map===G.map&&V.nv===(G.navV||0)&&V.np===(G.props?G.props.length:0)&&V.n===N)return V.g;
+function vegIdx(){if(!G||!G.map)return null;const V=G._veg;if(V&&V.map===G.map&&V.nv===(G.navV||0)&&V.np===(G.props?G.props.length:0)&&V.no===(G.objs?G.objs.length:0)&&V.n===N)return V.g;
   const g=new Map();for(const o of vegBuild()){for(let a=Math.floor(o.z-o.r);a<=Math.floor(o.z+o.r);a++)for(let b=Math.floor(o.x-o.r);b<=Math.floor(o.x+o.r);b++){const kk=a*1000+b;let L=g.get(kk);if(!L)g.set(kk,L=[]);L.push(o);}}
-  Object.defineProperty(G,'_veg',{value:{map:G.map,nv:G.navV||0,np:G.props?G.props.length:0,n:N,g},writable:true,configurable:true,enumerable:false});return g;}
+  Object.defineProperty(G,'_veg',{value:{map:G.map,nv:G.navV||0,np:G.props?G.props.length:0,no:G.objs?G.objs.length:0,n:N,g},writable:true,configurable:true,enumerable:false});return g;}
 /* 이 나무가 쓰러졌는가(07zw wrvTrees와 같은 규칙) */
-function vegDown(o){if(o.p)return !!o.p.dead;if(o.t!=='tree')return false;const v=G.wrkV||0;if(o.fv===v)return o.fell;o.fv=v;o.fell=0;
+function vegDown(o){if(o.p)return !!(o.p.dead||o.p.crush);if(o.t!=='tree')return false;const v=G.wrkV||0;if(o.fv===v)return o.fell;o.fv=v;o.fell=0;
   for(const q of G.fellZ||[]){const d=Math.hypot(q.x-o.x,q.z-o.z);if(d>q.r)continue;if(d<q.r*.6||vegFallH(Math.round(o.x*997),Math.round(o.z*991))<.65){o.fell=1;break;}}return o.fell;}
 /* (x,z) 둘레의 서 있는 나무·덤불 */
 function vegNear(x,z){const g=vegIdx();if(!g)return null;const L=g.get(Math.floor(z)*1000+Math.floor(x));return L||null;}
+/* 점이 이 물체 안인가 (원 또는 상자) */
+function vegHit(o,x,z){const dx=x-o.x,dz=z-o.z;if(dx*dx+dz*dz>=o.r*o.r)return false;if(!o.b)return true;const B=o.b;return Math.abs(dx*B.ax+dz*B.az)<B.hl&&Math.abs(-dx*B.az+dz*B.ax)<B.hw;}
 /* 점이 나무·덤불 안인가 */
-function vegIn(x,z){const L=vegNear(x,z);if(L)for(const o of L){const dx=x-o.x,dz=z-o.z;if(dx*dx+dz*dz<o.r*o.r&&!vegDown(o))return o;}return null;}
-/* 나무·덤불 밖으로 민 자리 (sx,sz는 밀 방향이 애매할 때 쓰는 기준점: 보통 지금 병사 자리) */
-function vegPush(x,z,sx,sz){for(let it=0;it<3;it++){const o=vegIn(x,z);if(!o)break;let dx=x-o.x,dz=z-o.z,d=Math.hypot(dx,dz);
-    if(d<1e-4){dx=(sx??o.x+1)-o.x;dz=(sz??o.z)-o.z;d=Math.hypot(dx,dz);if(d<1e-4){dx=1;dz=0;d=1;}}
-    x=o.x+dx/d*(o.r+.002);z=o.z+dz/d*(o.r+.002);}return [x,z];}
+function vegIn(x,z){const L=vegNear(x,z);if(L)for(const o of L)if(vegHit(o,x,z)&&!vegDown(o))return o;return null;}
+/* 물체 o 밖으로 민 자리 */
+function vegOut(o,x,z,sx,sz){let dx=x-o.x,dz=z-o.z;
+  if(o.b){const B=o.b;let l=dx*B.ax+dz*B.az,w=-dx*B.az+dz*B.ax;const pl=B.hl-Math.abs(l),pw=B.hw-Math.abs(w);   // 덜 파고든 쪽 면으로
+    if(pw<=pl)w=(w>=0?1:-1)*(B.hw+.002);else l=(l>=0?1:-1)*(B.hl+.002);return [o.x+l*B.ax-w*B.az,o.z+l*B.az+w*B.ax];}
+  let d=Math.hypot(dx,dz);if(d<1e-4){dx=(sx??o.x+1)-o.x;dz=(sz??o.z)-o.z;d=Math.hypot(dx,dz);if(d<1e-4){dx=1;dz=0;d=1;}}
+  return [o.x+dx/d*(o.r+.002),o.z+dz/d*(o.r+.002)];}
+/* 나무·덤불 밖으로 민 자리 (sx,sz는 밀 방향이 애매할 때 쓰는 기준점: 보통 지금 병사 자리). 겹친 덤불 사이라 못 빠져나오면 null */
+function vegPush(x,z,sx,sz){for(let it=0;it<4;it++){const o=vegIn(x,z);if(!o)return [x,z];[x,z]=vegOut(o,x,z,sx,sz);}return vegIn(x,z)?null:[x,z];}
+/* 병사 한 걸음: (nx,nz)가 나무·덤불 안이면 바깥으로 민 자리, 그것도 안 되면 제자리. 이미 안에 있으면(배치·밀려남) 나오게 둔다 */
+function vegStep(u,m,nx,nz){if(!vegIn(nx,nz)||vegIn(m.x,m.z))return [nx,nz];
+  const t=G.time||0;if(m.vfree>t)return [nx,nz];   // 한참 막혀 있었으면 잠깐 헤치고 지나간다(덤불 사이에 갇히지 않게)
+  const q=vegPush(nx,nz,m.x,m.z);if(q&&(typeof menClear!=='function'||menClear(u,m.x,m.z,q[0],q[1]))){m.vstk=0;return q;}
+  m.vstk=(m.vstk||0)+1;if(m.vstk>15){m.vstk=0;m.vfree=t+.8;}return [m.x,m.z];}
 /* 걷는 방향 비틀기: 앞(look 안)에 줄기·덤불이 길을 막으면 그 둘레를 도는 쪽으로 방향을 꺾는다. 결과는 단위 벡터 */
 function vegSteer(x,z,ux,uz,look){const L=vegNear(x,z),L2=vegNear(x+ux*look,z+uz*look);let best=null,bt=1e9;
-  for(const A of [L,L2])if(A)for(const o of A){const ox=o.x-x,oz=o.z-z;const t=ox*ux+oz*uz;if(t<=0||t>look+o.r)continue;const lat=ox*-uz+oz*ux;   // 진행선에서 옆으로 떨어진 거리
-    if(Math.abs(lat)>=o.r)continue;if(t<bt&&!vegDown(o)){bt=t;best={o,lat};}}
-  if(!best)return [ux,uz];const {o,lat}=best;const ox=o.x-x,oz=o.z-z,d=Math.hypot(ox,oz)||1e-4;
+  for(const A of [L,L2])if(A)for(const o of A){let cx=o.x,cz=o.z,rad=o.r;
+      if(o.b){const B=o.b;const l=Math.max(-B.hl,Math.min(B.hl,(x-o.x)*B.ax+(z-o.z)*B.az));cx=o.x+B.ax*l;cz=o.z+B.az*l;rad=B.hw;}   // 상자: 가장 가까운 등줄기 점을 원으로
+      const ox=cx-x,oz=cz-z;const t=ox*ux+oz*uz;if(t<=0||t>look+rad)continue;const lat=ox*-uz+oz*ux;   // 진행선에서 옆으로 떨어진 거리
+      if(Math.abs(lat)>=rad)continue;if(t<bt&&!vegDown(o)){bt=t;best={cx,cz,rad,lat};}}
+  if(!best)return [ux,uz];const {cx,cz,rad,lat}=best;const ox=cx-x,oz=cz-z,d=Math.hypot(ox,oz)||1e-4;
   // 줄기 중심에서 먼 쪽으로 접선 방향
-  const side=lat>0?-1:lat<0?1:((Math.floor(o.x*977+o.z*613)&1)?1:-1);const rr=Math.min(1,o.r/d);const ang=Math.asin(rr)+.05;
+  const side=lat>0?-1:lat<0?1:((Math.floor(cx*977+cz*613)&1)?1:-1);const rr=Math.min(1,rad/d);const ang=Math.asin(rr)+.05;
   const base=Math.atan2(oz,ox)+side*ang;const tx=Math.cos(base),tz=Math.sin(base);
   return tx*ux+tz*uz>-.2?[tx,tz]:[ux,uz];}
+/* 울타리가 쓰러지면(전차·포탄) 이동 격자를 다시 만든다: 그 자리로 보병도 넘어간다 */
+if(typeof wrkPropSet==='function'){const _w=wrkPropSet;wrkPropSet=function(p,st){const ok=_w(p,st);if(ok&&st==='dead'&&p&&(p.k==='hedge'||p.k==='bocage'))G.navV=(G.navV||0)+1;return ok;};}
 
 /* ---- 05g-casualty.js ---- */
 /* ===================== CASUALTY: 맞은 곳에 따라 다치는 병사, 부상자 후송, 사기, 차량 부위 피해 =====================
@@ -3622,9 +3659,9 @@ function ccpOf(n){G.ccp=G.ccp||{};if(G.ccp[n])return G.ccp[n];let sp=zoneSpots(n
   const p=sp.length?sp[Math.floor(sp.length*.6)]:[Math.floor(N/2),Math.floor(N/2)];return G.ccp[n]={x:p[1]+.5,z:p[0]+.5};}
 /* ---------- 분대 안: 끌어 옮기기, 응급처치, 후송 보내기 ---------- */
 const CAS_SP=()=>UT.rifle.mv*SPD_K;
-function casStep(u,m,tx,tz,sp,dt){if(typeof vegPush==='function'){const q=vegPush(tx,tz,m.x,m.z);if(menClear(u,tx,tz,q[0],q[1])){tx=q[0];tz=q[1];}}   // 나무·덤불을 뚫지 않고 돌아간다(05f4-veg)
+function casStep(u,m,tx,tz,sp,dt){if(typeof vegPush==='function'){const q=vegPush(tx,tz,m.x,m.z);if(q&&menClear(u,tx,tz,q[0],q[1])){tx=q[0];tz=q[1];}}   // 나무·덤불을 뚫지 않고 돌아간다(05f4-veg)
   const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d<.02)return true;const st=Math.min(d,sp*dt);let ux=dx/d,uz=dz/d;if(typeof vegSteer==='function')[ux,uz]=vegSteer(m.x,m.z,ux,uz,Math.min(d,.12));
-  let nx=m.x+ux*st,nz=m.z+uz*st;if(typeof vegPush==='function'){const q=vegPush(nx,nz,m.x,m.z);if(menClear(u,nx,nz,q[0],q[1])){nx=q[0];nz=q[1];}}
+  let nx=m.x+ux*st,nz=m.z+uz*st;if(typeof vegStep==='function')[nx,nz]=vegStep(u,m,nx,nz);
   if(menClear(u,m.x,m.z,nx,nz)){m.x=nx;m.z=nz;m.stk=0;}else{m.stk=(m.stk||0)+dt;if(m.stk>2){m.x=tx;m.z=tz;m.stk=0;}}
   m.f=Math.atan2(dz,dx);m.spd=st/dt;return d<=st+.02;}
 /* 부상자를 끌어다 놓을 엄폐 자리 */
@@ -9891,7 +9928,7 @@ function bmBuildWorld(g){const T=V3.T,pm=v3PropMats(),M3=bmMats(),G3=bmGeos(),cl
   // 소품
   const hedge=[],htree=[],bale=[],cont=[],paint=[],hull=[],logs=[];const P=G.props||[];
   for(const p of P){
-    if(p.k==='bocage'){hedge.push({x:p.x,y:0,z:p.z,ry:p.ry,col:pal(BM_HEDGE[cl]||BM_HEDGE.temp,Math.floor(p.x*97+p.z*13),3)});
+    if(p.k==='bocage'){const cs=Math.cos(p.ry),sn=Math.sin(p.ry),col=pal(BM_HEDGE[cl]||BM_HEDGE.temp,Math.floor(p.x*97+p.z*13),3);for(const [t,hl] of hedgeParts(p))hedge.push({x:p.x+cs*t,y:0,z:p.z-sn*t,ry:p.ry,sx:hl*2,sy:1,sz:1,col});   // 틈을 뺀 두 토막(04d hedgeGap)
       if(p.tr)htree.push({x:p.x,y:0,z:p.z,s:.55+((p.x*7+p.z*3)%1)*.2,ry:p.x+p.z,col:pal(LF||['#5f6b3c','#4f5a34','#66703f'],Math.floor(p.x*31+p.z*7),5)});}
     else if(p.k==='bale')bale.push({x:p.x,y:0,z:p.z,ry:p.ry,col:cl==='winter'?'#dcdcd4':'#c2a35c'});
     else if(p.k==='cont')for(let i=0;i<p.n;i++)cont.push({x:p.x,y:i*.275,z:p.z,ry:p.ry,col:i%2?p.c2:p.col});
@@ -11131,7 +11168,7 @@ function v3BuildProps(g){const T=V3.T,pm=v3PropMats(),m=MU;
   /* 콘크리트 방벽(저지 블록), 쓰레기 컨테이너, 생울타리 */
   {const bar=[],bin=[],lid=[],hedge=[];
     for(const p of PR){if(p.k==='barrier')bar.push({x:p.x,z:p.z,ry:p.ry});else if(p.k==='bin'){bin.push({x:p.x,y:.7*m,z:p.z,ry:p.ry});lid.push({x:p.x,y:1.45*m,z:p.z,ry:p.ry,rz:.08});}
-      else if(p.k==='hedge')hedge.push({x:p.x,y:.5*m,z:p.z,ry:p.ry});}
+      else if(p.k==='hedge'){const cs=Math.cos(p.ry),sn=Math.sin(p.ry);for(const [t,hl] of hedgeParts(p))hedge.push({x:p.x+cs*t,y:.5*m,z:p.z-sn*t,ry:p.ry,sx:hl*2,sy:1,sz:1});}}   // 틈을 뺀 두 토막(04d hedgeGap)
     v3Inst(g,v3Prism([[-.3*m,0],[.3*m,0],[.1*m,.35*m],[.08*m,.8*m],[-.08*m,.8*m],[-.1*m,.35*m]],3.2*m).rotateY(Math.PI/2),pm.conc,bar);
     v3Inst(g,new T.BoxGeometry(1.0*m,1.4*m,1.9*m),pm.bin,bin);v3Inst(g,new T.BoxGeometry(1.1*m,.1*m,2.0*m),pm.sig,lid,{noShadow:1});
     v3Inst(g,new T.BoxGeometry(12*m,1*m,.9*m),pm.hedge,hedge);}
@@ -14611,7 +14648,7 @@ function wrvIndex(){const g=V3.G&&V3.G.world;if(!g)return null;const T=V3.T;
   // 소품 인스턴스 → 가장 가까운 소품
   const P=G.props||[];const grid=new Map();P.forEach((p,i)=>{const k=Math.floor(p.z)*N+Math.floor(p.x);let a=grid.get(k);if(!a)grid.set(k,a=[]);a.push(i);});
   for(const M of props){const A=M.m0,n=M.o.count;M.own=new Int32Array(n).fill(-1);
-    for(let i=0;i<n;i++){const x=A[i*16+12],z=A[i*16+14];let best=-1,bd=.36;const r0=Math.floor(z),c0=Math.floor(x);
+    for(let i=0;i<n;i++){const x=A[i*16+12],z=A[i*16+14];let best=-1,bd=.42;const r0=Math.floor(z),c0=Math.floor(x);
       for(let a=r0-1;a<=r0+1;a++)for(let b=c0-1;b<=c0+1;b++){const L=grid.get(a*N+b);if(!L)continue;for(const j of L){const d=Math.hypot(P[j].x-x,P[j].z-z);if(d<bd){bd=d;best=j;}}}
       M.own[i]=best;}}
   return WRV.meshes={trees,props,tmp:{m:new T.Matrix4(),r:new T.Matrix4(),t:new T.Matrix4(),t2:new T.Matrix4(),q:new T.Quaternion(),v:new T.Vector3(),ax:new T.Vector3(),c:new T.Color()}};}
@@ -15961,7 +15998,7 @@ function manualHtml(){const D=typeof DEMO==='object'?DEMO:{plant:6,plantR:10,cos
     '<b>밤</b>: 맨눈은 달빛에 따라 40~100m, 야간투시경(정규군 보병) 110~150m, 열상(차량·대전차미사일·저격수·드론)은 낮과 같이 봅니다. 민병대 보병은 맨눈입니다. 밤에는 조준도 흔들립니다. 조명탄과 불타는 건물 둘레는 양쪽 모두에게 낮처럼 보입니다. 밤엔 N 키나 시계 옆 버튼으로 야간투시경 화면을 켭니다.',
     '<b>날씨</b>는 몇 라운드씩 이어지며 바뀝니다(설정에서 고정 가능). 보이는 거리 상한: 짙은 안개·눈보라 약 60m, 모래폭풍 약 40m, 먼지 연무 약 120m, 폭우 약 150m, 눈 약 200m. 열상 장비는 조금 더 봅니다. 비·폭우·모래폭풍은 소리도 묻습니다.',
     '비에는 드론이 느려지고, 안개·모래엔 드론이 땅을 거의 못 봅니다. 폭우(눈보라·모래폭풍)에는 드론·헬기·전투기가 뜨지 못하고 떠 있던 드론은 떨어집니다.',
-    '겨울에는 눈 덮인 길 밖에서 보병 10%, 차량 18% 느립니다. 생울타리(보카주)는 보병을 늦추고 바퀴 차량을 막습니다(궤도 차량은 뚫음).']));
+    '겨울에는 눈 덮인 길 밖에서 보병 10%, 차량 18% 느립니다. 생울타리(보카주)는 바퀴 차량을 막고, 보병은 울타리마다 난 틈으로만 지나갑니다. 궤도 차량은 뚫고 지나가며, 그렇게 쓰러진 자리로는 보병도 넘어갑니다. 병사들은 나무·덤불·통나무 더미를 비켜 돌아갑니다.']));
   h+=manSec('cover','엄폐 · 은폐 · 제압',manL([
     '엄폐는 병사 한 명 한 명이 쏘는 쪽을 향해 무엇 뒤에 있는지로 정해지고 분대 평균이 명중률을 깎습니다. 옆이나 뒤에서 쏘면 벽·차량 엄폐는 없습니다.',
     '건물 안 55%(창가로만 맞음, 폭발물은 절반만 막음) · 외벽에 붙음 35%(차량 20%) · 잔해 25% · 공원(나무) 15% · 연막 +15% · 요새화한 건물 70% · 벙커 60% · 참호·구덩이 안은 사방 엄폐. 2층 이상에서 내려 쏘면 낮은 엄폐는 절반.',

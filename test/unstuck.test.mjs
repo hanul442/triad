@@ -1,7 +1,7 @@
 // 멈춤·뚫고 지나감: 차량은 주차 차를 차체로 피하거나(바퀴) 깔아뭉개고(궤도), 막히면 빠져나오고, 보병은 돌아가는 길에서 명령을 버리지 않는다
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGame } from './harness.mjs';
+import { loadGame, seedRandom } from './harness.mjs';
 
 function setup(T) {
   T.newGame({ slots: ['human', 'human', 'none', 'none'], size: 's', seed: 3, fog: false });
@@ -74,4 +74,26 @@ test('분대원은 주차 차 모양 안에 서지 않는다', () => {
   const inBox = T.inBox; let bad = 0;
   for (let i = 0; i < 400; i++) { step(T); for (const m of u._men || []) for (const o of T.__eval('NAV').obs || []) if (o.k === 'car' && inBox(o, m.x, m.z, -.01)) bad++; }
   assert.equal(bad, 0);
+});
+
+test('보병은 생울타리를 뚫지 않고 틈으로 건너며, 나무·덤불 속에 서지 않는다', () => {
+  const T = loadGame(); seedRandom(T, 11);
+  T.newGame({ slots: ['human', 'human', 'none', 'none'], size: 's', fog: false, speed: 0, seed: 3, layout: 'country' });
+  const G = T.G, N = T.N, inBox = T.inBox, vegIn = T.__get('vegIn');
+  // 필지 사이 세로 울타리 하나를 골라 서쪽에서 동쪽으로 건넌다
+  const pick = G.props.find(p => { if (p.k !== 'bocage' || !p.ry || Math.abs(p.x - Math.round(p.x)) > .01 || p.x < 4 || p.x > N - 4 || p.z < 4 || p.z > N - 4) return false;
+    const r = Math.floor(p.z), c = Math.round(p.x); return [G.map[r][c - 1], G.map[r][c]].every(x => x.t !== 'bldg' && x.t !== 'water' && !x.wild); });
+  assert.ok(pick, '울타리');
+  const r = Math.floor(pick.z), c = Math.round(pick.x);
+  const u = G.units.find(z => z.type === 'rifle' && z.nat === 0); G.units = [u];
+  u.x = c - .5; u.z = r + .5; u.r = r; u.c = c - 1; T.__get('menInit')(u);
+  T.orderMoveTo(u, c + .5, r + .5);
+  const boxes = T.__get('navObstacles')().filter(o => o.k === 'bocage');
+  let inHedge = 0, inVeg = 0, n = 0;
+  for (let i = 0; i < 400; i++) { T.rtTick(.1); G.units = G.units.filter(z => z.id === u.id);
+    if (i < 20) continue;   // 처음 자리(배치)에서 나오는 동안은 빼고 센다
+    for (const m of u._men) { n++; if (boxes.some(o => inBox(o, m.x, m.z, -.02))) inHedge++; if (vegIn(m.x, m.z)) inVeg++; } }
+  assert.ok(Math.hypot(u.x - (c + .5), u.z - (r + .5)) < .6, `도착 ${u.x.toFixed(2)},${u.z.toFixed(2)}`);
+  assert.equal(inHedge, 0, '울타리 속 병사');
+  assert.ok(inVeg / n < .01, `나무·덤불 속 ${inVeg}/${n}`);
 });

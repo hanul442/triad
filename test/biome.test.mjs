@@ -64,7 +64,11 @@ test('생울타리: 땅에 선 눈높이를 가리고, 바퀴 차량은 못 지�
   assert.equal(losPt(9, 10.5, .5, 11, 10.5, .5), false, '보카주 너머');
   assert.equal(losPt(9, 10.5, 2.2, 11, 10.5, .5), true, '2층에서 내려다보면');
   const obs = T.__get('navObstacles')(); const rule = T.__eval('NAV_RULE.bocage');
-  assert.ok(obs.some(o => o.k === 'bocage')); assert.equal(rule.veh, 2); assert.equal(rule.trk, 1); assert.equal(rule.inf, 1);
+  assert.ok(obs.some(o => o.k === 'bocage')); assert.equal(rule.veh, 2); assert.equal(rule.trk, 1);
+  // 보병은 울타리를 뚫지 않고 틈(bocgap)으로만 지나간다
+  assert.equal(rule.inf, 2); assert.equal(T.__eval('NAV_RULE.bocgap').inf, 0); assert.ok(obs.some(o => o.k === 'bocgap'));
+  // 틈은 이동 격자 한 줄이 열릴 만큼 넓고, 울타리 두 토막과 겹치지 않는다
+  const gp = obs.find(o => o.k === 'bocgap'); assert.ok(gp.hl >= .1 && gp.hl < .2);
 });
 
 test('겨울: 길 밖에서는 느리다', () => {
