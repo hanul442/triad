@@ -1,7 +1,7 @@
 /* ===================== 관전 자동 연출: 전쟁 다큐·중계 감독 =====================
    관전 모드에서 "자동 연출"이 켜져 있으면 이 감독이 카메라를 맡는다.
-   - 사건을 모은다: 총격, 전차·장갑차 격파, 건물 붕괴, 큰 폭발, 포격, 돌입, 상륙·강습, 미사일, 거점 공방·점령.
-     최근 사건이 몰린 곳(이야기)을 고르고, 큰 사건(격파·붕괴·점령)은 하던 샷을 끊고 넘어간다.
+   - 사건을 모은다: 총격, 전차·장갑차 격파, 큰 폭발, 포격, 돌입, 상륙·강습, 미사일, 거점 공방·점령.
+     최근 사건이 몰린 곳(이야기)을 고르고, 큰 사건(격파·점령)은 하던 샷을 끊고 넘어간다.
    - 샷을 바꿔 가며 찍는다: 넓은 전경(est), 헬기 선회(heli), 어깨 너머(over), 차량 추격(follow), 낮은 앵글(low),
      거점 선회(obj), 조용할 때 전선(front). 새 장소는 넓은 샷으로 열고, 같은 샷을 잇달아 쓰지 않는다.
    - 샷마다 최소·최대 길이가 있다(실제 시간). 짧은 컷이 튀지 않게 최소 길이 전에는 큰 사건만 끊는다.
@@ -10,10 +10,10 @@
    - 새 이야기·점령 때 화면 아래에 중계 자막을 띄운다.
    공습(07x-strike)과 세력 탈락(08v-spec)은 그쪽이 고른 자리를 쓰고, 각도만 감독이 정한다. */
 const DIR_SHOT={   // 최소·최대 길이(ms), 기본 기울기, 거리
-  est:{min:9000,max:16000,p:.92,d:24},heli:{min:10000,max:18000,p:.6,d:13},over:{min:8000,max:14000,p:.2},
+  est:{min:5500,max:9000,p:.78,d:16},heli:{min:10000,max:18000,p:.6,d:13},over:{min:8000,max:14000,p:.2},
   follow:{min:10000,max:18000,p:.3,d:5.5},low:{min:8000,max:12000,p:.11},obj:{min:9000,max:14000,p:.5,d:10},
   front:{min:10000,max:20000,p:.85},ext:{min:0,max:1e9,p:.45}};
-const DIR_W={fire:.35,fireV:1.2,duel:2,kill:2.5,killV:7,collapse:8,strike:4,boom:1.5,boomB:3.5,breach:3,land:3.5,ms:6,cap:9,assault:2.5};
+const DIR_W={fire:.35,fireV:1.2,duel:2,kill:2.5,killV:7,strike:4,boom:1.5,boomB:3.5,breach:3,land:3.5,ms:6,cap:9,assault:2.5};
 const DIR_R=4.5,DIR_BIG=7;
 const DIR={ev:[],shot:null,cam:null,story:null,hist:[],here:0,own:null,g:null,fol:null,skip:null,bak:null,prev:new Map(),cap:null,chk:0,on:false};
 const dirNow=()=>typeof performance!=='undefined'?performance.now():Date.now();
@@ -28,11 +28,11 @@ const dirFly=u=>!!u&&UT[u.type]&&!!UT[u.type].fly;
 {const W=(name,f)=>{const g=globalThis[name];if(typeof g!=='function')return;globalThis[name]=function(){try{f.apply(null,arguments);}catch(e){}return g.apply(this,arguments);};};
   W('v3FxFire',(a,r,c,d)=>{if(!a||a.x==null)return;const t=d&&d.type?d:null;const v=dirVeh(a);dirEv(a.x,a.z,v&&dirVeh(t)?DIR_W.duel:v?DIR_W.fireV:DIR_W.fire,v&&dirVeh(t)?'duel':'fire',{u:a.id,t:t?t.id:null});});
   W('v3FxKill',u=>{if(u)dirEv(u.x,u.z,dirVeh(u)?DIR_W.killV:dirFly(u)?6:DIR_W.kill,dirVeh(u)||dirFly(u)?'killV':'kill',{type:u.type,nat:u.nat});});
-  W('v3FxCollapse',(r,c)=>dirEv(c+.5,r+.5,DIR_W.collapse,'collapse'));
+  // 건물 붕괴는 일부러 찾아가지 않는다. 다른 일로 그 자리를 보고 있으면 보일 뿐
   W('v3FxStrike',(k,r,c)=>dirEv(c+.5,r+.5,DIR_W.strike,'strike',{kind:k}));
   W('v3FxBoom',(x,z,h,onB,s)=>{const b=(s&&s.pw||1)>1.2;dirEv(x,z,b?DIR_W.boomB:DIR_W.boom,'boom');});
   W('v3FxBreach',(a,P)=>{if(P&&P.x!=null)dirEv(P.x,P.z,DIR_W.breach,'breach',{u:a&&a.id});});
-  W('v3FxLand',u=>{if(u)dirEv(u.x,u.z,DIR_W.land,'land',{u:u.id});});
+  W('v3FxLand',u=>{if(u)dirEv(u.x,u.z,G.camp&&typeof CAMP!=='undefined'&&CAMP[G.camp.id]&&CAMP[G.camp.id].land?DIR_W.land:1.2,'land',{u:u.id});});   // 상륙 작전은 크게, 평소 헬기 증원은 작게
   W('v3MsBoom',(x,z)=>dirEv(x,z,DIR_W.ms,'boom'));}
 
 /* 거점: 소유가 바뀌면 점령 사건, 점령이 진행 중이면 공방(계속 이어지는 이야기) */
@@ -52,7 +52,7 @@ function dirStories(now){const ev=DIR.ev.filter(e=>now-e.t<12000);DIR.ev=ev.leng
     for(const e of all){const d=Math.hypot(e.x-c.x,e.z-c.z);if(d>=DIR_R)continue;const f=e.w*(1-d/DIR_R*.7);s+=f;sx+=e.x*f;sz+=e.z*f;kw[e.k]=(kw[e.k]||0)+f;}
     if(s<=0)continue;const k=Object.keys(kw).sort((a,b)=>kw[b]-kw[a])[0];
     let src=c;if(kw.cap||kw.assault){const ce=all.find(e=>(e.k==='cap'||e.k==='assault')&&Math.hypot(e.x-c.x,e.z-c.z)<DIR_R&&e.o);if(ce)src=ce;}
-    out.push({x:sx/s,z:sz/s,s,k:kw.cap?'cap':kw.collapse>=DIR_W.collapse*.5?'collapse':k,kw,src});}
+    out.push({x:sx/s,z:sz/s,s,k:kw.cap?'cap':k,kw,src});}
   out.sort((a,b)=>b.s-a.s);
   // 비슷한 자리는 하나로
   const res=[];for(const o of out){if(res.some(r=>Math.hypot(r.x-o.x,r.z-o.z)<DIR_R*.8))continue;if(!dirSeeAt(o.x,o.z))continue;res.push(o);if(res.length>=6)break;}
@@ -64,11 +64,13 @@ function dirQuiet(){const h=specHot(null);if(h&&h.s>0&&specVisible(h.u))return {
 /* 이야기 속 주인공: 가까이서 최근에 쏜 부대, 기갑 이야기면 차량, 건물 밖·보이는 부대를 낫게 */
 function dirCast(st){const t=G.time||0;let best=null,bs=-1;const armor=st.k==='duel'||st.k==='killV';const air=st.k==='land';
   for(const u of G.units){if(!specVisible(u))continue;const d=Math.hypot(u.x-st.x,u.z-st.z);if(d>DIR_R+1)continue;if(dirFly(u)&&!air)continue;
-    let s=2-d/DIR_R;if(t-(u.firedT??-99)<4)s+=2;if(u.tgt!=null)s+=1;if(armor&&dirVeh(u))s+=2;if(dirInB(u))s-=1.2;if(UT[u.type].logi||!(UT[u.type].rng&&UT[u.type].rng[1]>0))s-=2;if(st.uid===u.id)s+=3;
+    let s=2-d/DIR_R;if(t-(u.firedT??-99)<4)s+=2;if(u.tgt!=null)s+=1;if(armor&&dirVeh(u))s+=2;if(dirInB(u))s-=1.2;if(!dirArmed(u))s-=6;if(st.uid===u.id)s+=3;
     if(s>bs){bs=s;best=u;}}
   return best;}
-function dirFoe(u){if(!u)return null;const t=u.tgt!=null&&G.units.find(o=>o.id===u.tgt);if(t&&Math.hypot(t.x-u.x,t.z-u.z)<12)return t;
-  let b=null,bd=9;for(const o of G.units){if(o.nat===u.nat||dirFly(o)||!specVisible(o))continue;const d=Math.hypot(o.x-u.x,o.z-u.z);if(d<bd){bd=d;b=o;}}return b;}
+function dirFoe(u){if(!u)return null;const t=u.tgt!=null&&G.units.find(o=>o.id===u.tgt);if(t&&dirArmed(t)&&Math.hypot(t.x-u.x,t.z-u.z)<12)return t;
+  let b=null,bd=9;for(const o of G.units){if(o.nat===u.nat||dirFly(o)||!dirArmed(o)||!specVisible(o))continue;const d=Math.hypot(o.x-u.x,o.z-u.z);if(d<bd){bd=d;b=o;}}return b;}
+/* 무기를 가진 부대인가(구급차·보급 트럭·구난차는 교전 상대·주인공으로 잡지 않는다) */
+function dirArmed(u){const t=UT[u.type];return !!t&&!t.logi&&!!(t.rng&&t.rng[1]>0);}
 function dirInB(u){const r=Math.floor(u.z),c=Math.floor(u.x);return inb(r,c)&&G.map[r][c].t==='bldg';}
 
 /* ---------- 가림 검사 ---------- */
@@ -102,7 +104,7 @@ function dirMoving(u){const p=DIR.prev.get(u.id);return !!p&&Math.hypot(u.x-p.x,
 function dirPlan(st,u,t,fresh){if(st.k==='front')return 'front';
   const recent=DIR.hist.slice(-2);const pick=opts=>opts.find(k=>!recent.includes(k))||opts.find(k=>k!==DIR.hist[DIR.hist.length-1])||opts[0];
   if(st.k==='cap'||st.k==='assault'&&!u)return fresh||DIR.hist[DIR.hist.length-1]!=='obj'?'obj':pick(u&&!dirInB(u)?['low','heli','est']:['heli','est']);
-  if(fresh)return st.k==='collapse'||st.k==='land'?'heli':'est';
+  if(fresh)return st.k==='land'?'heli':DIR.hist[DIR.hist.length-1]!=='est'?'est':u&&!dirInB(u)?(t?'over':'low'):'heli';   // 넓게 열되, 방금도 넓은 샷이었으면 바로 가까이
   if(!u||dirInB(u))return pick(['est','obj','heli'].filter(k=>k!=='obj'||st.k==='assault'));
   if(dirVeh(u))return pick(dirMoving(u)?['follow','low','over','heli']:t?['low','over','heli','est']:['low','heli','est']);
   if(st.k==='assault')return pick(t?['over','obj','low','heli']:['obj','low','heli']);
@@ -129,7 +131,7 @@ function dirPose(sh,now){const D=DIR_SHOT[sh.k]||DIR_SHOT.est;const age=(now-sh.
 
 /* 새 샷 시작 */
 function dirShot(st,now,cut){if(st.k==='front'&&DIR.shot&&DIR.shot.k==='front'){DIR.shot.f=st.front;DIR.shot.t0=now;return DIR.shot;}   // 조용할 땐 전선 샷을 이어 간다
-  const fresh=!DIR.story||Math.hypot(st.x-DIR.story.x,st.z-DIR.story.z)>6||DIR.story.k!==st.k&&(st.k==='cap'||st.k==='collapse');
+  const fresh=!DIR.story||Math.hypot(st.x-DIR.story.x,st.z-DIR.story.z)>6||DIR.story.k!==st.k&&st.k==='cap';
   const u=st.k==='front'?null:dirCast(st);const t=u?dirFoe(u):null;const k=dirPlan(st,u,t,fresh);
   const cy=DIR.cam?DIR.cam.yaw:(V3.cs?V3.cs.yaw:0);
   const sh={k,t0:now,x:st.x,z:st.z,uid:u?u.id:null,tid:t?t.id:null,yaw:cy+(fresh?.5:.9),dir:Math.random()<.5?-1:1,h:u?dirHead(u):0,oi:st.src&&st.src.o&&st.src.o.oi!=null?st.src.o.oi:null,f:st.front,yo:0,po:0,s:st.s};
@@ -149,14 +151,16 @@ function dirShot(st,now,cut){if(st.k==='front'&&DIR.shot&&DIR.shot.k==='front'){
 function dirFrame(now){const s=V3.cs;if(!DIR.on){DIR.on=true;DIR.bak={pitch:s.pitch};DIR.cam=null;DIR.shot=null;DIR.story=null;}
   const rdt=Math.min(.25,Math.max(0,(now-(DIR.lt||now))/1000));DIR.lt=now;
   let sh=DIR.shot;
-  // 다른 곳에서 부대를 골라 줬다(다음 교전, 전쟁 범죄 목격 등): 그 부대 이야기로 간다
-  if(UI.follow!=null&&UI.follow!==DIR.fol){const u=G.units.find(o=>o.id===UI.follow);if(u){sh=dirShot({x:u.x,z:u.z,s:5,k:'fire',kw:{},uid:u.id},now);sh.t0=now;}}
+  // 다른 곳에서 부대를 골라 줬다(제네바 위반 목격 등): 지금 샷을 4초는 보여 준 뒤 그 부대로. 그 전이면 볼 만한 사건으로만 남긴다
+  if(UI.follow!=null&&UI.follow!==DIR.fol){const u=G.units.find(o=>o.id===UI.follow);
+    if(u&&(!sh||now-sh.t0>=4000)){sh=dirShot({x:u.x,z:u.z,s:5,k:'fire',kw:{},uid:u.id},now);sh.t0=now;}
+    else{if(u)dirEv(u.x,u.z,DIR_BIG,'fire',{u:u.id});UI.follow=DIR.fol;}}
   const age=sh?now-sh.t0:1e9,D=sh?DIR_SHOT[sh.k]:null;
   const subj=sh&&sh.uid!=null?G.units.find(o=>o.id===sh.uid):null;const lost=sh&&sh.uid!=null&&(!subj||!specVisible(subj));
   if(!G.paused&&!G.over&&(now-DIR.chk>450||!sh||lost)){DIR.chk=now;
     const ss=dirStories(now);const best=ss[0]||null;
     const cur=sh&&DIR.story;const curS=cur?(ss.find(o=>Math.hypot(o.x-cur.x,o.z-cur.z)<DIR_R)||{s:0}).s:0;
-    // 바로 끊을 큰 사건: 다른 곳의 격파·붕괴·점령(2초는 보여 주고)
+    // 바로 끊을 큰 사건: 다른 곳의 격파·점령(5초는 보여 주고)
     const big=DIR.ev.find(e=>e.w>=DIR_BIG&&now-e.t<7000&&(!cur||Math.hypot(e.x-cur.x,e.z-cur.z)>DIR_R)&&!e.used&&dirSeeAt(e.x,e.z));
     let next=null;
     if(!sh)next=best||dirQuiet();
@@ -165,7 +169,7 @@ function dirFrame(now){const s=V3.cs;if(!DIR.on){DIR.on=true;DIR.bak={pitch:s.pi
     else if(lost&&age>4000)next=best&&Math.hypot(best.x-sh.x,best.z-sh.z)<DIR_R?best:(best||dirQuiet());
     else if(age>=D.min){
       const stay=curS*Math.pow(.8,DIR.here)*1.25;
-      if(best&&Math.hypot(best.x-cur.x,best.z-cur.z)>DIR_R&&best.s>Math.max(1.5,stay*2))next=best;   // 더 뜨거운 곳
+      if(best&&Math.hypot(best.x-cur.x,best.z-cur.z)>DIR_R&&best.s>Math.max(1.5,stay*(DIR.here<1?3:2)))next=best;   // 막 도착한 곳은 한 샷 더 보고 간다   // 더 뜨거운 곳
       else if(age>=D.max){const far=ss.find(o=>Math.hypot(o.x-cur.x,o.z-cur.z)>DIR_R);next=curS>0&&DIR.here<3?ss.find(o=>Math.hypot(o.x-cur.x,o.z-cur.z)<DIR_R)||best:(far||best||dirQuiet());}   // 같은 곳 다른 샷, 오래 머물렀으면 다른 곳
       else if(sh.k==='front'&&best&&best.s>1)next=best;}
     if(next&&next.k==='front'&&sh&&sh.k==='front'){sh.t0=now;sh.f=next.front;next=null;}
@@ -178,7 +182,8 @@ function dirFrame(now){const s=V3.cs;if(!DIR.on){DIR.on=true;DIR.bak={pitch:s.pi
   if(subj&&(!DIR.prev.has(subj.id)||now-(DIR.prev.get(subj.id).t||0)>400))DIR.prev.set(subj.id,{x:subj.x,z:subj.z,t:now});
   // 0.4초마다 가림을 다시 보고, 막히면 방향·높이를 고친다
   let P={...P0,yaw:P0.yaw+sh.yo,pitch:Math.min(1.3,P0.pitch+sh.po),d:P0.d*(sh.dk||1)};
-  if(now-(sh.ck||0)>400){sh.ck=now;if(dirBlock(P)>0){const Q=dirClear(P0);let dq=Q.yaw-(DIR.cam?DIR.cam.yaw:P.yaw);dq=Math.atan2(Math.sin(dq),Math.cos(dq));sh.yo=Q.yaw-P0.yaw;sh.po=Q.pitch-P0.pitch;sh.dk=Q.d/P0.d;P=Q;if(Math.abs(dq)>.4&&DIR.cam)DIR.cam={...Q};}   // 크게 돌아야 하면 빙 돌지 않고 컷
+  if(now-(sh.ck||0)>400){sh.ck=now;const blk=dirBlock(P)>0;if(blk)sh.bt=sh.bt||now;else sh.bt=0;
+    if(blk&&now-sh.bt>=1200&&now-(sh.oc||0)>4000){sh.oc=now;const Q=dirClear(P0);let dq=Q.yaw-(DIR.cam?DIR.cam.yaw:P.yaw);dq=Math.atan2(Math.sin(dq),Math.cos(dq));sh.yo=Q.yaw-P0.yaw;sh.po=Q.pitch-P0.pitch;sh.dk=Q.d/P0.d;P=Q;if(Math.abs(dq)>.4&&DIR.cam)DIR.cam={...Q};}   // 크게 돌아야 하면 빙 돌지 않고 컷
     else if(sh.po>0||(sh.dk||1)<1){const Q={...P,pitch:P0.pitch+Math.max(0,sh.po-.13),d:P0.d*Math.min(1,(sh.dk||1)+.15)};if(dirBlock(Q)===0){sh.po=Q.pitch-P0.pitch;sh.dk=Q.d/P0.d;}}}
   // 부드럽게 따라간다(샷 안의 움직임). 컷은 dirShot에서 cam을 바로 바꿨다
   const c=DIR.cam||(DIR.cam={...P});const kp=1-Math.exp(-rdt*(sh.k==='follow'?2.6:1.8)),ka=1-Math.exp(-rdt*1.6),ky=1-Math.exp(-rdt*.9);
@@ -221,10 +226,9 @@ function dirCapText(st,u,t){const nm=i=>G.objs&&G.objs[i]?G.objs[i].name:'거점
   switch(st.k){
     case 'cap':return ['거점 점령',`${nm(o.oi)} · ${o.now!=null?NATS[o.now].full:''}${o.was!=null?` (${dirNat(o.was)}에게서)`:''}`];
     case 'assault':return ['거점 공방',`${nm(o.oi)}${o.n!=null?` · ${dirNat(o.n)} 진입 중`:''}`];
-    case 'duel':case 'killV':return ['기갑 교전',vs];
-    case 'collapse':return ['건물 붕괴',vs||'시가지'];
-    case 'strike':return ['포격',vs];
-    case 'boom':return ['폭발',vs];
+    case 'duel':case 'killV':return ['기갑 교전',vs||'차량 격파'];
+    case 'strike':return ['포격',vs||'포탄 낙하'];
+    case 'boom':return ['폭발',vs||'포탄 낙하'];
     case 'breach':return ['건물 돌입',vs];
     case 'land':return ['상륙·강습',vs];
     case 'air':return ['공습','폭격기 접근 중'];

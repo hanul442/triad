@@ -141,7 +141,7 @@ test('감독: 화면이 빙빙 돌지 않는다(긴 교전 동안 초당 회전�
     tick(100);
     const y = T.__eval('V3.cs.yaw');
     if (DIR.shot !== last) { last = DIR.shot; shots++; if (last.k === 'heli') heli++; prev = y; continue; }   // 컷은 회전이 아니다
-    if (prev != null) { let d = y - prev; d = Math.atan2(Math.sin(d), Math.cos(d)); maxRate = Math.max(maxRate, Math.abs(d) / .1); }
+    if (prev != null) { let d = y - prev; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) > .3) shots++; else maxRate = Math.max(maxRate, Math.abs(d) / .1); }   // 한 번에 크게 바뀐 건 컷(가림 피하기)
     prev = y;
   }
   assert.ok(maxRate <= .31, `샷 안에서 초당 회전 ${maxRate.toFixed(3)} 라디안`);
