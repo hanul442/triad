@@ -83,7 +83,7 @@ function cxBuildCity(){const T=V3.T,g=V3.G.city;if(!G||!g||!T)return;cxMats();cx
       for(let i=0;i<4;i++)if(H(k,600+i)<.6){const a=H(k,610+i)*6.283,rr=H(k,620+i)*.3,l=.06+H(k,630+i)*.1;I.push({x:cx+Math.cos(a)*rr,y:.03+l*.4,z:cz+Math.sin(a)*rr,sx:.006,sy:l,sz:.006,rx:(H(k,640+i)-.5)*1.4,rz:(H(k,650+i)-.5)*1.4,col:'#4a3a30'});}
       continue;}
     if(x.t!=='bldg'||x.lm)continue;
-    const dmg=1-x.bhp/x.bmax;let h=x.f*FH;if(dmg>.5)h*=1-(dmg-.5)*.6;
+    const dmg=1-x.bhp/x.bmax;let h=bldgH(x)*FH;
     const ks=x.ks||(x.ind?'ware':x.f>=8?'tower':x.dist==='res'&&x.f<=2?'house':'panel');const bk=x.blk??k;
     const s=ks==='house'&&H(bk,5)<.45?0:(KSTY[ks]||KSTY.panel).s;
     const same=(a,b)=>inb(a,b)&&M[a][b].t==='bldg'&&x.blk!=null&&M[a][b].blk===x.blk&&M[a][b].bhp/M[a][b].bmax>.5&&dmg<.5;
