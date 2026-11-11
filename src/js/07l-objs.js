@@ -24,7 +24,7 @@ function v3LmBuild(o){const T=V3.T,M=v3LmMats(),m=MU;const x=G.map[o.r][o.c];con
   const fp=o.fp||{r0:o.r,r1:o.r,c0:o.c,c1:o.c,n:1};const W=fp.c1-fp.c0+1,D=fp.r1-fp.r0+1;
   const S=bl?Math.max(1,Math.min(2.4,Math.min(W,D)*.85)):fp.n>=9?2.5:fp.n>=4?1.8:1.35;
   const g=new T.Group();g.position.set((fp.c0+fp.c1+1)/2,0,(fp.r0+fp.r1+1)/2);g.scale.setScalar(S);
-  const top=(bl?.06+x.f*FLOOR_H:0)/S;const [fr,fc]=v3LmFront(o.r,o.c,fp);const fa=Math.atan2(fr,fc);   // 앞쪽(로컬 +x)으로 돌린 그룹
+  const top=(bl?.06+bldgH(x)*FLOOR_H:0)/S;const [fr,fc]=v3LmFront(o.r,o.c,fp);const fa=Math.atan2(fr,fc);   // 앞쪽(로컬 +x)으로 돌린 그룹
   // 앞 벽면까지 거리(로컬): 한 칸이면 .43
   const E=(fr?D:W)/2-.07;const fx=E/S;const X=v=>fx+(v-.43);
   const F=new T.Group();F.rotation.y=-fa;g.add(F);

@@ -11209,7 +11209,7 @@ function v3LmBuild(o){const T=V3.T,M=v3LmMats(),m=MU;const x=G.map[o.r][o.c];con
   const fp=o.fp||{r0:o.r,r1:o.r,c0:o.c,c1:o.c,n:1};const W=fp.c1-fp.c0+1,D=fp.r1-fp.r0+1;
   const S=bl?Math.max(1,Math.min(2.4,Math.min(W,D)*.85)):fp.n>=9?2.5:fp.n>=4?1.8:1.35;
   const g=new T.Group();g.position.set((fp.c0+fp.c1+1)/2,0,(fp.r0+fp.r1+1)/2);g.scale.setScalar(S);
-  const top=(bl?.06+x.f*FLOOR_H:0)/S;const [fr,fc]=v3LmFront(o.r,o.c,fp);const fa=Math.atan2(fr,fc);   // 앞쪽(로컬 +x)으로 돌린 그룹
+  const top=(bl?.06+bldgH(x)*FLOOR_H:0)/S;const [fr,fc]=v3LmFront(o.r,o.c,fp);const fa=Math.atan2(fr,fc);   // 앞쪽(로컬 +x)으로 돌린 그룹
   // 앞 벽면까지 거리(로컬): 한 칸이면 .43
   const E=(fr?D:W)/2-.07;const fx=E/S;const X=v=>fx+(v-.43);
   const F=new T.Group();F.rotation.y=-fa;g.add(F);
@@ -14368,7 +14368,7 @@ function grProps(){const T=V3.T,g=V3.G.city;if(!G||!g)return;
   const tanks=[],deb=[];const col=new T.Color();
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
     if(x.t==='bldg'&&x.f>=3&&x.f<8&&!x.lm&&x.ks!=='ware'&&x.ks!=='house'&&x.bhp/x.bmax>.6&&v3Hash(k,201)<.16){const a=v3Hash(k,202)<.5?-1:1,b=v3Hash(k,203)<.5?-1:1;
-      tanks.push([cx+a*.24,.06+x.f*FLOOR_H,cz+b*.24,v3Hash(k,204)*3]);}
+      tanks.push([cx+a*.24,.06+bldgH(x)*FLOOR_H,cz+b*.24,v3Hash(k,204)*3]);}
     else if(x.t==='road'||x.t==='plaza'){const n=v3Hash(k,210)<.45?1+Math.floor(v3Hash(k,211)*4):0;
       for(let i=0;i<n;i++){const s=.018+Math.pow(v3Hash(k,220+i),2)*.05;deb.push([cx+(v3Hash(k,230+i)-.5)*.9,s*.3,cz+(v3Hash(k,240+i)-.5)*.9,s,v3Hash(k,250+i)*3,v3Hash(k,260+i)]);}}}
   const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),p=new T.Vector3(),sc=new T.Vector3();
