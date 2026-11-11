@@ -99,10 +99,13 @@ function terrSig(){const c=G._ts;if(c&&c.ver===G.ver)return c.s;let s=0;
 /* 한 부대가 보는 안개 점들: 사방으로 광선을 뻗어 가며 지금까지 가장 가파른 장애물보다 높이 보이는 점만 남긴다(높이맵 시야).
    위치가 1/4칸 이상 움직이거나 지형이 바뀔 때만 다시 계산한다. */
 function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.round(uz*4)/4;const v=visRange(u),h=eye(u);const sig=terrSig();
-  const ar=typeof fovArc==='function'?fovArc(u):null;const ck=qx+','+qz+','+v+','+h+','+sig+','+N+(ar?','+ar.key:'');if(u._fov&&u._fov.k===ck)return u._fov.p;
+  const ar=typeof fovArc==='function'?fovArc(u):null;const ck0=qx+','+qz+','+v+','+h+','+N+(ar?','+ar.key:''),ck=ck0+','+sig;if(u._fov&&u._fov.k===ck)return u._fov.p;
   const M=N*FOW_R;const r1=u.r,c1=u.c;
   // 칸별 건물 상자·높이를 한 번만 구한다
   const bx0=Math.max(0,Math.floor(qx-v)),bx1=Math.min(N-1,Math.floor(qx+v)),bz0=Math.max(0,Math.floor(qz-v)),bz1=Math.min(N-1,Math.floor(qz+v));
+  // 먼 곳 지형만 바뀌었으면(지도 지문만 다름) 시야 안 칸을 그대로 다시 쓴다: 계산에 쓰는 칸 값이 지난번과 모두 같으면 결과도 같다
+  const sn=fovSnap(bz0,bz1,bx0,bx1);const F0=u._fov;
+  if(F0&&F0.k0===ck0&&F0.r1===r1&&F0.c1===c1&&F0.sn&&fovSnapEq(F0.sn,sn)){F0.k=ck;return F0.p;}
   const W=bx1-bx0+1;const TB=new Array(W*(bz1-bz0+1));
   for(let r=bz0;r<=bz1;r++)for(let c=bx0;c<=bx1;c++){const x=G.map[r][c];const own=r===r1&&c===c1;
     TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0&&!own,own,e:x.el||0}:{b:null,h:0,sm:x.smoke>0&&!own,own,e:x.el||0,wd:x.t==='park'&&!x.yard&&!(x.tl>=.6)};}
@@ -123,7 +126,15 @@ function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.r
       if(d<.9||(th-h0)/d>=maxS-.02)mark(px,pz);
       if(bh>0){const sl=(bh-h0)/d;if(sl>maxS)maxS=sl;}}}
   const out=[];for(let j=0;j<GH;j++)for(let i=0;i<GW;i++)if(mk[j*GW+i])out.push((j+gj0)*M+i+gi0);
-  u._fov={k:ck,p:out};return out;}
+  u._fov={k:ck,p:out,k0:ck0,r1,c1,sn};return out;}
+/* unitFov가 읽는 칸 값(건물 상자는 옆 칸도 보므로 한 칸 더 넓게) */
+const FOVT=new Map();const fovT=t=>{let k=FOVT.get(t);if(k===undefined)FOVT.set(t,k=FOVT.size);return k;};
+const fovN=v=>v==null?-1:typeof v==='boolean'?(v?1:0):v;
+function fovSnap(r0,r1,c0,c1){r0=Math.max(0,r0-1);r1=Math.min(N-1,r1+1);c0=Math.max(0,c0-1);c1=Math.min(N-1,c1+1);
+  const a=new Float64Array((r1-r0+1)*(c1-c0+1)*10+4);a[0]=r0;a[1]=r1;a[2]=c0;a[3]=c1;let q=4;
+  for(let r=r0;r<=r1;r++){const row=G.map[r];for(let c=c0;c<=c1;c++){const x=row[c];a[q++]=fovT(x.t);a[q++]=fovN(x.blk);a[q++]=fovN(x.bhp);a[q++]=fovN(x.bmax);a[q++]=fovN(x.f);a[q++]=x.smoke>0?1:0;a[q++]=fovN(x.el);a[q++]=x.yard?1:0;a[q++]=fovN(x.tl);a[q++]=fovN(x.lost);}}
+  return a;}
+function fovSnapEq(a,b){if(a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;}
 /* 세력 n의 시야: 칸 집합(예전 호환) + 잘게 나눈 안개 점(.fine). 위치가 계속 바뀌므로 0.25초마다 갱신 */
 function visSet(n){const ck='v'+n;G._vc=G._vc||{};const tq=Math.floor((G.time||0)*4);const c0=G._vc[ck];if(c0&&c0.ver===G.ver&&c0.tq===tq)return c0.s;
   const M=N*FOW_R;const fine=new Uint8Array(M*M);const s=new Set();

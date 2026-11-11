@@ -58,8 +58,11 @@ function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const 
 function deploySpots(n,type){const out=[];const O=occ();const inc=new Set(G.units.map(o=>key(Math.floor(o.z),Math.floor(o.x))));
   // 거점 o 근처 2칸 안에 적이 없나: 거점마다 한 번만 센다(칸마다 다시 세면 느리다)
   const free=[];const objFree=i=>{if(free[i]===undefined){const o=G.objs[i];free[i]=!G.units.some(e=>e.nat!==n&&dist(e.r,e.c,o.r,o.c)<=2);}return free[i];};
+  // 이 세력 거점 둘레 1칸 중 적이 없는 거점 둘레를 미리 표시해 둔다(칸마다 모든 거점을 보지 않게. objFree는 상태를 바꾸지 않으니 미리 불러도 같다)
+  const near=new Uint8Array(N*N);for(let i=0;i<G.objs.length;i++){const o=G.objs[i];if(G.map[o.r][o.c].owner!==n||!objFree(i))continue;
+    for(let r=Math.max(0,o.r-1);r<=Math.min(N-1,o.r+1);r++)for(let c=Math.max(0,o.c-1);c<=Math.min(N-1,o.c+1);c++)near[r*N+c]=1;}
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(O.has(key(r,c))||inc.has(key(r,c)))continue;if(mcost(type,x)===Infinity)continue;
-    let ok=inZone(n,r,c);if(!ok)for(let i=0;i<G.objs.length;i++){const o=G.objs[i];const y=G.map[o.r][o.c];if(y.owner===n&&dist(o.r,o.c,r,c)<=1&&objFree(i)){ok=true;break;}}
+    const ok=inZone(n,r,c)||near[r*N+c]===1;
     if(ok)out.push(key(r,c));}return out;}
 let UID=1;
 function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,x:c+.5+(Math.random()-.5)*.3,z:r+.5+(Math.random()-.5)*.3,hp:UT[type].hpMax||10,done:false,moved:false,supp:0,ow:false,kills:0,rank:0,path:[],cd:Math.random()*1.5,tgt:null,tgtTile:null,face:n===1?180:n===2?90:n===3?270:0};G.units.push(u);bump();return u;}
