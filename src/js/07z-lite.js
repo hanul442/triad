@@ -59,8 +59,9 @@ function liteHook(){const ren=V3.ren;if(!ren||ren.userData_lite)return;ren.userD
     if(now-LITE.lastR<1000/LITE.fps-4&&!V3.press){V3.liteSkip=true;return;}   // 기자 카메라는 셔터 순간이 있으니 거르지 않는다
     LITE.lastR=now;
     const fog=scene.fog;if(cam===V3.cam&&fog&&fog.far>0){const f=Math.min(LITE.far0,fog.far+4);if(Math.abs(cam.far-f)>2){cam.far=f;cam.updateProjectionMatrix();}}
-    if(typeof GRADE==='object'&&GRADE.raw){ren.info.reset();return GRADE.raw(scene,cam);}
-    return prev.call(ren,scene,cam);};}
+    // 후처리만 건너뛴다. GRADE.raw를 바로 부르면 그 바깥 겹(07z-inst 병사 묶음 그리기)까지 건너뛰어 병사가 안 보인다
+    if(typeof GRADE!=='object')return prev.call(ren,scene,cam);
+    GRADE.skip=true;try{return prev.call(ren,scene,cam);}finally{GRADE.skip=false;}};}
 
 if(typeof startView==='function'){const f=startView;startView=async function(){const r=await f.apply(this,arguments);try{if(V3.ren){if(V3.cam)LITE.far0=V3.cam.far;liteHook();liteApply();}}catch(e){console.warn('lite',e);}return r;};}
 if(typeof pfxInit==='function'){const f=pfxInit;pfxInit=function(){const was=PFX.on;const r=f.apply(this,arguments);if(!was&&PFX.on){LITE.pfx0=PFX.qMax;liteApply();}return r;};}
