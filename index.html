@@ -7897,7 +7897,7 @@ function tacPickObj(p,K){const n=p.nat,t=G.time||0;const c=tacCtr(p);if(!c)retur
     if(s>bs){bs=s;best=[o.r,o.c];}}
   if(!best){// 거점을 다 가졌으면 가장 가까운 아는 적 쪽, 없으면 도시 한가운데
     let bk=null,bd=1e9;for(const k of K){const d=Math.hypot(k.x-c[0],k.z-c[1]);if(d<bd){bd=d;bk=k;}}
-    best=bk?[Math.floor(bk.z),Math.floor(bk.x)]:[Math.floor(N/2),Math.floor(N/2)];}
+    const cl=v=>Math.max(0,Math.min(N-1,Math.floor(v)));best=bk?[cl(bk.z),cl(bk.x)]:[Math.floor(N/2),Math.floor(N/2)];}   // 지도 밖(드나드는 항공기)이면 가장자리 칸으로
   if(!p.obj||p.obj[0]!==best[0]||p.obj[1]!==best[1]){p.obj=best;p.objT=t;}}
 /* ---------- 소대 판단 ---------- */
 function tacThink(n){tacOrganize(n);const K=tacKnown(n);const objs=coverObjs();
@@ -7923,7 +7923,7 @@ function tacPlatoon(p,K0,objs){const M=tacMembers(p);if(!M.length)return;const t
   tacContact(p,M,K,objs,str,est);}
 /* 적 없음: 멀면 함께 행군, 가까우면 번갈아 엄폐 이동, 도착하면 거점을 잡고 둘레를 지킨다 */
 function tacMove(p,M,objs){const t=G.time||0;const n=p.nat;if(!p.obj)return;const [or,oc]=p.obj;const gx=p.pt?p.pt[0]:oc+.5,gz=p.pt?p.pt[1]:or+.5;const c=tacCtr(p);
-  const d=Math.hypot(gx-c[0],gz-c[1]);const X=G.map[or][oc];
+  const d=Math.hypot(gx-c[0],gz-c[1]);const X=G.map[or]&&G.map[or][oc];if(!X){p.obj=null;p.pt=null;return;}   // 지도 밖 목표는 버리고 다음에 새로 고른다
   if(d<1.8||p.mode==='defend'&&d<3){// 도착: 점령할 수 있는 분대 하나는 거점 칸으로, 나머지는 둘레 엄폐
     const cap=X.obj!=null&&X.owner!==n?M.filter(u=>UT[u.type].cap).sort((a,b)=>UT[b.type].cap-UT[a.type].cap)[0]||null:null;   // 점령 힘이 가장 큰 분대가 들어간다
     if(cap&&tacIdle(cap)&&(cap.r!==or||cap.c!==oc))tacGo(cap,gx,gz,'cap');
