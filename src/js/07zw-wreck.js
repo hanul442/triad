@@ -26,7 +26,7 @@ function wrvIndex(){const g=V3.G&&V3.G.world;if(!g)return null;const T=V3.T;
   // 소품 인스턴스 → 가장 가까운 소품
   const P=G.props||[];const grid=new Map();P.forEach((p,i)=>{const k=Math.floor(p.z)*N+Math.floor(p.x);let a=grid.get(k);if(!a)grid.set(k,a=[]);a.push(i);});
   for(const M of props){const A=M.m0,n=M.o.count;M.own=new Int32Array(n).fill(-1);
-    for(let i=0;i<n;i++){const x=A[i*16+12],z=A[i*16+14];let best=-1,bd=.36;const r0=Math.floor(z),c0=Math.floor(x);
+    for(let i=0;i<n;i++){const x=A[i*16+12],z=A[i*16+14];let best=-1,bd=.42;const r0=Math.floor(z),c0=Math.floor(x);
       for(let a=r0-1;a<=r0+1;a++)for(let b=c0-1;b<=c0+1;b++){const L=grid.get(a*N+b);if(!L)continue;for(const j of L){const d=Math.hypot(P[j].x-x,P[j].z-z);if(d<bd){bd=d;best=j;}}}
       M.own[i]=best;}}
   return WRV.meshes={trees,props,tmp:{m:new T.Matrix4(),r:new T.Matrix4(),t:new T.Matrix4(),t2:new T.Matrix4(),q:new T.Quaternion(),v:new T.Vector3(),ax:new T.Vector3(),c:new T.Color()}};}
@@ -44,7 +44,7 @@ function wrvTrees(){const W=WRV.meshes;const Z=G.fellZ||[];const zg=new Map();
       const was=M.o.userData.wf&&M.o.userData.wf[i];
       if(!f){if(was){M.o.setMatrixAt(i,W.tmp.m.fromArray(A,i*16));M.o.userData.wf[i]=0;ch=true;}continue;}
       if(was)continue;const h=wrvHash(Math.round(x*577),Math.round(z*613));let dx=x-f.x,dz=z-f.z;const dl=Math.hypot(dx,dz);
-      if(f.tk||dl<.02){const a=h*6.283;dx=Math.cos(a);dz=Math.sin(a);}else{dx/=dl;dz/=dl;}
+      if(f.fd!=null){const a=f.fd+(h-.5)*.5;dx=Math.cos(a);dz=Math.sin(a);}else if(f.tk||dl<.02){const a=h*6.283;dx=Math.cos(a);dz=Math.sin(a);}else{dx/=dl;dz/=dl;}   // fd: 차가 밀어 넘긴 방향
       // 쓰러지는 방향(dx,dz)에 수직인 축으로 눕힌다
       wrvTilt(M,i,x,0,z,dz,-dx,1.3+h*.25);(M.o.userData.wf||(M.o.userData.wf=new Uint8Array(n)))[i]=1;ch=true;}
     if(ch)M.o.instanceMatrix.needsUpdate=true;}}

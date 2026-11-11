@@ -116,7 +116,7 @@ function polMortar(u){const n=u.nat,t=G.time||0;if(u.path&&u.path.length||t-(u.f
 {const _ai=aiThink;aiThink=function(n){_ai(n);if(G.over)return;for(const u of G.units)if(u.nat===n&&u.type==='mortar')try{polMortar(u);}catch(e){(G.errs=G.errs||[]).push(String(e&&e.stack||e));}};}
 // 구급차 구매 상한: 한 판에 세력마다 작은·중간 지도 2대, 큰 지도 3대까지(살아 있는 수 상한은 05m-med가 따로 둔다)
 if(typeof aiMedBuy==='function'){const _mb=aiMedBuy;aiMedBuy=function(n){G.ambN=G.ambN||{};const c0=G.units.filter(u=>u.nat===n&&u.type==='amb').length;
-  if((G.ambN[n]||0)>=(G.size==='l'?3:2))return;_mb(n);const c1=G.units.filter(u=>u.nat===n&&u.type==='amb').length;if(c1>c0)G.ambN[n]=(G.ambN[n]||0)+c1-c0;};}
+  if((G.ambN[n]||0)>=(sizeBig(G.size)?3:2))return;_mb(n);const c1=G.units.filter(u=>u.nat===n&&u.type==='amb').length;if(c1>c0)G.ambN[n]=(G.ambN[n]||0)+c1-c0;};}
 // 막힌 지원 차량: 길이 있는데 8초 동안 0.3칸도 못 갔으면 같은 목적지를 다시 받지 않게 그 일을 내려놓는다(그 부대는 40초 동안 건너뜀)
 function polStuck(){const t=G.time||0;for(const u of G.units){const ty=UT[u.type];if(!(ty.logi||u.type==='amb')||u.towBy!=null)continue;
   if(!(u.path&&u.path.length)){u._psT=null;continue;}
