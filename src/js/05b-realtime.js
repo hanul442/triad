@@ -143,7 +143,12 @@ function rtRun(secs){const n=Math.round(secs/TICK);for(let i=0;i<n&&!G.over;i++)
 const RT={last:0,acc:0,uiT:0,v:-1};
 function rtLoop(now){requestAnimationFrame(rtLoop);const dt0=Math.min(.25,(now-(RT.last||now))/1000);RT.last=now;if(!G||G.over)return;
   const setupOpen=!$('#setup').hidden;if(G.paused||(setupOpen&&!G.boot))return;
-  RT.acc+=dt0*(G.spd||1);let n=0;while(RT.acc>=TICK&&n++<12){RT.acc-=TICK;rtTick(TICK);}
-  RT.uiT-=dt0;if(RT.uiT<=0||(RT.v!==G.ver&&RT.uiT<.15)||G.over){RT.uiT=.25;RT.v=G.ver;render();}}
+  // 한 프레임에 몰아서 따라잡지 않는다: 밀린 틱을 12개까지 한꺼번에 돌리면 그 프레임이 수백 ms 멈춘다.
+  // 한 프레임엔 배속에 맞는 만큼(보통 2틱)만, 그리고 14ms를 넘기면 다음 프레임으로 미룬다. 그래도 밀리면 밀린 시간은 버린다(게임이 잠깐 느려질 뿐 끊기지 않는다)
+  const spd=G.spd||1,cap=Math.max(2,Math.ceil(spd)+1);RT.acc+=dt0*spd;let n=0;const t0=performance.now();
+  while(RT.acc>=TICK&&n<cap){RT.acc-=TICK;n++;rtTick(TICK);if(performance.now()-t0>14)break;}
+  if(RT.acc>cap*TICK)RT.acc=TICK;
+  // 화면 글자판(render)은 틱을 돌린 프레임을 피해 다음 프레임에 그린다(한 프레임에 일이 겹치지 않게)
+  RT.uiT-=dt0;if(RT.uiT<=0||(RT.v!==G.ver&&RT.uiT<.15)||G.over){if(n&&!G.over&&!RT.hold&&RT.uiT>-.2){RT.hold=1;return;}RT.hold=0;RT.uiT=.25;RT.v=G.ver;render();}}
 function rtStart(){if(RT.started)return;RT.started=true;requestAnimationFrame(rtLoop);}
 const fmtT=s=>{s=Math.max(0,Math.floor(s));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;};

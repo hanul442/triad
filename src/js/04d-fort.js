@@ -62,8 +62,12 @@ const navWreckN=()=>{let n=0;for(const c of G.covers||[])if(c.kind==='wreck'&&c.
 function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // mask: 이 큰 칸들 안의 작은 칸만 찍는다(navBase 부분 갱신)
   for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
     const j0=Math.max(0,Math.floor((o.x-R)*NAV_R)),j1=Math.min(W-1,Math.floor((o.x+R)*NAV_R)),i0=Math.max(0,Math.floor((o.z-R)*NAV_R)),i1=Math.min(W-1,Math.floor((o.z+R)*NAV_R));
-    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*W+j;if(mask&&!mask[((i/NAV_R)|0)*N+((j/NAV_R)|0)])continue;if(!cost[k])continue;if(!inBox(o,(j+.5)*cs,(i+.5)*cs,clr))continue;
-      if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}}
+    // inBox를 풀어 쓴다: cos·sin을 상자마다 한 번만 구한다(계산 순서가 같아 결과도 똑같다)
+    const ox=o.x,oz=o.z,co=Math.cos(o.ry),sn=Math.sin(o.ry),hl=o.hl+clr,hw=o.hw+clr;
+    for(let i=i0;i<=i1;i++){const dz=(i+.5)*cs-oz;
+      for(let j=j0;j<=j1;j++){const k=i*W+j;if(mask&&!mask[((i/NAV_R)|0)*N+((j/NAV_R)|0)])continue;if(!cost[k])continue;
+        const dx=(j+.5)*cs-ox;if(!(Math.abs(dx*co-dz*sn)<=hl&&Math.abs(dx*sn+dz*co)<=hw))continue;
+        if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}}}
 /* navBase 기억: 지형(TC)이 그대로면 지형 층을 다시 쓰고, 장애물이 늘기만 했으면(잔해 차량 추가 등) 새 것만 더 찍는다.
    찍기(navStamp)는 '0으로' 또는 '8 미만이면 +4'라서 순서와 상관없이 결과가 같다 */
 const NAVB={};
@@ -93,9 +97,20 @@ function navBase(cls){if(NAV.base[cls])return NAV.base[cls];
   let cost=null;
   if(C.keys){let sub=true;for(const [k,n] of C.keys)if((keys.get(k)||0)<n){sub=false;break;}
     if(sub){const left=new Map(C.keys);const extra=[],K=NAVB.ol.K;for(let q=0;q<list.length;q++){const k=K[q];const n=left.get(k)||0;if(n>0)left.set(k,n-1);else extra.push(list[q]);}
-      cost=C.cost.slice();navStamp(cost,W,extra,cls);}}
+      cost=C.cost.slice();navStamp(cost,W,extra,cls);}
+    else if(C.K&&C.list){// 장애물이 빠졌다(차가 밟혀 부서지는 등): 빠진 것 둘레 큰 칸만 지형부터 다시 찍는다. 나머지 칸에는 새로 생긴 것만 더 찍는다
+      const left=new Map(keys),gone=[];for(let q=0;q<C.list.length;q++){const k=C.K[q];const n=left.get(k)||0;if(n>0)left.set(k,n-1);else gone.push(C.list[q]);}
+      if(gone.length<=64){const mask=new Uint8Array(N*N),cs=1/NAV_R,R0=NAV_R;
+        for(const o of gone){const R=Math.max(o.hl,o.hw)+clr+cs;
+          const c0=(Math.max(0,Math.floor((o.x-R)*NAV_R))/R0)|0,c1=(Math.min(W-1,Math.floor((o.x+R)*NAV_R))/R0)|0,r0=(Math.max(0,Math.floor((o.z-R)*NAV_R))/R0)|0,r1=(Math.min(W-1,Math.floor((o.z+R)*NAV_R))/R0)|0;
+          for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++)mask[r*N+c]=1;}
+        const lo=new Map(C.keys),extra=[],K=NAVB.ol.K;for(let q=0;q<list.length;q++){const k=K[q];const n=lo.get(k)||0;if(n>0)lo.set(k,n-1);else extra.push(list[q]);}
+        cost=C.cost.slice();const terr=C.terr;
+        for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!mask[r*N+c])continue;for(let i=r*R0;i<r*R0+R0;i++)for(let j=c*R0;j<c*R0+R0;j++)cost[i*W+j]=terr[i*W+j];}
+        navStamp(cost,W,list,cls,mask);
+        if(extra.length){const inv=new Uint8Array(N*N);for(let q=0;q<N*N;q++)inv[q]=mask[q]?0:1;navStamp(cost,W,extra,cls,inv);}}}}
   if(!cost){cost=C.terr.slice();navStamp(cost,W,list,cls);}
-  C.keys=keys;C.cost=cost;C.list=list;
+  C.keys=keys;C.cost=cost;C.list=list;C.K=NAVB.ol.K;
   return NAV.base[cls]={W,cost};}
 function navGrid(cls){const q=NAV.grids[cls];
   if(q&&NAV.g===G&&NAV.nv===(G.navV||0)&&NAV.fv===(G.fortNV||0)&&NAV.cl===(G.covers?G.covers.length:0)&&NAV.pl===(G.props?G.props.length:0))return q;
