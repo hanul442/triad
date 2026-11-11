@@ -140,7 +140,7 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
       if(u.supp>0&&!m.pr)m.pr=.6+Math.random()*.6;}            // 제압: 엎드린다
     // 곧장 못 가면(벽·건물 경계) 분대장이 지나간 발자국을 거꾸로 따라간다: 지금 자리에서 곧게 보이는 가장 앞쪽 발자국으로
     if(Math.hypot(gx-m.x,gz-m.z)>.006&&!menClear(u,m.x,m.z,gx,gz)){const w=menVia(u,m,t,gx,gz);if(w){gx=w[0];gz=w[1];}}
-    if(typeof vegPush==='function'){const q=vegPush(gx,gz,m.x,m.z);if(menClear(u,gx,gz,q[0],q[1])){gx=q[0];gz=q[1];}}   // 설 자리가 나무·덤불 안이면 바깥으로(05f4-veg)
+    if(typeof vegPush==='function'){const q=vegPush(gx,gz,m.x,m.z);if(q&&menClear(u,gx,gz,q[0],q[1])){gx=q[0];gz=q[1];}}   // 설 자리가 나무·덤불 안이면 바깥으로(05f4-veg)
     let dx=gx-m.x,dz=gz-m.z,d=Math.hypot(dx,dz);
     if(d>.006&&typeof vegSteer==='function'){const s=vegSteer(m.x,m.z,dx/d,dz/d,Math.min(d,.12));dx=s[0]*d;dz=s[1]*d;}   // 앞에 줄기가 있으면 돌아간다
     if(d>.3)dash=Math.max(dash,1.7);else if(d>.12)dash=Math.max(dash,1.25);
@@ -149,7 +149,7 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
       if(!menClear(u,m.x,m.z,nx,nz)){m.stk+=dt;nx=m.x;nz=m.z;m.wp=null;// 막혔으면 서서 다음 틱에 발자국 길을 다시 찾는다(벽은 절대 통과하지 않는다)
         if(m.stk>2.5){const P=menTrailNear(u,m);if(P){nx=P[0];nz=P[1];}m.stk=0;}}   // 오래 끼어 있으면 가장 가까운 발자국 자리로 옮긴다
       else m.stk=0;
-      if(typeof vegPush==='function'){const q=vegPush(nx,nz,m.x,m.z);if(menClear(u,nx,nz,q[0],q[1])){nx=q[0];nz=q[1];}}
+      if(typeof vegStep==='function')[nx,nz]=vegStep(u,m,nx,nz);
       m.spd=Math.hypot(nx-m.x,nz-m.z)/dt;m.x=nx;m.z=nz;if(m.spd>.02)m.f=Math.atan2(dz,dx);}
     else m.spd=0;
     // 너무 멀리 떨어지면(밀려나거나 막힘) 분대장 곁으로 붙인다

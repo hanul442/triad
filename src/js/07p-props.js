@@ -80,7 +80,7 @@ function v3BuildProps(g){const T=V3.T,pm=v3PropMats(),m=MU;
   /* 콘크리트 방벽(저지 블록), 쓰레기 컨테이너, 생울타리 */
   {const bar=[],bin=[],lid=[],hedge=[];
     for(const p of PR){if(p.k==='barrier')bar.push({x:p.x,z:p.z,ry:p.ry});else if(p.k==='bin'){bin.push({x:p.x,y:.7*m,z:p.z,ry:p.ry});lid.push({x:p.x,y:1.45*m,z:p.z,ry:p.ry,rz:.08});}
-      else if(p.k==='hedge')hedge.push({x:p.x,y:.5*m,z:p.z,ry:p.ry});}
+      else if(p.k==='hedge'){const cs=Math.cos(p.ry),sn=Math.sin(p.ry);for(const [t,hl] of hedgeParts(p))hedge.push({x:p.x+cs*t,y:.5*m,z:p.z-sn*t,ry:p.ry,sx:hl*2,sy:1,sz:1});}}   // 틈을 뺀 두 토막(04d hedgeGap)
     v3Inst(g,v3Prism([[-.3*m,0],[.3*m,0],[.1*m,.35*m],[.08*m,.8*m],[-.08*m,.8*m],[-.1*m,.35*m]],3.2*m).rotateY(Math.PI/2),pm.conc,bar);
     v3Inst(g,new T.BoxGeometry(1.0*m,1.4*m,1.9*m),pm.bin,bin);v3Inst(g,new T.BoxGeometry(1.1*m,.1*m,2.0*m),pm.sig,lid,{noShadow:1});
     v3Inst(g,new T.BoxGeometry(12*m,1*m,.9*m),pm.hedge,hedge);}

@@ -111,9 +111,9 @@ function ccpOf(n){G.ccp=G.ccp||{};if(G.ccp[n])return G.ccp[n];let sp=zoneSpots(n
   const p=sp.length?sp[Math.floor(sp.length*.6)]:[Math.floor(N/2),Math.floor(N/2)];return G.ccp[n]={x:p[1]+.5,z:p[0]+.5};}
 /* ---------- 분대 안: 끌어 옮기기, 응급처치, 후송 보내기 ---------- */
 const CAS_SP=()=>UT.rifle.mv*SPD_K;
-function casStep(u,m,tx,tz,sp,dt){if(typeof vegPush==='function'){const q=vegPush(tx,tz,m.x,m.z);if(menClear(u,tx,tz,q[0],q[1])){tx=q[0];tz=q[1];}}   // 나무·덤불을 뚫지 않고 돌아간다(05f4-veg)
+function casStep(u,m,tx,tz,sp,dt){if(typeof vegPush==='function'){const q=vegPush(tx,tz,m.x,m.z);if(q&&menClear(u,tx,tz,q[0],q[1])){tx=q[0];tz=q[1];}}   // 나무·덤불을 뚫지 않고 돌아간다(05f4-veg)
   const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d<.02)return true;const st=Math.min(d,sp*dt);let ux=dx/d,uz=dz/d;if(typeof vegSteer==='function')[ux,uz]=vegSteer(m.x,m.z,ux,uz,Math.min(d,.12));
-  let nx=m.x+ux*st,nz=m.z+uz*st;if(typeof vegPush==='function'){const q=vegPush(nx,nz,m.x,m.z);if(menClear(u,nx,nz,q[0],q[1])){nx=q[0];nz=q[1];}}
+  let nx=m.x+ux*st,nz=m.z+uz*st;if(typeof vegStep==='function')[nx,nz]=vegStep(u,m,nx,nz);
   if(menClear(u,m.x,m.z,nx,nz)){m.x=nx;m.z=nz;m.stk=0;}else{m.stk=(m.stk||0)+dt;if(m.stk>2){m.x=tx;m.z=tz;m.stk=0;}}
   m.f=Math.atan2(dz,dx);m.spd=st/dt;return d<=st+.02;}
 /* 부상자를 끌어다 놓을 엄폐 자리 */
