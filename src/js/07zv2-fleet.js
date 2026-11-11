@@ -4,7 +4,7 @@
    - 공병전차: M1150 꼴(전차 차체 + 지뢰 쟁기 + 뒤 선형 폭약 발사함 + 원격 기관총) / IMR-2 꼴(전차 차체 + V자 삽날 + 기중기 팔)
    - 자주대공포: 비호·게파르트 꼴(큰 상자 포탑, 양옆 기관포, 뒤 탐색 레이더) / ZSU-23-4 실카 꼴(넓은 납작 포탑, 4연장, 뒤 접시 레이더)
    - 박격포 차량: M1129 꼴(8륜 차체, 열린 지붕 위로 120mm 박격포) / 2S9 꼴(작은 궤도 차체, 짧고 굵은 포의 포탑) */
-function vxBmp(K,n){const east=n%2===1;const {B,C,Cx,P,PT,G}=K;
+function vxBmp(K,n){const east=natEast(n);const {B,C,Cx,P,PT,G}=K;
   if(!east){
     for(const s of [-1,1])K.track({xf:2.9,yf:.66,rf:.34,xr:-3.05,yr:.7,rr:.36,gf:2.45,gr:-2.6,w:.56,z:s*1.42,t:.08,nw:6,rw:.32,ret:[1.6,0,-1.6],ry:1.04});
     P([[-3.3,.5],[2.7,.5],[3.3,1.05],[-3.35,1.05]],2.3,0,0,0);
@@ -44,7 +44,7 @@ function vxBmp(K,n){const east=n%2===1;const {B,C,Cx,P,PT,G}=K;
     K.smoke(-.3,.35,.82,1,tur);K.smoke(-.3,.35,-.82,-1,tur);
   }}
 /* 공병전차 */
-function vxCev(K,n){const east=n%2===1;const {B,C,Cx,P,G}=K;
+function vxCev(K,n){const east=natEast(n);const {B,C,Cx,P,G}=K;
   if(!east){
     for(const s of [-1,1])K.track({xf:3.25,yf:.72,rf:.38,xr:-3.4,yr:.75,rr:.42,gf:2.75,gr:-2.8,w:.64,z:s*1.53,t:.08,nw:7,rw:.33});
     P([[-3.7,.5],[3.35,.5],[3.9,1.12],[-3.75,1.12]],2.3,0,0,0);
@@ -74,7 +74,7 @@ function vxCev(K,n){const east=n%2===1;const {B,C,Cx,P,G}=K;
     K.mg(.35,.97,.45,1.0,tur,true);
   }}
 /* 자주대공포 */
-function vxSpaa(K,n){const east=n%2===1;const {B,C,Cx,P,PT,S,G}=K;
+function vxSpaa(K,n){const east=natEast(n);const {B,C,Cx,P,PT,S,G}=K;
   if(!east){
     for(const s of [-1,1])K.track({xf:2.9,yf:.66,rf:.34,xr:-3.05,yr:.7,rr:.36,gf:2.45,gr:-2.6,w:.55,z:s*1.42,t:.08,nw:6,rw:.32,ret:[1.6,0,-1.6],ry:1.04});
     P([[-3.3,.5],[2.7,.5],[3.3,1.05],[-3.35,1.05]],2.3,0,0,0);
@@ -101,7 +101,7 @@ function vxSpaa(K,n){const east=n%2===1;const {B,C,Cx,P,PT,S,G}=K;
     K.ant(-1.2,.82,1.2,1.8,tur);K.mark(n,[.2,.83,0],'y',.75,tur);
   }}
 /* 박격포 차량 */
-function vxMortv(K,n){const east=n%2===1;const {B,C,Cx,P,G}=K;
+function vxMortv(K,n){const east=natEast(n);const {B,C,Cx,P,G}=K;
   let tur,el;
   if(!east){
     for(const x of [2.3,1.05,-.85,-2.1])for(const s of [-1,1])K.wheel(.55,.42,x,.55,s*1.13,null,true);
