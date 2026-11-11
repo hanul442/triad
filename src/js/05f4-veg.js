@@ -20,7 +20,7 @@ function vegClime(){return typeof bmClime==='function'?bmClime():'temp';}
 function vegBuild(){const M=G.map,O=[],cl=vegClime();const add=(x,z,r,t,p)=>O.push({x,z,r:r+VEG.body,t,p,fv:-1,fell:0});
   const bush=s=>.05*s*.85;
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=M[r][c];if(!x)continue;const k=key(r,c),H=s=>vegH(k,s);
-    if(!G.camp&&typeof natWildTrees==='function'){
+    if(!campPlain()&&typeof natWildTrees==='function'){
       if(x.t==='park'&&x.wild&&!x.orch){let i=0;   // 숲: 3×3 격자
         for(let a=0;a<3;a++)for(let b=0;b<3;b++){i++;if(H(1100+i)>.86)continue;
           const px=c+(b+.5)/3+(H(1120+i)-.5)*.3,pz=r+(a+.5)/3+(H(1140+i)-.5)*.3;const big=H(1160+i),s=.62+big*big*.75,sy=s*(.85+H(1240+i)*.45);

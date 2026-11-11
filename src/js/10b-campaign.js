@@ -39,6 +39,9 @@ const CAMP={
     stars:['임무 성공','송신 중계소 점령','8분 안에 끝내기']},
 };
 
+/* 캠페인 지도를 07c-camp가 따로 그리는가(하령·상륙). 역사 전투(M.bio)는 자유 전투처럼 기후·지형·숲을 그린다 */
+function campPlain(){return !!(G&&G.camp)&&!(typeof CAMP!=='undefined'&&CAMP[G.camp.id]&&CAMP[G.camp.id].bio);}
+
 /* ---------- 진행 기록 ---------- */
 function campLoad(){try{if(typeof localStorage==='undefined')return {};const o=JSON.parse(localStorage.getItem(CAMP_K)||'{}');return o&&typeof o==='object'?o:{};}catch(e){return {};}}
 function campRecord(id,stars){const s=campLoad();s[id]=Math.max(s[id]||0,stars);try{localStorage.setItem(CAMP_K,JSON.stringify(s));}catch(e){}return s;}
@@ -60,13 +63,15 @@ function campObjs(list){for(const row of G.map)for(const x of row){x.obj=null;x.
 function campFort(n,k,x,z,ry){G.forts=G.forts||[];if(fortCanPlace(n,k,x,z))return null;const f={id:FORT_ID++,k,nat:n,x,z,ry:ry??Math.PI/2,hp:FORT[k].hp,prog:1,paid:0};G.forts.push(f);return f;}
 function campCell(r,c,o){const x=G.map[r][c];G.map[r][c]={...o,owner:null,obj:null,smoke:0,dist:x.dist};}
 /* 지도 가장자리에서 들어오는 적 증원 자리 */
-function campEdge(side,i){const m=campMid();
-  if(side==='n')return [0,m+2+((i*3)%12)];if(side==='s')return [N-1,m+2+((i*3)%12)];return [m-8+((i*5)%17),N-1];}
+/* span=[a,b]: 그 가장자리에서 들어오는 칸의 범위(n·s는 열, e·w는 행). 없으면 예전 자리 */
+function campEdge(side,i,span){const m=campMid();
+  if(span){const [a,b]=span,k=a+((i*3)%(b-a+1));if(side==='n')return [0,k];if(side==='s')return [N-1,k];if(side==='w')return [k,0];return [k,N-1];}
+  if(side==='n')return [0,m+2+((i*3)%12)];if(side==='s')return [N-1,m+2+((i*3)%12)];if(side==='w')return [m-8+((i*5)%17),0];return [m-8+((i*5)%17),N-1];}
 function campMsg(m){if(G.camp)(G.camp.log=G.camp.log||[]).unshift(m);L(m);}
-function campWave(w){let i=0;const out=[];for(const t of w.u){const [r,c]=campEdge(w.side,i++);const u=campPut(1,t,r,c,{bldg:false});if(u)out.push(u);}
+function campWave(w){let i=0;const out=[];for(const t of w.u){const [r,c]=campEdge(w.side,i++,w.span);const u=campPut(1,t,r,c,{bldg:false});if(u)out.push(u);}
   if(w.msg)campMsg(w.msg);return out;}
 /* 아군 증원: 서쪽 가장자리 가운데쯤에 내린다 */
-function campBlueWave(w){const m=campMid();const out=[];w.u.forEach((t,i)=>{const u=campPut(0,t,m+((i%2)?1:-1)*(1+Math.floor(i/2)*2),1,{bldg:false});if(u)out.push(u);});
+function campBlueWave(w){const m=campMid();const r0=w.at?w.at[0]:m,c0=w.at?w.at[1]:1;const out=[];w.u.forEach((t,i)=>{const u=campPut(0,t,r0+((i%2)?1:-1)*(1+Math.floor(i/2)*2),c0,{bldg:false});if(u)out.push(u);});
   if(w.msg)campMsg(w.msg);return out;}
 const campDist=(u,o)=>Math.hypot(u.x-(o.c+.5),u.z-(o.r+.5));
 
@@ -156,7 +161,8 @@ CAMP.station.income=n=>n===0?4:0;
 
 /* ---------- 시작 ---------- */
 function campStart(id){const M=CAMP[id];if(!M)return null;
-  newGame({slots:['human','ai','none','none'],size:'m',fog:true,speed:0,scn:'camp',seed:M.seed,force:[],maxR:Math.ceil(M.limit/ROUND_S),vpWin:9999,hour:M.hour});
+  // 역사 전투(10e)는 지도 종류·기후·고저차·날씨를 정한다(M.layout·clime·relief·wx). 하령·상륙 임무는 예전처럼 온대 평지 도시
+  newGame({slots:['human','ai','none','none'],size:M.size||'m',fog:true,speed:0,scn:'camp',seed:M.seed,force:[],maxR:Math.ceil(M.limit/ROUND_S),vpWin:9999,hour:M.hour,layout:M.layout,clime:M.clime,relief:M.relief,wx:M.wx,tflow:M.tflow});
   G.camp={id,st:{},log:[]};G.wx=M.wx||'clear';campNames(M.nats);
   M.setup();
   G.navV=(G.navV||0)+1;if(typeof propCovers==='function')propCovers();
@@ -172,7 +178,8 @@ function campTick(dt){const C=G.camp;if(!C||G.over)return;const M=CAMP[C.id];if(
   C.st.bw=C.st.bw||{};for(const w of M.bw||[]){if(C.st.bw[w.t]||G.time<w.t)continue;C.st.bw[w.t]=1;campBlueWave(w);}
   if(M.land&&typeof landTick==='function')landTick(C,dt);
   CAMP_TICK[C.id](C,C.st,dt);
-  if(!G.over&&G.time>=M.limit)G.over={win:1,why:'작전 시간 초과'};
+  // 버티기 임무(M.surv): 시간이 다 되도록 버티면 성공
+  if(!G.over&&G.time>=M.limit)G.over=M.surv?{win:0,why:M.surv}:{win:1,why:'작전 시간 초과'};
   if(G.over)campEnd();}
 const CAMP_TICK={
   evac(C,S,dt){const lz=C.lz;
