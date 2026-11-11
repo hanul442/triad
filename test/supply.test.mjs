@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadGame, playAI } from './harness.mjs';
+import { loadGame, playAI, seedRandom } from './harness.mjs';
 
 const F = (T, n) => T.__get(n);
 function setup(T) {
@@ -68,7 +68,7 @@ test('구난차: 고장 차량 바로 곁에 적이 있으면 가지 않고 기�
 });
 
 test('AI: 탄약이 떨어지면 보급 트럭을 사서 보내고, 고장 난 차량엔 구난차를 보낸다', () => {
-  const T = loadGame(); const G = setup(T); G.nats[0].ctrl = 'ai'; G.nats[0].cp = 30; G.time = 10;
+  const T = loadGame(); seedRandom(T, 7); const G = setup(T); G.nats[0].ctrl = 'ai'; G.nats[0].cp = 30; G.time = 10;
   const a = T.mkUnit(0, 'rifle', 12, 8), b = T.mkUnit(0, 'mg', 13, 8); a.am = 0; b.am = 5;
   const v = T.mkUnit(0, 'ifv', 14, 8); F(T, 'vdOf')(v).mob = 1;
   T.aiThink(0);
