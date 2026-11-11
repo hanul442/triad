@@ -112,8 +112,13 @@ function wrkCollapse(r,c,f0){const x=G.map[r][c];x.rf=f0||1;const sz=.12+.035*Ma
     const near=G.debris.some(d=>d.r===r&&d.c===c&&inBox(d,p.x,p.z,.02));if(!near)continue;if(p.k==='car')wrkPropSet(p,'crush');else if(p.k!=='barrier')wrkPropSet(p,'dead');}
   wrkNav();wrkReroute(c+.5,r+.5,1.8);}
 /* ---------- 전차가 밟고 지나간다 ---------- */
+/* 소품을 칸별로 묶어 둔다(차량이 움직일 때마다 지도 전체 소품을 훑지 않게). 소품 목록이 바뀌면 다시 묶는다. 원래 순서대로 돈다 */
+const PROPIX={P:null,n:-1,b:null};
+function propsNear(P,x,z,rad){if(PROPIX.P!==P||PROPIX.n!==P.length){const b=new Map();for(let i=0;i<P.length;i++){const p=P[i];const k=Math.floor(p.z)*4096+Math.floor(p.x);let a=b.get(k);if(!a)b.set(k,a=[]);a.push(i);}PROPIX.P=P;PROPIX.n=P.length;PROPIX.b=b;}
+  const out=[];for(let r=Math.floor(z-rad);r<=Math.floor(z+rad);r++)for(let c=Math.floor(x-rad);c<=Math.floor(x+rad);c++){const a=PROPIX.b.get(r*4096+c);if(a)for(const i of a)out.push(i);}
+  if(out.length>1)out.sort((a,b)=>a-b);return out;}
 {const _c=fortCrush;fortCrush=function(u){_c(u);const cls=navCls(u);if(cls!=='trk'&&cls!=='veh')return;const P=G.props;let nav=false;
-  if(P)for(const p of P){if(p.dead||Math.abs(p.x-u.x)>.4||Math.abs(p.z-u.z)>.4)continue;
+  if(P)for(const i of propsNear(P,u.x,u.z,.41)){const p=P[i];if(p.dead||Math.abs(p.x-u.x)>.4||Math.abs(p.z-u.z)>.4)continue;
     if(cls==='trk'&&p.k==='car'&&!p.crush&&inBox({x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2,hw:CAR_KIND_W[p.kind]/2},u.x,u.z,.06)){if(wrkPropSet(p,'crush'))nav=true;}
     else if(cls==='trk'&&p.k==='bin'&&Math.hypot(p.x-u.x,p.z-u.z)<.13){if(wrkPropSet(p,'dead'))nav=true;}
     else if((p.k==='lamp'||p.k==='light')&&Math.hypot(p.x-u.x,p.z-u.z)<(cls==='trk'?.1:.07))wrkPropSet(p,'dead');
