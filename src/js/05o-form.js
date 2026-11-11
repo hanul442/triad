@@ -12,7 +12,7 @@
    u.fol = {L:선두 id, k:'col'|'wedge'|'auto'|'esc', i:순번, d0:첫 간격, gap:간격, end:[x,z]|null(풀릴 때 갈 자리), by:'tac'|'ord'|'arm'}.
    공격헬기는 두 대 편대(선두·윙맨)로 온다: 이동할 때는 윙맨이 선두 오른쪽 뒤에, 대기할 때는 다른 각도에서 서로 엄호하고,
    선두가 사격 비행을 하는 동안 윙맨은 대기하며 지켜본 뒤 번갈아 들어간다. */
-const FORM={gapI:1.0,gapV:1.45,wedge:.8,stag:.22,esc:.3,upd:.3,repath:1.2,lagSlow:1.2,lagWait:2.4,stuck:10,trail:.12,trailN:180,ordMin:5,ordR:6,pace:.92};
+const FORM={gapI:1.0,gapV:1.45,wedge:.8,stag:.22,esc:.3,upd:.3,repath:1.2,lagSlow:1.2,lagWait:2.4,stuck:10,trail:.12,trailN:180,trailGap:1.2,ordMin:5,ordR:6,pace:.92};
 const formLead=new Map();   // 선두 id → 따르는 부대들(틱마다 다시 만든다)
 const formUnit=id=>G.units.find(o=>o.id===id)||null;
 const formSpd=u=>(UT[u.type]&&UT[u.type].mv)||3;
@@ -22,7 +22,10 @@ const formIdle=u=>!(u.path&&u.path.length);
 const formP=(f,v)=>Object.defineProperty(f,'_fP',{value:v,writable:true,configurable:true,enumerable:false});
 /* 선두 발자국(저장하지 않음): 가장 최근이 앞 */
 function formTrailRec(L){let T=L._ftr;if(!T){T=[[L.x,L.z]];Object.defineProperty(L,'_ftr',{value:T,writable:true,configurable:true,enumerable:false});return;}
-  const h=T[0];if(Math.hypot(L.x-h[0],L.z-h[1])>FORM.trail){T.unshift([L.x,L.z]);if(T.length>FORM.trailN)T.length=FORM.trailN;}}
+  // 한동안 선두가 아니다가(기록이 멈춤) 다시 선두가 되면 옛 발자국과 지금 자리 사이가 크게 빈다. 그 틈을 곧은 길로 여기면
+  // 따르는 부대가 옛 발자국으로 되돌아갔다 오기를 되풀이한다(시작하자마자 분대가 장갑차 뒤에서 맴돌던 문제). 그러면 새로 시작한다
+  const h=T[0],d=Math.hypot(L.x-h[0],L.z-h[1]);if(d>FORM.trailGap){T.length=0;T.push([L.x,L.z]);return;}
+  if(d>FORM.trail){T.unshift([L.x,L.z]);if(T.length>FORM.trailN)T.length=FORM.trailN;}}
 /* 발자국을 따라 선두에서 dist만큼 뒤의 점과 그 점의 진행 방향. 발자국이 짧으면 끝에서 따르는 부대 쪽으로 늘린다 */
 function formTrailAt(L,dist,f){const T=L._ftr||[[L.x,L.z]];let px=L.x,pz=L.z,acc=0;
   for(let i=0;i<T.length;i++){const q=T[i];const s=Math.hypot(q[0]-px,q[1]-pz);
