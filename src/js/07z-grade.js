@@ -95,7 +95,7 @@ function grProps(){const T=V3.T,g=V3.G.city;if(!G||!g)return;
   const tanks=[],deb=[];const col=new T.Color();
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
     if(x.t==='bldg'&&x.f>=3&&x.f<8&&!x.lm&&x.ks!=='ware'&&x.ks!=='house'&&x.bhp/x.bmax>.6&&v3Hash(k,201)<.16){const a=v3Hash(k,202)<.5?-1:1,b=v3Hash(k,203)<.5?-1:1;
-      tanks.push([cx+a*.24,.06+x.f*FLOOR_H,cz+b*.24,v3Hash(k,204)*3]);}
+      tanks.push([cx+a*.24,.06+bldgH(x)*FLOOR_H,cz+b*.24,v3Hash(k,204)*3]);}
     else if(x.t==='road'||x.t==='plaza'){const n=v3Hash(k,210)<.45?1+Math.floor(v3Hash(k,211)*4):0;
       for(let i=0;i<n;i++){const s=.018+Math.pow(v3Hash(k,220+i),2)*.05;deb.push([cx+(v3Hash(k,230+i)-.5)*.9,s*.3,cz+(v3Hash(k,240+i)-.5)*.9,s,v3Hash(k,250+i)*3,v3Hash(k,260+i)]);}}}
   const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),p=new T.Vector3(),sc=new T.Vector3();

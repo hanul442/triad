@@ -17,7 +17,7 @@ const v3x=(r,c)=>[c+.5,r+.5];
 function v3Hash(k,s){let h=(k*2654435761^(s||0)*40503)>>>0;h=Math.imul(h^h>>>15,2246822507)>>>0;h=Math.imul(h^h>>>13,3266489909)>>>0;return ((h^h>>>16)>>>0)/4294967296;}
 const GH={road:0,plaza:0,park:0,rubble:0,bldg:.06,water:0};
 const v3G=(r,c)=>GH[G.map[r][c].t]??0;
-function v3Top(r,c){const x=G.map[r][c];return x.t==='bldg'?.06+x.f*FLOOR_H:v3G(r,c);}
+function v3Top(r,c){const x=G.map[r][c];return x.t==='bldg'?.06+bldgH(x)*FLOOR_H:v3G(r,c);}
 const V3COL={road:'#3b3c3d',plaza:'#7f7d77',park:'#5a6247',rubble:'#5e5952',bldg:'#6d6b66',water:'#3a5560'};
 function v3Tex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new V3.T.CanvasTexture(c);t.colorSpace=V3.T.SRGBColorSpace;return t;}
 
@@ -305,7 +305,7 @@ function v3BuildCity(){const T=V3.T,g=V3.G.city;v3Clear(g);const WS=[0,1,2,3].ma
   const FD={P:[],C:[],K:[]},FL=[];const TONES=['#bdbbb6','#a9a8a4','#c8c5be','#9c9b98','#b4afa6','#c2bdb3','#a3a19c','#8f8e8b'];const IN=.08;
   const GLASS=['#7d8790','#6a737b','#8a9096','#5f676e','#9a9a94'];const gab=[];// 고층은 유리 외벽 톤, 주택은 박공 지붕
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];const k=key(r,c);const [cx,cz]=v3x(r,c);
-    if(x.t==='bldg'){const dmg=1-x.bhp/x.bmax;let h=x.f*FLOOR_H;if(dmg>.5)h*=1-(dmg-.5)*.6;
+    if(x.t==='bldg'){const dmg=1-x.bhp/x.bmax;let h=bldgH(x)*FLOOR_H;
       const bt=x.blk!=null?v3Hash(x.blk,3):v3Hash(k,3);const ks=x.ks||(x.ind?'ware':x.f>=8?'tower':x.dist==='res'&&x.f<=2?'house':'panel');const KS=KSTY[ks]||KSTY.panel;wS=ks==='house'&&v3Hash(x.blk??k,5)<.45?0:KS.s;
       col.set(x.lkc?x.lkc:x.lm?'#e2dccb':KS.c[Math.floor(bt*KS.c.length)]);col.offsetHSL(0,0,(v3Hash(k,4)-.5)*.04);col.multiplyScalar(1-dmg*.55);
       const same=(a,b)=>inb(a,b)&&G.map[a][b].t==='bldg'&&x.blk!=null&&G.map[a][b].blk===x.blk&&G.map[a][b].bhp/G.map[a][b].bmax>.5&&dmg<.5;
@@ -518,7 +518,7 @@ function v3PlaceLabels(){const v=V3.tmpV||(V3.tmpV=new V3.T.Vector3());const w=V
 function v3Sync(){if(!V3.on||!V3.ren||!G)return;const vn=G.viewer,vs=G.fog?visSet(vn):null;
   const tag=G.seed+'|'+N+'|'+G.map.map(row=>row.map(x=>x.t[0]).join('')).join('');
   if(V3.tag!==tag){const fresh=V3.seed!==G.seed+'|'+N;V3.seed=G.seed+'|'+N;V3.tag=tag;V3.ctag=null;v3BuildWorld();if(fresh){V3.uo.forEach(o=>V3.G.units.remove(o));V3.uo.clear();v3HomeCam(true);}}
-  const ctag=tag+G.map.map(row=>row.map(x=>x.t==='bldg'?Math.round(x.bhp/x.bmax*6):'').join(',')).join('');if(V3.ctag!==ctag){V3.ctag=ctag;v3BuildCity();}v3ApplyCut(V3.press?new Map():v3CutMap(vs,vn));if(typeof v3SyncOcc==='function')v3SyncOcc(vs,vn);
+  const ctag=tag+G.map.map(row=>row.map(x=>x.t==='bldg'?Math.round(x.bhp/x.bmax*6)+(x.lost?'l'+x.lost:'')+(x.scN?'s'+x.scN:'')+(x.burnt?'b':''):'').join(',')).join('');if(V3.ctag!==ctag){V3.ctag=ctag;v3BuildCity();}v3ApplyCut(V3.press?new Map():v3CutMap(vs,vn));if(typeof v3SyncOcc==='function')v3SyncOcc(vs,vn);
   const stag=tag+G.objs.map(o=>G.map[o.r][o.c].owner).join(',');if(V3.stag!==stag){V3.stag=stag;v3BuildSites();}
   const smk=ctag+'|'+G.wx+'|'+G.map.map(row=>row.map(x=>x.smoke?1:0).join('')).join('');
   v3Light();if(V3.smk!==smk){V3.smk=smk;v3SyncSmoke();}

@@ -74,5 +74,5 @@ function mmInit(){if(typeof document==='undefined'||MM.el)return;mmLoad();
   MM.cv.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();MM.drag=true;try{MM.cv.setPointerCapture(e.pointerId);}catch(_){}const [x,z]=at(e);if(mmPick(x,z,true)===false)MM.drag=false;mmDraw();});
   MM.cv.addEventListener('pointermove',e=>{if(!MM.drag)return;e.preventDefault();const [x,z]=at(e);mmPick(x,z,false);});
   const up=()=>{MM.drag=false;};MM.cv.addEventListener('pointerup',up);MM.cv.addEventListener('pointercancel',up);
-  const loop=now=>{requestAnimationFrame(loop);if(now-MM.lastT<180&&!MM.drag)return;MM.lastT=now;try{mmDraw();}catch(e){}};requestAnimationFrame(loop);}
+  const loop=now=>{requestAnimationFrame(loop);if(now-MM.lastT<(MM.iv||180)&&!MM.drag)return;MM.lastT=now;try{mmDraw();}catch(e){}};requestAnimationFrame(loop);}
 if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mmInit);else setTimeout(mmInit,0);}

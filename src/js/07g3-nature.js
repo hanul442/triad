@@ -11,6 +11,7 @@
    캠페인 지도(G.camp)는 07c-camp가 따로 그리므로 땅 무늬와 숲만 건너뛴다. */
 const NAT={tr:null,trN:0,trI:0,trSeed:null,last:new Map(),t:0};
 const NAT_LO=typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches;   // 휴대폰: 나무를 조금 덜
+const natLite=()=>typeof LITE==='object'&&LITE.on;   // 저사양 모드(07z-lite): 보이는 나무만 더 줄인다
 const natCl=()=>typeof bmClime==='function'?bmClime():'temp';
 const natLay=()=>G&&G.feat&&G.feat.layout||'sym';
 // 무른 땅(경계를 번지게 하고 자국이 남는 땅)
@@ -110,7 +111,7 @@ const NAT_PAL={
 /* 숲 칸의 나무들 — 07g2 bmBuildWorld가 숲 칸(x.wild)에 원래 놓던 큰 원뿔 대신 */
 function natWildTrees(r,c,x,out){const k=key(r,c),cl=natCl(),pal=NAT_PAL[cl]||NAT_PAL.temp;const H=(s)=>v3Hash(k,s);
   // 3×3 칸 격자에서 흔들어 놓고 몇 개는 뺀다 → 칸 경계에서도 숲이 이어져 보인다
-  const keep=NAT_LO?.62:.86;let i=0;
+  const keep=natLite()?.45:NAT_LO?.62:.86;let i=0;
   for(let a=0;a<3;a++)for(let b=0;b<3;b++){i++;if(H(1100+i)>keep)continue;
     const px=c+(b+.5)/3+(H(1120+i)-.5)*.3,pz=r+(a+.5)/3+(H(1140+i)-.5)*.3;
     const big=H(1160+i),s=.62+big*big*.75;   // 대부분 중간, 가끔 큰 나무
@@ -118,7 +119,7 @@ function natWildTrees(r,c,x,out){const k=key(r,c),cl=natCl(),pal=NAT_PAL[cl]||NA
     const pl=pine?pal.pi:pal.sp;const col=dead?pal.dead:pl[Math.floor(H(1220+i)*pl.length)];
     (pine?out.pine:out.spruce).push({x:px,y:0,z:pz,s,sy:s*(.85+H(1240+i)*.45),ry:H(1260+i)*6.28,rx:(H(1280+i)-.5)*.08,rz:(H(1300+i)-.5)*.08,col,k});}
   // 숲 바닥 덤불
-  const nb=NAT_LO?1:2+Math.floor(H(1320)*2);for(let j=0;j<nb;j++)out.bush.push({x:c+.1+H(1330+j)*.8,y:0,z:r+.1+H(1340+j)*.8,s:.8+H(1350+j)*.8,ry:H(1360+j)*6,col:pal.bu[Math.floor(H(1370+j)*pal.bu.length)],k});}
+  const nb=natLite()?(H(1321)<.5?1:0):NAT_LO?1:2+Math.floor(H(1320)*2);for(let j=0;j<nb;j++)out.bush.push({x:c+.1+H(1330+j)*.8,y:0,z:r+.1+H(1340+j)*.8,s:.8+H(1350+j)*.8,ry:H(1360+j)*6,col:pal.bu[Math.floor(H(1370+j)*pal.bu.length)],k});}
 
 /* ---------- 지면 그룹: 숲·덤불·지도 밖 풍경 ---------- */
 {const _bw=v3BuildWorld;v3BuildWorld=function(){_bw();try{natTerrMat();natWorld(V3.G.world);}catch(e){console.error(e);}};}
@@ -143,7 +144,7 @@ function natOuter(g){const T=V3.T,cl=natCl(),L=natLay(),pal=NAT_PAL[cl]||NAT_PAL
         sh.fragmentShader='uniform sampler2D natN;varying vec2 vNatW;\n'+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n{float a=texture2D(natN,vNatW*.04).r,b=texture2D(natN,vNatW*.19).g,c=texture2D(natN,vNatW*1.7).b;diffuseColor.rgb*=(.78+.44*a)*(.9+.2*b)*(.9+.2*c);}');};
       m.customProgramCacheKey=()=>'natOut';m.needsUpdate=true;}}
   if(campPlain())return;
-  const dens={forest:2.4,country:.5,port:.12,river:.25,sym:.18}[L]??.2;const n=NAT_LO?dens*.6:dens;const far=[];const R=mulberry(((G.seed|0)^0x0a7e)>>>0);
+  const dens={forest:2.4,country:.5,port:.12,river:.25,sym:.18}[L]??.2;const n=(NAT_LO?dens*.6:dens)*(natLite()?.35:1);const far=[];const R=mulberry(((G.seed|0)^0x0a7e)>>>0);
   const band=10,A=-band,B=N+band;const area=(B-A)*(B-A)-N*N;const cnt=Math.min(9000,Math.round(area*n));
   for(let i=0;i<cnt;i++){let x=A+R()*(B-A),z=A+R()*(B-A);if(x>-.3&&x<N+.3&&z>-.3&&z<N+.3)continue;
     // 들판 지도는 띠 모양 수림(밭 사이 방풍림)이 되도록 줄무늬 잡음으로 거른다
@@ -168,7 +169,7 @@ function natWaterMat(m,sea){if(!m||m.userData.natW)return;m.userData.natW=1;cons
   }catch(e){console.error(e);}};}
 
 /* ---------- 궤도·바퀴 자국 ---------- */
-function natTrackInit(){if(NAT.tr)return;const T=V3.T;const CAP=NAT_LO?1500:3500;
+function natTrackInit(){if(NAT.tr)return;const T=V3.T;const CAP=NAT_LO||natLite()?1500:3500;
   const tex=v3Tex(32,32,(g,w,h)=>{g.clearRect(0,0,w,h);for(const x0 of [3,21]){g.fillStyle='rgba(255,255,255,.75)';g.fillRect(x0,0,8,h);g.fillStyle='rgba(255,255,255,1)';for(let y=0;y<h;y+=4)g.fillRect(x0,y,8,2);}});
   tex.colorSpace=T.NoColorSpace;
   const mat=new T.MeshStandardMaterial({color:'#2e271e',roughness:1,transparent:true,opacity:.62,alphaMap:tex,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});v3FowMat(mat);

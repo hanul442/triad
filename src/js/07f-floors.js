@@ -43,7 +43,7 @@ function v3ApplyCut(m){const C=V3.cityM;if(!C||!C.wq)return;const tag=[...m].sor
   // 잘린 칸의 속(바닥·벽 단면·칸막이·계단실)은 작은 메시 하나로 따로 만든다
   if(V3.cutG){V3.cutG.traverse(o=>{if(o.geometry)o.geometry.dispose();});V3.scene.remove(V3.cutG);}
   const g=new T.Group();V3.cutG=g;V3.scene.add(g);const D={P:[],C:[],K:[]},L=[],UP=[];const shade=new T.Color('#b4afa6');
-  for(const [k,lv] of m){const r=kr(k),c=kc(k),x=G.map[r][c];if(x.t!=='bldg')continue;const b=bldgBox(r,c);const dmg=1-x.bhp/x.bmax;let h=x.f*FLOOR_H;if(dmg>.5)h*=1-(dmg-.5)*.6;
+  for(const [k,lv] of m){const r=kr(k),c=kc(k),x=G.map[r][c];if(x.t!=='bldg')continue;const b=bldgBox(r,c);const dmg=1-x.bhp/x.bmax;let h=bldgH(x)*FLOOR_H;
     v3CutTile(D,L,r,c,x,b[0],b[1],b[2],b[3],lv,h,shade);
     for(const ul of (m.up&&m.up.get(k))||[])v3UpPlate(UP,L,b[0],b[1],b[2],b[3],ul);}
   v3FloorMesh(g,D,L);v3UpMesh(g,UP);}
