@@ -62,7 +62,7 @@ const VOX_OBJ_EN={'시청':'City Hall','중앙역':'Central Station','방송국'
 const VOX_SUP_EN={arty:'artillery',air:'close air support',smoke:'smoke',heli:'air assault',gunship:'gunship support',cruise:'cruise missile',tbm:'ballistic missile'};
 const VOX_NATO=['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet','Kilo','Lima','Mike','November'];
 function voxCs(u){if(!u)return '';voxCsKo(u);return (VOX_CS_EN[u.type]||'Unit #').replace('#',u._cs);}
-const voxHq=n=>VOX_HQ_EN[n]||'Command';
+let voxHq=n=>VOX_HQ_EN[n]||'Command';
 const voxObj=name=>VOX_OBJ_EN[name]||'the objective';
 function voxPlace(x,z){let best=null,bd=1e9;for(const o of G.objs||[]){const d=Math.hypot(o.c+.5-x,o.r+.5-z);if(d<bd){bd=d;best=o;}}
   if(best&&bd<4)return voxObj(best.name);return `grid ${VOX_NATO[Math.floor(x/4)%VOX_NATO.length]} ${Math.floor(z/4)+1}`;}
@@ -133,7 +133,7 @@ function voxVoices(){if(typeof speechSynthesis==='undefined')return [];if(VOX.vo
   const rest=en.filter(v=>!VOX_FEMALE.test(v.name)).concat(en.filter(v=>VOX_FEMALE.test(v.name))).sort((a,b)=>pref(a)-pref(b));
   return VOX.voices=male.length?male:rest;}
 function voxVoice(n){const vs=voxVoices();if(!vs.length)return null;return vs[(n||0)%vs.length];}
-const voxSpeaks=()=>VOX.mode==='voice'&&!!voxVoice(0);
+let voxSpeaks=()=>VOX.mode==='voice'&&!!voxVoice(0);
 /* 무전기 "치익"(누를 때·뗄 때)과 말하는 동안 깔리는 잡음 */
 function voxSquelch(end,jam){const a=SFX.ctx;if(!a||!SFX.on)return;const t=a.currentTime+.01;const V={a,mix:SFX.bus.radio};
   sndNz(V,t,end?.18:.08,'bandpass',end?2400:2600,.5,end?.5:.45,.003);sndCrackle(V,t+(end?.02:.06),end?.08:.05,.28);if(!end)sndTn(V,t+.02,.05,1250,0,.15,'square');if(jam&&!end)sndNz(V,t,.5,'bandpass',1500,.4,.5,.01);}
