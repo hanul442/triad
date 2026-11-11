@@ -139,7 +139,7 @@ function spaceWait(u){if(UT[u.type].cls!=='inf'||u.climb||u.cqb&&u.cqb.st==='sta
   return 1;}
 /* 목적지에 아군이 먼저 서 있으면 그 곁(0.6칸 안)에 닿은 것으로 치고 멈춘다(서로 밀며 제자리걸음하지 않게) */
 function nearTaken(u){const p=u.path;if(!p||p.length!==1||UT[u.type].fly)return false;const [ex,ez]=p[0];if(Math.hypot(ex-u.x,ez-u.z)>.6)return false;
-  for(const o of G.units){if(o===u||o.nat!==u.nat||UT[o.type].fly||o.path&&o.path.length)continue;if(Math.hypot(o.x-ex,o.z-ez)>.5)continue;
+  for(const o of G.units){if(o===u||o.nat!==u.nat||UT[o.type].fly||o.path&&o.path.length)continue;if(u.fol&&u.fol.L===o.id)continue;if(Math.hypot(o.x-ex,o.z-ez)>.5)continue;   // 따라가는 선두(호위하는 차량) 곁 자리는 그 선두가 차지한 자리가 아니다
     if(o.r===u.r&&o.c===u.c&&cell(o.r,o.c).t==='bldg'&&typeof flOf==='function'&&flOf(o)!==flOf(u))continue;return true;}
   return false;}
 {const _spMove0=rtMove;rtMove=function(u,dt){if(u.path&&u.path.length){if(nearTaken(u)){u.path=[];u.dest=null;return;}const k=spaceWait(u);if(k<=0)return;dt*=k;}return _spMove0(u,dt);};}

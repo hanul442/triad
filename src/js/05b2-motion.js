@@ -73,6 +73,34 @@ function vVehPen(u,x,z,h){const s=vSpec(u),a=h*Math.PI/180,c=Math.cos(a),n=Math.
       const q=r1+r2-Math.abs(dx*vx+dz*vz);if(q<d)d=q;if(d<=0)break;}
     if(d>0)k+=d;}
   return k;}
+/* 마주 오는 차와 엇갈리기: 앞 3칸 안에서 마주 오는 차량이 차폭만큼 옆으로 비켜 있지 않으면 겨누는 점을 오른쪽으로 옮긴다(상대도 자기 오른쪽으로) */
+function vKeepRight(u,ax,az){let fx=ax-u.x,fz=az-u.z;const fl=Math.hypot(fx,fz);if(fl<.05)return null;fx/=fl;fz/=fl;const rx=-fz,rz=fx,s=vSpec(u);let sh=0;
+  for(const o of G.units){if(o===u||!isGV(o)||o.hd==null||!(o.path&&o.path.length)||Math.abs(o.x-u.x)>3||Math.abs(o.z-u.z)>3)continue;
+    const b=o.hd*Math.PI/180;if(fx*Math.cos(b)+fz*Math.sin(b)>-.5)continue;   // 마주 오는 차만
+    const ox=o.x-u.x,oz=o.z-u.z,al=ox*fx+oz*fz;if(al<.2||al>3)continue;
+    const lat=ox*rx+oz*rz,C=s.hw+vSpec(o).hw+.1;if(lat<=-C)continue;   // 이미 왼쪽으로 비켜 지나감
+    sh=Math.max(sh,Math.min(.6,(lat+C)/2+.03));}
+  if(!sh)return null;const L=Math.min(fl,.8),x=u.x+fx*L+rx*sh,z=u.z+fz*L+rz*sh,t=tileAt(x,z);if(!t||mcost(u.type,t)===Infinity||!walkable(u,x,z))return null;
+  return [x,z];}
+/* 길을 비켜 준다: 지나가려는 차량 앞을 막고 선 아군 차량(멈춰 있음)은 그 차가 갈 길 옆이나 앞으로 조금 물러난다.
+   서로 기다리기만 하다 멈추는 일을 막는다. 같은 차는 4초에 한 번만 비킨다. */
+function vGiveWay(u,x,z,h){const now=G.time||0,a=h*Math.PI/180,fx=Math.cos(a),fz=Math.sin(a);
+  for(const o of G.units){if(o===u||!isGV(o)||o.nat!==u.nat||o.hd==null||(o.path&&o.path.length)||Math.abs(o.vs||0)>.05||o.towBy!=null||o.tow!=null||o.hold||(o._gwT||-9)>now)continue;
+    if(Math.abs(o.x-x)>.9||Math.abs(o.z-z)>.9)continue;
+    const so=vSpec(o),b=o.hd*Math.PI/180,oc=Math.cos(b),on=Math.sin(b),s=vSpec(u),c=Math.cos(a),n=Math.sin(a),dx=o.x-x,dz=o.z-z;let d=1e9;
+    for(const [vx,vz] of [[c,n],[-n,c],[oc,on],[-on,oc]]){const q=s.hl*Math.abs(c*vx+n*vz)+s.hw*Math.abs(-n*vx+c*vz)+so.hl*Math.abs(oc*vx+on*vz)+so.hw*Math.abs(-on*vx+oc*vz)-Math.abs(dx*vx+dz*vz);if(q<d)d=q;if(d<=0)break;}
+    if(d<=0)continue;
+    // 후보: 지나가는 차 진행 방향의 옆(멀어지는 쪽 먼저) 0.55~1칸, 그다음 앞으로 1.3~2칸
+    const side=(dx*-fz+dz*fx)>=0?1:-1,cand=[];
+    for(const k of [.55,.75,1])for(const sg of [side,-side])cand.push([o.x-fz*k*sg,o.z+fx*k*sg]);
+    for(const k of [1.3,2])cand.push([o.x+fx*k,o.z+fz*k]);
+    const p0=hullPen(o,o.x,o.z,o.hd);
+    for(const [cx,cz] of cand){const t=tileAt(cx,cz);if(!t||mcost(o.type,t)===Infinity||!walkable(o,cx,cz)||wallCross(o,o.x,o.z,cx,cz))continue;
+      if(hullPen(o,cx,cz,o.hd)>p0+1e-6)continue;
+      // 지나가는 차의 진로(앞 2칸)와 겹치지 않는 자리여야 한다
+      const rx=cx-u.x,rz=cz-u.z,al=rx*fx+rz*fz,lat=Math.abs(-rx*fz+rz*fx);if(al>-.3&&al<2.2&&lat<s.hw+so.hw+.12)continue;
+      if(vVehPen(o,cx,cz,o.hd)>.01)continue;
+      o.path=[[cx,cz]];o._gwT=now+4;break;}}}
 /* 전차·자주포는 주차된 차를 깔아뭉갠다: 차체가 차에 3cm 넘게 걸치면 밟힌 차가 된다(05o-wreck은 차체 중심만 봐서, 차체 앞이 먼저 닿는 것까지 본다) */
 function vCrush(u){const cls=typeof navCls==='function'?navCls(u):null;if(cls!=='trk')return;const s=vSpec(u),a=u.hd*Math.PI/180,c=Math.cos(a),n=Math.sin(a);
   const ex=Math.abs(c)*s.hl+Math.abs(n)*s.hw,ez=Math.abs(n)*s.hl+Math.abs(c)*s.hw;let hit=null;
@@ -115,6 +143,7 @@ function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
   let ax=tx,az=tz;{const [x0,z0]=u._pPrev,sx=tx-x0,sz=tz-z0,sl=Math.hypot(sx,sz);
     if(sl>.25){const t=Math.max(0,Math.min(1,((u.x-x0)*sx+(u.z-z0)*sz)/(sl*sl)));const px=x0+sx*t,pz=z0+sz*t;
       if(Math.hypot(px-u.x,pz-u.z)>.02&&Math.hypot(px-u.x,pz-u.z)<.6){const tt=Math.min(1,t+VM.look/sl);ax=x0+sx*tt;az=z0+sz*tt;}}}
+  {const k=vKeepRight(u,ax,az);if(k){ax=k[0];az=k[1];}}
   const want=Math.hypot(ax-u.x,az-u.z)>.02?vDeg(ax-u.x,az-u.z):vDeg(dx,dz);let rel=vDiff(want,u.hd);
   // 후진: 연막 후 빠질 때, 또는 가까운 뒤쪽 목적지
   let rev=0,head=want;
@@ -148,7 +177,7 @@ function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
   const pass=(x,z)=>{const t=tileAt(x,z);return !!t&&mcost(u.type,t)<Infinity;};
   // 다른 차량: 앞에 선 차에 차체를 들이밀지 않고 잠깐 기다린다. 오래(1.5~3초, 차마다 다르게) 막히면 2초 동안 비켜 지나간다(서로 기다리다 멈추지 않게)
   if(Math.abs(st)>1e-4&&!(u._ygh>now)){const v1p=vVehPen(u,nx,nz,h1);if(v1p>.01&&v1p>vVehPen(u,u.x,u.z,u.hd)+1e-4){u._yw=(u._yw||0)+dt;
-      if(u._yw>1.5+(u.id%5)*.35){u._ygh=now+2;u._yw=0;}else{u.vs=0;u._acc=0;u.face=u.hd;return;}}else if(u._yw)u._yw=Math.max(0,u._yw-dt);}
+      if(u._yw>.6)vGiveWay(u,nx,nz,h1);if(u._yw>1.5+(u.id%5)*.35){u._ygh=now+2;u._yw=0;}else{u.vs=0;u._acc=0;u.face=u.hd;return;}}else if(u._yw)u._yw=Math.max(0,u._yw-dt);}
   const okPos=(esc||pass(nx,nz))&&!wallCross(u,u.x,u.z,nx,nz);
   const free=(x,z)=>(esc||pass(x,z))&&!wallCross(u,u.x,u.z,x,z);
   let done=0;
