@@ -30,7 +30,7 @@ function orgToggle(u){const g=orgGrp();const on=g.includes(u);orgSetSel(on?g.fil
 /* 하단 바 */
 function orgChip(n,c){const us=orgCoUnits(n,c);const I=c.intent;const rc=G.nats[n].reinfCo===c.id;
   const pr=UI.org&&UI.org.k==='co'&&UI.org.id===c.id;
-  return `<button class="btn sm oc" data-act="org:co:${c.id}" id="ab-org-co-${c.no}" aria-pressed="${pr}" title="${c.name} 전체 고르기"><b>${c.name}</b><small>${I?`${ADJ_K[I.k]}${I.obj?' '+I.obj:''}`:''}</small><em>${us.length}</em>${rc?' ★':''}</button>`;}
+  return `<button class="btn sm oc" data-act="org:co:${c.id}" id="ab-org-co-${c.no}" aria-pressed="${pr}" title="${c.name} 전체 고르기 · ${orgSum(n,c)} 소대"><b>${c.name}</b><small>${I?`${ADJ_K[I.k]}${I.obj?' '+I.obj:''}`:''}</small><em>${us.length}</em>${rc?' ★':''}</button>`;}
 {const _ra=renderActbar;renderActbar=function(){_ra();const el=$('#actbar');if(!el||!orgCan())return;const n=G.viewer,O=orgOf(n),N2=G.nats[n];
   if(UI.phase==='aim:atk'||UI.phase==='aim:def'){if(UI.aimOrg){const b=el.querySelector(':scope>b');if(b)b.textContent=`${orgRefName(n,UI.aimOrg)} ${b.textContent}`;}return;}
   const g=orgGrp();const div=document.createElement('div');div.className='org-row';
@@ -115,7 +115,7 @@ if(typeof renderRoster==='function'){const _rr=renderRoster;let sig0='';renderRo
   const chip=u=>{const f=Math.max(0,Math.min(1,hp(u)));const st=u.brk?'공황':u.path&&u.path.length?'이동':u.tgt!=null?'교전':'';
     return `<button class="rc" data-act="pick:${u.id}" id="rc-${u.id}" aria-pressed="${sel.has(u.id)}"><b>${UT[u.type].n}</b>${st?`<small>${st}</small>`:''}<i style="--f:${f};--c:${f>.6?'#5cd18a':f>.3?'#f0c45a':'#ff6a3d'}"></i></button>`;};
   el.innerHTML=groups.map(g=>{let h='';
-    if(g.c)h+=`<button class="rh co" data-act="org:co:${g.c.id}" aria-pressed="${!!(UI.org&&UI.org.k==='co'&&UI.org.id===g.c.id)}">${g.c.name}</button>`;
+    if(g.c)h+=`<button class="rh co" data-act="org:co:${g.c.id}" aria-pressed="${!!(UI.org&&UI.org.k==='co'&&UI.org.id===g.c.id)}" title="${g.c.name} · ${orgSum(n,g.c)} 소대">${g.c.name}<small class="pk">${orgSum(n,g.c)}</small></button>`;
     if(g.p)h+=`<button class="rh" data-act="org:pq:${g.p.id}" aria-pressed="${!!(UI.org&&UI.org.k==='pq'&&UI.org.id===g.p.id)}" title="${g.p.name} (${ORG_KN[orgPqKind(n,g.p)]})">${g.p.no}소대<small class="pk">${ORG_KN[orgPqKind(n,g.p)]}</small></button>`;
     else h+=`<button class="rh" data-act="org:hq" aria-pressed="${!!(UI.org&&UI.org.k==='hq')}">본부</button>`;
     return h+g.us.map(chip).join('');}).join('');

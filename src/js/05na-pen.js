@@ -96,7 +96,7 @@ const SEC={
   sup:[{id:'ring',n:'링 마운트 기관총',w:'hmg',fx:'hmv',atk:5,k:3,cd:1.6,rng:3,open:1,self:1}],
   rec:[{id:'ring',n:'링 마운트 기관총',w:'hmg',fx:'hmv',atk:5,k:3,cd:1.6,rng:3,open:1,self:1}],
 };
-const secList=u=>{const L=SEC[u.type];if(!L)return null;const east=u.nat%2===1;return L.filter(s=>!(s.west&&east)&&!(s.east&&!east));};
+const secList=u=>{const L=SEC[u.type];if(!L)return null;const east=natEast(u.nat);return L.filter(s=>!(s.west&&east)&&!(s.east&&!east));};
 /* 이 총으로 노릴 만한가: 보병, 또는 이 총이 옆을 뚫는 차량 */
 const secTgtOK=(s,e)=>{const td=UT[e.type];if(td.fly)return false;if(td.cls==='inf')return true;return td.cls==='veh'&&PEN[s.w]>=armOf(e)[1]*.9;};
 function secShoot(u,s){const now=G.time||0;u._sc=u._sc||{};if((u._sc[s.id]||0)>now)return false;

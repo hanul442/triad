@@ -16,6 +16,8 @@ const VX_CAMO=[// [바탕, 무늬1, 무늬2] 바랜 군용색
   ['#8b8066','#666446','#6d5a42'],   // 1 사막 황토 + 올리브·갈색 줄무늬
   ['#535a40','#77714f','#2a2b24'],   // 2 녹색 + 모래·흑
   ['#64665a','#43443c','#8a846f']];  // 3 회녹 + 짙은 회·모래
+// 국군(05c3-rok) 3색 위장: 짙은 녹색 바탕에 갈색·검정 무늬가 굵게
+const VX_CAMO_ROK=['#3f5034','#6a5537','#1c1d18'];
 const VX_CIV=['#b8b09c','#3a3a38','#8c8270','#d0ccc2'];
 const VX_GLSL=`
 float vxH(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -53,7 +55,7 @@ function vxVcCol(k,n){return k==='tape'?(TAPE[n]||'#ccc'):k==='canvas'?(n%2?'#7a
 function vxMatOf(k,n){
   switch(k){
     case 'vc':return vxMat('vc',{c:'#ffffff',r:.85,mt:.2,vc:1});
-    case 'body':return vxMat('body'+n,{camo:VX_CAMO[n%4],r:.82,mt:.12});
+    case 'body':return isRok(n)?vxMat('bodyrok',{camo:VX_CAMO_ROK,r:.82,mt:.12}):vxMat('body'+n,{camo:VX_CAMO[n%4],r:.82,mt:.12});
     case 'civ':return vxMat('civ'+n,{c:VX_CIV[n%4],r:.55,mt:.25});
     case 'tape':return vxMat('tape'+n,{c:TAPE[n]||'#ccc',r:.9,dk:.2});
     case 'canvas':return vxMat('canvas'+(n%2),{c:n%2?'#7a7058':'#5d5d48',r:1});
@@ -152,7 +154,7 @@ function vxBake(root,n){const T=V3.T;const col=new T.Color();root.updateMatrixWo
 
 /* ===================== 차종별 ===================== */
 /* 주력전차. 서방식(M1/K2 꼴): 쐐기 포탑, 측면 스커트, 7개 보기륜. 동구권식(T-90 꼴): 낮은 둥근 포탑, 반응장갑, 머리 위 철망, 뒤 연료통 */
-function vxTank(K,n){const east=n%2===1;const {B,C,Cx,P,PT,S,G}=K;
+function vxTank(K,n){const east=natEast(n);const {B,C,Cx,P,PT,S,G}=K;
   const tw=.64,tz=1.53;
   for(const s of [-1,1])K.track(east?{xf:3.15,yf:.62,rf:.36,xr:-3.3,yr:.66,rr:.38,gf:2.7,gr:-2.85,w:.6,z:s*tz,t:.08,nw:6,rw:.37}
                                     :{xf:3.25,yf:.72,rf:.38,xr:-3.4,yr:.75,rr:.42,gf:2.75,gr:-2.8,w:tw,z:s*tz,t:.08,nw:7,rw:.33});
@@ -204,7 +206,7 @@ function vxTank(K,n){const east=n%2===1;const {B,C,Cx,P,PT,S,G}=K;
     K.mark(n,[-.6,.4,1.62],'z+',.45,tur);K.mark(n,[-.6,.4,-1.62],'z-',.45,tur);}
 }
 /* 장갑차. 서방식(스트라이커 꼴 8륜): 상자 차체, 덧댄 장갑판, 원격 사격 무기, 쇠살 장갑. 동구권식(BTR-82 꼴): 뾰족한 배 모양 앞, 작은 원뿔 포탑 */
-function vxIfv(K,n){const east=n%2===1;const {B,C,Cx,P,G}=K;
+function vxIfv(K,n){const east=natEast(n);const {B,C,Cx,P,G}=K;
   if(!east){
     for(const x of [2.3,1.05,-.85,-2.1])for(const s of [-1,1])K.wheel(.55,.42,x,.55,s*1.13,null,true);
     P([[-3.45,.5],[2.6,.5],[3.45,1.0],[3.45,1.25],[-3.45,1.25]],2.2,0,0,0);
@@ -307,7 +309,7 @@ function vxCab(K,n,x,kind,w=2.4){const {B,C}=K;
   for(const s of [-1,1]){B(.75,.55,.04,x+.2,2.3,s*w/2,'glass');K.lamp(x+.95,1.25,s*(w/2-.25));B(.04,.35,.18,x+1.1,2.25,s*(w/2+.2),'dark');B(.3,.04,.04,x+1.0,2.4,s*(w/2+.08),'dark');}  // 옆창·전조등·거울
   B(1.8,.08,w-.2,x-.05,2.75,0);K.mark(n,[x,2.8,0],'y',.6);}
 /* 보급 트럭(6륜): 운전실 + 천막 짐칸(갈빗대), 뒤에서 보이는 탄약 상자, 예비 타이어, 연료통, 배기관 */
-function vxSup(K,n){const {B,C,Cx}=K;const east=n%2===1;
+function vxSup(K,n){const {B,C,Cx}=K;const east=natEast(n);
   B(7.2,.35,1.1,0,.95,0,'dark');vxCab(K,n,east?1.6:2.6,east?'hood':'cab');
   for(const [x,z] of [[2.7,1],[2.7,-1],[-.7,1],[-.7,-1],[-2.0,1],[-2.0,-1]])K.wheel(.55,.42,x,.55,z*1.05,null,true);
   for(const s of [-1,1]){B(1.0,.12,.4,-1.35,1.18,s*1.05,0);K.Cz(.3,1.0,1.0,.95,s*.75,'drum');}                          // 펜더·연료통
@@ -343,7 +345,7 @@ function vxAmb(K,n){const {B,C,P}=K;
   cross(-1.3,2.1,1.09,'z',1.0);cross(-1.3,2.1,-1.09,'z',1.0);cross(-2.71,2.35,0,'x',.6);cross(-1.3,2.86,0,'y',1.4);
   B(.25,.1,.5,.4,1.95,0,'blue');K.ant(-2.4,2.85,.9,1.2);K.can(-2.5,1.4,-.9);}
 /* 다연장. 서방식(하이마스 꼴): 6륜 운전실 + 6발 상자. 동구권식(그라드 꼴): 긴 보닛 트럭 + 40발 관 묶음 */
-function vxMlrs(K,n){const {B,C,Cx,G}=K;const east=n%2===1;
+function vxMlrs(K,n){const {B,C,Cx,G}=K;const east=natEast(n);
   B(7.2,.4,1.1,0,1.0,0,'dark');vxCab(K,n,east?1.6:2.7,east?'hood':'cab');
   for(const x of east?[2.6,-.6,-2.0]:[2.6,.2,-1.4,-2.8])for(const s of [-1,1])K.wheel(.55,.42,x,.55,s*1.1,null,true);
   for(const s of [-1,1])K.Cz(.28,.9,.9,.95,s*.75,'drum');B(4.8,.2,2.4,-1.2,1.25,0);K.mark(n,[-1.3,1.25,1.22],'z+',.5);K.mark(n,[-1.3,1.25,-1.22],'z-',.5);
@@ -361,13 +363,13 @@ function vxVbied(K,n){const {B}=K;vxTech(K,n,false);for(const o of [...K.root.ch
   for(const [x,z] of [[-.9,.5],[-2.1,-.4]])B(.5,.04,.5,x,2.06,z,'rust');B(.22,.9,.6,2.3,.8,0,'steel');}
 
 const VX_BUILD={tank:vxTank,ifv:vxIfv,hmv:vxHmv,tech:(K,n)=>vxTech(K,n,false),zu:(K,n)=>vxTech(K,n,true),spg:vxSpg,sup:vxSup,rec:vxRec,amb:vxAmb,mlrs:vxMlrs,vbied:vxVbied};
-function vxTemplate(ty,n){const key=ty+'|'+n;V3.vxT=V3.vxT||new Map();if(V3.vxT.has(key))return V3.vxT.get(key);
+function vxTemplate(ty,n){const key=ty+'|'+n+(isRok(n)?'|rok':'');V3.vxT=V3.vxT||new Map();if(V3.vxT.has(key))return V3.vxT.get(key);
   const f=VX_BUILD[ty]||vxTank;const K=vxKit();f(K,n);const g=vxBake(K.root,n);V3.vxT.set(key,g);return g;}
 /* 한 판마다: 겨울이면 흰 칠, 사막이면 흙먼지를 밝게 */
 function vxClime(){const U=vxUni();const c=typeof G!=='undefined'&&G&&G.feat&&G.feat.clime||'temp';
   U.uWash.value=c==='winter'?.6:0;U.uDust.value.set(c==='desert'?'#b3a07c':c==='winter'?'#9c978c':'#8f8268');}
 
-v3VehicleM=function(ty,g,n){if(ty==='hmv'&&n%2)ty='tech';
+v3VehicleM=function(ty,g,n){if(ty==='hmv'&&natEast(n))ty='tech';
   vxClime();const src=vxTemplate(ty,n);const c=src.clone(true);
   c.traverse(o=>{if(o.isMesh){o.material=vxMatOf(o.userData.mk,n);o.castShadow=true;o.receiveShadow=true;o.userData.keepGeo=1;}});
   g.add(c);let tur=null;c.traverse(o=>{if(o.userData.turret)tur=o;});if(tur)g.userData.tur=tur;return c;};
