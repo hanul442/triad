@@ -231,7 +231,9 @@ const VCOMP_MIN=400;   // 작은 칸 400개 ≈ 16칸 넓이
 function navRoomy(cls,x,z){const K=navComp(cls);const j=Math.floor(x*NAV_R),i=Math.floor(z*NAV_R);if(i<0||j<0||i>=K.W||j>=K.W)return false;const l=K.lab[i*K.W+j];
   return l>=0&&(K.size[l]>=VCOMP_MIN||K.size[l]===K.big);}
 /* 이 칸 안에서 넓은 덩어리에 속한 가장 가운데 가까운 자리 */
-function navRoomySpot(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
+function navRoomySpot(cls,r,c){const K=navComp(cls),mk=r*4096+c;if(!K.spot)K.spot=new Map();const hit=K.spot.get(mk);if(hit!==undefined)return hit&&[hit[0],hit[1]];   // 격자가 그대로면 칸마다 한 번만 찾는다
+  const best=navRoomySpot0(cls,r,c);K.spot.set(mk,best);return best&&[best[0],best[1]];}
+function navRoomySpot0(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
 if(typeof deploySpots==='function'){const _ds=deploySpots;deploySpots=function(n,type){const out=_ds.apply(this,arguments);const cls=vClsOf(type);if(!cls||typeof navGrid!=='function'||!out.length||!G.props)return out;
   const ok=out.filter(k=>navRoomySpot(cls,kr(k),kc(k)));return ok.length?ok:out;};}
 function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const r0=Math.floor(u.z),c0=Math.floor(u.x);let p=navRoomySpot(cls,r0,c0);

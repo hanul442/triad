@@ -1803,8 +1803,11 @@ function targetsOf(u,moved){const out=[];if(!UT[u.type].rng[1])return out;const 
 function deploySpots(n,type){const out=[];const O=occ();const inc=new Set(G.units.map(o=>key(Math.floor(o.z),Math.floor(o.x))));
   // 거점 o 근처 2칸 안에 적이 없나: 거점마다 한 번만 센다(칸마다 다시 세면 느리다)
   const free=[];const objFree=i=>{if(free[i]===undefined){const o=G.objs[i];free[i]=!G.units.some(e=>e.nat!==n&&dist(e.r,e.c,o.r,o.c)<=2);}return free[i];};
+  // 이 세력 거점 둘레 1칸 중 적이 없는 거점 둘레를 미리 표시해 둔다(칸마다 모든 거점을 보지 않게. objFree는 상태를 바꾸지 않으니 미리 불러도 같다)
+  const near=new Uint8Array(N*N);for(let i=0;i<G.objs.length;i++){const o=G.objs[i];if(G.map[o.r][o.c].owner!==n||!objFree(i))continue;
+    for(let r=Math.max(0,o.r-1);r<=Math.min(N-1,o.r+1);r++)for(let c=Math.max(0,o.c-1);c<=Math.min(N-1,o.c+1);c++)near[r*N+c]=1;}
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){const x=G.map[r][c];if(O.has(key(r,c))||inc.has(key(r,c)))continue;if(mcost(type,x)===Infinity)continue;
-    let ok=inZone(n,r,c);if(!ok)for(let i=0;i<G.objs.length;i++){const o=G.objs[i];const y=G.map[o.r][o.c];if(y.owner===n&&dist(o.r,o.c,r,c)<=1&&objFree(i)){ok=true;break;}}
+    const ok=inZone(n,r,c)||near[r*N+c]===1;
     if(ok)out.push(key(r,c));}return out;}
 let UID=1;
 function mkUnit(n,type,r,c){const u={id:UID++,nat:n,type,r,c,x:c+.5+(Math.random()-.5)*.3,z:r+.5+(Math.random()-.5)*.3,hp:UT[type].hpMax||10,done:false,moved:false,supp:0,ow:false,kills:0,rank:0,path:[],cd:Math.random()*1.5,tgt:null,tgtTile:null,face:n===1?180:n===2?90:n===3?270:0};G.units.push(u);bump();return u;}
@@ -1926,10 +1929,13 @@ function terrSig(){const c=G._ts;if(c&&c.ver===G.ver)return c.s;let s=0;
 /* 한 부대가 보는 안개 점들: 사방으로 광선을 뻗어 가며 지금까지 가장 가파른 장애물보다 높이 보이는 점만 남긴다(높이맵 시야).
    위치가 1/4칸 이상 움직이거나 지형이 바뀔 때만 다시 계산한다. */
 function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.round(uz*4)/4;const v=visRange(u),h=eye(u);const sig=terrSig();
-  const ar=typeof fovArc==='function'?fovArc(u):null;const ck=qx+','+qz+','+v+','+h+','+sig+','+N+(ar?','+ar.key:'');if(u._fov&&u._fov.k===ck)return u._fov.p;
+  const ar=typeof fovArc==='function'?fovArc(u):null;const ck0=qx+','+qz+','+v+','+h+','+N+(ar?','+ar.key:''),ck=ck0+','+sig;if(u._fov&&u._fov.k===ck)return u._fov.p;
   const M=N*FOW_R;const r1=u.r,c1=u.c;
   // 칸별 건물 상자·높이를 한 번만 구한다
   const bx0=Math.max(0,Math.floor(qx-v)),bx1=Math.min(N-1,Math.floor(qx+v)),bz0=Math.max(0,Math.floor(qz-v)),bz1=Math.min(N-1,Math.floor(qz+v));
+  // 먼 곳 지형만 바뀌었으면(지도 지문만 다름) 시야 안 칸을 그대로 다시 쓴다: 계산에 쓰는 칸 값이 지난번과 모두 같으면 결과도 같다
+  const sn=fovSnap(bz0,bz1,bx0,bx1);const F0=u._fov;
+  if(F0&&F0.k0===ck0&&F0.r1===r1&&F0.c1===c1&&F0.sn&&fovSnapEq(F0.sn,sn)){F0.k=ck;return F0.p;}
   const W=bx1-bx0+1;const TB=new Array(W*(bz1-bz0+1));
   for(let r=bz0;r<=bz1;r++)for(let c=bx0;c<=bx1;c++){const x=G.map[r][c];const own=r===r1&&c===c1;
     TB[(r-bz0)*W+c-bx0]=x.t==='bldg'?{b:bldgBox(r,c),h:bldgH(x),sm:x.smoke>0&&!own,own,e:x.el||0}:{b:null,h:0,sm:x.smoke>0&&!own,own,e:x.el||0,wd:x.t==='park'&&!x.yard&&!(x.tl>=.6)};}
@@ -1950,7 +1956,15 @@ function unitFov(u){const [ux,uz]=posOf(u);const qx=Math.round(ux*4)/4,qz=Math.r
       if(d<.9||(th-h0)/d>=maxS-.02)mark(px,pz);
       if(bh>0){const sl=(bh-h0)/d;if(sl>maxS)maxS=sl;}}}
   const out=[];for(let j=0;j<GH;j++)for(let i=0;i<GW;i++)if(mk[j*GW+i])out.push((j+gj0)*M+i+gi0);
-  u._fov={k:ck,p:out};return out;}
+  u._fov={k:ck,p:out,k0:ck0,r1,c1,sn};return out;}
+/* unitFov가 읽는 칸 값(건물 상자는 옆 칸도 보므로 한 칸 더 넓게) */
+const FOVT=new Map();const fovT=t=>{let k=FOVT.get(t);if(k===undefined)FOVT.set(t,k=FOVT.size);return k;};
+const fovN=v=>v==null?-1:typeof v==='boolean'?(v?1:0):v;
+function fovSnap(r0,r1,c0,c1){r0=Math.max(0,r0-1);r1=Math.min(N-1,r1+1);c0=Math.max(0,c0-1);c1=Math.min(N-1,c1+1);
+  const a=new Float64Array((r1-r0+1)*(c1-c0+1)*10+4);a[0]=r0;a[1]=r1;a[2]=c0;a[3]=c1;let q=4;
+  for(let r=r0;r<=r1;r++){const row=G.map[r];for(let c=c0;c<=c1;c++){const x=row[c];a[q++]=fovT(x.t);a[q++]=fovN(x.blk);a[q++]=fovN(x.bhp);a[q++]=fovN(x.bmax);a[q++]=fovN(x.f);a[q++]=x.smoke>0?1:0;a[q++]=fovN(x.el);a[q++]=x.yard?1:0;a[q++]=fovN(x.tl);a[q++]=fovN(x.lost);}}
+  return a;}
+function fovSnapEq(a,b){if(a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;}
 /* 세력 n의 시야: 칸 집합(예전 호환) + 잘게 나눈 안개 점(.fine). 위치가 계속 바뀌므로 0.25초마다 갱신 */
 function visSet(n){const ck='v'+n;G._vc=G._vc||{};const tq=Math.floor((G.time||0)*4);const c0=G._vc[ck];if(c0&&c0.ver===G.ver&&c0.tq===tq)return c0.s;
   const M=N*FOW_R;const fine=new Uint8Array(M*M);const s=new Set();
@@ -2148,8 +2162,12 @@ const navWreckN=()=>{let n=0;for(const c of G.covers||[])if(c.kind==='wreck'&&c.
 function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // mask: 이 큰 칸들 안의 작은 칸만 찍는다(navBase 부분 갱신)
   for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
     const j0=Math.max(0,Math.floor((o.x-R)*NAV_R)),j1=Math.min(W-1,Math.floor((o.x+R)*NAV_R)),i0=Math.max(0,Math.floor((o.z-R)*NAV_R)),i1=Math.min(W-1,Math.floor((o.z+R)*NAV_R));
-    for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*W+j;if(mask&&!mask[((i/NAV_R)|0)*N+((j/NAV_R)|0)])continue;if(!cost[k])continue;if(!inBox(o,(j+.5)*cs,(i+.5)*cs,clr))continue;
-      if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}}
+    // inBox를 풀어 쓴다: cos·sin을 상자마다 한 번만 구한다(계산 순서가 같아 결과도 똑같다)
+    const ox=o.x,oz=o.z,co=Math.cos(o.ry),sn=Math.sin(o.ry),hl=o.hl+clr,hw=o.hw+clr;
+    for(let i=i0;i<=i1;i++){const dz=(i+.5)*cs-oz;
+      for(let j=j0;j<=j1;j++){const k=i*W+j;if(mask&&!mask[((i/NAV_R)|0)*N+((j/NAV_R)|0)])continue;if(!cost[k])continue;
+        const dx=(j+.5)*cs-ox;if(!(Math.abs(dx*co-dz*sn)<=hl&&Math.abs(dx*sn+dz*co)<=hw))continue;
+        if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}}}
 /* navBase 기억: 지형(TC)이 그대로면 지형 층을 다시 쓰고, 장애물이 늘기만 했으면(잔해 차량 추가 등) 새 것만 더 찍는다.
    찍기(navStamp)는 '0으로' 또는 '8 미만이면 +4'라서 순서와 상관없이 결과가 같다 */
 const NAVB={};
@@ -2179,9 +2197,20 @@ function navBase(cls){if(NAV.base[cls])return NAV.base[cls];
   let cost=null;
   if(C.keys){let sub=true;for(const [k,n] of C.keys)if((keys.get(k)||0)<n){sub=false;break;}
     if(sub){const left=new Map(C.keys);const extra=[],K=NAVB.ol.K;for(let q=0;q<list.length;q++){const k=K[q];const n=left.get(k)||0;if(n>0)left.set(k,n-1);else extra.push(list[q]);}
-      cost=C.cost.slice();navStamp(cost,W,extra,cls);}}
+      cost=C.cost.slice();navStamp(cost,W,extra,cls);}
+    else if(C.K&&C.list){// 장애물이 빠졌다(차가 밟혀 부서지는 등): 빠진 것 둘레 큰 칸만 지형부터 다시 찍는다. 나머지 칸에는 새로 생긴 것만 더 찍는다
+      const left=new Map(keys),gone=[];for(let q=0;q<C.list.length;q++){const k=C.K[q];const n=left.get(k)||0;if(n>0)left.set(k,n-1);else gone.push(C.list[q]);}
+      if(gone.length<=64){const mask=new Uint8Array(N*N),cs=1/NAV_R,R0=NAV_R;
+        for(const o of gone){const R=Math.max(o.hl,o.hw)+clr+cs;
+          const c0=(Math.max(0,Math.floor((o.x-R)*NAV_R))/R0)|0,c1=(Math.min(W-1,Math.floor((o.x+R)*NAV_R))/R0)|0,r0=(Math.max(0,Math.floor((o.z-R)*NAV_R))/R0)|0,r1=(Math.min(W-1,Math.floor((o.z+R)*NAV_R))/R0)|0;
+          for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++)mask[r*N+c]=1;}
+        const lo=new Map(C.keys),extra=[],K=NAVB.ol.K;for(let q=0;q<list.length;q++){const k=K[q];const n=lo.get(k)||0;if(n>0)lo.set(k,n-1);else extra.push(list[q]);}
+        cost=C.cost.slice();const terr=C.terr;
+        for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!mask[r*N+c])continue;for(let i=r*R0;i<r*R0+R0;i++)for(let j=c*R0;j<c*R0+R0;j++)cost[i*W+j]=terr[i*W+j];}
+        navStamp(cost,W,list,cls,mask);
+        if(extra.length){const inv=new Uint8Array(N*N);for(let q=0;q<N*N;q++)inv[q]=mask[q]?0:1;navStamp(cost,W,extra,cls,inv);}}}}
   if(!cost){cost=C.terr.slice();navStamp(cost,W,list,cls);}
-  C.keys=keys;C.cost=cost;C.list=list;
+  C.keys=keys;C.cost=cost;C.list=list;C.K=NAVB.ol.K;
   return NAV.base[cls]={W,cost};}
 function navGrid(cls){const q=NAV.grids[cls];
   if(q&&NAV.g===G&&NAV.nv===(G.navV||0)&&NAV.fv===(G.fortNV||0)&&NAV.cl===(G.covers?G.covers.length:0)&&NAV.pl===(G.props?G.props.length:0))return q;
@@ -2684,8 +2713,13 @@ function rtRun(secs){const n=Math.round(secs/TICK);for(let i=0;i<n&&!G.over;i++)
 const RT={last:0,acc:0,uiT:0,v:-1};
 function rtLoop(now){requestAnimationFrame(rtLoop);const dt0=Math.min(.25,(now-(RT.last||now))/1000);RT.last=now;if(!G||G.over)return;
   const setupOpen=!$('#setup').hidden;if(G.paused||(setupOpen&&!G.boot))return;
-  RT.acc+=dt0*(G.spd||1);let n=0;while(RT.acc>=TICK&&n++<12){RT.acc-=TICK;rtTick(TICK);}
-  RT.uiT-=dt0;if(RT.uiT<=0||(RT.v!==G.ver&&RT.uiT<.15)||G.over){RT.uiT=.25;RT.v=G.ver;render();}}
+  // 한 프레임에 몰아서 따라잡지 않는다: 밀린 틱을 12개까지 한꺼번에 돌리면 그 프레임이 수백 ms 멈춘다.
+  // 한 프레임엔 배속에 맞는 만큼(보통 2틱)만, 그리고 14ms를 넘기면 다음 프레임으로 미룬다. 그래도 밀리면 밀린 시간은 버린다(게임이 잠깐 느려질 뿐 끊기지 않는다)
+  const spd=G.spd||1,cap=Math.max(2,Math.ceil(spd)+1);RT.acc+=dt0*spd;let n=0;const t0=performance.now();
+  while(RT.acc>=TICK&&n<cap){RT.acc-=TICK;n++;rtTick(TICK);if(performance.now()-t0>14)break;}
+  if(RT.acc>cap*TICK)RT.acc=TICK;
+  // 화면 글자판(render)은 틱을 돌린 프레임을 피해 다음 프레임에 그린다(한 프레임에 일이 겹치지 않게)
+  RT.uiT-=dt0;if(RT.uiT<=0||(RT.v!==G.ver&&RT.uiT<.15)||G.over){if(n&&!G.over&&!RT.hold&&RT.uiT>-.2){RT.hold=1;return;}RT.hold=0;RT.uiT=.25;RT.v=G.ver;render();}}
 function rtStart(){if(RT.started)return;RT.started=true;requestAnimationFrame(rtLoop);}
 const fmtT=s=>{s=Math.max(0,Math.floor(s));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;};
 
@@ -2923,7 +2957,9 @@ const VCOMP_MIN=400;   // 작은 칸 400개 ≈ 16칸 넓이
 function navRoomy(cls,x,z){const K=navComp(cls);const j=Math.floor(x*NAV_R),i=Math.floor(z*NAV_R);if(i<0||j<0||i>=K.W||j>=K.W)return false;const l=K.lab[i*K.W+j];
   return l>=0&&(K.size[l]>=VCOMP_MIN||K.size[l]===K.big);}
 /* 이 칸 안에서 넓은 덩어리에 속한 가장 가운데 가까운 자리 */
-function navRoomySpot(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
+function navRoomySpot(cls,r,c){const K=navComp(cls),mk=r*4096+c;if(!K.spot)K.spot=new Map();const hit=K.spot.get(mk);if(hit!==undefined)return hit&&[hit[0],hit[1]];   // 격자가 그대로면 칸마다 한 번만 찾는다
+  const best=navRoomySpot0(cls,r,c);K.spot.set(mk,best);return best&&[best[0],best[1]];}
+function navRoomySpot0(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
 if(typeof deploySpots==='function'){const _ds=deploySpots;deploySpots=function(n,type){const out=_ds.apply(this,arguments);const cls=vClsOf(type);if(!cls||typeof navGrid!=='function'||!out.length||!G.props)return out;
   const ok=out.filter(k=>navRoomySpot(cls,kr(k),kc(k)));return ok.length?ok:out;};}
 function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const r0=Math.floor(u.z),c0=Math.floor(u.x);let p=navRoomySpot(cls,r0,c0);
@@ -6565,8 +6601,13 @@ function wrkCollapse(r,c,f0){const x=G.map[r][c];x.rf=f0||1;const sz=.12+.035*Ma
     const near=G.debris.some(d=>d.r===r&&d.c===c&&inBox(d,p.x,p.z,.02));if(!near)continue;if(p.k==='car')wrkPropSet(p,'crush');else if(p.k!=='barrier')wrkPropSet(p,'dead');}
   wrkNav();wrkReroute(c+.5,r+.5,1.8);}
 /* ---------- 전차가 밟고 지나간다 ---------- */
+/* 소품을 칸별로 묶어 둔다(차량이 움직일 때마다 지도 전체 소품을 훑지 않게). 소품 목록이 바뀌면 다시 묶는다. 원래 순서대로 돈다 */
+const PROPIX={P:null,n:-1,b:null};
+function propsNear(P,x,z,rad){if(PROPIX.P!==P||PROPIX.n!==P.length){const b=new Map();for(let i=0;i<P.length;i++){const p=P[i];const k=Math.floor(p.z)*4096+Math.floor(p.x);let a=b.get(k);if(!a)b.set(k,a=[]);a.push(i);}PROPIX.P=P;PROPIX.n=P.length;PROPIX.b=b;}
+  const out=[];for(let r=Math.floor(z-rad);r<=Math.floor(z+rad);r++)for(let c=Math.floor(x-rad);c<=Math.floor(x+rad);c++){const a=PROPIX.b.get(r*4096+c);if(a)for(const i of a)out.push(i);}
+  if(out.length>1)out.sort((a,b)=>a-b);return out;}
 {const _c=fortCrush;fortCrush=function(u){_c(u);const cls=navCls(u);if(cls!=='trk'&&cls!=='veh')return;const P=G.props;let nav=false;
-  if(P)for(const p of P){if(p.dead||Math.abs(p.x-u.x)>.4||Math.abs(p.z-u.z)>.4)continue;
+  if(P)for(const i of propsNear(P,u.x,u.z,.41)){const p=P[i];if(p.dead||Math.abs(p.x-u.x)>.4||Math.abs(p.z-u.z)>.4)continue;
     if(cls==='trk'&&p.k==='car'&&!p.crush&&inBox({x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2,hw:CAR_KIND_W[p.kind]/2},u.x,u.z,.06)){if(wrkPropSet(p,'crush'))nav=true;}
     else if(cls==='trk'&&p.k==='bin'&&Math.hypot(p.x-u.x,p.z-u.z)<.13){if(wrkPropSet(p,'dead'))nav=true;}
     else if((p.k==='lamp'||p.k==='light')&&Math.hypot(p.x-u.x,p.z-u.z)<(cls==='trk'?.1:.07))wrkPropSet(p,'dead');
@@ -14561,6 +14602,70 @@ function perfHud(){if(typeof document==='undefined'||!/[?&]fps\b/.test(location.
     if(now-H.t0>=1000){const k=H.n||1;el.textContent=`${(H.n*1000/(now-H.t0)).toFixed(0)} fps  ${Math.round(H.calls/k)} draws  ${Math.round(H.tris/k/1000)}k tris\nsim ${(H.sim/Math.max(1,H.ticks)).toFixed(1)} ms/tick  ${G?G.units.length:0} units`;H.n=H.calls=H.tris=H.sim=H.ticks=0;H.t0=now;}};
   const tk=rtTick;rtTick=function(dt){const t=performance.now();const r=tk.apply(this,arguments);H.sim+=performance.now()-t;H.ticks++;return r;};}
 if(typeof startView==='function'){const f=startView;startView=async function(){const r=await f.apply(this,arguments);try{perfHud();}catch(e){}return r;};}
+
+/* ---- 07z-pick.js ---- */
+/* ===================== 빠른 맞히기(탭·마우스 아래 물체 찾기) =====================
+   three.js는 인스턴스 묶음(건물 벽·지붕·소품 수만 개)을 광선으로 맞힐 때 인스턴스마다 행렬을 곱해 둘레 공을 다시 구한다.
+   그래서 탭 한 번·마우스 움직임 한 번에 10ms 넘게 걸렸다(PC에서 마우스를 움직이면 화면이 끊김).
+   인스턴스마다 둘레 공(중심·반지름)을 한 번 구해 두고, 광선이 공을 지나지 않는 인스턴스는 바로 건너뛴다.
+   공을 지나는 인스턴스는 three.js와 똑같이 맞혀 보므로 맞히는 결과는 그대로다. 인스턴스 행렬이 바뀌면(version) 다시 구한다. */
+function pickPatch(T){const IM=T&&T.InstancedMesh;if(!IM||IM.prototype._pkFast)return;const R0=IM.prototype.raycast;
+  const m4=new T.Matrix4(),iw=new T.Matrix4(),mesh=new T.Mesh(),sph=new T.Sphere(),v=new T.Vector3(),tmp=[];
+  IM.prototype._pkFast=true;IM.prototype._pkR0=R0;   // 원래 함수(비교 시험용)
+  IM.prototype.raycast=function(rc,out){const n=this.count;if(n<32||!this.geometry||this.material===undefined)return R0.call(this,rc,out);
+    const mw=this.matrixWorld;if(this.boundingSphere===null)this.computeBoundingSphere();sph.copy(this.boundingSphere).applyMatrix4(mw);if(!rc.ray.intersectsSphere(sph))return;
+    const g=this.geometry;if(g.boundingSphere===null)g.computeBoundingSphere();
+    let C=this._pkC;const ver=this.instanceMatrix.version,me=mw.elements;
+    if(!C||C.ver!==ver||C.n!==n||C.g!==g||C.gs!==g.boundingSphere.radius||C.mw.some((x,i)=>x!==me[i])){
+      C=this._pkC={ver,n,g,gs:g.boundingSphere.radius,mw:me.slice(),s:new Float64Array(n*4)};const gc=g.boundingSphere.center,gr=g.boundingSphere.radius;
+      for(let i=0;i<n;i++){this.getMatrixAt(i,m4);iw.multiplyMatrices(mw,m4);v.copy(gc).applyMatrix4(iw);const r=gr*iw.getMaxScaleOnAxis();
+        C.s[i*4]=v.x;C.s[i*4+1]=v.y;C.s[i*4+2]=v.z;C.s[i*4+3]=r*1.001+1e-4;}}   // 반지름에 아주 조금 여유: 반올림 차이로 놓치지 않게
+    const o=rc.ray.origin,d=rc.ray.direction,S=C.s;mesh.geometry=g;mesh.material=this.material;
+    for(let i=0;i<n;i++){const q=i*4,dx=S[q]-o.x,dy=S[q+1]-o.y,dz=S[q+2]-o.z,t=dx*d.x+dy*d.y+dz*d.z,r=S[q+3];
+      const d2=dx*dx+dy*dy+dz*dz-t*t;if(d2>r*r)continue;if(t<0&&dx*dx+dy*dy+dz*dz>r*r)continue;   // 광선 뒤쪽
+      this.getMatrixAt(i,m4);iw.multiplyMatrices(mw,m4);mesh.matrixWorld=iw;mesh.raycast(rc,tmp);
+      for(const h of tmp){h.instanceId=i;h.object=this;out.push(h);}tmp.length=0;}};}
+if(typeof v3Init==='function'){const _i=v3Init;v3Init=function(){try{pickPatch(V3.T);}catch(e){}return _i.apply(this,arguments);};}
+/* 큰 합친 메시(도시 벽·지붕·땅, 삼각형 수천~수만 개)는 three.js가 광선마다 삼각형을 전부 맞혀 본다.
+   메시마다 땅 위(x·z) 격자를 만들어 칸별 삼각형 목록을 두고, 광선이 지나는 칸의 삼각형만 three.js 방식 그대로 맞혀 본다.
+   격자용 번호 목록(index)만 새로 만들고 꼭짓점은 같이 쓰므로 맞힌 점·면 번호는 원래와 같다. */
+function pickGridPatch(T){const MP=T&&T.Mesh&&T.Mesh.prototype;if(!MP||MP._pkGrid)return;MP._pkGrid=true;const C0=MP._computeIntersections;MP._pkC0=C0;
+  const build=g=>{const pos=g.attributes.position,ix=g.index,nt=ix?ix.count/3:pos.count/3;if(g.boundingBox===null)g.computeBoundingBox();const bb=g.boundingBox;
+    const x0=bb.min.x,z0=bb.min.z,ext=Math.max(bb.max.x-x0,bb.max.z-z0,1e-3),cs=Math.max(.5,ext/64),GX=Math.max(1,Math.ceil((bb.max.x-x0)/cs)+1),GZ=Math.max(1,Math.ceil((bb.max.z-z0)/cs)+1);
+    const cnt=new Uint32Array(GX*GZ),V=i=>ix?ix.getX(i):i,e=1e-4,box=new Float64Array(nt*4);
+    for(let t=0;t<nt;t++){let a=Infinity,b=-Infinity,c=Infinity,d=-Infinity;for(let k=0;k<3;k++){const v=V(t*3+k),x=pos.getX(v),z=pos.getZ(v);if(x<a)a=x;if(x>b)b=x;if(z<c)c=z;if(z>d)d=z;}
+      const i0=Math.max(0,Math.floor((a-e-x0)/cs)),i1=Math.min(GX-1,Math.floor((b+e-x0)/cs)),j0=Math.max(0,Math.floor((c-e-z0)/cs)),j1=Math.min(GZ-1,Math.floor((d+e-z0)/cs));
+      box[t*4]=i0;box[t*4+1]=i1;box[t*4+2]=j0;box[t*4+3]=j1;for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++)cnt[j*GX+i]++;}
+    const st=new Uint32Array(GX*GZ+1);for(let q=0;q<GX*GZ;q++)st[q+1]=st[q]+cnt[q];if(st[GX*GZ]>nt*24)return null;   // 큰 삼각형이 많으면 쓰지 않는다
+    const fill=st.slice(0,GX*GZ),idx=new Uint32Array(st[GX*GZ]*3),map=new Uint32Array(st[GX*GZ]);
+    for(let t=0;t<nt;t++){for(let j=box[t*4+2];j<=box[t*4+3];j++)for(let i=box[t*4];i<=box[t*4+1];i++){const q=fill[j*GX+i]++;map[q]=t;idx[q*3]=V(t*3);idx[q*3+1]=V(t*3+1);idx[q*3+2]=V(t*3+2);}}
+    const pg=new T.BufferGeometry();pg.attributes=g.attributes;pg.setIndex(new T.BufferAttribute(idx,1));
+    return {pg,map,st,GX,GZ,x0,z0,cs,bb};};
+  MP._computeIntersections=function(rc,out,ray){const g=this.geometry,m=this.material;
+    if(!g||Array.isArray(m)||!g.attributes.position||g.drawRange.start!==0||g.drawRange.count!==Infinity)return C0.call(this,rc,out,ray);
+    const nt=g.index?g.index.count/3:g.attributes.position.count/3;if(nt<1500)return C0.call(this,rc,out,ray);
+    const pv=g.attributes.position.version,iv=g.index?g.index.version:-1;let P=g._pkG;
+    if(!P||P.pv!==pv||P.iv!==iv||P.n!==nt||P.pos!==g.attributes.position||P.ix!==g.index){P=g._pkG={pv,iv,n:nt,pos:g.attributes.position,ix:g.index,G:build(g)};}
+    const Gd=P.G;if(!Gd)return C0.call(this,rc,out,ray);
+    // 광선이 상자 안을 지나는 구간 [ta,tb]
+    const o=ray.origin,d=ray.direction,b=Gd.bb,e=1e-4;let ta=0,tb=Infinity;
+    for(const [oo,dd,lo,hi] of [[o.x,d.x,b.min.x,b.max.x],[o.y,d.y,b.min.y,b.max.y],[o.z,d.z,b.min.z,b.max.z]]){
+      if(Math.abs(dd)<1e-12){if(oo<lo-e||oo>hi+e)return;continue;}let t1=(lo-e-oo)/dd,t2=(hi+e-oo)/dd;if(t1>t2){const s=t1;t1=t2;t2=s;}if(t1>ta)ta=t1;if(t2<tb)tb=t2;}
+    if(ta>tb)return;
+    // 지나는 칸을 차례로(DDA)
+    const cells=[],cs=Gd.cs,GX=Gd.GX,GZ=Gd.GZ;const px=o.x+d.x*ta-Gd.x0,pz=o.z+d.z*ta-Gd.z0;let i=Math.min(GX-1,Math.max(0,Math.floor(px/cs))),j=Math.min(GZ-1,Math.max(0,Math.floor(pz/cs)));
+    const si=d.x>0?1:-1,sj=d.z>0?1:-1;const tdx=Math.abs(d.x)>1e-12?cs/Math.abs(d.x):Infinity,tdz=Math.abs(d.z)>1e-12?cs/Math.abs(d.z):Infinity;
+    let tx=Math.abs(d.x)>1e-12?ta+((si>0?(i+1)*cs:i*cs)-px)/d.x:Infinity,tz=Math.abs(d.z)>1e-12?ta+((sj>0?(j+1)*cs:j*cs)-pz)/d.z:Infinity;
+    for(let guard=0;guard<GX+GZ+4;guard++){cells.push(j*GX+i);
+      // 칸 모서리를 스칠 때 옆 칸도 넣는다(반올림으로 놓치지 않게)
+      if(Math.abs(tx-tz)<1e-9){if(i+si>=0&&i+si<GX)cells.push(j*GX+i+si);if(j+sj>=0&&j+sj<GZ)cells.push((j+sj)*GX+i);}
+      if(tx<tz){if(tx>tb)break;i+=si;tx+=tdx;}else{if(tz>tb)break;j+=sj;tz+=tdz;}if(i<0||j<0||i>=GX||j>=GZ)break;}
+    const seen=new Set(),tmp=[],got=[];this.geometry=Gd.pg;
+    try{for(const q of cells){const a=Gd.st[q],z=Gd.st[q+1];if(a===z)continue;Gd.pg.drawRange.start=a*3;Gd.pg.drawRange.count=(z-a)*3;C0.call(this,rc,tmp,ray);
+        for(const h of tmp){const f=Gd.map[h.faceIndex];if(seen.has(f))continue;seen.add(f);h.faceIndex=f;got.push(h);}tmp.length=0;}}
+    finally{this.geometry=g;Gd.pg.drawRange.start=0;Gd.pg.drawRange.count=Infinity;}
+    got.sort((a,b)=>a.faceIndex-b.faceIndex);for(const h of got)out.push(h);};}   // 원래처럼 면 번호 순서로 넣는다(거리가 같은 면이 여럿일 때 같은 면을 고르게)
+if(typeof v3Init==='function'){const _i=v3Init;v3Init=function(){try{pickGridPatch(V3.T);}catch(e){}return _i.apply(this,arguments);};}
 
 /* ---- 07z-read.js ---- */
 /* ===================== READ: 전장 알아보기 쉽게 =====================
