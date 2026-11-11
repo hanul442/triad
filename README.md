@@ -68,6 +68,20 @@
 - **사거리 카드**: 20초 넘게 한자리를 지킨 부대는 명중 ×1.12
 - **약진과 숨**: 총격 속 트인 땅은 뛰어서(×1.3) 건너고, 숨이 차면 못 뛰고 조준이 흔들림(최대 −20%)
 
+## 거리 대형: 시가지 제병협동 기동
+
+여러 부대(전차·장갑차·보병)를 함께 보내거나 소대가 행군할 때, 양쪽에 건물이 늘어선 거리에서는 공개 교범대로 움직입니다(`src/js/06i3-street.js`, 트인 곳은 예전 종대·쐐기·차체 뒤 동행 그대로).
+
+- **보병은 양쪽 인도, 건물 벽을 따라**: 분대마다 왼쪽·오른쪽을 맡고, 분대원도 그 벽 쪽으로 한두 줄. 길 건너편 위층을 서로 봐 줌 (FM 7-7 4-17 "dismount teams staggered along the street sides … looks for enemy in the upper floors of the buildings on the other side")
+- **차량은 길 가운데**: 넓은 길은 두 줄로 엇갈려 약 11m, 좁은 길은 한 줄로 약 15m (FM 3-06.11 4-4d "one tank on each side of the street", "the tanks travel in single file")
+- **누가 앞장서나**: 적이 알려지지 않았으면 전차가 앞장서고 보병은 차량 옆(포 앞으로 나서지 않음). 적이 알려졌으면 보병 두 분대(길 양쪽 하나씩, 좁은 길은 하나)가 약 17m 앞서고 차량은 뒤에서 엄호 (FM 3-21.71 6-2e "two squads leading, one on either side of the street, supported by BFVs in the overwatch")
+- **포탑 경계 방향**: 선두는 앞, 가운데 차량은 길 건너편, 맨 뒤 차량은 뒤 (FM 7-7 4-6 "the lead orients to the front, the second to the right, the third to the left, the fourth to the rear"). 닫힌 해치 시야도 이 방향을 봄
+- **교차로**: 선두 분대가 길모퉁이를 먼저 잡는 동안 선두 차량은 교차로 앞에서 서고(최대 8초), 잡으면 멈추지 않고 건너며 포탑으로 옆길을 봄 (FM 3-06.11 "intersections … are normally used as engagement areas")
+- **걸음**: 대열 맨 앞이 가장 느린 부대에 맞추고 뒤처지면 늦추거나 기다림
+- AI 소대 행군은 근처 차량을 둘까지 붙여 두 대가 서로 엄호
+
+참고: [FM 3-06.11 4장](https://www.globalsecurity.org/military/library/policy/army/fm/3-06-11/ch4.htm), [FM 3-21.71 6장](https://www.globalsecurity.org/military/library/policy/army/fm/3-21-71/ch6.htm), [FM 7-7 4장](https://www.globalsecurity.org/military/library/policy/army/fm/7-7/Ch4.htm), [FM 3-06.11 3장](https://www.globalsecurity.org/military/library/policy/army/fm/3-06-11/ch3.htm), [ATP 3-06.11 소개(army.mil)](https://www.army.mil/article/287773/combined_arms_in_urban_operations_insights_into_atp_3_06_11).
+
 ## 경험치와 베테랑
 
 - 분대는 싸우면서 경험을 쌓습니다: 적을 쓰러뜨리거나(전사·중상·경상), 차량·드론·분대를 끝내거나, 거점을 잡거나, 총알 속에서 버티거나, 전투 끝까지 살아남으면
