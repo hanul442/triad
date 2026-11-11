@@ -32,6 +32,13 @@ const CASES = {
     for (let i = 0; i < 8; i++) us.push(put(T, 0, ['tank', 'rifle', 'ifv', 'mg', 'tank', 'rifle', 'hmv', 'at'][i], 4 + (i % 4) * .9, 10 + (i >> 2) * 1.2, 0));
     T.orderGroupMove(us, 22.5, 14.5); return us.map(u => [u, null, null]); },
 };
+// 길 막힘 우회: 두 갈래 길(위·아래) 중 위 길 가운데에 아군 전차가 길을 가로질러 서 있다(움직이지 않음). 차량은 아래 길로 돌아가야 한다
+CASES.detour = T => { const { G, z0 } = setupCorr(T, 1, 22);
+  for (let r = z0; r <= z0 + 4; r++) for (const c of [2, 23]) G.map[r][c].t = 'road';
+  for (let c = 2; c < 24; c++) G.map[z0 + 4][c].t = 'road';
+  G.navV = (G.navV || 0) + 1; T.bump();
+  const b = put(T, 0, 'tank', 12.5, z0 + .5, 90); b.hold = true;   // 길을 가로질러 선 전차(양옆 틈 약 2m: 차가 못 지난다)
+  const a = put(T, 0, 'hmv', 4.5, z0 + .5, 0); return [[a, 20.5, z0 + .5]]; };
 export function runCase(name, secs = 90, seed = 1, trace) {
   const T = loadGame(); seedRandom(T, seed); const L = CASES[name](T); const G = T.G;
   for (const [u, x, z] of L) if (x != null) T.orderMoveTo(u, x, z);
