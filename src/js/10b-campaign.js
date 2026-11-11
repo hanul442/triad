@@ -174,8 +174,8 @@ function campStart(id){const M=CAMP[id];if(!M)return null;
 
 /* ---------- 매 틱 ---------- */
 function campTick(dt){const C=G.camp;if(!C||G.over)return;const M=CAMP[C.id];if(!M)return;
-  C.st.w=C.st.w||{};for(const w of M.waves||[]){if(C.st.w[w.t]||G.time<w.t)continue;C.st.w[w.t]=1;campWave(w);}
-  C.st.bw=C.st.bw||{};for(const w of M.bw||[]){if(C.st.bw[w.t]||G.time<w.t)continue;C.st.bw[w.t]=1;campBlueWave(w);}
+  C.st.w=C.st.w||{};for(const w of C.waves||M.waves||[]){if(C.st.w[w.t]||G.time<w.t)continue;C.st.w[w.t]=1;campWave(w);}
+  C.st.bw=C.st.bw||{};for(const w of C.bwv||M.bw||[]){if(C.st.bw[w.t]||G.time<w.t)continue;C.st.bw[w.t]=1;campBlueWave(w);}
   if(M.land&&typeof landTick==='function')landTick(C,dt);
   CAMP_TICK[C.id](C,C.st,dt);
   // 버티기 임무(M.surv): 시간이 다 되도록 버티면 성공

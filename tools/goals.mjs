@@ -31,6 +31,8 @@ if (isMainThread) {
   function one({ map, seed }) {
     const T = loadGame(); seedRandom(T, seed * 7919 + 13);
     const cfg = map.startsWith('free') ? { n: map === 'free3' ? 3 : 2, size: 'm', seed, layout: 'sym', relief: 'flat', clime: 'temp' } : { map, seed };
+    // DIFF=normal|hard: 캠페인 난이도(10f-diff)로 관전
+    if (process.env.DIFF) { const cs = T.__get('campStart'); T.__set('campStart', (id) => cs(id, process.env.DIFF)); }
     T.__get('specStart')(cfg);
     const G = () => T.G, UT = T.UT;
     const S = { map, seed, flips: 0, undef: 0, capN: 0, capMass: 0, near: 0, nearN: 0, errs: 0 };
