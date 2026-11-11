@@ -120,7 +120,7 @@ function bmBuildWorld(g){const T=V3.T,pm=v3PropMats(),M3=bmMats(),G3=bmGeos(),cl
   // 소품
   const hedge=[],htree=[],bale=[],cont=[],paint=[],hull=[],logs=[];const P=G.props||[];
   for(const p of P){
-    if(p.k==='bocage'){hedge.push({x:p.x,y:0,z:p.z,ry:p.ry,col:pal(BM_HEDGE[cl]||BM_HEDGE.temp,Math.floor(p.x*97+p.z*13),3)});
+    if(p.k==='bocage'){const cs=Math.cos(p.ry),sn=Math.sin(p.ry),col=pal(BM_HEDGE[cl]||BM_HEDGE.temp,Math.floor(p.x*97+p.z*13),3);for(const [t,hl] of hedgeParts(p))hedge.push({x:p.x+cs*t,y:0,z:p.z-sn*t,ry:p.ry,sx:hl*2,sy:1,sz:1,col});   // 틈을 뺀 두 토막(04d hedgeGap)
       if(p.tr)htree.push({x:p.x,y:0,z:p.z,s:.55+((p.x*7+p.z*3)%1)*.2,ry:p.x+p.z,col:pal(LF||['#5f6b3c','#4f5a34','#66703f'],Math.floor(p.x*31+p.z*7),5)});}
     else if(p.k==='bale')bale.push({x:p.x,y:0,z:p.z,ry:p.ry,col:cl==='winter'?'#dcdcd4':'#c2a35c'});
     else if(p.k==='cont')for(let i=0;i<p.n;i++)cont.push({x:p.x,y:i*.275,z:p.z,ry:p.ry,col:i%2?p.c2:p.col});

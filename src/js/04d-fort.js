@@ -26,15 +26,25 @@ const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return
 const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15,dz:.16};   // dz 공병전차(규칙은 09e-fleet). 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
-  car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 헤치고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘
+  car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:2,eng:2,veh:2,trk:1},hedgegap:{inf:0,eng:0,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 틈(hedgegap)으로만 지나가고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘
   barrier:{inf:0,eng:0,veh:2,trk:2},bin:{inf:0,eng:0,veh:2,trk:1},wreck:{inf:0,eng:0,veh:2,trk:2},
   sandbag:{inf:0,eng:0,veh:2,trk:1},wire:{inf:2,eng:1,veh:1,trk:1},jersey:{inf:0,eng:0,veh:2,trk:2},hedgehog:{inf:0,eng:0,veh:2,trk:2},
   trench:{inf:0,eng:0,veh:2,trk:0},nest:{inf:0,eng:0,veh:2,trk:1}};
+/* 생울타리 틈: 울타리마다 한 곳(가운데 또는 ±.2칸, 나무가 선 울타리는 가운데를 피한다)에 사람 지나갈 틈(약 2.6m)이 있다.
+   이동 격자(작은 칸 .2) 칸 가운데에 맞춰야 틈 한 줄이 열린다. 화면(07p·07g2)도 같은 값으로 두 토막을 그린다 */
+const HEDGE_GAP=.11;
+function hedgeGap(p){const h=Math.abs(Math.sin(p.x*91.7+p.z*47.3)*43758.5453)%1;return p.tr?(h<.5?-.2:.2):h<.34?-.2:h<.67?0:.2;}
+/* 울타리의 두 토막 [가운데 위치(울타리 방향), 반 길이] */
+function hedgeParts(p){const g=hedgeGap(p),a=g-HEDGE_GAP,b=g+HEDGE_GAP;return [[(-.5+a)/2,(a+.5)/2],[(b+.5)/2,(.5-b)/2]];}
+/* 쓰러진 울타리(p.dead)는 05o-wreck이 목록에서 뺀다: 그 자리는 누구나 넘는다 */
+function hedgeObs(O,p,k,kg,hw){const cs=Math.cos(p.ry),sn=Math.sin(p.ry);
+  for(const [t,hl] of hedgeParts(p))O.push({k,x:p.x+cs*t,z:p.z-sn*t,ry:p.ry,hl,hw});
+  O.push({k:kg,x:p.x+cs*hedgeGap(p),z:p.z-sn*hedgeGap(p),ry:p.ry,hl:HEDGE_GAP,hw});}
 /* 길을 막는 물체 목록 (방향 있는 상자) */
 function navObstacles(){const O=[];
   for(const p of G.props||[]){
     if(p.k==='car'){const fl=p.flip?1.05:1;O.push({k:'car',x:p.x,z:p.z,ry:p.ry,hl:CAR_KIND_L[p.kind]/2*fl,hw:CAR_KIND_W[p.kind]/2*fl,p});}
-    else if(p.k==='hedge')O.push({k:'hedge',x:p.x,z:p.z,ry:p.ry,hl:.5,hw:.04});          // 공원 둘레 생울타리(길이 12m)
+    else if(p.k==='hedge')hedgeObs(O,p,'hedge','hedgegap',.04);          // 공원 둘레 생울타리(길이 12m): 틈 하나를 뺀 두 토막
     else if(p.k==='wagon')O.push({k:'wagon',x:p.x,z:p.z,ry:p.ry,hl:.25,hw:.085});       // 철길 위 화차
     else if(p.k==='barrier')O.push({k:'barrier',x:p.x,z:p.z,ry:p.ry,hl:.135,hw:.026});
     else if(p.k==='bin')O.push({k:'bin',x:p.x,z:p.z,ry:p.ry+Math.PI/2,hl:.08,hw:.045});}
