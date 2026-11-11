@@ -22,8 +22,8 @@ const FORT_KS=Object.keys(FORT);
 Object.assign(COVK,{trench:{n:'참호',v:.5},nest:{n:'기관총 진지',v:.45},sandbag:{n:'모래주머니',v:.4},jersey:{n:'콘크리트 방벽',v:.35},hedgehog:{n:'대전차 장애물',v:.1}});
 /* 누가 무엇을 지을 수 있나: 공병은 전부, 소총·기관총은 모래주머니·철조망, 나머지 보병은 모래주머니 */
 function fortKinds(type){const t=UT[type];if(!t||t.cls!=='inf')return [];if(type==='eng')return FORT_KS.slice();if(type==='mg')return ['sandbag','wire','trench','nest'];if(type==='rifle')return ['sandbag','wire','trench'];return ['sandbag','trench'];}
-const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return u.type==='eng'?'eng':'inf';return u.type==='cev'?'dz':u.type==='tank'||u.type==='spg'||u.type==='bmp'||u.type==='spaa'?'trk':'veh';};
-const NAV_CLR={inf:.03,eng:.03,veh:.14,trk:.15,dz:.16};   // dz 공병전차(규칙은 09e-fleet). 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
+const navCls=u=>{const t=UT[u.type];if(t.fly)return null;if(t.cls==='inf')return u.type==='eng'?'eng':t.mtn?'mtn':'inf';return u.type==='cev'?'dz':u.type==='tank'||u.type==='spg'||u.type==='bmp'||u.type==='spaa'?'trk':'veh';};
+const NAV_CLR={inf:.03,eng:.03,mtn:.03,veh:.14,trk:.15,dz:.16};   // dz 공병전차(규칙은 09e-fleet). 차량은 차체 반폭 이상 건물에서 떨어져 벽을 파고들지 않게
 /* 장애물 k가 부대 종류 cls에게: 0 지나감, 1 부수고 지나감, 2 막힘 */
 const NAV_RULE={
   car:{inf:2,eng:2,veh:2,trk:2},hedge:{inf:1,eng:1,veh:2,trk:1},wagon:{inf:1,eng:1,veh:2,trk:2},   // 생울타리: 보병은 헤치고 전차는 뚫고 바퀴 차량은 막힘. 화차: 차량은 막힘
@@ -50,7 +50,7 @@ function inBox(o,px,pz,c){const dx=px-o.x,dz=pz-o.z,cs=Math.cos(o.ry),sn=Math.si
 const NAV={g:null,grids:{},base:{}};
 const navWreckN=()=>{let n=0;for(const c of G.covers||[])if(c.kind==='wreck'&&c.cov!=null&&!c.fort)n++;return n;};
 function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // mask: 이 큰 칸들 안의 작은 칸만 찍는다(navBase 부분 갱신)
-  for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
+  for(const o of list){const rule=NAV_RULE[o.k];const v=rule?rule[cls==='mtn'?'inf':cls]:0;if(!v)continue;const R=Math.max(o.hl,o.hw)+clr+cs;
     const j0=Math.max(0,Math.floor((o.x-R)*NAV_R)),j1=Math.min(W-1,Math.floor((o.x+R)*NAV_R)),i0=Math.max(0,Math.floor((o.z-R)*NAV_R)),i1=Math.min(W-1,Math.floor((o.z+R)*NAV_R));
     for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const k=i*W+j;if(mask&&!mask[((i/NAV_R)|0)*N+((j/NAV_R)|0)])continue;if(!cost[k])continue;if(!inBox(o,(j+.5)*cs,(i+.5)*cs,clr))continue;
       if(v===2)cost[k]=0;else if(cost[k]<8)cost[k]+=4;}}}
@@ -59,7 +59,7 @@ function navStamp(cost,W,list,cls,mask){const cs=1/NAV_R,clr=NAV_CLR[cls];   // 
 const NAVB={};
 const navObsKey=o=>o.k+'|'+o.x+'|'+o.z+'|'+o.ry+'|'+o.hl+'|'+o.hw;
 function navBase(cls){if(NAV.base[cls])return NAV.base[cls];
-  const W=N*NAV_R,clr=NAV_CLR[cls];const ty=cls==='inf'||cls==='eng'?'rifle':cls==='trk'||cls==='dz'?'tank':'ifv';   // 궤도 차량은 바퀴 차량이 못 가는 땅(상륙 절벽 숲)도 오른다
+  const W=N*NAV_R,clr=NAV_CLR[cls];const ty=cls==='mtn'?'alp':cls==='inf'||cls==='eng'?'rifle':cls==='trk'||cls==='dz'?'tank':'ifv';   // 궤도 차량은 바퀴 차량이 못 가는 땅(상륙 절벽 숲)도 오른다
   const TC=new Uint8Array(N*N);for(let r=0;r<N;r++)for(let c=0;c<N;c++){const m=mcost(ty,G.map[r][c]);TC[r*N+c]=m===Infinity?0:Math.min(250,m);}
   let C=NAVB[cls];
   const tc=(x,z)=>{if(x<0||z<0||x>=N||z>=N)return 0;return TC[(z|0)*N+(x|0)];};const d=clr+.08;
@@ -142,7 +142,7 @@ function navPath(u,x,z){const cls=navCls(u);if(!cls)return null;const g=navGrid(
   const hk=S.hk,hf=S.hf;let hn=0;
   const push=(k,f)=>{let i=hn++;while(i>0){const p=(i-1)>>1;if(hf[p]<=f)break;hk[i]=hk[p];hf[i]=hf[p];i=p;}hk[i]=k;hf[i]=f;};
   const pop=()=>{const k=hk[0];hn--;if(hn>0){const lk=hk[hn],lf=hf[hn];let i=0;for(;;){const l=2*i+1,r=l+1;let m=i,mf=lf;if(l<hn&&hf[l]<mf){m=l;mf=hf[l];}if(r<hn&&hf[r]<mf)m=r;if(m===i)break;hk[i]=hk[m];hf[i]=hf[m];i=m;}hk[i]=lk;hf[i]=lf;}return k;};
-  const walls=(cls==='inf'||cls==='eng')&&typeof edgePass==='function';
+  const walls=(cls==='inf'||cls==='eng'||cls==='mtn')&&typeof edgePass==='function';
   // 칸 경계를 지날 수 있는지(navWallOk)는 이번 길찾기 동안 지도가 그대로라 칸 쌍마다 한 번만 계산한다
   const wok=walls?navWallMemo(S,gen):null;
   D[s]=0;P[s]=-1;st[s]=gen*2;push(s,H(s));let best=s,bh=H(s),n=0;
@@ -211,7 +211,7 @@ function fortTick(dt){if(!G.forts)G.forts=[];
       // 방어물 자리에 걸친 부대는 살짝 밀어낸다
       for(const o of G.units)if(!navOk(o,o.x,o.z)&&o.path&&!o.path.length){const p=navPath(o,o.x,o.z);if(p&&p.length)o.path=[p[0]];}}}}
 /* 차량이 가벼운 방어물을 깔고 지나가면 부서진다. 공병은 철조망을 끊는다 */
-function fortCrush(u){const cls=navCls(u);if(!cls||cls==='inf'||!G.forts||!G.forts.length)return;
+function fortCrush(u){const cls=navCls(u);if(!cls||cls==='inf'||cls==='mtn'||!G.forts||!G.forts.length)return;
   for(const f of G.forts.slice()){if(f.prog<1)continue;const r=NAV_RULE[f.k][cls];if(r!==1)continue;
     if(!inBox(fortShape(f),u.x,u.z,NAV_CLR[cls]*.8))continue;
     if(cls==='eng'){f.hp-=.25;if(f.hp>0)continue;}

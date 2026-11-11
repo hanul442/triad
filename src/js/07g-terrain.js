@@ -8,7 +8,7 @@
    - v3TY(x,z): 땅의 화면 높이. 화면 좌표로 투영하는 코드(라벨·부대 고르기)가 더한다. */
 const TERR3={u:{map:{value:null},p:{value:null}},on:false};
 const v3TY=(x,z)=>G&&G.elv?elAt(x,z)*FLOOR_H:0;
-const TERR_GLSL='uniform sampler2D terrHM;uniform vec4 terrHP;\nfloat terrH(vec2 p){if(terrHP.x<=0.)return 0.;return texture2D(terrHM,(p+.5)/terrHP.y).r*terrHP.x;}\n';
+const TERR_GLSL='uniform sampler2D terrHM;uniform vec4 terrHP;\nfloat terrH(vec2 p){if(terrHP.x<=0.)return 0.;vec4 t=texture2D(terrHM,(p+.5)/terrHP.y);return (t.r+t.g/256.)*terrHP.x;}\n';   // 높이 16비트(r 위·g 아래): 알프스처럼 높은 지형도 계단 없이
 const TERR_SPRITE='vec4 mvPosition = modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 );';
 function v3TerrHook(sh,mat){const T=V3.T;if(!T)return;let vs=sh.vertexShader;
   const hasP=vs.includes('#include <project_vertex>'),hasS=vs.includes(TERR_SPRITE);if(!hasP&&!hasS)return;
@@ -25,8 +25,9 @@ function v3TerrUpd(){const T=V3.T;v3TerrInstall();if(!TERR3.u.p.value)TERR3.u.p.
   if(V3.M&&V3.M.terr)V3.M.terr.userData.terrN=1;
   if(!G.elv){TERR3.u.p.value.set(0,W,0,0);return;}
   let tx=TERR3.tex;if(!tx||tx.image.width!==W){if(tx)tx.dispose();tx=new T.DataTexture(new Uint8Array(W*W*4),W,W);tx.magFilter=tx.minFilter=T.LinearFilter;tx.wrapS=tx.wrapT=T.ClampToEdgeWrapping;TERR3.tex=tx;}
-  const d=tx.image.data;for(let i=0;i<W*W;i++){d[i*4]=Math.round(Math.max(0,Math.min(1,G.elv[i]/EL_MAX))*255);d[i*4+3]=255;}tx.needsUpdate=true;
-  TERR3.u.map.value=tx;TERR3.u.p.value.set(EL_MAX*FLOOR_H,W,0,0);}
+  let em=EL_MAX;for(let i=0;i<W*W;i++)if(G.elv[i]>em)em=G.elv[i];TERR3.em=em;   // 눈금 범위: 보통 8층, 더 높은 지도(알프스)는 가장 높은 곳까지
+  const d=tx.image.data;for(let i=0;i<W*W;i++){const v=Math.round(Math.max(0,Math.min(1,G.elv[i]/em))*65280);d[i*4]=v>>8;d[i*4+1]=v&255;d[i*4+3]=255;}tx.needsUpdate=true;
+  TERR3.u.map.value=tx;TERR3.u.p.value.set(em*FLOOR_H,W,0,0);}
 
 /* ---------- 지면 그림: 강, 철길 ---------- */
 function v3TerrTex(g,P){const f=G.feat;if(!f)return;const R=mulberry((G.seed^0x41f)>>>0);
