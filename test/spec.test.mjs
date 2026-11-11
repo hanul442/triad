@@ -108,8 +108,8 @@ test('무전 음성: 영어 호출부호와 교신 문장(한국어 번역 포�
   fn(T, 'specStart')({ n: 2, size: 's', seed: 9 });
   const G = T.G, line = fn(T, 'voxLine'), cs = fn(T, 'voxCs');
   const r = G.units.filter(u => u.nat === 0 && u.type === 'rifle');
-  assert.equal(cs(r[0]), 'Rifle 1');
-  if (r[1]) assert.equal(cs(r[1]), 'Rifle 2');
+  assert.equal(cs(r[0]), 'Rifle One-One');
+  if (r[1]) assert.equal(cs(r[1]), 'Rifle One-Two');
   const e = G.units.find(u => u.nat === 1);
   const tank = T.mkUnit(1, 'tank', 3, 3);
   const u = r[0], obj = G.objs[0].name;
@@ -126,7 +126,7 @@ test('무전 음성: 영어 호출부호와 교신 문장(한국어 번역 포�
     assert.ok(/[가-힣]/.test(v.ko), k + ' 한국어 번역: ' + v.ko);
     assert.ok(!/undefined|NaN|null/.test(v.txt + v.ko + v.who + v.whoKo), k + ': ' + v.txt + ' / ' + v.ko);
   }
-  assert.match(L.order.txt, /^Rifle 1, this is Eagle\. Move to .+\. Over\.$/);
+  assert.match(L.order.txt, /^Rifle One-One, .*Eagle Six\. .+(Over\.|over\.|over\?)$/);
   assert.match(L.contact.txt, /meters/);
   assert.match(L.cas.txt, /two wounded, one K-I-A/i);
   // 화면 없이 도는 판에서는 줄에 넣지 않는다(오류도 없다)
