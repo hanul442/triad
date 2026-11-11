@@ -17,7 +17,8 @@ function eyeAt(type,r,c){const t=UT[type];if(t.fly)return 9;const x=cell(r,c);if
 /* 실제 부대: 건물 안이면 지금 서 있는 층에서 본다(05e-floors). */
 const eye=u=>{const e=eyeAt(u.type,u.r,u.c);if(UT[u.type].cls!=='inf'||cell(u.r,u.c).t!=='bldg'||typeof curFl!=='function')return e;return flEye(u);};
 /* 건물 높이(층). 많이 부서지면 낮아진다(화면과 같은 식). */
-function bldgH(x){if(x.t!=='bldg')return 0;const dmg=1-x.bhp/x.bmax;return dmg>.5?x.f*(1-(dmg-.5)*.6):x.f;}
+/* 건물 높이(층): 피해가 쌓여도 그대로 서 있다. 위층이 무너진 만큼(x.lost, 05o3-scar)만 낮아진다 */
+function bldgH(x){if(x.t!=='bldg')return 0;return Math.max(1,x.f-(x.lost||0));}
 function blockH(x){if(x.smoke>0)return 99;return bldgH(x);}
 /* 건물 칸의 상자 [x0,x1,z0,z1]. 같은 블록 건물과 붙은 면은 여백 없이 잇는다. */
 function bldgBox(r,c){const x=G.map[r][c];const same=(a,b)=>inb(a,b)&&G.map[a][b].t==='bldg'&&x.blk!=null&&G.map[a][b].blk===x.blk;

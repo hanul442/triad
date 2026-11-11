@@ -7,8 +7,31 @@ const root = dirname(fileURLToPath(import.meta.url));
 const src = p => readFileSync(join(root, 'src', p), 'utf8');
 const jsFiles = readdirSync(join(root, 'src', 'js')).filter(f => f.endsWith('.js')).sort();
 
+// 업데이트 로그: src/updates/YYYY-MM-DD-이름.md 를 읽어 [{d,t,b:[...]}] 로 만든다 (쓰는 법은 src/updates/README.md).
+export function readUpdates() {
+  const dir = join(root, 'src', 'updates');
+  let files = [];
+  try { files = readdirSync(dir).filter(f => /^\d{4}-\d\d-\d\d.*\.md$/.test(f)).sort(); } catch { return []; }
+  const days = {};
+  // 같은 날짜 안에서는 파일 이름 역순(나중 이름이 위)
+  for (const f of files.reverse()) {
+    const d = f.slice(0, 10);
+    const list = days[d] || (days[d] = []);
+    let cur = null;
+    for (const raw of readFileSync(join(dir, f), 'utf8').split(/\r?\n/)) {
+      const l = raw.trim();
+      if (!l) continue;
+      if (l.startsWith('# ')) { cur = { d, t: l.slice(2).trim(), b: [] }; list.push(cur); }
+      else if (cur && l.startsWith('- ')) cur.b.push(l.slice(2).trim());
+      else if (cur && cur.b.length) cur.b[cur.b.length - 1] += ' ' + l;
+    }
+  }
+  return Object.keys(days).sort().reverse().flatMap(d => days[d]);
+}
+
 export function bundleJs() {
-  return jsFiles.map(f => `/* ---- ${f} ---- */\n` + src(join('js', f))).join('\n');
+  const upd = `/* ---- updates ---- */\nvar UPDATES=${JSON.stringify(readUpdates()).replace(/</g, '\\u003c')};`;
+  return [upd, ...jsFiles.map(f => `/* ---- ${f} ---- */\n` + src(join('js', f)))].join('\n');
 }
 
 export function build() {

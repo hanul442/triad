@@ -29,7 +29,7 @@ if(typeof v3BuildCity==='function'){const f=v3BuildCity;v3BuildCity=function(){c
 function perfHud(){if(typeof document==='undefined'||!/[?&]fps\b/.test(location.search)||!V3.ren||V3.hud)return;
   const el=document.createElement('div');el.style.cssText='position:fixed;left:8px;bottom:8px;z-index:99;font:600 11px/1.4 "IBM Plex Mono",monospace;color:#e8e4da;background:rgba(13,18,23,.78);padding:4px 7px;border-radius:4px;pointer-events:none;white-space:pre';document.body.appendChild(el);
   const H=V3.hud={el,n:0,t0:performance.now(),calls:0,tris:0,sim:0,ticks:0};const R=V3.ren,r0=R.render.bind(R);
-  R.render=(s,c)=>{r0(s,c);H.n++;H.calls+=R.info.render.calls;H.tris+=R.info.render.triangles;const now=performance.now();
+  R.render=(s,c)=>{V3.liteSkip=false;r0(s,c);if(V3.liteSkip)return;H.n++;H.calls+=R.info.render.calls;H.tris+=R.info.render.triangles;const now=performance.now();
     if(now-H.t0>=1000){const k=H.n||1;el.textContent=`${(H.n*1000/(now-H.t0)).toFixed(0)} fps  ${Math.round(H.calls/k)} draws  ${Math.round(H.tris/k/1000)}k tris\nsim ${(H.sim/Math.max(1,H.ticks)).toFixed(1)} ms/tick  ${G?G.units.length:0} units`;H.n=H.calls=H.tris=H.sim=H.ticks=0;H.t0=now;}};
   const tk=rtTick;rtTick=function(dt){const t=performance.now();const r=tk.apply(this,arguments);H.sim+=performance.now()-t;H.ticks++;return r;};}
 if(typeof startView==='function'){const f=startView;startView=async function(){const r=await f.apply(this,arguments);try{perfHud();}catch(e){}return r;};}
