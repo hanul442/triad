@@ -2698,7 +2698,7 @@ const fmtT=s=>{s=Math.max(0,Math.floor(s));return `${Math.floor(s/60)}:${String(
 const VEH={
   // 차체 반길이·반폭(칸), 포탑 선회(도/초), 사격 허용 오차(도), 궤도 여부
   tank:{hl:.33,hw:.15,trav:40,tol:5,trk:1},
-  ifv:{hl:.29,hw:.135,trav:55,tol:8,trk:1},
+  ifv:{hl:.29,hw:.12,trav:55,tol:8},   // 차륜형 8×8(스트라이커·BTR-82A): 약 7×2.8m, 바퀴라 제자리 선회 없이 돌아 나간다
   spg:{hl:.32,hw:.14,trav:20,tol:6,trk:1},
   hmv:{hl:.23,hw:.11,trav:90,tol:10},
   zu:{hl:.22,hw:.095,trav:60,tol:10},
@@ -2870,7 +2870,7 @@ function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
     else if(!fin&&nd<.4&&Math.abs(vDiff(vDeg(tx-u.x,tz-u.z),u.hd))>100&&!rev)u.path.shift();}
   {const g=u._pg;if(!g||Math.hypot(g[0]-u.x,g[1]-u.z)>.08)u._pg=[u.x,u.z,now];else if(now-g[2]>4){u._pg=[u.x,u.z,now];const e2=u.path[u.path.length-1];
     if(!e2||Math.hypot(e2[0]-u.x,e2[1]-u.z)<.9)u.path=[];
-    else if(u._pgR&&Math.hypot(u._pgR[0]-e2[0],u._pgR[1]-e2[1])<.5&&Math.hypot(u._pgR[2]-u.x,u._pgR[3]-u.z)<.5){u._pgR=null;u._blk=Math.max(u._blk||0,3.01);}   // 같은 곳에서 또: 제자리에서 꿈틀대기만 한다 → 뒤로 빼기 단계로
+    else if(u._pgR&&Math.hypot(u._pgR[0]-e2[0],u._pgR[1]-e2[1])<.5&&Math.hypot(u._pgR[2]-u.x,u._pgR[3]-u.z)<.5){u._pgR=null;u._blk=Math.max(u._blk||0,3.3);}   // 같은 곳에서 또: 제자리에서 꿈틀대기만 한다 → 뒤로 빼기 단계로
     else{u._pgR=[e2[0],e2[1],u.x,u.z];u.path=pathPts(u,e2[0],e2[1]);}}}
   vSettle(u);vCrush(u);
   u.moved=true;if(typeof fortCrush==='function')fortCrush(u);rtCell(u);if(!G.units.includes(u))return;
@@ -2922,7 +2922,9 @@ function navRoomy(cls,x,z){const K=navComp(cls);const j=Math.floor(x*NAV_R),i=Ma
 function navRoomySpot(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
 if(typeof deploySpots==='function'){const _ds=deploySpots;deploySpots=function(n,type){const out=_ds.apply(this,arguments);const cls=vClsOf(type);if(!cls||typeof navGrid!=='function'||!out.length||!G.props)return out;
   const ok=out.filter(k=>navRoomySpot(cls,kr(k),kc(k)));return ok.length?ok:out;};}
-function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const p=navRoomySpot(cls,Math.floor(u.z),Math.floor(u.x));if(p){u.x=p[0];u.z=p[1];u.r=Math.floor(u.z);u.c=Math.floor(u.x);}}   // 옮긴 자리의 칸도 맞춘다(안 맞추면 서 있는 동안 칸이 어긋난다)
+function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const r0=Math.floor(u.z),c0=Math.floor(u.x);let p=navRoomySpot(cls,r0,c0);
+  // 이 칸이 통째로 주차 차 사이(넓은 길과 이어진 자리가 없음)면 둘레 2칸에서 가장 가까운 넓은 자리로(맵 끝 주차장에 갇혀 나오지 못하던 문제)
+  if(!p)for(let R=1;R<=2&&!p;R++){let bd=1e9;for(let a=r0-R;a<=r0+R;a++)for(let b=c0-R;b<=c0+R;b++){if(Math.max(Math.abs(a-r0),Math.abs(b-c0))!==R||!inb(a,b)||mcost(u.type,G.map[a][b])===Infinity)continue;const q=navRoomySpot(cls,a,b);if(!q)continue;const d=Math.hypot(q[0]-u.x,q[1]-u.z);if(d<bd){bd=d;p=q;}}}if(p){u.x=p[0];u.z=p[1];u.r=Math.floor(u.z);u.c=Math.floor(u.x);}}   // 옮긴 자리의 칸도 맞춘다(안 맞추면 서 있는 동안 칸이 어긋난다)
 {const _mk=mkUnit;mkUnit=function(n,type,r,c){const u=_mk.apply(this,arguments);if(u)vRoomyFix(u);return u;};}
 // 새 판 처음 부대는 소품(주차 차)이 깔리기 전에 놓이므로, 다 깔린 뒤에 바로잡는다
 {const _ng=newGame;newGame=function(cfg){const r=_ng.apply(this,arguments);try{if(G&&G.units&&!(cfg&&(cfg.scn||cfg.force)))for(const u of G.units)vRoomyFix(u);}catch(e){}return r;};}
@@ -3446,13 +3448,14 @@ function menToLos(u,d){const L=(u._men||[]).filter(menAct);if(!L.length)return;c
 function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
   // 사상자는 체력에서 거꾸로 셈하지 않고, 맞을 때마다 병사 한 명씩 정한다(05g-casualty의 hurtMen)
   menTrail(u);const moving=!!(u.path&&u.path.length)&&!u.climb;
-  const pe=moving?u.path[u.path.length-1].join(','):'';if(moving&&u._pe!==pe)menNewOrder(u,M);u._pe=pe;
+  const pe=moving?u.path[u.path.length-1].join(','):'';if(moving&&u._pe!==pe&&!u._pe)menNewOrder(u,M);u._pe=pe;   // 서 있다가 출발할 때만 줄을 새로 세운다(가는 중에 목적지만 바뀌면 줄·출발 순서를 그대로: 길을 고칠 때마다 다시 늦게 출발해 뒤처지던 것)
   const thr=menThreat(u);const L=M.filter(menAct);
   if(!moving){if(!u._plan||(thr&&Math.abs(Math.atan2(Math.sin(menThreatDir(u)-u._planF),Math.cos(menThreatDir(u)-u._planF)))>.8)||t-(u._planT||0)>15||u._planK!==key(u.r,u.c)){menPlan(u,M);u._planK=key(u.r,u.c);}}
   else u._plan=0;
   // 번갈아 이동: 위협 속에서 움직이면 앞조·뒷조가 교대로 멈춘다
   const bound=moving&&thr&&L.length>=4;const ph=Math.floor(t/MEN.bound)%2;
   const base=UT[u.type].mv*SPD_K*(u.supp>0?.65:1);const sorted=moving?L.slice().sort((a,b)=>(a.rank??a.i)-(b.rank??b.i)):L;
+  const far=moving?2.2+MEN.gapW*L.length*.6:2.2;   // 가는 중이면 줄 길이(9명 약 20m)만큼 더 떨어져도 붙이지 않는다
   sorted.forEach((m,k)=>{if(m.rl>0)m.rl-=dt;if(m.rl<=0&&m.mag<=0){m.mag=MEN.mag[u.type]||4;m.rl=0;}if(m.pr>0)m.pr-=dt;if(m.lag>0){m.lag-=dt;if(moving){m.spd=0;return;}}
     let gx,gz,dash=1;
     if(moving){[gx,gz]=menMoveSpot(u,m,k);const team=k<Math.ceil(L.length/2)?0:1;
@@ -3467,14 +3470,18 @@ function menTick(u,dt){let M=u._men;if(!M)M=menInit(u);const t=G.time||0;
     if(d>.3)dash=Math.max(dash,1.7);else if(d>.12)dash=Math.max(dash,1.25);
     const crawl=m.pr>0&&!moving;m.crawl=crawl;let sp=base*(crawl?.35:dash)*(m.rl>0&&!moving?.6:1);
     if(d>.006){const st=Math.min(d,sp*dt);let nx=m.x+dx/d*st,nz=m.z+dz/d*st;
-      if(!menClear(u,m.x,m.z,nx,nz)){m.stk+=dt;nx=m.x;nz=m.z;m.wp=null;// 막혔으면 서서 다음 틱에 발자국 길을 다시 찾는다(벽은 절대 통과하지 않는다)
-        if(m.stk>2.5){const P=menTrailNear(u,m);if(P){nx=P[0];nz=P[1];}m.stk=0;}}   // 오래 끼어 있으면 가장 가까운 발자국 자리로 옮긴다
+      if(!menClear(u,m.x,m.z,nx,nz)){// 바로 앞이 막혔으면(주차 차 모서리·생울타리 끝) 옆으로 비껴 돌아간다: ±30°·±60°·±90° 중 처음 트인 쪽
+        let sl=null;const a0=Math.atan2(dz,dx),sd=m.i%2?1:-1;
+        for(const k of [1,2,3])for(const sg of [sd,-sd]){if(sl)break;const a=a0+sg*k*Math.PI/6,qx=m.x+Math.cos(a)*st,qz=m.z+Math.sin(a)*st;if(menClear(u,m.x,m.z,qx,qz))sl=[qx,qz];}
+        if(sl){nx=sl[0];nz=sl[1];m.stk=Math.max(0,m.stk-dt*.5);}
+        else{m.stk+=dt;nx=m.x;nz=m.z;m.wp=null;// 막혔으면 서서 다음 틱에 발자국 길을 다시 찾는다(벽은 절대 통과하지 않는다)
+        if(m.stk>2.5){const P=menTrailNear(u,m);if(P){nx=P[0];nz=P[1];}m.stk=0;}}}   // 오래 끼어 있으면 가장 가까운 발자국 자리로 옮긴다
       else m.stk=0;
       if(typeof vegStep==='function')[nx,nz]=vegStep(u,m,nx,nz);
       m.spd=Math.hypot(nx-m.x,nz-m.z)/dt;m.x=nx;m.z=nz;if(m.spd>.02)m.f=Math.atan2(dz,dx);}
     else m.spd=0;
     // 너무 멀리 떨어지면(밀려나거나 막힘) 분대장 곁으로 붙인다
-    if(Math.hypot(m.x-u.x,m.z-u.z)>2.2){const P=menTrailAt(u,.1);m.x=P.x;m.z=P.z;}
+    if(Math.hypot(m.x-u.x,m.z-u.z)>far){const P=menTrailAt(u,.1);m.x=P.x;m.z=P.z;}
     if(m.spd<=.02){const aim=t-m.ft<1.2&&m.aim;m.f=aim?Math.atan2(m.aim[1]-m.z,m.aim[0]-m.x):(m.sec??m.f)+Math.sin(t*.5+m.i*1.7)*.18;}});
   // 서로 겹치지 않게
   for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++){const a=L[i],b=L[j];const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),R=moving?.05:.07;if(d>=R)continue;
@@ -5436,10 +5443,10 @@ function capPct(o){const x=G.map[o.r][o.c];return x.cap?Math.min(99,Math.floor(x
    이름마다 OBJ_KIND에 같은 종류를 등록하므로 쓰임(의료·행정·감시…)은 그대로다. [한국어, 영어 무전] */
 const OBJ_LOCAL={
   country:{gov:[['마을회관','the town hall'],['면사무소','the district office'],['영주 저택','the manor']],hosp:[['시골 병원','the clinic']],bcast:[['라디오 중계소','the relay station']],
-    comm:[['통신 중계탑','the radio mast']],power:[['변전소','the substation']],rail:[['간이역','the halt']],supply:[['곡물 창고','the granary'],['장터','the market square']],
+    comm:[['통신 중계탑','the radio mast']],power:[['변전소','the substation']],rail:[['간이역','the rail stop']],supply:[['곡물 창고','the granary'],['장터','the market square']],
     spire:[['마을 교회','the church']],bank:[['농협 창고','the co-op']],archive:[['기록 보관소','the records office']],police:[['헌병 초소','the MP post']],air:[['농업 비행장','the airstrip'],['방앗간 들판','the mill field']]},
   forest:{gov:[['산림 관리소','the ranger station'],['산장','the lodge'],['휴양림 본부','the park HQ']],hosp:[['산악 구조대','the mountain rescue post']],bcast:[['산정 중계소','the summit relay']],
-    comm:[['산불 감시탑','the fire tower']],power:[['소수력 발전소','the small dam']],rail:[['산골 간이역','the forest halt']],supply:[['제재소','the sawmill'],['보급 창고','the supply depot']],
+    comm:[['산불 감시탑','the fire tower']],power:[['소수력 발전소','the small dam']],rail:[['산골 간이역','the forest rail stop']],supply:[['제재소','the sawmill'],['보급 창고','the supply depot']],
     spire:[['숲속 예배당','the chapel']],bank:[['벌목 회사','the logging company']],archive:[['측량 사무소','the survey office']],police:[['산림 경찰서','the forest police']],air:[['헬기장','the helipad'],['벌목장 빈터','the clearing']]},
   port:{gov:[['세관','the customs house'],['해양 관리청','the maritime office'],['항만 사령부','the harbor command']],hosp:[['선원 병원','the seamen\'s hospital']],bcast:[['해안 무선국','the coast radio']],
     comm:[['항만 관제탑','the harbor tower']],power:[['항만 변전소','the dock substation']],rail:[['부두 화물역','the freight yard']],supply:[['컨테이너 부두','the container terminal'],['어시장','the fish market']],
@@ -14511,7 +14518,10 @@ const VOX_TN_EN={rifle:'infantry',mg:'machine gun',at:'anti-tank team',sniper:'s
   spg:'self-propelled gun',fpv:'F-P-V drone',aa:'triple-A team',ew:'E-W team',zu:'triple-A vehicle',gunship:'gunship',dteam:'drone team',atgm:'missile team',mlrs:'rocket launcher',sup:'supply truck',rec:'recovery vehicle',amb:'ambulance',vbied:'car bomb'};
 const VOX_OBJ_EN={'시청':'City Hall','중앙역':'Central Station','방송국':'the TV station','종합병원':'the hospital','발전소':'the power plant','경찰청':'Police HQ','중앙시장':'the market',
   '대성당':'the cathedral','통신탑':'the radio tower','국립도서관':'the library','항만청':'the port office','증권거래소':'the stock exchange','연방 법원':'the courthouse','주 의회':'the capitol',
-  '공항 터미널':'the airport terminal','스타디움':'the stadium','대사관':'the embassy','서강교 동단':'the east end of the bridge','철교 동단':'the rail bridge','송신 중계소':'the relay station','중앙 방송국':'the broadcast center'};
+  '공항 터미널':'the airport terminal','스타디움':'the stadium','대사관':'the embassy','서강교 동단':'the east end of the bridge','철교 동단':'the rail bridge','송신 중계소':'the relay station','중앙 방송국':'the broadcast center',
+  // 상륙 작전(10c-landing): 오마하 출구는 미군 무전대로 'draw', 인천은 지명 그대로
+  'D-1 출구 (비에르빌)':'the D-1 draw','E-1 출구 (생로랑)':'the E-1 draw','F-1 출구 (콜빌)':'the F-1 draw','생로랑 마을':'Saint-Laurent',
+  '월미도':'Wolmido','인천항 부두':'the Inchon docks','응봉산 관측소':'the observation post on Eungbong hill','경인가도 입구':'the Seoul highway'};
 const VOX_SUP_EN={arty:'artillery',air:'close air support',smoke:'smoke',heli:'air assault',gunship:'gunship support',cruise:'cruise missile',tbm:'ballistic missile'};
 const VOX_NATO=['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet','Kilo','Lima','Mike','November'];
 function voxCs(u){if(!u)return '';voxCsKo(u);return (VOX_CS_EN[u.type]||'Unit #').replace('#',u._cs);}
