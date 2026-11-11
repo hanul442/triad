@@ -26,6 +26,7 @@ const SOL_CAMO={
   mc:{base:'#9b8b68',bl:[['#77704f',16,10,.55],['#5c6643',12,8,.45],['#6b5039',9,7,.35],['#b9a884',10,6,.3]],dk:'#3d3628'},
   wd:{base:'#727851',bl:[['#4d5b37',18,12,.6],['#5d4834',14,10,.5],['#222320',9,4,.35],['#a69c76',7,5,.2]]},
   dg:{base:'#646e4c',px:['#4a5638','#7d7d58','#353a2b','#59643f'],sz:4},
+  rk:{base:'#6f7256',px:['#4c5538','#575034','#2c2d26','#8b8a6a'],sz:3},   // 국군 디지털 화강암 무늬(녹·갈·흑·모래)
   ds:{base:'#b6a47d',bl:[['#917c5a',16,10,.55],['#6f5f45',10,7,.4],['#d0c19c',9,6,.3]]},
 };
 function solCamoTex(k){V3.solTex=V3.solTex||{};if(V3.solTex[k]!==undefined)return V3.solTex[k];
@@ -45,8 +46,8 @@ function solShader(m){m.onBeforeCompile=function(s,ren){const P=V3.T.Material.pr
   s.fragmentShader='varying float vCamo;\n'+s.fragmentShader.replace('#include <map_fragment>','#ifdef USE_MAP\n diffuseColor.rgb*=mix(vec3(1.),texture2D(map,vMapUv).rgb,vCamo);\n#endif');};
   m.customProgramCacheKey=()=>'solcamo'+(V3.T.Material.prototype.customProgramCacheKey.call(m)||'');return m;}
 /* 세력마다 재질 하나(무늬만 다르다). 시신은 먼지 낀 어두운 색 */
-function solMat(n,dead){const id='sol'+(dead?'d':'')+n;if(V3.matc.has(id))return V3.matc.get(id);const T=V3.T;
-  const m=solShader(new T.MeshStandardMaterial({vertexColors:true,roughness:.9,flatShading:true,map:solCamoTex(SOL_PAT[n%4]),color:dead?'#8f8a80':'#ffffff'}));
+function solMat(n,dead){const id='sol'+(dead?'d':'')+n+(isRok(n)?'r':'');if(V3.matc.has(id))return V3.matc.get(id);const T=V3.T;
+  const m=solShader(new T.MeshStandardMaterial({vertexColors:true,roughness:.9,flatShading:true,map:solCamoTex(isRok(n)?'rk':SOL_PAT[n%4]),color:dead?'#8f8a80':'#ffffff'}));
   V3.matc.set(id,m);return m;}
 
 /* ---------- 짓는 도구 ---------- */
@@ -88,7 +89,7 @@ function solMerge(P){const T=V3.T;let nv=0;const gs=[];
 
 /* ---------- 한 사람의 차림(모양 가짓수 하나) ---------- */
 function solSpec(n,kind,vi){const r=mulberry(((n+1)*7919+vi*104729+[...kind].reduce((a,ch)=>a*31+ch.charCodeAt(0),7))|0);const pick=a=>a[Math.floor(r()*a.length)];
-  const mil=n%2===1,W='#ffffff';const s={n,kind,mil,tape:TAPE[n]||'#ccc',skin:pick(SOL_SKIN)};
+  const mil=natEast(n),W='#ffffff';const s={n,kind,mil,tape:TAPE[n]||'#ccc',skin:pick(SOL_SKIN)};
   const fade=c=>{const k=.9+r()*.14;const C=new V3.T.Color(c);C.multiplyScalar(k);return '#'+C.getHexString();};
   if(!mil){s.top=fade(W);s.topC=1;s.pants=s.top;s.pantsC=1;s.plate=n%4===0?pick(['#7d6c4f','#76674c','#6d6248']):pick(['#545a43','#5a5c48','#4d5340']);
     s.glove=n%4===0?'#5c513d':'#3a3b33';s.head=kind==='sniper'?'boonie':r()<.9?'helm':'boonie';s.helm=s.top;s.helmC=1;s.nvg=r()<.7;s.eye=r()<.6;s.rig='plate';s.knee=1;s.ear=1;
@@ -99,6 +100,7 @@ function solSpec(n,kind,vi){const r=mulberry(((n+1)*7919+vi*104729+[...kind].red
     s.head=kind==='sniper'?'boonie':pick(['cap','cap','helm','helm','beanie','bare','scarf','boonie']);s.helm=pick(['#5c5f48','#6c6550','#3c3d36','#7a6e55']);s.helmC=0;
     s.nvg=s.head==='helm'&&r()<.25;s.eye=r()<.35;s.rig=r()<.65?'plate':'chest';s.knee=r()<.3;s.ear=r()<.5;s.scarf=s.head==='scarf'||r()<.25?pick(['#8a7d62','#2d2d2b','#6d3c32','#c7bfae']):null;
     s.cap=pick(['#2a2a2a','#7a6e55','#4a4a40','#5a2a24','#2e3a4a']);s.gun=kind==='mg'?'mg':kind==='sniper'?'dmr':kind==='gl'?'gl':r()<.55?'ak':'m4';s.furn=s.gun==='ak'?'#6b4a2c':'#262624';}
+  if(isRok(n)&&!mil){s.plate=pick(['#535a42','#4d5440','#5a5e46']);s.glove='#2c2d28';s.head=kind==='sniper'?'boonie':'helm';s.furn='#262624';}   // 국군: 녹색 방탄복, 위장 덮개 쓴 방탄모, K2C1(검은 총몸)
   s.pack=kind==='eng'||kind==='mortar'||kind==='medic'?'big':kind==='sniper'||kind==='dteam'||kind==='ew'?'none':pick(['small','small','big','none']);
   s.radio=kind==='lead'||kind==='ew'?1:kind==='rifle'||kind==='sniper'||kind==='gl'?r()<.1:r()<.4;
   s.size=1;return s;}
@@ -245,7 +247,7 @@ function solLegGeo(s){const P=[],K=solKit(P);solLeg(K,s,solV(0,0,0),solV(0,-.87,
 
 /* ---------- 병사 만들기 ---------- */
 function v3SoldierM(n,kind){const T=V3.T;kind=kind||'rifle';
-  const mil=n%2===1,vi=Math.floor(Math.random()*(mil?SOLV.mil:SOLV.reg));const vkey=n+'|'+kind+'|'+vi;
+  const mil=natEast(n),vi=Math.floor(Math.random()*(mil?SOLV.mil:SOLV.reg));const vkey=n+(isRok(n)?'r':'')+'|'+kind+'|'+vi;
   V3.solR=V3.solR||new Map();V3.solByGeo=V3.solByGeo||new WeakMap();
   let R=V3.solR.get(vkey);
   if(!R){const s=solSpec(n,kind,vi);R={s,geo:{},leg:solLegGeo(s),n};R.geo.move=solBody(s,'move');V3.solR.set(vkey,R);V3.solByGeo.set(R.geo.move,R);}

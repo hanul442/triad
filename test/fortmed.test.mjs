@@ -153,7 +153,7 @@ test('제네바 협약: 지키는 세력의 분대는 구급차에 대전차 로
   const T = loadGame(); const G = setup(T); G.geneva = 'all';
   const a = T.mkUnit(0, 'amb', 10, 10); const s = T.mkUnit(1, 'rifle', 10, 12); T.bump();
   for (let i = 0; i < 20; i++) { s.cd = 0; assert.equal(F(T, 'squadRocket')(s), false, '구급차엔 안 쏨'); }
-  const h = T.mkUnit(0, 'hmv', 10, 9); T.bump(); s.cd = 0; assert.equal(F(T, 'squadRocket')(s), true, '다른 차량은 쏨');
+  const h = T.mkUnit(0, 'hmv', 11, 11); T.bump(); s.cd = 0; assert.equal(F(T, 'squadRocket')(s), true, '다른 차량은 쏨');   // 로켓 사거리(3.2칸) 안쪽: 3칸 떨어뜨리면 자리 흔들림에 따라 가끔 밖으로 나갔다
   G.geneva = 'off'; T.G.units = T.G.units.filter(u => u !== h); s.rk = 3; T.bump(); assert.equal(F(T, 'squadRocket')(s), true, '끄면 쏨');
   assert.ok(a);
 });

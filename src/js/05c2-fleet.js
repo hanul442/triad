@@ -38,7 +38,8 @@ const FLEET_REAL={
   spg:['K9·M109','2S3·2S19'],mlrs:['천무·하이마스','BM-21 그라드'],aa:['스팅어·신궁','이글라'],zu:['차량 탑재 대공포','ZU-23-2 테크니컬'],
   spaa:['K30 비호·게파르트','ZSU-23-4 실카'],ew:['휴대 재머','휴대 재머'],drone:['소형 정찰드론','소형 정찰드론'],dteam:['FPV 조종팀','FPV 조종팀'],
   fpv:['FPV 자폭드론','FPV 자폭드론'],sup:['K311·FMTV','우랄·카마즈'],rec:['M88·K288','BREM'],amb:['K-151·M997 구급차','UAZ 구급차'],vbied:['','자폭 차량']};
-const fleetReal=(t,n)=>{const r=FLEET_REAL[t];return r?r[n%2]||r[0]:'';};
+// 국군 세력(05c3-rok)이면 국군 이름, 아니면 서방(짝수)·동구권(홀수)
+const fleetReal=(t,n)=>{if(typeof isRok==='function'&&isRok(n)&&typeof ROK_REAL==='object'&&ROK_REAL[t])return ROK_REAL[t];const r=FLEET_REAL[t];return r?r[typeof natEast==='function'?(natEast(n)?1:0):n%2]||r[0]:'';};
 /* 병과: 증원 메뉴의 묶음과 순서 */
 const BRANCH=[
   {k:'inf',n:'보병',d:'거점을 잡고 건물을 장악하는 주력',ts:['rifle','mg','at','atgm','tb','sniper','eng']},
