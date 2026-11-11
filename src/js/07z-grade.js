@@ -39,7 +39,7 @@ void main(){vec3 c=texture2D(tCol,vUv).rgb;float d=texture2D(tDep,vUv).x;
   const raw=ren.render.bind(ren);ren.info.autoReset=false;
   Object.assign(GRADE,{rt,mat,sc,cam:new T.OrthographicCamera(-1,1,1,-1,0,1),raw,v2:new T.Vector2(),dir:new T.Vector3()});
   ren.render=function(scene,cam){ren.info.reset();
-    if(!grOn()||scene!==V3.scene||ren.getRenderTarget()!==null||!cam.isPerspectiveCamera)return raw(scene,cam);
+    if(!grOn()||GRADE.skip||scene!==V3.scene||ren.getRenderTarget()!==null||!cam.isPerspectiveCamera)return raw(scene,cam);
     const s=ren.getDrawingBufferSize(GRADE.v2);if(rt.width!==s.x||rt.height!==s.y)rt.setSize(s.x,s.y);
     ren.setRenderTarget(rt);raw(scene,cam);ren.setRenderTarget(null);
     const U=mat.uniforms;U.near.value=cam.near;U.far.value=cam.far;U.res.value.copy(s);

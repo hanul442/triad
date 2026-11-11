@@ -23,3 +23,12 @@ test('저사양 모드: 설정 함수는 화면 없이도 안전하고 설명서
   assert.match(h, /저사양 모드/);
   assert.match(h, /L 저사양/);
 });
+
+test('저사양 모드: 후처리만 건너뛰고 병사 묶음 그리기(07z-inst)는 거치지 않으면 안 된다', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/js/07z-lite.js', import.meta.url), 'utf8');
+  // GRADE.raw를 바로 부르면 07z-inst 겹을 건너뛰어 병사가 하나도 안 그려졌다(2026-11-11)
+  assert.doesNotMatch(src, /GRADE\.raw\(/);
+  assert.match(src, /GRADE\.skip=true/);
+  assert.match(readFileSync(new URL('../src/js/07z-grade.js', import.meta.url), 'utf8'), /GRADE\.skip/);
+});
