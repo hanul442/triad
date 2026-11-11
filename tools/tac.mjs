@@ -64,6 +64,7 @@ if (isMainThread) {
     try { await playAI(T, { slots, size: workerData.SIZE, seed, check }); } catch (e) { S.crash = String(e && e.stack || e).slice(0, 400); }
     const g = G(); S.len = g.time; S.errs = (g.errs || []).length; S.err1 = (g.errs || [])[0]?.slice(0, 300); S.win = g.over?.win; S.over = !!g.over;
     const tac = g.tac || {}; for (const k of ['retreat', 'flank', 'smoke', 'supf', 'bound', 'assault', 'hold', 'vkeep', 'truckFlee', 'stage', 'mortarMove', 'logiStuck']) S[k] = (tac[k] || S[k] || 0);
+    S.drl = {}; for (const [k, v] of Object.entries(tac)) if (/^(dr|doc)_/.test(k)) S.drl[k] = v;
     return S;
   }
 }
@@ -78,6 +79,7 @@ function summary(R, SIZE, NATS) {
   { const H = {}; for (const r of R) for (const [k, v] of Object.entries(r.hist || {})) H[k] = (H[k] || 0) + v; const tot = Object.values(H).reduce((a, b) => a + b, 0) || 1;
     console.log(`바깥끼리 사격 평균 ${(sum('outD') / Math.max(1, sum('outN'))).toFixed(2)}칸`);
     console.log('보병 사격 거리(칸, 1칸≈12m; in=한쪽이 건물 안):', ['out<1', 'out1-2', 'out2-3', 'out3-5', 'out5+', 'in<1', 'in1-2', 'in2-3', 'in3-5', 'in5+'].map(k => `${k} ${(100 * (H[k] || 0) / tot).toFixed(0)}%`).join(' · ')); }
+  if (R.some(r => r.drl && Object.keys(r.drl).length)) console.log('교범 훈련·습관(판당):', JSON.stringify(agg('drl')));
   console.log('판당 격파(쏜 쪽):', JSON.stringify(agg('kills')));
   console.log('판당 손실:', JSON.stringify(agg('lost')));
   console.log(`판당: 거점 주인 바뀜 ${(sum('flips') / R.length).toFixed(1)} · 차량 사격 ${(sum('vshots') / R.length).toFixed(0)} · 차량 새 목적지 ${(sum('vord') / R.length).toFixed(0)} (6초 안에 반대로 ${(sum('vflip') / R.length).toFixed(1)}) · 평균 수명 ${(sum('life') / Math.max(1, sum('lifeN'))).toFixed(0)}초 · 아군 피해 사망 ${(100 * sum('ff') / Math.max(1, sum('lifeN'))).toFixed(1)}% · 원인 모름 ${(100 * sum('noby') / Math.max(1, sum('lifeN'))).toFixed(0)}%`);
