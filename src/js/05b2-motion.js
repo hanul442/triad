@@ -10,7 +10,7 @@
 const VEH={
   // 차체 반길이·반폭(칸), 포탑 선회(도/초), 사격 허용 오차(도), 궤도 여부
   tank:{hl:.33,hw:.15,trav:40,tol:5,trk:1},
-  ifv:{hl:.29,hw:.135,trav:55,tol:8,trk:1},
+  ifv:{hl:.29,hw:.12,trav:55,tol:8},   // 차륜형 8×8(스트라이커·BTR-82A): 약 7×2.8m, 바퀴라 제자리 선회 없이 돌아 나간다
   spg:{hl:.32,hw:.14,trav:20,tol:6,trk:1},
   hmv:{hl:.23,hw:.11,trav:90,tol:10},
   zu:{hl:.22,hw:.095,trav:60,tol:10},
@@ -182,7 +182,7 @@ function vehMove(u,dt){vInit(u);const s=vSpec(u),now=G.time||0;
     else if(!fin&&nd<.4&&Math.abs(vDiff(vDeg(tx-u.x,tz-u.z),u.hd))>100&&!rev)u.path.shift();}
   {const g=u._pg;if(!g||Math.hypot(g[0]-u.x,g[1]-u.z)>.08)u._pg=[u.x,u.z,now];else if(now-g[2]>4){u._pg=[u.x,u.z,now];const e2=u.path[u.path.length-1];
     if(!e2||Math.hypot(e2[0]-u.x,e2[1]-u.z)<.9)u.path=[];
-    else if(u._pgR&&Math.hypot(u._pgR[0]-e2[0],u._pgR[1]-e2[1])<.5&&Math.hypot(u._pgR[2]-u.x,u._pgR[3]-u.z)<.5){u._pgR=null;u._blk=Math.max(u._blk||0,3.01);}   // 같은 곳에서 또: 제자리에서 꿈틀대기만 한다 → 뒤로 빼기 단계로
+    else if(u._pgR&&Math.hypot(u._pgR[0]-e2[0],u._pgR[1]-e2[1])<.5&&Math.hypot(u._pgR[2]-u.x,u._pgR[3]-u.z)<.5){u._pgR=null;u._blk=Math.max(u._blk||0,3.3);}   // 같은 곳에서 또: 제자리에서 꿈틀대기만 한다 → 뒤로 빼기 단계로
     else{u._pgR=[e2[0],e2[1],u.x,u.z];u.path=pathPts(u,e2[0],e2[1]);}}}
   vSettle(u);vCrush(u);
   u.moved=true;if(typeof fortCrush==='function')fortCrush(u);rtCell(u);if(!G.units.includes(u))return;
@@ -236,7 +236,9 @@ function navRoomySpot(cls,r,c){const K=navComp(cls),mk=r*4096+c;if(!K.spot)K.spo
 function navRoomySpot0(cls,r,c){let best=null,bd=1e9;for(let a=0;a<NAV_R;a++)for(let b=0;b<NAV_R;b++){const x=c+(b+.5)/NAV_R,z=r+(a+.5)/NAV_R;if(!navRoomy(cls,x,z))continue;const d=Math.hypot(x-c-.5,z-r-.5);if(d<bd){bd=d;best=[x,z];}}return best;}
 if(typeof deploySpots==='function'){const _ds=deploySpots;deploySpots=function(n,type){const out=_ds.apply(this,arguments);const cls=vClsOf(type);if(!cls||typeof navGrid!=='function'||!out.length||!G.props)return out;
   const ok=out.filter(k=>navRoomySpot(cls,kr(k),kc(k)));return ok.length?ok:out;};}
-function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const p=navRoomySpot(cls,Math.floor(u.z),Math.floor(u.x));if(p){u.x=p[0];u.z=p[1];u.r=Math.floor(u.z);u.c=Math.floor(u.x);}}   // 옮긴 자리의 칸도 맞춘다(안 맞추면 서 있는 동안 칸이 어긋난다)
+function vRoomyFix(u){const cls=vClsOf(u.type);if(!cls||typeof navGrid!=='function'||!G.map||!G.props||navRoomy(cls,u.x,u.z))return;const r0=Math.floor(u.z),c0=Math.floor(u.x);let p=navRoomySpot(cls,r0,c0);
+  // 이 칸이 통째로 주차 차 사이(넓은 길과 이어진 자리가 없음)면 둘레 2칸에서 가장 가까운 넓은 자리로(맵 끝 주차장에 갇혀 나오지 못하던 문제)
+  if(!p)for(let R=1;R<=2&&!p;R++){let bd=1e9;for(let a=r0-R;a<=r0+R;a++)for(let b=c0-R;b<=c0+R;b++){if(Math.max(Math.abs(a-r0),Math.abs(b-c0))!==R||!inb(a,b)||mcost(u.type,G.map[a][b])===Infinity)continue;const q=navRoomySpot(cls,a,b);if(!q)continue;const d=Math.hypot(q[0]-u.x,q[1]-u.z);if(d<bd){bd=d;p=q;}}}if(p){u.x=p[0];u.z=p[1];u.r=Math.floor(u.z);u.c=Math.floor(u.x);}}   // 옮긴 자리의 칸도 맞춘다(안 맞추면 서 있는 동안 칸이 어긋난다)
 {const _mk=mkUnit;mkUnit=function(n,type,r,c){const u=_mk.apply(this,arguments);if(u)vRoomyFix(u);return u;};}
 // 새 판 처음 부대는 소품(주차 차)이 깔리기 전에 놓이므로, 다 깔린 뒤에 바로잡는다
 {const _ng=newGame;newGame=function(cfg){const r=_ng.apply(this,arguments);try{if(G&&G.units&&!(cfg&&(cfg.scn||cfg.force)))for(const u of G.units)vRoomyFix(u);}catch(e){}return r;};}

@@ -55,7 +55,10 @@ const VOX_TN_EN={rifle:'infantry',mg:'machine gun',at:'anti-tank team',sniper:'s
   spg:'self-propelled gun',fpv:'F-P-V drone',aa:'triple-A team',ew:'E-W team',zu:'triple-A vehicle',gunship:'gunship',dteam:'drone team',atgm:'missile team',mlrs:'rocket launcher',sup:'supply truck',rec:'recovery vehicle',amb:'ambulance',vbied:'car bomb'};
 const VOX_OBJ_EN={'시청':'City Hall','중앙역':'Central Station','방송국':'the TV station','종합병원':'the hospital','발전소':'the power plant','경찰청':'Police HQ','중앙시장':'the market',
   '대성당':'the cathedral','통신탑':'the radio tower','국립도서관':'the library','항만청':'the port office','증권거래소':'the stock exchange','연방 법원':'the courthouse','주 의회':'the capitol',
-  '공항 터미널':'the airport terminal','스타디움':'the stadium','대사관':'the embassy','서강교 동단':'the east end of the bridge','철교 동단':'the rail bridge','송신 중계소':'the relay station','중앙 방송국':'the broadcast center'};
+  '공항 터미널':'the airport terminal','스타디움':'the stadium','대사관':'the embassy','서강교 동단':'the east end of the bridge','철교 동단':'the rail bridge','송신 중계소':'the relay station','중앙 방송국':'the broadcast center',
+  // 상륙 작전(10c-landing): 오마하 출구는 미군 무전대로 'draw', 인천은 지명 그대로
+  'D-1 출구 (비에르빌)':'the D-1 draw','E-1 출구 (생로랑)':'the E-1 draw','F-1 출구 (콜빌)':'the F-1 draw','생로랑 마을':'Saint-Laurent',
+  '월미도':'Wolmido','인천항 부두':'the Inchon docks','응봉산 관측소':'the observation post on Eungbong hill','경인가도 입구':'the Seoul highway'};
 const VOX_SUP_EN={arty:'artillery',air:'close air support',smoke:'smoke',heli:'air assault',gunship:'gunship support',cruise:'cruise missile',tbm:'ballistic missile'};
 const VOX_NATO=['Alpha','Bravo','Charlie','Delta','Echo','Foxtrot','Golf','Hotel','India','Juliet','Kilo','Lima','Mike','November'];
 function voxCs(u){if(!u)return '';voxCsKo(u);return (VOX_CS_EN[u.type]||'Unit #').replace('#',u._cs);}
