@@ -102,8 +102,9 @@ function rtCell(u){const r=Math.floor(u.z),c=Math.floor(u.x);if(r===u.r&&c===u.c
    비키기 규칙(서로 끼여 못 가는 일 막기):
    - 가는 부대가 앞을 막은 부대를 만나면 정면으로 밀기만 하지 않고 옆으로 비켜 지나간다(마주 오면 둘 다 자기 오른쪽으로)
    - 서 있는 아군은 지나가는 부대에 길을 비켜 준다(반대쪽 옆으로)
-   - 보병과 차량이 겹치면 보병이 비킨다(차량은 덜 밀린다) */
-const SEP={side:.9,give:.5,infVeh:.85,infGap:.25};
+   - 차량이 낀 쌍은 차체 모양만큼만 밀어낸다(보병은 차체에서 약 3m, 차량끼리는 차체가 닿을 때)
+   infVeh: 같은 편 보병·차량이 겹칠 때 보병이 더 밀리는 몫(0 = 똑같이). AI 판 측정에서 0이 가장 덜 멈췄다(tools/jam.mjs) */
+const SEP={side:.9,give:.5,infVeh:0,infGap:.25,vehGap:.04};
 function sepHead(u){const p=u.path&&u.path[0];if(!p)return null;const dx=p[0]-u.x,dz=p[1]-u.z,d=Math.hypot(dx,dz);if(d>.02)return [dx/d,dz/d];
   const q=u.path[1];if(!q)return null;const ex=q[0]-u.x,ez=q[1]-u.z,e=Math.hypot(ex,ez);return e>.02?[ex/e,ez/e]:null;}
 function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us[i];if(UT[a.type].fly)continue;for(let j=i+1;j<us.length;j++){const b=us[j];const dx=b.x-a.x,dz=b.z-a.z;if(dx>.75||dx<-.75||dz>.75||dz<-.75)continue;   // 먼 쌍은 바로 건너뛴다(성능)
@@ -112,13 +113,14 @@ function rtSeparate(dt){const us=G.units;for(let i=0;i<us.length;i++){const a=us
     const inB=cell(a.r,a.c).t==='bldg'||cell(b.r,b.c).t==='bldg';if(inB&&(a.r!==b.r||a.c!==b.c||(typeof flOf==='function'&&flOf(a)!==flOf(b))))continue;   // 건물 안: 같은 칸 같은 층끼리만
     const va=UT[a.type].cls==='veh',vb=UT[b.type].cls==='veh';
     const d=Math.hypot(dx,dz);let R=(va||vb)?.75:inB?.5:.55;
-    if(va!==vb&&typeof vSpec!=='undefined'&&d>.001){const v=va?a:b,s=vSpec(v),h=(v.hd??v.face??0)*Math.PI/180,cs=Math.abs((dx*Math.cos(h)+dz*Math.sin(h))/d);R=Math.min(R,s.hl*cs+s.hw*Math.sqrt(Math.max(0,1-cs*cs))+SEP.infGap);}   // 보병과 차량: 차체 모양만큼만(차체에서 약 3m)
+    if((va||vb)&&typeof vSpec!=='undefined'&&d>.001){const ext=v=>{const s=vSpec(v),h=(v.hd??v.face??0)*Math.PI/180,cs=Math.abs((dx*Math.cos(h)+dz*Math.sin(h))/d);return s.hl*cs+s.hw*Math.sqrt(Math.max(0,1-cs*cs));};
+      R=Math.min(R,(va?ext(a):0)+(vb?ext(b):0)+(va&&vb?SEP.vehGap:SEP.infGap));}   // 차량이 낀 쌍: 차체 모양만큼만(보병은 차체에서 약 3m, 차량끼리는 차체가 닿을 때)
     if(d>=R)continue;
     const push=(R-d)*Math.min(1,dt*4)/2,nx=d>.001?dx/d:Math.cos(i+j),nz=d>.001?dz/d:Math.sin(i+j);
     const mv=(u,s)=>{const x=u.x+nx*push*s,z=u.z+nz*push*s;if(inB&&(Math.floor(x)!==u.c||Math.floor(z)!==u.r))return;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;}};
     const sd=(u,px,pz)=>{const x=u.x+px,z=u.z+pz;if(inB&&(Math.floor(x)!==u.c||Math.floor(z)!==u.r))return false;if(walkable(u,x,z)&&!wallCross(u,u.x,u.z,x,z)){u.x=x;u.z=z;return true;}return false;};
     const am=a.path&&a.path.length,bm=b.path&&b.path.length;
-    // 밀리는 몫: 서 있는 쪽은 덜 밀리고, 보병·차량이 겹치면 보병이 거의 다 비킨다
+    // 밀리는 몫: 서 있는 쪽은 덜 밀린다
     let ka=bm&&!am?.4:1,kb=am&&!bm?.4:1;if(va!==vb&&a.nat===b.nat){if(va){ka*=1-SEP.infVeh;kb*=1+SEP.infVeh;}else{ka*=1+SEP.infVeh;kb*=1-SEP.infVeh;}}
     if(a.climb){mv(b,2);}else if(b.climb){mv(a,-2);}else{mv(a,-ka);mv(b,kb);}
     if(a.climb||b.climb)continue;

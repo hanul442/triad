@@ -9,7 +9,7 @@ import { loadGame, seedRandom } from '../test/harness.mjs';
 
 const LAYS = [undefined, 'port', 'country', 'forest', 'sub', 'ind', 'old', 'canal'];
 async function one(seed, size, secs) {
-  const T = loadGame(); seedRandom(T, seed);
+  const T = loadGame(); seedRandom(T, seed); if (process.env.SEPX) T.__eval(process.env.SEPX);   // 예: SEPX='SEP.side=0' 로 비키기 세기를 바꿔 비교
   const lay = LAYS[seed % LAYS.length];
   T.newGame({ slots: ['ai', 'ai', 'ai', 'ai'], size, diff: 'normal', fog: true, speed: 0, seed, layout: lay });
   const G = T.G, UT = T.UT;
