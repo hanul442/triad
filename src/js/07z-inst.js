@@ -9,7 +9,7 @@ try{if(typeof location!=='undefined'&&/[?&]noinst\b/.test(location.search))INST.
 function instReg(m){if(!INST.on||!m||!m.isMesh)return;m.layers.set(INST.L);m.userData.inst=0;INST.set.add(m);}
 /* 병사 만들기를 감싼다: 모양 가짓수를 줄이고, 덩어리를 등록 */
 if(typeof v3SoldierM==='function'){const _s=v3SoldierM;v3SoldierM=function(n,kind){
-  if(INST.on&&V3.solG){const pk=(n%2)+'|'+kind;const pool=INST.pool.get(pk)||[];
+  if(INST.on&&V3.solG){const pk=(natEast(n)?1:0)+(isRok(n)?'r':'')+'|'+kind;const pool=INST.pool.get(pk)||[];
     // 이미 충분히 만들었으면 기존 모양 중 하나를 고르도록 V3.solG를 잠깐 그 모양들로만 채운 것처럼 다룬다
     if(pool.length>=INST.var){const keys=new Set(V3.solG.keys());const g=_s(n,kind);const body=g.userData.tor;
       if(body&&!pool.includes(body.geometry)){body.geometry=pool[Math.floor(Math.random()*pool.length)];}

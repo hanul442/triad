@@ -11,7 +11,7 @@ const MNT={
   rec:{w:{ring:[3.95,3.06,.6,'hull']}},
 };
 let MNT_CUR=null;
-function mntAt(a,id){const T=MNT[a.type];if(!T)return null;const k=(a.nat%2===1&&T.e)?T.e:T.w;const p=k[id]||(id!=='main'?null:null);if(!p)return null;
+function mntAt(a,id){const T=MNT[a.type];if(!T)return null;const k=(natEast(a.nat)&&T.e)?T.e:T.w;const p=k[id]||(id!=='main'?null:null);if(!p)return null;
   const o=V3.uo.get(a.id);if(!o)return null;let tur=o.userData._gtur;
   if(tur===undefined){tur=null;o.traverse(q=>{if(!tur&&q.userData&&q.userData.turret)tur=q;});o.userData._gtur=tur;}
   let base=null;if(p[3]==='hull'){o.traverse(q=>{if(!base&&q.isMesh&&q.userData&&q.userData.body&&q.parent)base=q.parent;});}else base=tur;if(!base)return null;
